@@ -1,0 +1,109 @@
+<template>
+  <a-modal
+    title="设置自定义数据"
+    :width="500"
+    :visible="value"
+    :destroyOnClose="true"
+    @ok="onOK"
+    @cancel="onCancel"
+  >
+    <FormGroup
+      ref="context"
+      :properties="contextProps" 
+      :data="contextData" 
+      :edit="true" 
+    />
+  </a-modal>
+</template>
+<script>
+import { Modal } from "ant-design-vue";
+import FormGroup from "@person/views/org/components/form/FormGroup";
+import { showError } from '@framework/utils';
+
+export default {
+  components: {
+    AModal: Modal,
+    FormGroup
+  },
+  props: {
+    value: {
+      type: Boolean,
+      default: false,
+    },
+    fields: {
+      type: Array,
+      required: true,
+      default:() => []
+    }
+  },
+  data(){
+    return {
+      contextData: undefined,
+      contextProps: undefined,
+    }
+  },
+  created(){
+    this.initData()
+  },
+  watch: {
+    fields(){
+      this.initData()
+    }
+  },
+  methods: {
+    initData(){
+      this.contextData = this.bulidContextData({}, this.fields);
+      this.contextProps = this.bulidContextPorps(this.fields);
+    },
+    onOK() {
+      this.$refs.context.validateFields({}).then((a) => {
+        this.$emit("input", false);
+        this.$emit("finish", this.contextData);
+      }).catch((error) => {
+        this.$message.error(error);
+      });
+    },
+    onCancel() {
+      this.$emit("input", false);
+    },
+    bulidContextData(context, fields){
+      let obj = {};
+      (fields || []).forEach(item => {
+        obj[item.name] = undefined;
+      })
+      return Object.assign(obj, context);
+    },
+    bulidContextPorps(fields){
+      let arr = [];
+      (fields || []).forEach(item => {
+        let { name, desc, datatype, inputtype, datasource, require, multi} = item;
+        let obj = { label: desc, code: name, span: 4, require, multi }
+        if(datatype == 2){
+          obj.type = 'dict';
+          obj.dict = datasource;
+        }else if(datatype == 3){
+          if(datasource == 'organization'){
+            obj.type = 'org';
+          }else if(datasource == 'user'){
+            obj.type = 'user';  
+          }
+        }else if(datatype == 4){
+          if(inputtype == 1 || inputtype == 2){
+            obj.type = 'number';
+          }else if(inputtype == 3){
+            obj.type = 'date';
+          }else if(inputtype == 4){
+            obj.type = 'bool';
+          }else{
+            obj.type = 'text';
+          }
+        }
+        if(obj.type){
+          arr.push(obj);
+        }
+      });
+      return arr;
+    }
+  }
+};
+</script>

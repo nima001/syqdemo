@@ -1,0 +1,111 @@
+<template>
+  <div class="container">
+    <a-input-group compact>
+      <a-select v-model="input.type" :showArrow="false">
+        <a-select-option value="">值</a-select-option>
+        <a-select-option value="$"><custom-icon type="fx"/></a-select-option>
+        <a-select-option value="#"><custom-icon color="#f39c2b" type="fx"/></a-select-option>
+      </a-select>
+      <template v-if="input.type">
+        <a-input :value="value"
+          read-only
+          @click="showExprEditor = true"
+        />
+      </template>
+      <MultiInput v-else class="input-value"
+        v-model="input.value"
+        :validate="key => key.trim() || undefined"
+        placeholder="多个值“,”隔开"
+      />
+    </a-input-group>
+    <equation-editor v-if="showExprEditor" :selfFields='contextFields' :fnData="input.value" namespace="query"  @finish="onFinish"/>
+  </div>
+</template>
+<script>
+import { debounce } from "@/framework/utils/index";
+import { Input,Select } from "ant-design-vue";
+import CustomIcon from "@/framework/components/CustomIcon";
+import MultiInput from "@/framework/components/MultiInput";
+
+// 字符数组 in/nin
+export default {
+  name:"StringArray",
+  data() {
+    return {
+      input: this.initInput(this.cond.value),
+      oldValue: undefined,
+      showExprEditor: false
+    };
+  },
+  components: {
+    AInput: Input,
+    AInputGroup: Input.Group,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    CustomIcon, MultiInput,
+    EquationEditor:() => import('@person/components/EquationEditor/index')
+  },
+  inject:['contextFields'],
+  props: {
+    cond: {
+      type: Object,
+      required: true
+    }
+  },
+  computed:{
+    value(){
+      let {type, value} = this.input;
+      if(type && value){
+        return type + '{' + value + '}';;
+      }else{
+        return value;
+      }
+    }
+  },
+   watch: {
+    'input.type'(vt, ovt){
+      if(!ovt != !vt){
+        let v = this.oldValue;
+        this.oldValue = this.input.value;
+        this.input.value = v;
+      }
+    },
+    value(value){
+      this.cond.value = value;
+    },
+  },
+  methods: {
+    /** 
+     * value 类型   1. 公式(String)   2.数组   3.undefined
+    */
+    initInput(v){
+      if(typeof(v) == 'string'){
+        if(v.startsWith('${') && v.endsWith('}')){
+          return { type: '$', value: v.substring(2, v.length-1) };
+        }else if(v.startsWith('#{') && v.endsWith('}')){
+          return { type: '#', value: v.substring(2, v.length-1) };
+        }
+      }
+      return { type: '', value: v};
+    },
+    onFinish(type, data) {
+      this.showExprEditor = false;
+      if (type == "ok") {
+        this.input.value = data;
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  min-width: 300px;
+  .ant-input-group-compact{
+    display: flex;
+    .input-value{
+      flex: auto;
+      min-width: 1px;
+    }
+  }
+}
+</style>

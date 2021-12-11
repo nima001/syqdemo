@@ -1,0 +1,22 @@
+<template>
+  <a-input-number v-model="propValue" v-bind="property.attrs"/>
+</template>
+<script>
+import { Icon, InputNumber, } from "ant-design-vue";
+import SettingMixin from '../mixin/setting'
+
+export default {
+  components: {
+    AInputNumber: InputNumber,
+  },
+  mixins: [SettingMixin],
+  created(){
+    // console.log('number prop create')
+  }
+}
+</script>
+<style lang="less" scoped>
+.ant-input-number{
+  width: 100%;
+}
+</style>

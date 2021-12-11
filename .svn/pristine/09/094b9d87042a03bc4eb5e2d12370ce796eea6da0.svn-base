@@ -1,0 +1,174 @@
+<template>
+  <div>
+    <div class="select">
+      <a-input-search style="width: 30%;" placeholder="请输入组织名称" @search="searchKeyworlds" />
+    </div>
+
+    <a-table
+          :rowSelection="rowSelection"
+          :columns="columns"
+          :dataSource="data"
+          :pagination="pagin"
+          :customRow="addTemplate"
+        >
+          <a slot="name" slot-scope="name" style="color: rgb(0, 0, 0);" :title="name">{{name}}</a>
+          
+          <a
+            slot="itemcode"
+            slot-scope="itemcode"
+            style="color: rgb(0, 0, 0);"
+            :title="itemcode"
+          >{{itemcode}}</a>
+
+          <a
+            slot="system"
+            slot-scope="system"
+            style="color: rgb(0, 0, 0);"
+            :title="system"
+          >{{system}}</a>
+
+          <a slot="id" slot-scope="text" @click="detail(text)">编辑</a>
+        </a-table>
+  </div>
+</template>
+<script>
+const columns = [
+  {
+    // width: "10%",
+    title: "组织名称",
+    dataIndex: "name",
+    key: "name",
+    scopedSlots: { customRender: "name" },
+    align: "center"
+  },
+  {
+    // width: "10%",
+    title: "组织类型",
+    dataIndex: "itemcode",
+    key: "itemcode",
+    scopedSlots: { customRender: "itemcode" },
+    align: "center"
+  },
+  {
+    // width: "10%",
+    title: "父组织",
+    dataIndex: "system",
+    key: "system",
+    scopedSlots: { customRender: "system" },
+    align: "center"
+  },
+  {
+    title: "操作",
+    dataIndex: "id",
+    key: "id",
+    scopedSlots: { customRender: "id" },
+    align: "center"
+  }
+];
+import {
+  neworgquery,
+  officesystems,
+} from "@/hall/api/roster";
+import { Table, Input } from "ant-design-vue";
+export default {
+  data() {
+    return {
+      uid: 95,
+      columns,
+      data: [],
+      pagin: {
+        pageSize: 10,
+        total: 10,
+        defaultCurrent: 1,
+        onChange: (current, pageSize) => {
+          this.onClick(current, pageSize);
+        }
+      },
+      selectedRowKeys: [],
+      searchkey: "",
+    };
+  },
+  components: {
+    ATable: Table,
+    AInputSearch: Input.Search,
+  },
+  watch: {
+    node: function () {
+      this.searchkey = "";
+      this.getList();
+    },
+  },
+  props: ["node"],
+  computed: {
+    rowSelection() {
+      const { selectedRowKeys } = this;
+      return {
+        onChange: (selectedRowKeys, selectedRows) => {
+          this.selectedRowKeys = selectedRowKeys;
+        },
+        selectedRowKeys: selectedRowKeys
+      };
+    }
+  },
+  created() {
+    this.getList();
+  },
+  methods: {
+    addTemplate(record, index) {
+      return {
+        on: {
+          click: () => {
+            this.detail(record.id);
+          }
+        }
+      };
+    },
+    searchKeyworlds(searchkey) {
+      this.searchkey = searchkey;
+      this.getList();
+    },
+    getList(current = 1) {
+      const data = {
+        needtotal: true,
+        pagenum: current,
+        pagesize: 10,
+        searchkey: this.searchkey,
+        // nodeid: this.node.id,
+        pid: this.node.id
+      };
+      neworgquery(data).then(res => {
+        if (res.code == "success") {
+          this.pagin.pageSize = res.result.pagesize;
+          this.pagin.total = res.result.total;
+          this.pagin.defaultCurrent = res.result.pagenum;
+          let data = res.result.rows;
+          // let serial = (res.result.pagenum - 1) * 10;
+          // if (res.result.total < 11) {
+          //   serial = 0;
+          // }
+          data.forEach(function(x, y) {
+            x.key = x.id;
+          });
+          this.data = data;
+        }
+      });
+    },
+    //分页
+    onClick(current, pageSize) {
+      this.getList(current);
+    },
+    detail(id) {
+      this.$router.push({ path: "/business/libraryDetail", query: { id: id } });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.select {
+    // float: right;
+  display: flex;
+  flex-direction: row-reverse;
+  margin-bottom: 12px;
+  
+}
+</style>

@@ -1,0 +1,43 @@
+<template>
+  <div class="staff-violate">
+    <a-row :gutter="20">
+      <a-col :span="6">
+        <span v-if="data.hasOwnProperty('policyCompileNum')" class="name">行政待分配编制数：{{data.policyCompileNum}}</span>
+        <span v-else class="name">事业待分配编制数：{{data.businessCompileNum}}</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**区域内编制限额
+*/
+import { Row, Col } from "ant-design-vue";
+export default {
+  props: {
+    data: Object
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+  },
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.staff-violate{  
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

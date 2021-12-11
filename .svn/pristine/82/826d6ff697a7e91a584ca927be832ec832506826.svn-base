@@ -1,0 +1,81 @@
+<template>
+  <div class="chart" ref="chart"></div>
+</template>
+<script>
+import { Liquid } from "@antv/g2plot";
+export default {
+  data() {
+    return {
+      chart: undefined
+    };
+  },
+  props: {
+    persent: {
+      type: Number,
+      required: true
+    }
+  },
+  watch: {
+    persent(){
+      this.draw();
+    }
+  },
+  mounted() {
+    this.draw();
+  },
+  methods: {
+    draw() {
+      if(this.chart){
+        this.chart.destroy();
+      }
+      let dom = this.$refs.chart;
+      if(!dom){
+        return;
+      }
+      const liquidPlot = new Liquid(dom, {
+        percent: this.persent,
+        outline: {
+          border: 2,
+          distance: 2
+        },
+        // 外圈的颜色
+        color: "#b5c5bc",
+        liquidStyle: {
+          // 水波的颜色
+          fill: "#7DC8A3FF",
+          opacity:0.4,
+        },
+        wave: {
+          length: 48
+        },
+        title:{
+          style:{
+            color:'red'
+          }
+        },
+        statistic: {
+          content: {
+            style: {
+              color: "#FFF",
+              fontSize: 24,
+              fontFamily: "Arial",
+              fontWeight: 400
+            },
+            formatter: obj => {
+              return (obj.percent * 100).toFixed(2) + "%";
+            }
+          }
+        }
+      });
+      liquidPlot.render();
+      this.chart = liquidPlot;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.chart {
+  width: 120px;
+  height: 120px;
+}
+</style>

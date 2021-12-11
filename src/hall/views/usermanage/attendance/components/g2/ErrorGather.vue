@@ -1,0 +1,119 @@
+<template>
+  <a-spin :spinning="loading">
+    <ul>
+      <li>
+        <div class="block">
+          <span class="num">{{count.checkingnum}}</span>
+        </div>
+        <div class="block">
+          <span class="title">考勤人数</span>
+        </div>
+      </li>
+      <li>
+        <div class="block">
+          <span class="title">迟到人次</span>
+          <span class="num">{{count.latenum}}</span>
+        </div>
+        <div class="block">
+          <span class="title">迟到人数</span>
+          <span class="num">{{count.latetimes}}</span>
+        </div>
+      </li>
+      <li>
+        <div class="block">
+          <span class="title">早退人次</span>
+          <span class="num">{{count.earlytimes}}</span>
+        </div>
+        <div class="block">
+          <span class="title">早退人数</span>
+          <span class="num">{{count.earlynum}}</span>
+        </div>
+      </li>
+      <li>
+        <div class="block">
+          <span class="title">未打卡人次</span>
+          <span class="num">{{count.nocheckingnum}}</span>
+        </div>
+        <div class="block">
+          <span class="title">未打卡人数</span>
+          <span class="num">{{count.nocheckingtimes}}</span>
+        </div>
+      </li>
+    </ul>
+  </a-spin>
+</template>
+
+<script>
+import { Spin } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+import { survey } from "@/hall/api/attendance";
+import moment from 'moment';
+export default {
+  components: {
+    ASpin: Spin
+  },
+  data() {
+    return {
+      loading: true,
+      count: {}
+    };
+  },
+  props: {
+    date: {
+      required: true
+    }
+  },
+  watch: {
+    date() {
+      this.getData();
+    }
+  },
+  mounted() {
+    this.getData();
+  },
+  methods: {
+    getData() {
+      this.loading = true;
+      survey({
+        nodeid: null,
+        starttime:moment(this.date).startOf('month').format("YYYY-MM-DD"),
+        endtime: moment(this.date).endOf('month').format("YYYY-MM-DD")
+      })
+        .then(({ result = {} }) => {
+          this.count = result;
+        })
+        .catch(err => {
+          showError(err);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+ul {
+  margin: 0px;
+  display: flex;
+  justify-content: space-between;
+  li {
+    flex: 1;
+    .block {
+      text-align: center;
+      padding: @padding-md 0px;
+      span {
+        color: @black;
+        padding: 0px 24px;
+        &.title {
+          font-size: 16px;
+        }
+        &.num {
+          font-size: 20px;
+          font-weight: bold;
+        }
+      }
+    }
+  }
+}
+</style>

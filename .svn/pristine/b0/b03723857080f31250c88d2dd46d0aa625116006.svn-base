@@ -1,0 +1,195 @@
+<template>
+  <div class="inform">
+    <div class="inform-container">
+      <div class="info">
+        <div class="tip">确认入职人员</div>
+        <div class="user-info">
+          <p>姓名：{{info.username}}</p>
+          <p>用户名：{{info.loginname}}</p>
+        </div>
+      </div>
+      <div class="message">
+
+        <a-form :form="form" class="form-account" labelAlign="left">
+
+          <a-form-item
+          label="是否短信通知"
+          :label-col="RowLayout.labelCol"
+          :wrapper-col="RowLayout.wrapperCol"
+          >
+            <a-switch 
+              checked-children="开" 
+              un-checked-children="关" 
+              @change="switchChange"
+              v-decorator="[
+                'smssend',
+                { 
+                  initialValue: isMsgTemp, valuePropName: 'checked', 
+                  rules: [{ required: false, message: '请选择是否短信通知!' }]
+                }]"
+              />
+          </a-form-item>
+
+          <a-form-item
+          v-show="isMsgTemp"
+          label="短信模板"
+          :label-col="RowLayout.labelCol"
+          :wrapper-col="RowLayout.wrapperCol"
+          >
+              <!-- style="width: 200px"  -->
+            <a-select 
+              @change="msgChange"
+              v-decorator="[
+                'tempid',
+                {initialValue: currentMsg && currentMsg.id, rules: [{ required: false, message: '请输入短信模板!' }] },
+              ]"
+              >
+              <a-select-option v-for="msg in msgList" :value="msg.id" :key="msg.id">
+                {{msg.name}}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+
+          <a-form-item
+          v-show="isMsgTemp"
+          label="短信内容"
+          :label-col="RowLayout.labelCol"
+          :wrapper-col="RowLayout.wrapperCol"
+          >
+            <a-textarea
+              v-decorator="[
+                'msgtemplate',
+                { initialValue: currentMsg && currentMsg.template, rules: [{ required: isMsgTemp, message: '请输入短信内容!' }] },
+              ]"
+              placeholder="请输入"
+              :auto-size="{ minRows: 3, maxRows: 5 }"
+            />
+          </a-form-item>
+          
+        </a-form>
+
+      </div>
+    </div>
+
+     <div class="footer">
+      <a-button @click="prevStep">上一步</a-button>
+      <a-button type="primary" @click="nextStep">下一步</a-button>
+    </div>
+
+  </div>
+</template>
+
+<script>
+import { Form, Input, Button, Select, Switch } from "ant-design-vue";
+
+export default {
+  props: {
+    info: {
+      type: Object
+    }
+  },
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ASwitch: Switch
+  },
+  data() {
+    return {
+      form: this.$form.createForm(this, { name: 'inform' }),
+      isMsgTemp: true,
+      RowLayout: {
+        labelCol: { span: 4 },
+        wrapperCol: { span: 20 },
+      },
+      msgList: [
+        {
+          id: 0,
+          name: '个人账号开户信息提示',
+          template: '您的账号已开通，用户名：zhangs，初始密码：********，账号30分钟后生效。【xx系统】'
+        },
+        {
+          id: 1,
+          name: '单位账号开户信息提示',
+          template: '单位账号已开通，用户名：ybb，初始密码：********，账号30分钟后生效。【xx系统】'
+        },
+      ],
+      currentMsg: undefined
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    this.currentMsg = this.msgList[0];
+  },
+  mounted() {},
+  methods: {
+    switchChange(ev) {
+      this.isMsgTemp = ev;
+    },
+    msgChange(value) {
+      this.msgList.forEach(item => {
+        if (item.id === value) {
+          this.form.setFieldsValue({ 
+            msgtemplate: item.template,
+          });
+        } 
+      })
+    },
+    nextStep() {
+      this.$emit('next-step', 'next');
+    },
+    prevStep() {
+      this.$emit('next-step', 'prev');
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+p{
+  margin-bottom: 0;
+}
+
+.inform{
+  min-height: 100%;
+  .inform-container{
+    width: 600px;
+    min-height: 100%;
+    margin: 0 auto;
+    .info{
+      .tip{
+        line-height: 40px;
+        border-bottom: 1px solid #e8e8e8;
+      }
+      .user-info{
+        overflow: hidden;
+        p{
+          margin-top: 10px;
+          &:last-child{
+            margin-bottom: 10px;
+          }
+        }
+      }
+    }
+  }
+  .footer{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 65px;
+    // box-shadow: 0 -2px 5px fade(@black, 20%);
+    background-color: @white;
+    button{
+      width: 150px;
+      &:last-child{
+        margin-left: 50px;
+      }
+    }
+  }
+}
+</style>

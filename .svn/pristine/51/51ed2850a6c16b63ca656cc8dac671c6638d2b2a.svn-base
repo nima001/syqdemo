@@ -1,0 +1,58 @@
+<template>
+  <div class="wrapper">
+    <div class="item" v-for="(item, index) in list" :key="index" @click="link(item.url)">
+      {{item.name}}
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {},
+  components: {},
+  data() {
+    return {
+      list: [
+        { name: '入职（开设个人账号）', url: '/idm/callin' },
+        { name: '开设单位账号', url: '/idm/callin' },
+        { name: '导入个人账号', url: '/idm/callin' },
+        { name: '导入单位账号', url: '/idm/callin' },
+        { name: '调入', url: '/idm/callin' },
+        { name: '兼职', url: '/idm/parttime' },
+        { name: '离职', url: '/idm/callin' },
+        { name: '账号批量转移', url: '/idm/callin' },
+      ]
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {},
+  mounted() {},
+  methods: {
+    link(url) {
+      this.$router.push({
+        path: url
+      });
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.wrapper{
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  .item{
+    width: calc(~'25% - 18px');
+    height: 60px;
+    background-color: rgb(240,242,245);
+    text-align: center;
+    line-height: 60px;
+    margin: @padding-xs @padding-lg @padding-xs 0;
+    cursor: pointer;
+    &:nth-child(4n){
+      margin-right: 0;
+    }
+  }
+}
+</style>

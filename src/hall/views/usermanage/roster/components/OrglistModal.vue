@@ -1,0 +1,188 @@
+<template>
+  <a-modal :visible="true" :title="title" @ok="handleOk" @cancel="cnacel">
+    <a-form :form="form">
+      <a-row :gutter="24">
+        <a-col :span="24">
+          <a-form-item label="组织名称">
+            <a-input
+              allowClear
+              autocomplete="off"
+              v-decorator="[
+                'name',
+                {
+                  initialValue: record.name,
+                  rules: [{ message: '请输入正确的组织名称' }],
+                },
+              ]"
+            />
+          </a-form-item>
+        </a-col>
+      </a-row>
+      <a-row :gutter="24">
+        <a-col :span="24">
+          <a-form-item label="组织类型" :required="true">
+            <dict-select
+              :dict="'usermanage.org.orgtype'"
+              v-decorator="[
+                'orgtype',
+                {
+                  initialValue: record.orgtype,
+                  rules: [{ required: true, message: '请选择组织类型' }],
+                },
+              ]"
+            />
+          </a-form-item>
+        </a-col>
+      </a-row>
+      <a-row :gutter="24">
+        <a-col :span="24">
+          <a-form-item label="父组织：">
+            <a-input
+              allowClear
+              placeholder="请输入父组织名称"
+              disabled
+              :value="nodeData.name"
+            />
+          </a-form-item>
+        </a-col>
+      </a-row>
+      <a-row :gutter="24">
+        <a-col :span="24">
+          <a-form-item label="电话">
+            <a-input
+              autocomplete="off"
+              allowClear
+              v-decorator="[
+                'orgphone',
+                {
+                  initialValue: record.orgphone,
+                  rules: [
+                    { validator: contactWay, message: '请输入正确的电话号码' },
+                  ],
+                },
+              ]"
+            />
+          </a-form-item>
+        </a-col>
+      </a-row>
+    </a-form>
+  </a-modal>
+</template>
+
+<script>
+import { Modal, Row, Col, Input, Form } from "ant-design-vue";
+import DictSelect from "@/framework/components/DictSelect";
+import { showError, validatePhoneNumber } from "@framework/utils";
+import {
+  orgcreate,
+  catalognodequery,
+  orgupdate,
+  catalognodeupdate,
+} from "@/hall/api/usermanage";
+export default {
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    DictSelect,
+  },
+  inject: ["treeNode"],
+  props: {
+    record: {
+      type: Object,
+      required: true,
+    },
+  },
+  data() {
+    return {
+      form: this.$form.createForm(this, { name: "dynamic_rule" }),
+    };
+  },
+  computed: {
+    nodeData() {
+      return this.treeNode.data;
+    },
+    title() {
+      return this.record.id ? "组织编辑" : "新增组织";
+    },
+  },
+  methods: {
+    contactWay(rule, value, callback) {
+      const phone = /^[1][3,4,5,6,7,8,9][0-9]{9}$/;
+      const contact = /^\d{3}-\d{7,8}|\d{4}-\d{7,8}$/;
+      if (
+        phone.test(value) ||
+        contact.test(value) ||
+        value == "" ||
+        value == undefined
+      ) {
+        callback();
+      } else {
+        callback("请输入正确的电话号码");
+      }
+    },
+    cnacel() {
+      this.$emit("finish", { type: false });
+    },
+    handleOk() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          if (this.record.id) {
+            // 编辑
+            orgupdate(this.record._id, { ...this.record, ...values })
+              .then((res) => {
+                catalognodeupdate({
+                  type: 1,
+                  dataid: this.record._id,
+                  pid: this.nodeData.id,
+                  ...this.record,
+                  ...values
+                })
+                  .then((res) => {
+                    this.$message.success("组织更新成功！");
+                    this.$emit("finish", { type: true });
+                  })
+                  .catch((error) => {
+                    this.$emit("finish", { type: false });
+                    showError(error);
+                  });
+              })
+              .catch((error) => {
+                showError(error);
+                this.$emit("finish", { type: false });
+              });
+          } else {
+            // 新增
+            orgcreate({ pid: this.nodeData.id, ...values })
+              .then((res) => {
+                catalognodequery({
+                  type: 1,
+                  dataid: res.result._id,
+                  pid: this.nodeData.id,
+                  ...values,
+                })
+                  .then((res) => {
+                    this.$message.success("组织新增成功！");
+                    this.$emit("finish", { type: true });
+                  })
+                  .catch((error) => {
+                    this.$emit("finish", { type: false });
+                    showError(error);
+                  });
+              })
+              .catch((error) => {
+                showError(error);
+                this.$emit("finish", { type: false });
+              });
+          }
+        }
+      });
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+//@import url(); 引入公共css类
+</style>

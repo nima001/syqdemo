@@ -1,0 +1,129 @@
+<template>
+  <div>
+    <Title title="编制资源分析"/>
+    <div class="container" style="height:200px">
+      <div class="title">政法专项编制</div>
+      <SwiperChart :size="200">
+        <div slot="content">
+          <div class="swiper-content">
+            <div class="detail">
+              <div class="title">待分配编制数</div>
+              <div class="num">60</div>
+              <div class="total">省核定基数<span>169</span></div>
+              <div class="total">实际分配数<span>142</span></div>
+            </div>
+            <div class="detail">
+              <div class="title">待分配编制数</div>
+              <div class="num">60</div>
+              <div class="total">省核定基数<span>169</span></div>
+              <div class="total">实际分配数<span>142</span></div>
+            </div>
+          </div>
+        </div>
+        <div slot="content">
+          <div class="swiper-content">
+            <div class="detail">
+              <div class="title">待分配编制数</div>
+              <div class="num">60</div>
+              <div class="total">省核定基数<span>169</span></div>
+              <div class="total">实际分配数<span>142</span></div>
+            </div>
+            <div class="detail">
+              <div class="title">待分配编制数</div>
+              <div class="num">60</div>
+              <div class="total">省核定基数<span>169</span></div>
+              <div class="total">实际分配数<span>142</span></div>
+            </div>
+          </div>
+        </div><div slot="content">
+          <div class="swiper-content">
+            <div class="detail">
+              <div class="title">待分配编制数</div>
+              <div class="num">60</div>
+              <div class="total">省核定基数<span>169</span></div>
+              <div class="total">实际分配数<span>142</span></div>
+            </div>
+            <div class="detail">
+              <div class="title">待分配编制数</div>
+              <div class="num">60</div>
+              <div class="total">省核定基数<span>169</span></div>
+              <div class="total">实际分配数<span>142</span></div>
+            </div>
+          </div>
+        </div>
+      </SwiperChart>
+    </div>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+import SwiperChart from './SwiperChart'
+
+export default {
+  props: {
+    districtCode: {
+      type: String
+    }
+  },
+  components: {
+    Title,
+    SwiperChart
+  },
+  watch: {
+    districtCode(val) {
+      return val;
+    }
+  }
+}
+</script>
+
+<style scoped lang='less'>
+.container {
+  padding: @layout-space-base;
+  .title {
+    margin-bottom: @layout-space-base/2;
+    text-align: center;
+    font-size: 1.1em;
+    color: fade(#fff, 80%);
+  }
+  /deep/.slick-slide {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  /deep/.swiper-content {
+    display: flex;
+    justify-content: center;
+    .detail {
+      width: 40%;
+      border-radius: 10px;
+      padding: @padding-xs @padding-lg;
+      background: fade(#A27AE4, 20%);
+      &:first-child {
+        margin-right: @layout-space-base/2;
+      }
+      &:last-child {
+        margin-left: @layout-space-base/2;
+      }
+      .title {
+        margin: 0;
+        font-size: 1.1em;
+        color: #01E3FC;
+      }
+      .num {
+        font-size: 1.5em;
+        font-weight: 500;
+        color: #01E3FC;
+      }
+      .total {
+        font-size: 0.8em;
+        color: fade(#fff, 80%);
+        span {
+          float: right;
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,57 @@
+import Layout from './Layout'
+import Grid from './Grid'
+import ItemList from './ItemList'
+import AddItem from './AddItem'
+import { generateCode } from "@/formdesign/utils/index";
+
+Layout.Grid = Grid;
+export default Layout;
+
+export const Meta = {
+  name: 'GridLayout',
+  type: 'layout',
+  title: '栅格布局',
+  icon: 'table',
+  component: Layout,
+  initialSchema: () => {
+    return {
+      type: 'void',
+      'x-component': 'GridLayout',
+      'x-component-props': {
+        gutter: 20
+      },
+      properties: {
+        [generateCode()]: {
+          type: 'void',
+          'x-component': 'GridLayout.Grid',
+          'x-component-props': {
+            span: 12,
+          },
+        }
+      }
+    }
+  },
+  props: {
+    gutter: {
+      title: '栅格间距',
+      type: 'number',
+      attrs: {
+        // placeholder: '20',
+        defaultValue: 20,
+        min: 0,
+        max: 40,
+      },
+    },
+    properties: {
+      path: 'properties',
+      title: '栅格项',
+      type: 'object',
+      extra: AddItem,
+      content: ItemList, //自定义内容组件
+    },
+  }
+
+};
+
+
+

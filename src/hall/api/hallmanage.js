@@ -1,0 +1,95 @@
+// 大厅管理api
+import request from '@/framework/utils/request'
+
+
+/****************好评反馈***************/
+//好评反馈列表
+/**
+ *
+ *查看好评反馈列表
+ * @param {*} data
+ * @returns
+ */
+export function favorablefeedbacklist(data) {
+    return request({
+        url: '/hall2/favorablefeedback/list',
+        method: 'post',
+        data
+    })
+}
+
+//好评反馈编辑新增
+/**
+ *
+ *好评反馈编辑新增
+ * @param {*} data
+ * @returns
+ */
+ export function favorablefeedbackinsert(data) {
+    return request({
+        url: '/hall2/favorablefeedback/insert',
+        method: 'post',
+        data
+    })
+}
+
+/**
+ *
+ *删除好评反馈
+ * @param {String} id  数据id
+ * @returns
+ */
+ export function favorablefeedbackdelete (id) {
+    return request({
+      url: '/hall2/favorablefeedback/delete?id=' + id,
+      method: 'get',
+    })
+  }
+
+/**
+ *
+ *好评反馈详情
+ * @param {String} id  数据id
+ * @returns
+ */
+ export function favorablefeedbackget (id) {
+    return request({
+      url: '/hall2/favorablefeedback/get?id=' + id,
+      method: 'get',
+    })
+  }
+
+
+/****************人员巡查管理***************/
+//人员巡查列表
+/**
+ *
+ *查看人员巡查列表
+ * @param {*} data
+ * @returns
+ */
+ export function personinspectlist(data) {
+  return request({
+      url: '/hall2/personinspect/list',
+      method: 'post',
+      data
+  })
+}
+
+
+  
+/****************人员巡查管理***************/
+//人员巡查列表
+/**
+ *
+ *查看窗口巡查列表
+ * @param {*} data
+ * @returns
+ */
+ export function windowinspectlist(data) {
+  return request({
+      url: '/hall2/windowinspect/list',
+      method: 'post',
+      data
+  })
+}

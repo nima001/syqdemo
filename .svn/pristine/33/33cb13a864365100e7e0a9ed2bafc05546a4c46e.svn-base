@@ -1,0 +1,473 @@
+<template>
+  <div>
+    <div class="layout_header">
+      <SelectCondition></SelectCondition>
+    </div>
+    <div :style="{ margin: '16px', overflow: 'initial' }">
+      <div class="overview">
+        <div class="user_num">
+          <div class="user_num_reg">
+            <p class="title">
+              <span>
+                注册用户数
+              </span>
+              <span>
+                <img src="../../assets/img/more.png" alt="">
+              </span>
+            </p>
+            <p class="date">2020/3/10-2020/4/1</p>
+            <p class="total">
+              <span>555555</span>
+              <span>
+                <span class="total_text">实名率&nbsp;</span>
+                85%
+              </span>
+            </p>
+          </div>
+          <div class="user_num_login">
+            <p class="title">
+              <span>
+                注册用户数
+              </span>
+              <span>
+                <img src="../../assets/img/more.png" alt="">
+              </span>
+            </p>
+            <p class="date">2020/3/10-2020/4/1</p>
+            <p class="total">
+              <span>555555</span>
+              <span>
+                <span class="total_text">实名率&nbsp;</span>
+                85%
+              </span>
+            </p>
+          </div>
+        </div>
+        <div class="source">
+          <div class="source_reg">
+            <div class="title">
+              今日注册用户趋势图
+              <span>
+                <img src="../../assets/img/more.png" alt="">
+              </span>
+            </div>
+            <div class="date">2021/3/3</div>
+            <div class="chart_container" id="register_container"></div>
+          </div>
+          <div class="source_login">
+            <div class="title">
+              今日注册用户趋势图
+              <span>
+                <img src="../../assets/img/more.png" alt="">
+              </span>
+            </div>
+            <div class="date">2021/3/3</div>
+            <div class="chart_container" id="login_container"></div>
+          </div>
+        </div>
+        <div class="hot_list">
+          <div class="hot_list_reg">
+            <div class="title">
+              业务平台注册热榜
+              <span>
+                <img src="../../assets/img/more.png" alt="">
+              </span>
+            </div>
+            <div class="date">2021/2/2</div>
+            <ul class="list_container">
+              <li v-for="(list, index) in hotList" :key="index">
+                <div class="left">Top{{index+1}}</div>
+                <div class="right">
+                  <div class="right_name">{{list.name}}</div>
+                  <div class="right_con">
+                    <span>{{list.num}}</span>
+                    <span>{{list.percent}}</span>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+          <div class="hot_list_login">
+            <div class="title">
+              业务平台注册热榜
+              <span>
+                <img src="../../assets/img/more.png" alt="">
+              </span>
+            </div>
+            <div class="date">2021/2/2</div>
+            <ul class="list_container">
+              <li v-for="(list, index) in hotList" :key="index">
+                <div class="left">Top{{index+1}}</div>
+                <div class="right">
+                  <div class="right_name">{{list.name}}</div>
+                  <div class="right_con">
+                    <span>{{list.num}}</span>
+                    <span>{{list.percent}}</span>
+                  </div>
+                </div>
+              </li>
+            </ul> 
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Chart } from '@antv/g2';
+import SelectCondition from '@/zfw/components/overview/SelectCondition';
+export default {
+  props: {},
+  components: { SelectCondition },
+  data() {
+    return {
+      chartData: [
+        { item: '事例一', count: 40, percent: 0.4 },
+        { item: '事例二', count: 21, percent: 0.21 },
+        { item: '事例三', count: 17, percent: 0.17 },
+        { item: '事例四', count: 13, percent: 0.13 },
+        { item: '事例五', count: 9, percent: 0.09 },
+      ],
+      hotList: [
+        { name: '我向总理说句话', num: 25648, percent: '5%' },
+        { name: '我向总理说句话', num: 25648, percent: '5%' },
+        { name: '我向总理说句话', num: 25648, percent: '5%' },
+        { name: '我向总理说句话', num: 25648, percent: '5%' },
+        { name: '我向总理说句话', num: 25648, percent: '5%' },
+        { name: '我向总理说句话', num: 25648, percent: '5%' },
+        { name: '我向总理说句话', num: 25648, percent: '5%' },
+        { name: '我向总理说句话', num: 25648, percent: '5%' },
+        { name: '我向总理说句话', num: 25648, percent: '5%' },
+        { name: '我向总理说句话', num: 25648, percent: '5%' },
+      ],
+      chart: null
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    
+  },
+  mounted() {
+    this.initChart('register_container');
+    this.initChart('login_container');
+  },
+  methods: {
+    initChart(id) {
+      this.chart = new Chart({
+        container: id,
+        autoFit: true,
+        height: 286,
+      });
+
+      this.chart.coordinate('theta', {
+        radius: 0.75,
+        innerRadius: 0.5,
+      });
+
+      this.chart.data(this.chartData);
+
+      this.chart.scale('percent', {
+        formatter: val => {
+          val = val * 100 + '%';
+          return val;
+        },
+      });
+
+      this.chart.tooltip(false);
+
+      // 声明需要进行自定义图例字段： 'item'
+      this.chart.legend('item', {
+        position: 'right',                                  // 配置图例显示位置
+        custom: true,                                       // 关键字段，告诉 G2，要使用自定义的图例
+        items: this.chartData.map((obj, index) => {
+          return {
+            name: obj.item,                                 // 对应 itemName
+            value: obj.percent,                             // 对应 itemValue
+            marker: {
+              symbol: 'square',                             // marker 的形状
+              style: {
+                r: 5,                                       // marker 图形半径
+                fill: this.chart.getTheme().colors10[index],     // marker 颜色，使用默认颜色，同图形对应
+              },
+            },                                              // marker 配置
+          };
+        }),
+        itemValue: {
+          style: {
+            fill: '#999',
+          },                                               // 配置 itemValue 样式
+          formatter: val => `${val * 100}%`                // 格式化 itemValue 内容
+        },
+      });
+
+      this.chart
+        .interval()
+        .adjust('stack')
+        .position('percent')
+        .color('item')
+        .style({
+          fillOpacity: 1,
+        })
+        .state({
+          active: {
+            style: element => {
+              const shape = element.shape;
+              return {
+                lineWidth: 10,
+                stroke: shape.attr('fill'),
+                strokeOpacity: shape.attr('fillOpacity'),
+              };
+            },
+          },
+        });
+
+      // 移除图例点击过滤交互
+      this.chart.removeInteraction('legend-filter');
+      this.chart.interaction('element-active');
+
+      this.chart.render();
+
+      // 监听 element 上状态的变化来动态更新 Annotation 信息
+      this.chart.on('element:statechange', (ev) => {
+        const { state, stateStatus, element } = ev.gEvent.originalEvent;
+
+        // 本示例只需要监听 active 的状态变化
+        if (state === 'active') {
+          const data = element.getData();
+          if (stateStatus) {
+            // 更新 Annotation
+            updateAnnotation(data);
+          } else {
+            // 隐藏 Annotation
+            clearAnnotation();
+          }
+        }
+      });
+
+      // 绘制 annotation
+      let lastItem;
+      function updateAnnotation(data) {
+        if (data.item !== lastItem) {
+          this.chart.annotation().clear(true);
+          this.chart
+            .annotation()
+            .text({
+              position: ['50%', '50%'],
+              content: data.item,
+              style: {
+                fontSize: 20,
+                fill: '#8c8c8c',
+                textAlign: 'center',
+              },
+              offsetY: -20,
+            })
+            .text({
+              position: ['50%', '50%'],
+              content: data.count,
+              style: {
+                fontSize: 28,
+                fill: '#8c8c8c',
+                textAlign: 'center',
+              },
+              offsetX: -10,
+              offsetY: 20,
+            })
+            .text({
+              position: ['50%', '50%'],
+              content: '台',
+              style: {
+                fontSize: 20,
+                fill: '#8c8c8c',
+                textAlign: 'center',
+              },
+              offsetY: 20,
+              offsetX: 20,
+            });
+          this.chart.render(true);
+          lastItem = data.item;
+        }
+      }
+
+      // 清空 annotation
+      function clearAnnotation() {
+        this.chart.annotation().clear(true);
+        this.chart.render(true);
+        lastItem = null;
+      }
+
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.overview{
+  .user_num{
+    display: flex;
+    >div{
+      width: 50%;
+      background-color: @white;
+      padding: @padding-lg;
+      border-radius: 5px;
+      -moz-box-shadow:0px 0px 10px #E7E7E7; 
+      -webkit-box-shadow:0px 0px 10px #E7E7E7; 
+      box-shadow:0px 0px 10px #E7E7E7;
+      >p{
+        margin: 0;
+      }
+      .title{
+        font-size: 20px;
+        color: black;
+        font-weight: bold;
+        position: relative;
+        span{
+          &:nth-child(2){
+            position: absolute;
+            top: -10px;
+            right: 0;
+            cursor: pointer;
+          }
+        }
+      }
+      .date{
+        font-size: 12px;
+        color: #939393;
+        padding-top: 10px;
+      }
+      .total{
+        margin-top: 10px;
+        color: #1d4a8d;
+        >span{
+          margin-right: 88px;
+          &:nth-child(1){
+            font-size: 30px;
+          }
+          .total_text{
+            color: #898989;
+            font-size: 16px;
+          }
+        }
+      }
+      &:nth-child(2){
+        .total{
+          span{
+            color: #96c038;
+            .total_text{
+              color: #898989;
+              font-size: 16px;
+            }
+          }
+        }
+      }
+    }
+    .user_num_login{
+      margin-left: 16px;
+    }
+  }
+  .source{
+    display: flex;
+    margin-top: 16px;
+    > div{
+      width: 50%;
+      background-color: @white;
+      padding: @padding-lg;
+      border-radius: 5px;
+      -moz-box-shadow:0px 0px 10px #E7E7E7; 
+      -webkit-box-shadow:0px 0px 10px #E7E7E7; 
+      box-shadow:0px 0px 10px #E7E7E7;
+      .title{
+        font-size: 20px;
+        color: black;
+        font-weight: bold;
+        position: relative;
+        span{
+          position: absolute;
+          top: -10px;
+          right: 0;
+          cursor: pointer;
+        }
+      }
+      .date{
+        color: #989898;
+      }
+    }
+    .source_login{
+      margin-left: 16px;
+    }
+  }
+  .hot_list{
+    display: flex;
+    margin-top: 16px;
+    >div{
+      width: 50%;
+      padding: @padding-lg;
+      background-color: @white;
+      border-radius: 5px;
+      -moz-box-shadow:0px 0px 10px #E7E7E7; 
+      -webkit-box-shadow:0px 0px 10px #E7E7E7; 
+      box-shadow:0px 0px 10px #E7E7E7;
+      .title{
+        font-size: 20px;
+        color: black;
+        font-weight: bold;
+        position: relative;
+        span{
+          position: absolute;
+          top: -10px;
+          right: 0;
+          cursor: pointer;
+        }
+      }
+      .date{
+        color: #989898;
+      }
+      .list_container{
+        li{
+          display: flex;
+          height: 48px;
+          margin: @padding-md 0;
+          .left{
+            width: 58px;
+            line-height: 48px;
+            background-color: #1c5193;
+            text-align: center;
+            color: @white;
+          }
+          .right{
+            width: calc(~"100% - 60px");
+            height: 100%;
+            margin-left: 2px;
+            background-color: #f5f5f5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            .right_name{
+              margin-left: 14px;
+            }
+            .right_con{
+              margin-right: 16px;
+              span{
+                &:nth-child(1) {
+                  margin-right: 60px;
+                }
+              }
+            }
+          }
+        }
+        
+      }
+    }
+    .hot_list_login{
+      margin-left: 16px;
+      ul{
+        li{
+          .left{
+            background-color:#96c038;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

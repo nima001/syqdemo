@@ -1,0 +1,54 @@
+import request from '@/framework/utils/request'
+/*
+**机构编制辅助评估
+*/
+
+//  所有辅助评估列表
+export function listReport(data) {
+  return request({
+    url: '/person/sx/assess/report/listorgassessreport',
+    method: 'post',
+    data
+  })
+}
+
+//  添加新的辅助评估
+export function addReport(data) {
+  return request({
+    url: '/person/sx/assess/report/add',
+    method: 'post',
+    data
+  })
+}
+
+//  某一个辅助评估的详情
+export function reportDetail(id) {
+  return request({
+    url: `/person/sx/assess/report/details?id=${id}`,
+    method: 'get'
+  })
+}
+
+//评估模板下拉框
+export function listConfig() {
+  return request({
+    url: `/person/sx/assess/config/listconfig`,
+    method: 'get'
+  })
+}
+
+//根据评估模板获取评估及哪些内容需要输入
+export function reportInput(configid) {
+  return request({
+    url: `/person/sx/assess/config/reportinput?configid=${configid}`,
+    method: 'get'
+  })
+}
+
+//是否列入机构编制审批黑名单
+export function staffBlacklist(orgid, type) {
+  return request({
+    url: `/person/sx/assess/report/isexistorgblacklist?orgid=${orgid}&type=${type}`,
+    method: 'get'
+  })
+}

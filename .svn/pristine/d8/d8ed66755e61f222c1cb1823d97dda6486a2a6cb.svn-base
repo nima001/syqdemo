@@ -1,0 +1,558 @@
+<template>
+  <div ref="content" :class="['line-chart', {'border': isDrag}]" @mousedown.prevent="allowMove?move():false">
+    <h2 v-if="title.visible!==false" :style="{ textAlign: position||'center' }">{{ title.value }}</h2>
+    <h3 v-if="subTitle.visible!==false" :style="{ margin: 0, textAlign: position||'center' }">{{subTitle.value}}</h3>
+    <div ref="chart" class="chart"></div>
+    <div class="tag" v-if="allowDrag" @mousedown.stop.prevent="drag()"/>
+  </div>
+</template>
+<script>
+import * as G2 from "@antv/g2";
+import BaseMixin from "./BaseMixin"
+import { maxBy, minBy, cloneDeep, get, orderBy, xorBy, reduce, concat, map, has  } from 'lodash';
+import { ContinuousLegend } from '@antv/g2/lib/dependents';
+/**
+ * rangeControl:范围控制
+ */
+export default {
+  icon: 'chart-line',
+  title: '折线图',
+  name: "LineChart",
+  mixins: [BaseMixin],
+  watch: {
+    data: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true
+    },
+    'settings': {
+      deep:true,
+      handler(val,old) {
+        if(val!=old) {
+          this.draw(this.data)
+        }
+      }
+    },
+    // colors: {
+    //   deep: true,
+    //   handler(val,old) {
+    //     if(val!=old) {
+    //       this.draw(this.data);
+    //     }
+    //   }
+    // }
+  },
+  data() {
+    return {
+      currentMoveX: 0,
+      currentMoveY: 0,
+      isDrag: false,
+      isMove: false,
+      plot: undefined,
+    };
+  },
+  computed: {
+		sortType() {
+      if(this.settings.sort) {
+        let { type } = this.settings.sort;
+        if(type=='ASC'||type=='DESC') {
+          return { order: `${type}` };
+        } 
+      }
+			return undefined;
+		},
+    position() {
+      if(this.settings.title&&this.settings.title.position) {
+        let { position } = this.settings.title;
+        return position;
+      }else{
+        return undefined
+      }
+    },
+    title() {
+      if(this.settings.title&&this.settings.title.main) {
+        let { main } = this.settings.title;
+        if(!main) {
+          return  {
+            visible: true,
+            value: undefined,
+          }
+        }
+        if(!has(main,'visible')) {
+          main.visible = true;
+        }
+        return main;
+      }else{
+        return {
+          main: {
+            visible: true,
+            value: undefined,
+          }
+        }
+      }
+    },
+    subTitle() {
+      if(this.settings.title&&this.settings.title.sub) {
+        let { sub } = this.settings.title;
+        if(!sub) {
+          return  {
+            visible: true,
+            value: undefined,
+          }
+        }
+        if(!has(sub,'visible')) {
+          sub.visible = true;
+        }
+        return sub;
+      }else{
+        return {
+          sub: {
+            visible: true,
+            value: undefined,
+          }
+        }
+      }
+    },
+    xAxis() {
+      if(this.settings.xAxis) {
+        let { xAxis } = this.settings;
+        return xAxis;
+      }else{
+        return {
+          disabled: true,
+          title: {
+            disabled: false,
+            content: undefined
+          }
+        }
+      }
+    },
+    yAxis() {
+      if(this.settings.yAxis) {
+        let { yAxis } = this.settings;
+        return yAxis;
+      }else{
+        return {
+          disabled: true,
+          title: {
+            disabled: false,
+            content: undefined
+          }
+        }
+      }
+    },
+    label() {
+      if(this.settings.gemo) {
+        let { label } = this.settings.gemo;
+        return label;
+      }else{
+        return undefined
+      }
+    },
+    legend() {
+      let { legend } = this.settings;
+      if(!legend) {
+        return  {
+          visible: true,
+        }
+      }
+      return legend;
+    },
+    tooltip() {
+      let { tooltip } = this.settings;
+      if(!tooltip) {
+        return  {
+          visible: true,
+        }
+      }
+      return tooltip;
+    },
+    color() {
+      if(this.settings.gemo) {
+        let { color } = this.settings.gemo;
+        return color;
+      }else{
+        return undefined
+      }
+    },
+    exchange() {
+      if(this.settings.gemo) {
+        let { exchange } = this.settings.gemo;
+        return exchange;
+      }else{
+        return undefined
+      }
+    },
+    slider() {
+      if(this.settings.gemo) {
+        let { slider } = this.settings.gemo;
+        return slider;
+      }else{
+        return undefined
+      }
+    },
+    colors() {
+      if (this.color&&(this.color.length||typeof this.color==='string')) {
+        if(typeof this.color==='string') {
+          return this.color.split(',');
+        }
+        return this.color;
+      } else {
+        let colors = this.$store.getters.getConfig("chart.colors");
+        if (colors) {
+          try {
+            colors = JSON.parse(colors);
+            if (colors && colors.length) {
+              return colors;
+            }
+          } catch (err) {}
+        }
+      }
+      return ["#D15456", "#5488D1", "#EDBA55", "#D48265", "#91C7AE", "#749F83", "#BDA29A", "#6E7074", "#585470", "#706254"];
+    },
+  },
+  mounted() {
+    this.draw(this.data);
+  },
+  methods: {
+    move() {
+      let that = this;
+      //获取x坐标和y坐标
+      let startX = event.clientX;
+      let startY = event.clientY;
+      //获取左部和顶部的偏移量
+      let left = that.$refs.content.offsetLeft;
+      let top = that.$refs.content.offsetTop;
+      this.isMove = true;
+      let timer = setTimeout(()=>{
+        document.onmousemove = function (e) {
+          let endX = e.clientX;
+          let endY = e.clientY;
+          if(endX!=startX) {
+            that.$refs.content.style.left = endX-(startX-left)+'px';
+          }
+          if(endY!=startY) {
+            that.$refs.content.style.top =  endY-(startY-top)+'px';
+          }
+        }
+      },300);
+      document.onmouseup = function () {
+        clearInterval(timer);
+        this.isMove = false;
+        document.onmousemove = null;
+        document.onmouseup = null;
+      };
+      return false;
+    },
+    drag() {
+      let that = this;
+      let startX = event.x;
+      let startY = event.y;
+      let width = that.$refs.content.offsetWidth;
+      let height = that.$refs.content.offsetHeight;
+      that.isDrag = true;
+      document.onmousemove = function (e) {
+        let moveX = e.pageX - startX;
+        let moveY = e.pageY - startY;
+        if(that.currentMoveX!=event.x&&moveX!=0) {
+          that.$refs.content.style.width = Math.min(1400, Math.max(300, moveX+width))+'px';
+          that.currentMoveX = event.x;
+        }
+        if(that.currentMoveY!=event.y&&moveY!=0) {
+          that.$refs.content.style.height = Math.min(1400, Math.max(200, moveY+height))+'px';
+          that.currentMoveY = event.y;
+        }
+      };
+      document.onmouseup = function () {
+        that.draw(that.data)
+        that.isDrag = false;
+        document.onmousemove = null;
+        document.onmouseup = null;
+      };
+      return false;
+    },
+    createData(dataTable) {
+      if (!dataTable) {
+        return;
+      }
+      let { keyCols, valueCols, rows } = this.transform(dataTable, this.sortType);
+      return rows.map(item => {
+        let key, type;
+        if(keyCols.length > 1){
+          let keys = keyCols.map(k => item[k.column]);
+          type = keys.pop();
+          key = keys.join("-")
+        }else{
+          key = item[keyCols[0].column]
+        }
+        return {
+          key, type,
+          value: item[valueCols[0].column] || 0
+        };
+      });
+    },
+    draw(dataTable) {
+      let data = this.createData(dataTable);
+      if (!data) {
+        return;
+      }
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      const chart = new G2.Chart({
+        container: this.$refs.chart,
+        autoFit: true,
+        forceFit: true,
+        appendPadding: this.settings.padding || [0, 0, 0, 0],
+      });
+      chart.data(data);
+      //度量
+      let max, min = undefined;
+      if(this.settings.rangeControl) {
+        if(this.data.rows.length) {
+          let v = this.data.keyCols[0].column;
+          max = cloneDeep(maxBy(this.data.rows, (o)=> { return o[v] }));
+          min = cloneDeep(minBy(this.data.rows, (o)=> { return o[v] }));
+          if(max[v]===min[v]) {
+            let num = (min[v])/2;
+            min[v]-=num;
+            max[v]+=num;
+          }
+        }
+      }
+      let xVisible = this.xAxis.disabled;
+      let yVisible = this.yAxis.disabled;
+      let xTitleVisible = get(this.xAxis.title, 'disabled');
+      let yTitleVisible = get(this.yAxis.title, 'disabled');
+      let xTitleContent = get(this.xAxis.title, 'content');
+      let yTitleContent = get(this.yAxis.title, 'content');
+
+      //配置X轴
+			if(xVisible!==false) {
+				chart.axis('key', {
+          title: { 
+            style: {
+              fill: '#AAAAAA'
+            }
+          },
+          label: {
+            autoRotate: true,
+          },
+          type: "timeCat",
+          formatter: (time) => {
+            return dateFormat(time, 'yyyy-MM');
+          },
+          grid: this.xAxis.grid?true:null,
+          animate: false
+        });
+        if(xTitleVisible) {
+          chart.scale({
+            key: {
+              alias: xTitleContent||' '
+            },
+          });
+        }else{
+          chart.scale({
+            key: {
+              alias: ' '
+            },
+          });
+        }
+			}else{
+				chart.axis('key', false);
+			}
+      //配置y轴
+			if(yVisible!==false) {
+				chart.axis('value', {
+					title: { 
+						style: {
+							fill: '#AAAAAA'
+						}
+					},
+					label: {
+						autoRotate: true,
+					},
+					grid: this.yAxis.grid?true:null,
+					animate: false
+				});
+        if(yTitleVisible) {
+					chart.scale({
+						value: {
+							alias: yTitleContent||'记录数',
+							nice: true,
+						},
+					});
+				}else{
+					chart.scale({
+						value: {
+							alias: ' ',
+							nice: true,
+						},
+					});
+				}
+			}else{
+				chart.axis('value', false);
+			}
+      //翻转
+			if(this.exchange) {
+        chart.coordinate().transpose();
+			}else{
+        chart.coordinate();
+			}
+      // X轴,Y轴标题别名
+      // chart.scale({
+      //   key: {
+      //     alias: xTitle
+      //   },
+      //   value: {
+      //     alias: yTitle,
+      //     nice: true,
+      //     minLimit: this.settings.rangeControl&&min?min.v0:0,
+      //     maxLimit: this.settings.rangeControl&&max?max.v0:undefined,
+      //   }
+      // });
+      //图形
+      let geometry = chart.line().position("key*value").shape("smooth");
+      let point = chart.point().position("key*value").shape("breath-point");
+      this.drawPoint();
+      if(this.muitl){
+        //线
+        geometry.color("type", this.colors);
+        //线上的点
+        point.color("type", this.colors);
+      }else{
+        //线
+        geometry.color(this.colors[0]);
+        //线上的点
+        point.color(this.colors[0]);
+      }
+
+      //是否显示lebal
+      if(this.label&&this.label.visible) {
+        geometry.label("value", {
+          layout: [
+            // 数据标签防遮挡
+            { type: 'interval-hide-overlap' },
+          ],
+          style: {
+            fill: this.label.color,
+          }
+        });
+      }else{
+        geometry.label(false);//FIXME 值太多默认不显示
+      }
+      // 配置图例
+      chart.legend(false);
+			if(this.legend) {
+				if(this.legend.visible) {
+					chart.legend({
+						position: this.legend.position,
+						flipPage: this.legend.flipPage,
+            itemHeight: 15,
+						marker: {
+							symbol: this.legend.marker
+						},
+					});
+				}
+			}
+      //滑块
+      if(this.slider) {
+        chart.option('slider', {
+          backgroundStyle: {
+            fill: this.colors[0],
+          }
+        });
+      }
+      //提示
+      chart.tooltip({
+        showCrosshairs: false,//显示辅助线
+        showTitle: this.muitl,
+        showMarkers: false,
+        shared: true,
+      })
+      if(this.tooltip) {
+				if(!this.tooltip.visible) {
+					chart.tooltip(false);
+				}
+			}
+      chart.changeData(data);
+      this.plot = chart;
+    },
+    drawPoint(val) {
+      const registerShape = G2.registerShape('point', 'breath-point', {
+        draw(cfg, container) {
+          const point = { x: cfg.x, y: cfg.y };
+          const group = container.addGroup();
+          //中心点
+          group.addShape('circle', {
+            attrs: {
+              x: point.x,
+              y: point.y,
+              r: 3,
+              fill: cfg.color,
+              opacity: 1,
+            },
+          });
+          group.addShape('circle', {
+            attrs: {
+              x: point.x,
+              y: point.y,
+              r: 4.5,
+              fill: cfg.color,
+              opacity: 0.5,
+            },
+          });
+          group.addShape('circle', {
+            attrs: {
+              x: point.x,
+              y: point.y,
+              r: 6.5,
+              fill: cfg.color,
+              opacity: 0.2,
+            },
+          });
+          return group;
+        },
+      });
+    },
+  }
+};
+</script>
+<style lang='less' scoped>
+.line-chart {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  &.border {
+    border: 1px dashed #000;
+  }
+  /deep/.chart {
+    display: flex;
+    div {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+  .tag {
+    position: absolute;
+    right: -10px;
+    bottom: -10px;
+    border-right: 5px solid #979797;
+    height: 14px;
+    border-bottom: 5px solid #979797;
+    width: 14px;
+    cursor: nw-resize;
+  }
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

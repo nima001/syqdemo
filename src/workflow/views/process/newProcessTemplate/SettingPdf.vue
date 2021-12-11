@@ -1,0 +1,1141 @@
+<template>
+  <div class="settingpdf">
+    <a-button @click="visible=true;type=true;" style="margin:15px 0;" type="primary">新增</a-button>
+    <a-table
+      :columns="columns"
+      :dataSource="data"
+      :rowKey="record=>record.id"
+      :pagination="pagination"
+      @change="handleTableChange"
+      class="pdftable"
+    >
+      <template slot="operation" slot-scope="text, record">
+        <div class="operation">
+          <a href="javascript:;" @click="edit(record.id)">编辑</a>
+          <a href="javascript:;" @click="preview(record.id)">预览</a>
+          <a href="javascript:;" @click="databind(record.id)">数据绑定</a>
+          <a href="javascript:;" @click="stampbind(record)">签章绑定</a>
+          <a href="javascript:;" @click="pagebind(record)">页面绑定</a>
+          <a-popconfirm title="确定删除这条PDF模板吗?" @confirm="del(record)" okText="确定" cancelText="取消">
+            <a href="javascript:;">删除</a>
+          </a-popconfirm>
+        </div>
+      </template>
+    </a-table>
+
+    <!-- 新增/编辑pdf模板弹框 -->
+    <a-modal
+      :title="type?'新增PDF模板':'编辑'"
+      :visible="visible"
+      :rowKey="record=>record.id"
+      @ok="handleOk"
+      @cancel="handleCancel"
+      width="600px"
+      class="pdfModal"
+    >
+      <a-form :form="form">
+        <a-form-item label="PDF模板名称" :label-col="{ span: 7}" :wrapper-col="{ span: 14 }">
+          <a-input
+            :maxlength="30"
+            placeholder="最多填30个字符!"
+            v-decorator="[
+           `pdfname`,
+          {rules: [{ required: true, message:  `请填写PDF模板名称!` }],
+          initialValue: formData.pdfname}
+        ]"
+          ></a-input>
+        </a-form-item>
+        <a-form-item label="PDF模板code" :label-col="{ span: 7}" :wrapper-col="{ span: 14 }">
+          <a-input
+            :maxlength="20"
+            placeholder="最多填20个字符!"
+            v-decorator="[
+           `code`,
+          {rules: [{ required: true, validator:validateRules }],
+          initialValue: formData.code}
+        ]"
+          ></a-input>
+        </a-form-item>
+        <a-form-item
+          label="Word模板名称"
+          :label-col="{ span: 7 }"
+          :wrapper-col="{ span: 14 }"
+          prop="fileurl"
+        >
+          <a-row :gutter="20">
+            <a-col :span="16">
+              <a-input read-only placeholder="支持doc/docx格式" v-model="formData.filename"></a-input>
+            </a-col>
+            <a-col :span="8">
+              <span class="operabtn" @click="trigger">上传</span>
+              <span class="operabtn" style="margin-left:15px" @click="download" v-if="!type">下载</span>
+            </a-col>
+          </a-row>
+          <input
+            type="file"
+            ref="fileBtn"
+            class="fileBtn"
+            accept=".doc, .docx"
+            id="uploadFile"
+            @change="getFile($event)"
+            multiple="multiple"
+          />
+          <a-input
+            v-if="!formData.filename"
+            type="hidden"
+            v-decorator="[
+           `fileurl`,
+          {rules: [{ required:true, message:  `请上传Word模板!` }],
+          initialValue: formData.filename}
+        ]"
+          ></a-input>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- 查看pdf弹框 -->
+    <a-modal
+      title="预览"
+      :visible="showPdf"
+      @cancel="showPdf=false"
+      :footer="null"
+      width="60%"
+      style="text-align:center;top:50px;"
+      :bodyStyle="{'padding':'0'}"
+    >
+      <div class="showpdf">
+        <a-spin tip="预览加载中..." :spinning="showPdfFlag">
+          <pdf v-for="i in numPages" :key="i" :page="i" :src="pdfurl" style="width:100%"></pdf>
+        </a-spin>
+      </div>
+    </a-modal>
+
+    <!-- 数据绑定弹框 -->
+    <a-modal
+      title="字段绑定"
+      :visible="databindVisible"
+      @ok="databindOk"
+      @cancel="databindVisible=false"
+      width="750px"
+      class="databindForm"
+      :bodyStyle="{'max-height':'700px','overflow':'auto'}"
+    >
+      <a-form v-if="databindList.length">
+        <a-row :gutter="20" v-for="(item, index) in databindList" :key="index">
+          <a-col :span="8">
+            <a-form-item :label="index==0?'书签名称：':''">
+              <a-input v-model="item.bookmark" read-only></a-input>
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item :label="index==0?'关联控件：':''">
+              <a-tree-select
+                :allowClear="true"
+                v-model="codeData[index].code"
+                showSearch
+                :filterTreeNode="filterTreeNode"
+                :dropdownStyle="{ maxHeight: '400px', overflow: 'auto' }"
+                :treeData="controlData"
+                placeholder="--请选择关联控件--"
+              ></a-tree-select>
+            </a-form-item>
+          </a-col>
+          <a-col :span="8">
+            <a-form-item :label="index==0?'格式转换策略：':''">
+              <a-select v-model="item.strategyid" placeholder="--请选择格式转换策略--" :allowClear="true">
+                <a-select-opt-group
+                  v-for="(item,index) in StrategyList"
+                  :key="index"
+                  :label="item.label"
+                >
+                  <a-select-option
+                    v-for="(obj,idx) in item.data"
+                    :key="idx"
+                    :value="obj.value"
+                  >{{obj.text}}</a-select-option>
+                </a-select-opt-group>
+              </a-select>
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
+      <div v-else class="nodata">
+        <a-icon type="frown" />暂无数据
+      </div>
+    </a-modal>
+
+    <!-- 签章绑定弹框 -->
+    <a-modal
+      title="签章绑定"
+      :visible="stampbindVisible"
+      :rowKey="record=>record.id"
+      @ok="stampbindVisible=false"
+      @cancel="stampbindVisible=false"
+      width="600px"
+      class="pagebind"
+    >
+      <a-form>
+        <h3 class="pdftitle">PDF模板名称：{{pdftemplatename}}</h3>
+        <a-form-item
+          label="关联签章code："
+          :label-col="{ span: 7 }"
+          :wrapper-col="{ span: 17 }"
+          v-for="(item, index) in bindStampList"
+          :key="index"
+          required
+        >
+          <a-row :gutter="20">
+            <a-col :span="16">
+              <a-select v-model="item.relatecode" placeholder="--请选择签章控件(code)--">
+                <a-select-option
+                  v-for="item in stampControlData"
+                  :key="item.code"
+                  :value="item.code"
+                >{{item.name}}</a-select-option>
+              </a-select>
+            </a-col>
+            <a-col :span="8">
+              <span @click="setposition(index)" style="color:#1890ff;cursor:pointer;">定位</span>
+              <span
+                @click="delstamplist(index,item.id)"
+                style="color:red;cursor:pointer;margin-left:15px;"
+              >删除</span>
+            </a-col>
+          </a-row>
+        </a-form-item>
+        <div class="addpagelist" @click="addstamplist">添 加</div>
+      </a-form>
+    </a-modal>
+
+    <!-- 设置盖章位置弹框 -->
+    <a-modal
+      title="设置盖章位置"
+      v-model="stampPositonVisible"
+      width="1000px"
+      style="height:800px;top:30px;"
+      :footer="null"
+      class="setPosition"
+      @cancel="cancel"
+    >
+      <div class="wrap">
+        <div class="title">PDF模板名称：{{pdftemplatename}}</div>
+        <div class="search">
+          <span>输入关键词：</span>
+          <a-input placeholder="请输入关键词" v-model="keyWord" style="width:200px"></a-input>
+          <a-button type="primary" @click="searchKeyWord(1)">搜索</a-button>
+          <a-button @click="previewStamp">预览</a-button>
+        </div>
+        <ul class="show">
+          <li>
+            <span>关键词</span>
+            <span>X偏移量(向右为+)</span>
+            <span>Y偏移量(向上为+)</span>
+          </li>
+          <a-radio-group v-model="value" @change="selectKeyWord" style="width:100%">
+            <li v-for="(item,index) in keywordGroup" :key="index">
+              <span>
+                <a-radio
+                  :style="radioStyle"
+                  :value="item.key"
+                >{{keywordGroup.length==1?item.keyword:item.keyword+(index+1)}}</a-radio>
+              </span>
+              <span v-if="index==curIndex">
+                <a-input-number v-model="posx" style="width:100px"></a-input-number>
+              </span>
+              <span v-if="index==curIndex">
+                <a-input-number v-model="posy" style="width:100px"></a-input-number>
+              </span>
+            </li>
+          </a-radio-group>
+        </ul>
+        <div class="showpdf">
+          <pdf v-for="i in numPages" :key="i" :page="i" :src="stampPdfUrl"></pdf>
+        </div>
+      </div>
+      <div class="btn">
+        <a-button type="primary" @click="subStampPositon">确定</a-button>
+      </div>
+    </a-modal>
+
+    <!-- 页面绑定弹框 -->
+    <a-modal
+      title="页面绑定"
+      :visible="pagebindVisible"
+      :rowKey="record=>record.id"
+      @ok="pagebindOk"
+      @cancel="pagebindVisible=false"
+      width="600px"
+      class="pagebind"
+    >
+      <a-form>
+        <h3 class="pdftitle">PDF模板名称：{{pdftemplatename}}</h3>
+        <a-form-item
+          label="关联节点页面："
+          :label-col="{ span: 7 }"
+          :wrapper-col="{ span: 17 }"
+          v-for="(item, index) in bindPageList"
+          :key="index"
+          required
+        >
+          <a-row :gutter="20">
+            <a-col :span="16">
+              <a-select v-model="item.formid" placeholder="--请选择节点页面--">
+                <template v-if="pageList[0] && pageList[0].label">
+                  <a-select-opt-group v-for="(obj,i) in pageList" :key="i" :label="obj.label">
+                    <a-select-option
+                      v-for="(val,j) in obj.data"
+                      :key="j"
+                      :value="val.value"
+                    >{{val.text}}</a-select-option>
+                  </a-select-opt-group>
+                </template>
+                <template v-else>
+                  <a-select-option
+                    :label="obj.value"
+                    v-for="obj in pageList"
+                    :key="obj.value"
+                  >{{obj.text}}</a-select-option>
+                </template>
+              </a-select>
+            </a-col>
+            <a-col :span="8">
+              <span @click="delpagelist(index,item.id)" style="color:red;cursor:pointer;">删除</span>
+            </a-col>
+          </a-row>
+        </a-form-item>
+        <div class="addpagelist" @click="addpagelist">添 加</div>
+      </a-form>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+const columns = [
+  {
+    title: "PDF模板名称",
+    dataIndex: "pdfname",
+    width: "30%"
+  },
+  {
+    title: "文件名称",
+    dataIndex: "filename",
+    width: "30%"
+  },
+  {
+    title: "操作",
+    dataIndex: "operation",
+    width: "40%",
+    scopedSlots: { customRender: "operation" }
+  }
+];
+import {
+  getListtemplate,
+  addTemplate,
+  updateTemplate,
+  delTemplate,
+  getSingleTemplate,
+  pdfTemplatePreview,
+  getListBookMark,
+  updateBookMark,
+  getListForm,
+  getForm,
+  updateForm,
+  getSignCode,
+  initPosition,
+  findKeyWord,
+  highLightWord,
+  stampPdfPreview,
+  updatePosition,
+  getListPosition,
+  delPosition
+} from "@/workflow/api/pdfsetting";
+import { uploadImg, getComponentTree } from "@/workflow/api/workflow";
+import { getListbymodelinstanceid } from "@/workflow/api/strategy";
+import { showError } from "@/framework/utils/index";
+import { parseQueryString } from "@/workflow/utils/index";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import pdf from "vue-pdf-sign";
+import {
+  Button,
+  Table,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Row,
+  Col,
+  Select,
+  Radio,
+  Spin,
+  TreeSelect,
+  Popconfirm,
+  Icon
+} from "ant-design-vue";
+export default {
+  components: {
+    AButton: Button,
+    ATable: Table,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    AInputNumber: InputNumber,
+    AModal: Modal,
+    ARow: Row,
+    ACol: Col,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ARadio: Radio,
+    ARadioGroup: Radio.Group,
+    ATreeSelect: TreeSelect,
+    ASpin: Spin,
+    APopconfirm: Popconfirm,
+    pdf,
+    ASelectOptGroup: Select.OptGroup,
+    AIcon: Icon
+  },
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      id: parseInt(this.$route.query.modelInstanceId),
+      columns,
+      data: [],
+      visible: false,
+      type: true,
+      form: this.$form.createForm(this),
+      formData: {
+        pdfname: null,
+        code: null,
+        filename: null
+      },
+      fileurl: null,
+      pagination: {
+        current: 1,
+        pagesize: 10,
+        total: 0,
+        showTotal: function(total) {
+          return `总共： ${total} 条`;
+        }
+      },
+      showPdfFlag: false,
+      showPdf: false,
+      pdfurl: null,
+      numPages: undefined,
+      //数据绑定
+      databindVisible: false,
+      databindList: [],
+      StrategyList: [],
+      controlData: [],
+      codeData: [],
+      //签章绑定
+      stampbindVisible: false,
+      stampControlData: [],
+      bindStampList: [],
+      //签章位置设置
+      stampPositonVisible: false,
+      keyWord: null,
+      keywordGroup: [],
+      value: null,
+      curIndex: null,
+      posx: 0,
+      posy: 0,
+      stampPdfUrl: null,
+      temporaryfileurl: null,
+      radioStyle: {
+        display: "block",
+        height: "30px",
+        lineHeight: "30px"
+      },
+      current: null,
+      currentIndex: null,
+      stampid: null,
+      //页面绑定
+      pagebindVisible: false,
+      bindPageList: [],
+      pageList: [],
+      pdftemplatename: null
+    };
+  },
+  created() {
+    this.getList();
+  },
+  methods: {
+    //获取模板列表
+    getList() {
+      let query = {};
+      query.needtotal = true;
+      query.pagenum = this.pagination.current;
+      query.pagesize = this.pagination.pagesize;
+      getListtemplate(this.id, query)
+        .then(res => {
+          this.pagination.total = res.result.total;
+          this.data = res.result.rows;
+          this.data.forEach(item => {
+            if (item.fileurl) {
+              this.$set(
+                item,
+                "filename",
+                parseQueryString(item.fileurl).filename
+              );
+            }
+          });
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    validateRules(rule, value, callback) {
+      if (value) {
+        if (/^[a-zA-Z]{1,20}$/.test(value)) {
+          callback();
+        } else {
+          callback("只能填写最多20位的英文字符！");
+        }
+      } else {
+        callback("请填写PDF模板code！");
+      }
+    },
+    //保存、编辑
+    handleOk() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          values.modelinstanceid = this.id;
+          values.fileurl = this.fileurl;
+          if (this.type) {
+            addTemplate(values)
+              .then(res => {
+                this.$message.success("PDF模板新增成功！");
+                this.getList();
+                this.visible = false;
+                this.reset();
+              })
+              .catch(error => {
+                showError(error);
+              });
+          } else {
+            values.id = this.nowid;
+            updateTemplate(values)
+              .then(res => {
+                this.$message.success("PDF模板更新成功！");
+                this.getList();
+                this.visible = false;
+                this.reset();
+              })
+              .catch(error => {
+                showError(error);
+              });
+          }
+        }
+      });
+    },
+    //取消
+    handleCancel() {
+      this.visible = false;
+      this.reset();
+    },
+    //重置表单
+    reset() {
+      this.form.resetFields();
+      this.formData.pdfname = null;
+      this.formData.code = null;
+      this.formData.filename = null;
+    },
+    //上传文件
+    getFile(event) {
+      let file = event.target.files[0];
+      uploadImg(file)
+        .then(res => {
+          this.fileurl = res.result;
+          this.formData.filename = file.name;
+          this.$message.success("文件上传成功！");
+          document.getElementById("uploadFile").value = null;
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    trigger() {
+      this.$refs.fileBtn.dispatchEvent(new MouseEvent("click"));
+    },
+    //下载文件
+    download() {
+      let a = document.createElement("a");
+      a.href =
+        this.uiConfigs["api.url"] +
+        "/file/v1/download" +
+        "?uri=" +
+        encodeURIComponent(this.fileurl);
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    },
+    //编辑
+    edit(id) {
+      getSingleTemplate(id)
+        .then(res => {
+          this.type = false;
+          this.nowid = res.result.id;
+          this.formData.pdfname = res.result.pdfname;
+          this.formData.code = res.result.code;
+          this.formData.filename = parseQueryString(
+            res.result.fileurl
+          ).filename;
+          this.fileurl = res.result.fileurl;
+          this.visible = true;
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    //预览
+    preview(id) {
+      this.showPdf = true;
+      this.showPdfFlag = true;
+      pdfTemplatePreview(id)
+        .then(res => {
+          this.showPdfFlag = false;
+          this.pdfurl =
+            this.uiConfigs["api.url"] +
+            "/file/v1/download" +
+            "?uri=" +
+            encodeURIComponent(res.result);
+          this.pdfurl = pdf.createLoadingTask(this.pdfurl);
+          this.pdfurl.promise.then(pdf => {
+            this.numPages = pdf.numPages;
+          });
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    //数据绑定
+    databind(id) {
+      this.nowid = id;
+      this.StrategyList = [];
+      //获取策略列表
+      getListbymodelinstanceid(this.id)
+        .then(res => {
+          if (res.code == "success") {
+            let optionObj = {};
+            res.result.forEach(item => {
+              if (item.group) {
+                if (!optionObj[item.group]) {
+                  this.$set(optionObj, item.group, []);
+                  optionObj[item.group].push({
+                    text: item.text,
+                    value: item.value
+                  });
+                } else {
+                  optionObj[item.group].push({
+                    text: item.text,
+                    value: item.value
+                  });
+                }
+              }
+            });
+            for (var obj in optionObj) {
+              this.StrategyList.push({
+                label: obj,
+                data: optionObj[obj]
+              });
+            }
+          }
+        })
+        .catch(error => {
+          showError(error);
+        });
+
+      //获取关联控件列表
+      getComponentTree({ modelInstanceId: this.id, deleteChild: true })
+        .then(res => {
+          if (res.code == "success") {
+            res.result.forEach(item => {
+              if (item.childcode) {
+                this.$set(item, "code", "childcode");
+              }
+            });
+            this.controlData = res.result;
+          }
+        })
+        .catch(error => {
+          showError(error);
+        });
+      //获取书签列表
+      getListBookMark(id)
+        .then(res => {
+          if (res.result.length) {
+            this.codeData = [];
+            this.databindList = res.result;
+            this.databindList.forEach((item, index) => {
+              this.codeData.push({
+                code: item.childcode
+                  ? item.childcode
+                  : item.code
+                  ? item.code
+                  : undefined
+              });
+              if (item.strategyid) {
+                this.$set(item, "strategyid", item.strategyid);
+              }
+            });
+          }
+        })
+        .catch(error => {
+          showError(error);
+        });
+      this.databindVisible = true;
+    },
+    databindOk() {
+      if (this.databindList.length) {
+        this.codeData.forEach((a, index) => {
+          this.controlData.forEach(b => {
+            if (b.children) {
+              b.children.forEach(c => {
+                if (c.value == a.code) {
+                  this.$set(this.databindList[index], "childcode", c.value);
+                  this.$set(this.databindList[index], "code", b.value);
+                }
+              });
+            }
+            if (b.value == a.code) {
+              this.$set(this.databindList[index], "code", b.value);
+            }
+          });
+        });
+        let bookMarkCodeVo = {};
+        bookMarkCodeVo.pdfconfigid = this.nowid;
+        bookMarkCodeVo.bookmarkcodelist = this.databindList;
+        updateBookMark(bookMarkCodeVo)
+          .then(res => {
+            this.$message.success("数据绑定成功！");
+            this.databindVisible = false;
+          })
+          .catch(error => {
+            showError(error);
+          });
+      } else {
+        this.databindVisible = false;
+      }
+    },
+    //树型选择框搜索筛选
+    filterTreeNode(input, option) {
+      return (
+        option.componentOptions.propsData.title
+          .toLowerCase()
+          .indexOf(input.toLowerCase()) >= 0
+      );
+    },
+    //签章绑定
+    stampbind(record) {
+      this.nowid = record.id;
+      this.pdftemplatename = record.pdfname;
+      //获取签章code列表
+      getSignCode(this.id)
+        .then(res => {
+          this.stampControlData = res.result;
+        })
+        .catch(error => {
+          showError(error);
+        });
+      //获取已配置的签章列表
+      getListPosition(record.id)
+        .then(res => {
+          this.bindStampList = res.result;
+          if (this.bindStampList.length == 0) {
+            this.bindStampList.push({});
+          }
+          this.stampbindVisible = true;
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    //签章定位
+    setposition(index) {
+      this.currentIndex = index;
+      if (this.bindStampList[index].relatecode) {
+        let savePositionVo = {};
+        this.posx = this.bindStampList[index].posx;
+        this.posy = this.bindStampList[index].posy;
+        savePositionVo.code = this.bindStampList[index].relatecode;
+        savePositionVo.pdfconfigid = this.nowid;
+        if (this.bindStampList[index].id) {
+          savePositionVo.positionid = this.bindStampList[index].id;
+        }
+        initPosition(savePositionVo)
+          .then(res => {
+            this.temporaryfileurl = res.result.fileurl;
+            this.stampPdfUrl =
+              this.uiConfigs["api.url"] +
+              "/file/v1/download" +
+              "?uri=" +
+              encodeURIComponent(res.result.fileurl);
+            this.stampPdfUrl = pdf.createLoadingTask(this.stampPdfUrl);
+            this.stampPdfUrl.promise.then(pdf => {
+              this.numPages = pdf.numPages;
+            });
+            if (res.result.id) {
+              this.keyWord = res.result.keyword;
+              this.stampid = res.result.id;
+              this.searchKeyWord(2, res.result.occurrednum - 1);
+            }
+            this.stampPositonVisible = true;
+          })
+          .catch(error => {
+            showError(error);
+          });
+      }
+    },
+    //搜索关键字
+    searchKeyWord(type, idx) {
+      let that = this;
+      this.keywordGroup = [];
+      this.curIndex = null;
+      this.value = null;
+      if (this.keyWord) {
+        let query = {};
+        query.fileurl = this.temporaryfileurl;
+        query.keyword = this.keyWord;
+        findKeyWord(query)
+          .then(res => {
+            res.result.forEach((item, index) => {
+              this.$set(item, "fileurl", that.temporaryfileurl);
+              this.keywordGroup.push({
+                key: index,
+                keyword: this.keyWord,
+                position: item
+              });
+            });
+            if (type == 2) {
+              this.value = idx;
+              this.current = this.keywordGroup[idx].position;
+              this.curIndex = idx;
+              this.highLight(this.current);
+              this.previewStamp();
+            }
+          })
+          .catch(error => {
+            showError(error);
+          });
+      }
+    },
+    //高亮
+    highLight(value) {
+      highLightWord(value)
+        .then(res => {
+          this.stampPdfUrl =
+            this.uiConfigs["api.url"] +
+            "/file/v1/download" +
+            "?uri=" +
+            encodeURIComponent(res.result);
+          this.stampPdfUrl = pdf.createLoadingTask(this.stampPdfUrl);
+          this.stampPdfUrl.promise.then(pdf => {
+            this.numPages = pdf.numPages;
+          });
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    //预览签章
+    previewStamp() {
+      this.$set(this.current, "posx", this.posx);
+      this.$set(this.current, "posy", this.posy);
+      stampPdfPreview(this.current)
+        .then(res => {
+          this.stampPdfUrl =
+            this.uiConfigs["api.url"] +
+            "/file/v1/download" +
+            "?uri=" +
+            encodeURIComponent(res.result);
+          this.stampPdfUrl = pdf.createLoadingTask(this.stampPdfUrl);
+          this.stampPdfUrl.promise.then(pdf => {
+            this.numPages = pdf.numPages;
+          });
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    //选择哪一个关键词
+    selectKeyWord(e) {
+      this.current = this.keywordGroup[e.target.value].position;
+      this.curIndex = e.target.value;
+      this.posx = 0;
+      this.posy = 0;
+      this.highLight(this.current);
+    },
+    //保存签章位置
+    subStampPositon() {
+      let savePositionVo = {};
+      savePositionVo.configtype = 0;
+      savePositionVo.relatecode = this.bindStampList[
+        this.currentIndex
+      ].relatecode;
+      savePositionVo.occurrednum = this.current.occurrednum;
+      savePositionVo.keyword = this.keyWord;
+      savePositionVo.posx = this.posx;
+      savePositionVo.posy = this.posy;
+      savePositionVo.pdfconfigid = this.nowid;
+      if (this.stampid) {
+        savePositionVo.id = this.stampid;
+      }
+      updatePosition(savePositionVo)
+        .then(res => {
+          this.keywordGroup = [];
+          this.stampPdfUrl = null;
+          this.posx = 0;
+          this.posy = 0;
+          this.stampPositonVisible = false;
+          this.stampid = null;
+          this.$message.success("盖章位置设置成功！");
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    //取消
+    cancel() {
+      this.keywordGroup = [];
+      this.keyWord = null;
+      this.stampPdfUrl = null;
+      this.stampPositonVisible = false;
+    },
+    //增加关联签章code
+    addstamplist() {
+      this.bindStampList.push({});
+    },
+    //删除关联签章code
+    delstamplist(index, id) {
+      if (id) {
+        delPosition(id)
+          .then(res => {
+            this.$message.success("签章绑定删除成功！");
+          })
+          .catch(error => {
+            showError(error);
+          });
+      }
+      this.bindStampList.splice(index, 1);
+    },
+    //页面绑定
+    pagebind(record) {
+      this.nowid = record.id;
+      this.pdftemplatename = record.pdfname;
+      //获取流程所有节点页面
+      getForm(this.id)
+        .then(res => {
+          this.pageList = [];
+          //判断下拉选项是否需要分组
+          let optionObj = {};
+          res.result.forEach(item => {
+            if (item.group) {
+              if (!optionObj[item.group]) {
+                this.$set(optionObj, item.group, []);
+                optionObj[item.group].push(item);
+              } else {
+                optionObj[item.group].push({
+                  text: item.text,
+                  value: item.value
+                });
+              }
+            } else {
+              this.pageList.push(item);
+            }
+          });
+          for (var obj in optionObj) {
+            this.pageList.push({
+              label: obj,
+              data: optionObj[obj]
+            });
+          }
+        })
+        .catch(error => {
+          showError(error);
+        });
+      //获取页面列表
+      getListForm(record.id)
+        .then(res => {
+          this.bindPageList = res.result;
+          if (this.bindPageList.length == 0) {
+            this.bindPageList.push({});
+          }
+          this.pagebindVisible = true;
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    //删除关联节点页面
+    delpagelist(index, id) {
+      if (id) {
+        delPosition(id)
+          .then(res => {
+            this.$message.success("页面绑定删除成功！");
+          })
+          .catch(error => {
+            showError(error);
+          });
+      }
+      this.bindPageList.splice(index, 1);
+    },
+    //增加关联节点页面
+    addpagelist() {
+      this.bindPageList.push({});
+    },
+    pagebindOk() {
+      let savePositionVo = {};
+      savePositionVo.pdfconfigid = this.nowid;
+      this.bindPageList.forEach(item => {
+        this.$set(item, "configtype", 1);
+      });
+      savePositionVo.signpositionlist = this.bindPageList;
+      updateForm(savePositionVo)
+        .then(res => {
+          this.$message.success("页面绑定成功！");
+          this.pagebindVisible = false;
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    //删除
+    del(record) {
+      delTemplate(record.id)
+        .then(res => {
+          this.$message.success(record.pdfname + "已成功删除！");
+          this.getList();
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    //列表分页切换
+    handleTableChange(pagination) {
+      const pager = { ...this.pagination };
+      pager.current = pagination.current;
+      this.pagination = pager;
+      this.getList();
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.settingpdf {
+  width: 80%;
+  margin: 0 auto;
+  .pdftable {
+    .operation {
+      display: flex;
+      a {
+        color: #1890ff;
+        margin: 0 15px;
+        &:first-child {
+          margin: 0 15px 0 0;
+        }
+        &:last-child {
+          color: red;
+        }
+      }
+    }
+  }
+}
+.pdfModal {
+  .fileBtn {
+    width: 0px;
+    height: 0px;
+    opacity: 0;
+  }
+  .operabtn {
+    cursor: pointer;
+    color: #1890ff;
+  }
+}
+.showpdf {
+  max-height: 650px;
+  overflow: auto;
+  span {
+    border-bottom: 1px solid #ddd;
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+}
+.pagebind {
+  .pdftitle {
+    padding-left: 55px;
+    font-weight: bold;
+  }
+  .addpagelist {
+    border: 1px dashed #ddd;
+    text-align: center;
+    padding: 5px 0;
+    color: gray;
+    cursor: pointer;
+    font-size: 15px;
+  }
+  /deep/ .ant-select-dropdown-menu-item-group-title {
+    font-size: 14px;
+    color: #534848;
+    font-weight: bold;
+  }
+}
+.setPosition {
+  .wrap {
+    height: 700px;
+    overflow: hidden;
+    .search {
+      margin: 15px 0;
+      min-width: 600px;
+      button {
+        margin-left: 15px;
+      }
+    }
+    .show {
+      min-width: 600px;
+      li {
+        display: flex;
+        margin-bottom: 10px;
+        span {
+          width: 20%;
+          &:first-child {
+            width: 30%;
+          }
+        }
+      }
+    }
+    .showpdf {
+      background: #efefef;
+      text-align: center;
+      padding-bottom: 50px;
+      span {
+        width: 90%;
+        border-bottom: 1px solid #ddd;
+        &:first-child {
+          margin-top: 20px;
+        }
+        &:last-child {
+          border-bottom: none;
+        }
+      }
+    }
+  }
+  .btn {
+    text-align: center;
+    border-top: 1px solid #ddd;
+    padding-top: 15px;
+  }
+}
+.nodata {
+  justify-content: center;
+  padding: 15px 0;
+  font-size: 16px;
+  color: gray;
+  text-align: center;
+  i {
+    line-height: 43px;
+    font-size: 23px;
+    padding-right: 10px;
+  }
+}
+</style>

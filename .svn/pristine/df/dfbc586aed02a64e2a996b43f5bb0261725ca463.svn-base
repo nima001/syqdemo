@@ -1,0 +1,124 @@
+import request from '@/framework/utils/request'
+/**
+ * 省编办数据展示
+ */
+// 人员结构分析（行政）
+export function personAnalyzeXz(district) {
+    return request({
+        url: '/person/sbb/personStructure/analyze/xz',
+        method: 'get',
+        params: {
+            district: district
+        }
+    })
+}
+
+// 人员结构分析（事业）
+export function personAnalyzeSy(district) {
+    return request({
+        url: '/person/sbb/personStructure/analyze/sy',
+        method: 'get',
+        params: {
+            district: district,
+        }
+    })
+}
+
+// 机构资源分析-行政机构
+export function orgAnalyzeXz(district) {
+    return request({
+        url: '/person/sbb/organization/analyze/xz',
+        method: 'get',
+        params: {
+            district: district,
+        }
+    })
+}
+
+// 机构资源分析-事业机构
+export function orgAnalyzeSy(district) {
+    return request({
+        url: '/person/sbb/organization/analyze/sy',
+        method: 'get',
+        params: {
+            district: district,
+        }
+    })
+}
+
+// 近五年预计退休人员
+export function retireAnalyze(district) {
+    return request({
+        url: '/person/sbb/retire/analyze',
+        method: 'get',
+        params: {
+            district: district,
+        }
+    })
+}
+
+// 编制资源分析（行政）
+export function staffAnalyzeXz(district) {
+    return request({
+        url: '/person/sbb/staff/analyze/xz',
+        method: 'get',
+        params: {
+            district: district,
+        }
+    })
+}
+
+// 编制资源分析（事业）
+export function staffAnalyzeSy(district) {
+    return request({
+        url: '/person/sbb/staff/analyze/sy',
+        method: 'get',
+        params: {
+            district: district,
+        }
+    })
+}
+
+// 人员结构分析-二级页面
+export function personChild(district, code, type) {
+    return request({
+        url: '/person/sbb/personStructure/analyze/sy/child',
+        method: 'get',
+        params: {
+            code: code,
+            district: district,
+            type: type
+        }
+    })
+}
+
+/**
+ * 省编办问题
+ */
+//编制资源分析（行政）
+export function problems(data) {
+    return request({
+        url: '/person/sbb/problem',
+        method: 'post',
+        data
+    })
+}
+export function problemCount(category) {
+    return request({
+        url: '/person/sbb/problem/count',
+        method: 'post',
+        params: {
+            category: category
+        }
+    })
+}
+// 根据统计图ID获取统计数据
+export function chartAggregate(id,data) {
+    return request({
+        url: `/person/sbb/chart/aggregate/${id}`,
+        method: 'post',
+        data
+    })
+}
+
+

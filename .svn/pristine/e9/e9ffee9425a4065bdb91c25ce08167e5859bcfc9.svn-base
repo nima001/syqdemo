@@ -1,0 +1,50 @@
+<template>
+  <div class="container">
+    <a-switch @change="onChange" v-model="defaultData.value" />
+  </div>
+</template>
+<script>
+import {Switch} from 'ant-design-vue';
+export default {
+  name: "TypeFive",
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  components:{
+    ASwitch:Switch
+  },
+  mounted() {
+    this.defaultSet();
+  },
+  methods: {
+    onChange(checked) {
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value: checked
+      });
+    },
+    defaultSet() {
+      if (this.defaultData.value == undefined) {
+        this.$store.commit({
+          type: "SET_VALUE",
+          position: this.position,
+          value: false
+        });
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  float: 1;
+}
+</style>

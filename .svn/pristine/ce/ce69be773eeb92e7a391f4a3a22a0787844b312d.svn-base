@@ -1,0 +1,112 @@
+<template>
+  <div style="height: 100%" ref="pieChart"></div>
+</template>
+<script>
+import { Column } from '@antv/g2plot';
+import { GroupedColumn } from '@antv/g2plot';
+
+export default {
+  props: {
+    dataTable: {//数据表(dimension:维度列 measure:指标列 rows:数据列)
+      type: Object
+    },
+    uiConfig: {
+      type: Object
+    }
+  },
+  data(){
+    return {
+      plot: undefined,
+      singleColumn: true,
+    }
+  },
+  watch: {
+    dataTable(dataTable){
+      this.updateData(dataTable);
+    }
+  },
+  mounted(){
+    this.updateData(this.dataTable);
+  },
+  methods: {
+    createData(dataTable){
+      if(!dataTable){
+        return;
+      }
+      let { keyCols, valueCols, rows } = dataTable;
+      this.singleColumn = keyCols.length == 1;
+      return rows.map(item => {
+        let key = keyCols[0];
+        let names;
+        if(keyCols.length){
+          names = [];
+          for(let i = 1; i < keyCols.length; i++){
+            names.push(item[keyCols[i].column]);
+          }
+        }
+        return {
+          key: item[key.column],
+          name: names && names.join('-'),
+          value: item[valueCols[0].column] || 0 //饼图指标暂时只能显示一个数据
+        }
+      })
+    },
+    updateData(dataTable){
+      let data = this.createData(dataTable);
+      if(!data){
+        return;
+      }
+      if(this.plot){
+        this.plot.destroy();
+      }
+      if(this.singleColumn){
+        const columnPlot = new Column(this.$refs.pieChart, {
+          forceFit: true,
+          data,
+          padding: 'auto',
+          data,
+          xField: 'key',
+          yField: 'value',
+          meta: {
+            key: {
+              alias: dataTable.keyCols[0].showname,
+            },
+            value: {
+              alias: dataTable.valueCols[0].showname,
+            },
+          },
+        });
+        columnPlot.render();
+        this.plot = columnPlot;
+      }else{
+        const columnPlot = new GroupedColumn(this.$refs.pieChart, {
+          forceFit: true,
+          data,
+          xField: 'key',
+          yField: 'value',
+          yAxis: {
+            min: 0,
+          },
+          label: {
+            visible: true,
+          },
+          groupField: 'name',
+          meta: {
+            key: {
+              alias: dataTable.keyCols[0].showname,
+            },
+            value: {
+              alias: dataTable.valueCols[0].showname,
+            },
+          },
+          legend: {
+            position: 'right-top',
+          },
+        });
+        columnPlot.render();
+        this.plot = columnPlot;
+      }
+    }
+  }
+}
+</script>

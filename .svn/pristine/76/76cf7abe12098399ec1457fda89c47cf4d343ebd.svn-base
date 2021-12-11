@@ -1,0 +1,493 @@
+<template>
+  <div class="issue-tracking">
+    <div class="main">
+      <div class="main-top">
+        <div class="tabs">
+          <a 
+            v-for="(item, index) in tabs" 
+            :key="index"
+            :class="{active: active && active.title == item.title}"
+          >
+            {{item.title}}
+          </a>
+        </div>
+        <div class="org-select">
+          <!-- <org-user-select
+            :mode="org"
+            @finish="orgOk"
+          /> -->
+          <a-input
+            style="width: 200px"
+            :value="orgValue"
+            :read-only="true"
+            placeholder="请选择机构"
+            @click="showOrgSelect"
+            @change="onNameChange($event.target.value)"
+          >
+            <a-icon slot="addonAfter" type="select" @click="showOrgSelect"/>
+          </a-input>
+        </div>
+      </div>
+      <div class="main-chart">
+        <div class="g2-chart">
+          <div class="g2-chart-top">
+            <div class="left">
+              <div id="container">
+                
+              </div>
+              <div id="donutTwo">
+
+              </div>
+            </div>
+            <div class="right">
+              <div id="stackBar">
+
+              </div>
+            </div>
+          </div>
+          <div class="g2-chart-bottom">
+            <div id="lineContainer">
+
+            </div>
+          </div>
+        </div>
+        <div class="antd-table">
+          <div class="antd-table-top">
+            <a-col class="tabs">
+              <span class="active">未处理</span>
+              <span>已处理</span>
+              <span>机构黑名单</span>
+            </a-col>
+          </div>
+          <a-row class="antd-table-query">
+            <a-col class="query-info" :span="3">
+              <span>消息通知</span>
+            </a-col>
+            <a-col class="query-serach" :span="21">
+              <a-input class="queryitem" style="width: 160px"></a-input>
+              <a-button class="queryitem" type="primary">搜索</a-button>
+              <a-button class="queryitem">重置</a-button>
+            </a-col>
+          </a-row>
+          <a-table
+            class="antd-table-con"
+            :rowKey="Math.random() + ''"
+            :columns="columns"
+            :dataSource="tableData"
+            :pagination="false"
+            :loading="loading"
+            >
+          </a-table>
+        </div>
+      </div>  
+    </div>
+    <!-- 机构选择弹框 -->
+    <a-modal
+      :footer="null"
+      v-model="orgvisible"
+      :width="500"
+      title="选择单位"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select mode="org" 
+        @finish="orgOk" 
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Row, Col, Input, Icon, Table, Pagination, Button, Modal } from "ant-design-vue";
+import { Donut, Line, StackedBar } from '@antv/g2plot';
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+export default {
+  name: '',
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    AIcon: Icon,
+    ATable: Table,
+    AButton: Button,
+    APagination: Pagination,
+    AModal: Modal,
+    OrgUserSelect
+  },
+  data() {
+    return {
+      tabs: [
+        { title: '市本级', value: 1, isCity: false },
+        { title: '越城区', value: 2,  isCity: false },
+        { title: '河桥区', value: 3,  isCity: false },
+        { title: '诸暨市', value: 4,  isCity: false },
+        { title: '上虞区', value: 5,  isCity: false },
+        { title: '成州市', value: 6,  isCity: false },
+        { title: '新昌县', value: 7,  isCity: false },
+      ],
+      donutData: [
+        {
+          type: '分类一',
+          value: 27,
+        },
+        {
+          type: '分类二',
+          value: 25,
+        },
+        {
+          type: '分类三',
+          value: 18,
+        },
+        {
+          type: '分类四',
+          value: 15,
+        },
+        {
+          type: '分类五',
+          value: 10,
+        },
+        {
+          type: '其它',
+          value: 5,
+        },
+      ],
+      lineData: [
+          {
+            date: '2018/8/1',
+            type: 'download',
+            value: 4623,
+          },
+          {
+            date: '2018/8/1',
+            type: 'register',
+            value: 2208,
+          },
+          {
+            date: '2018/8/2',
+            type: 'download',
+            value: 6145,
+          },
+          {
+            date: '2018/8/2',
+            type: 'register',
+            value: 2016,
+          },
+          {
+            date: '2018/8/3',
+            type: 'download',
+            value: 508,
+          },
+          {
+            date: '2018/8/3',
+            type: 'register',
+            value: 2916,
+          },
+          {
+            date: '2018/8/4',
+            type: 'download',
+            value: 6268,
+          },
+          {
+            date: '2018/8/4',
+            type: 'register',
+            value: 4512,
+          },
+          {
+            date: '2018/8/5',
+            type: 'download',
+            value: 6411,
+          },
+          {
+            date: '2018/8/5',
+            type: 'register',
+            value: 8281,
+          },
+          {
+            date: '2018/8/6',
+            type: 'download',
+            value: 1890,
+          },
+          {
+            date: '2018/8/6',
+            type: 'register',
+            value: 2008,
+          },
+      ],
+      stackedBarData: [
+          {
+            地区: '华东',
+            细分: '公司',
+            销售额: 1454715.807999998,
+          },
+          {
+            地区: '华东',
+            细分: '消费者',
+            销售额: 2287358.261999998,
+          },
+          {
+            地区: '中南',
+            细分: '公司',
+            销售额: 1335665.3239999984,
+          },
+          {
+            地区: '中南',
+            细分: '消费者',
+            销售额: 2057936.7620000008,
+          },
+          {
+            地区: '东北',
+            细分: '公司',
+            销售额: 834842.827,
+          },
+          {
+            地区: '东北',
+            细分: '消费者',
+            销售额: 1323985.6069999991,
+          },
+          {
+            地区: '华北',
+            细分: '公司',
+            销售额: 804769.4689999995,
+          },
+          {
+            地区: '华北',
+            细分: '消费者',
+            销售额: 1220430.5610000012,
+          },
+          {
+            地区: '西南',
+            细分: '公司',
+            销售额: 469341.684,
+          },
+          {
+            地区: '西南',
+            细分: '消费者',
+            销售额: 677302.8919999995,
+          },
+          {
+            地区: '西北',
+            细分: '公司',
+            销售额: 253458.1840000001,
+          },
+          {
+            地区: '西北',
+            细分: '消费者',
+            销售额: 458058.1039999998,
+          },
+      ],
+      columns: [],
+      tableData: [],
+      loading: false,
+      active: undefined,
+      orgValue: undefined,
+      orgvisible: false
+    }
+  },
+  created() {
+    this.active = this.tabs[0];
+  },
+  mounted() {
+    this.donutInit();
+    this.donutTwoInit();
+    this.stackBarInit();
+    this.lineInit();
+  },
+  methods: {
+    donutInit() {
+      const donutPlot = new Donut(document.getElementById('container'), {
+        forceFit: true,
+        title: {
+          visible: true,
+          text: '环图',
+        },
+        description: {
+          visible: true,
+          text: '环图的外半径决定环图的大小，而内半径决定环图的厚度。',
+        },
+        radius: 0.8,
+        padding: 'auto',
+        data: this.donutData,
+        angleField: 'value',
+        colorField: 'type',
+      });
+
+      donutPlot.render();
+    },
+    donutTwoInit() {
+      const donutPlot = new Donut(document.getElementById('donutTwo'), {
+        forceFit: true,
+        title: {
+          visible: true,
+          text: '环图',
+        },
+        description: {
+          visible: true,
+          text: '环图的外半径决定环图的大小，而内半径决定环图的厚度。',
+        },
+        radius: 0.8,
+        padding: 'auto',
+        data: this.donutData,
+        angleField: 'value',
+        colorField: 'type',
+      });
+
+      donutPlot.render();
+    },
+    stackBarInit() {
+      const stackBarPlot = new StackedBar(document.getElementById('stackBar'), {
+        height: 800,
+        forceFit: true,
+        title: {
+          visible: true,
+          text: '百分比堆叠条形图',
+        },
+        data: this.stackedBarData,
+        yField: '地区',
+        xField: '销售额',
+        label: {
+          visible: true,
+          formatter: (v) => Math.round(v / 10000) + '万',
+        },
+        stackField: '细分',
+      });
+
+      stackBarPlot.render();
+    },
+    lineInit() {
+      const linePlot = new Line(document.getElementById('lineContainer'), {
+        height: 400,
+        title: {
+          visible: true,
+          text: '绍兴市月新增处理问题情况',
+          alignTo: 'middle'
+        },
+        padding: 'auto',
+        forceFit: true,
+        data: this.lineData,
+        xField: 'date',
+        yField: 'value',
+        point: {
+          visible: true,
+        },
+        label: {
+          visible: true,
+          type: 'point',
+        },
+        tooltip: {
+          visible: true
+        },
+        seriesField: 'type',
+        color: ['#1979C9', '#D62A0D'],
+        responsive: true,
+      });
+
+      linePlot.render()
+    },
+    showOrgSelect() {
+      this.orgvisible = true;
+    },
+    onNameChange() {
+
+    },
+    orgOk() {
+
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.issue-tracking{
+  padding: 10px;
+  height: 100%;
+  .main{
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    overflow: hidden;
+    background: @white;
+    height: 100%;
+    .main-top{
+      margin-top: 10px;
+      padding: 0 @content-padding-h;
+        .tabs{
+          padding: @content-padding-v 0;
+          a{
+            display: inline-block;
+            height: 26px;
+            line-height: 26px;
+            padding: 0 12px;
+            margin-left: 6px;
+            border-radius: @border-radius-base;
+            &:first-child{
+              margin-left: 0;
+            }
+            &:hover{
+              background: @primary-1;
+            }
+          }
+          a.active{
+            background-color: @primary-color;
+            color: white;
+            &:hover{
+              background: lighten(@primary-color, 5%);
+            }
+          }
+        }
+    }
+    .main-chart{
+      flex-shrink: 1;
+      overflow-y: auto;
+      .g2-chart{
+        .g2-chart-top{
+          display: flex;
+          > div{
+            width: 50%;
+          }
+        }
+      }
+      .antd-table{
+        .antd-table-top{
+          margin-top: 10px;
+          padding: @content-padding-v @content-padding-h;
+          .tabs{
+            span {
+              cursor: pointer;
+              padding: 0 10px;
+              border-right: 1px solid #c6c6c6;
+            }
+            span.active{
+              color: @primary-color;
+            }
+            :last-child {
+              border: 0;
+            }
+          } 
+        }
+        .antd-table-query{
+          padding: @content-padding-v @content-padding-h;
+          .query-info{
+            span{
+              display: inline-block;
+              padding: 8px 10px;
+              background-color: @primary-color;
+              color: @white;
+              border-radius: 5%;
+            }
+          }
+          .query-serach{
+            display: flex;
+            justify-content: flex-end;
+            .queryitem{
+              margin-left: 20px;
+              height: 37px;
+            }
+          }
+        }
+        .antd-table-con{
+          padding: @content-padding-v @content-padding-h;
+        }
+      }
+    }
+  }
+}
+</style>

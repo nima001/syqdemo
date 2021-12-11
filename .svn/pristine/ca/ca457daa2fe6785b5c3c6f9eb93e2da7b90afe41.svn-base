@@ -1,0 +1,191 @@
+
+<template>
+  <a-spin :spinning="loading" :id="spinid">
+    <div :id="id">
+    </div>
+  </a-spin>
+</template>
+
+<script>
+import { Chart } from '@antv/g2';
+import { Spin } from "ant-design-vue";
+import mixinChart from "@/person-shaoxing/views/monitor/mixins/chart";
+import { AxisOption, colorGroup } from "@/person-shaoxing/utils/index";
+
+export default {
+  name: 'g2-line',
+  mixins: [mixinChart],
+  components: {
+    ASpin: Spin
+  },
+  props: {
+    loading: {
+      type: Boolean,
+      default: true
+    },
+    autoFit: {
+      type: Boolean,
+      default: true
+    },
+    // 数据 => 必选
+    data: {
+      type: Array,
+      default: () => [
+      ]
+    },
+    //  度量配置
+    scaleConfig: {
+      type: Object,
+      default: () => {
+        return {
+          value: {
+            nice: true
+          },
+          xname: {
+            range: [0, 1]
+          }
+        }
+      }
+    },
+    // 坐标轴名称 key => x,y,  value => 坐标轴标题
+    axisName: {
+      type: Object
+    },
+    // 坐标轴颜色
+    axisColor: {
+      type: Object,
+      default: () => {
+        return {
+          lineColor: '#000',
+          labelColor: '#000'
+        }
+      }
+    },
+    showTooltip: {
+      type: Boolean,
+      default: true
+    },
+    //  提示信息配置
+    tooltipConfig: {
+      type: Object
+    },
+    showLegend: {
+      type: Boolean,
+      default: true
+    },
+    //  图例配置
+    legendConfig: {
+      type: Object
+    },
+    //  坐标轴配置
+    axisConfig: {
+      type: Object,
+    },
+    showTitle: {
+      type: Boolean,
+      default: true
+    },
+    //  是否显示网格线
+    showGrid: {
+      type: Boolean,
+      default: true
+    },
+    //  是否配置折点
+    showPoint: {
+      type: Boolean,
+      default: true
+    },
+    // 单颜色
+    singleColor: {
+      type: String,
+      default: '#1890ff'
+    },
+    //  是否曲线
+    isSmooth: {
+      type: Boolean,
+      default: true
+    }
+  },
+  computed: {
+    spinid() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    }
+  },
+  mounted() {
+  },
+  methods: {
+    setChartConfig(data) {
+      this.chart.data(data)
+
+      //  度量配置 坐标轴title => alias别名
+      let scaleConfig = (() => {
+        let obj = {}
+        for (const key in this.axisName) {
+          if (this.axisName.hasOwnProperty(key)) {
+            obj[key] = {}
+            obj[key]['alias'] = this.axisName[key]
+            Object.assign(obj[key], this.scaleConfig[key])
+          }
+        }
+        return obj
+      })()
+      this.chart.scale(scaleConfig)
+
+      //  默认坐标轴第一个值为x轴 第二只为y轴
+      let axisArr = Object.keys(this.axisName);
+      //  是否使用tooltip
+      if(this.showTooltip) {
+        this.chart.tooltip(this.tooltipConfig);
+      } else {
+        this.chart.tooltip(false);
+      }
+
+      //  图例配置
+      if(this.showLegend) {
+        this.chart.legend(this.legendConfig);
+      } else {
+        this.chart.legend(false);
+      }
+
+      //  坐标轴配置
+      this.chart.axis(axisArr[0], new AxisOption( this.axisColor,  this.showGrid, this.showTitle));
+      this.chart.axis(axisArr[1], new AxisOption( this.axisColor,  this.showGrid, this.showTitle));
+
+      // 配置折线和散点的颜色、形状等
+      let line = this.chart.line().position(`${axisArr[0]}*${axisArr[1]}`),
+          point;
+      
+      if (this.showPoint) {
+        point = this.chart.point().position(`${axisArr[0]}*${axisArr[1]}`).size(4).shape('circle').style({
+          stroke: '#fff',
+          lineWidth: 1
+        })
+      }
+
+      // 配置多条折线时的颜色
+      if (this.data.length > 0 && this.data[0].hasOwnProperty(`${axisArr[2]}`)) {
+        line.color({
+          fields: [`${axisArr[2]}`],
+          values: colorGroup
+        })
+        if (this.showPoint) {
+          point.color({
+            fields: [`${axisArr[2]}`],
+            values: colorGroup
+          })
+        }
+      } else {
+        line.color(this.singleColor)
+        if (this.showPoint) {
+          point.color(this.singleColor)
+        }
+      }
+
+      // 折线是否显示为曲线
+      if (this.isSmooth) {
+        line.shape('smooth');
+      }
+    },
+  }
+}
+</script>

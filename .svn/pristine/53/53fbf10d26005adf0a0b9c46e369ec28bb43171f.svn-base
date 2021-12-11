@@ -1,0 +1,490 @@
+<template>
+  <a-layout style="height: 100%">
+    <div class="org-tree-bar">
+      <div class="search-input">
+        <a-input
+          placeholder="输入组织名称搜索"
+          v-model="search.key"
+          @change="onSearch"
+          @pressEnter="onSearch"
+        >
+          <a-icon
+            slot="suffix"
+            :type="search.key ? 'close-circle' : 'search'"
+            @click="clearSearch"
+          />
+        </a-input>
+      </div>
+      <div class="search-data-panel" v-if="search.key">
+        <a-spin v-if="search.data == null" key="search-data" class="searching">
+          <a-icon slot="indicator" type="loading" />
+        </a-spin>
+        <div v-else-if="search.data.length" key="search-data" class="datalist">
+          <ul>
+            <li
+              v-for="item in search.data"
+              :key="item.id"
+              @click="_searchSelect(item.id)"
+              :title="item.name"
+            >
+              <org-icon :org="item.data" />
+              <span class="text">{{ item.name }}</span>
+            </li>
+          </ul>
+        </div>
+        <div v-else key="search-data" class="empty">
+          <img class="icon" src="@/framework/assets/img/search-empty.png" alt />
+          <div class="text">无搜索结果</div>
+        </div>
+      </div>
+    </div>
+    <a-layout-content class="org-tree-body">
+      <a-tree
+        ref="tree"
+        :loadData="onLoadData"
+        :treeData="treeData"
+        showIcon
+        :expandedKeys="expandedKeys"
+        :selectedKeys="selectedKeys"
+        @expand="onExpand"
+        @select="onSelect"
+      >
+        <org-icon slot="icon" slot-scope="data" :org="data._dept || data._node.data" />
+      </a-tree>
+    </a-layout-content>
+  </a-layout>
+</template>
+<script>
+//提供外部事件 select 组织树节点选中 node, org
+import { treepath, treeroot, treequery, listnode, orgquery } from "@/person/api/org";
+import OrgIcon from "@/framework/components/OrgIcon";
+import { showError } from "@/framework/utils/index";
+
+let scrollToLocation = false;
+let searchDelayTimer = 0;
+let searchid = 0;
+import { Layout, Input, Spin, Icon, Tree } from "ant-design-vue";
+export default {
+  props: {
+    nodeid: Number, //初始化定位的节点ID null 无需定位select
+    treeid: Number, //加载的组织树ID (可以为空)
+    //deptid: String, //部门ID TODO sunwen 暂未实现内设科室定位
+    dirSelectable: Boolean, //目录是否可选中
+    initAutoSelect: {//初始化自动选中节点
+      type: Boolean,
+      default: true
+    },
+    showDept: {//是否显示内设科室
+      type: Boolean,
+      default: true
+    }
+  },
+  components: {
+    ALayout: Layout,
+    ALayoutContent: Layout.Content,
+    AInput: Input,
+    ASpin: Spin,
+    AIcon: Icon,
+    ATree: Tree,
+    OrgIcon
+  },
+  data() {
+    return {
+      treeData: [],
+      expandedKeys: [],
+      selectedKeys: [],
+      search: {
+        key: null,
+        data: null
+      }
+    };
+  },
+  created() {
+    this.loadData(this.nodeid, this.treeid);
+    document.addEventListener("click", this._searchClose);
+  },
+  updated() {
+    if (scrollToLocation) {
+      scrollToLocation = false;
+      let $selectd = this.$refs.tree.$el.querySelector(
+        "li.ant-tree-treenode-selected"
+      );
+      if ($selectd) {
+        $selectd.scrollIntoView();
+      }
+    }
+  },
+  destroyed() {
+    document.removeEventListener("click", this._searchClose);
+  },
+  methods: {
+    loadData(nodeid) {
+      treeroot(this.treeid)
+        .then(resp => {
+          let root = resp.result,
+            expandedKeys = [];
+          let list = (root.children || []).map(item =>
+            this._createNodeData(item, null)
+          );
+          if (nodeid) {
+            return this._locationPath(list, expandedKeys, nodeid);
+          } else if (list.length == 1) {
+            //第一级如果只有一个节点默认展开
+            return this._loadChildren(list[0]._node).then(children => {
+              let root = list[0];
+              root.children = children;
+              expandedKeys.push(root.key);
+              return {
+                expandedKeys,
+                treeData: list
+              };
+            });
+          } else {
+            return {
+              expandedKeys,
+              treeData: list
+            };
+          }
+        })
+        .then(list => {
+          this.treeData = [...list.treeData];
+          this.expandedKeys = [...list.expandedKeys];
+          if (list.selected) {
+            scrollToLocation = true;
+            this.selectedKeys = [list.selected.key];
+            this.$emit("select", list.selected._node, list.selected._dept, true);
+          }else if(this.initAutoSelect && list.treeData.length){
+            let first = list.treeData[0];
+            this.selectedKeys = [first.key];
+            this.$emit("select", first._node, first._dept, true);
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    _locationPath(treeData, expandedKeys, id) {
+      return treepath(id, this.treeid)
+        .then(resp => {
+          let path = resp.result,
+            selected = null;
+          if (path && path.length > 0) {
+            let children = treeData,
+              matchNode = null,
+              first = null,
+              last = path.pop();
+            while ((first = path.shift())) {
+              matchNode = children.find(ele => ele.key == first.id);
+              if (!matchNode) {
+                //未匹配到节点数据返回root数据
+                return {
+                  expandedKeys,
+                  treeData
+                };
+              }
+              children = matchNode.children;
+              if (!children) {
+                path.unshift(first);
+                break; //子节点未加载跳出循环异步加载子节点
+              }
+              expandedKeys.push(matchNode.key);
+            }
+            if (path.length > 0) {
+              let ps = path.map(item => this._loadChildren(item, null));
+              return Promise.all(ps)
+                .then(reqList => {
+                  let allMatch = reqList.every((ele, index) => {
+                    matchNode.children = ele;
+                    expandedKeys.push(matchNode.key);
+                    if (index < path.length - 1) {
+                      let pathItem = path[index + 1];
+                      let pathNode = ele.find(item => item.key == pathItem.id);
+                      if (pathNode) {
+                        matchNode = pathNode;
+                      } else {
+                        return false;
+                      }
+                    }
+                    return true;
+                  });
+                  if (allMatch) {
+                    selected = matchNode.children.find(
+                      ele => ele.key == last.id
+                    );
+                  }
+                  return {
+                    expandedKeys,
+                    selected,
+                    treeData
+                  };
+                })
+                .catch(err => {
+                  //定位失败提示错误并返回初始化数据
+                  showError(err);
+                  return Promise.resolve({
+                    expandedKeys,
+                    treeData
+                  });
+                });
+            } else {
+              selected = children.find(ele => ele.key == last.id);
+            }
+          } else {
+          }
+          return {
+            expandedKeys,
+            selected,
+            treeData
+          };
+        })
+        .catch(err => {
+          //路径加载失败
+          showError(err);
+          return Promise.resolve({
+            expandedKeys,
+            treeData
+          });
+        });
+    },
+    _loadChildren(node, dept) {
+      if (dept) {
+        return orgquery({
+          suporgid: dept._id,
+          unittypes: [9], //查询内设等指定单位
+          pagesize: 50 //FIXME 内设科室暂定最多50条
+        }).then(resp => {
+          return (resp.result.rows || []).map(item =>
+            this._createNodeData(node, item)
+          );
+        });
+      }
+      if (this.showDept && node.data) {
+        return Promise.all([
+          listnode(node.id, this.treeid),
+          orgquery({
+            suporgid: node.data._id,
+            unittypes: [9], //查询内设等指定单位
+            pagesize: 50 //FIXME 内设科室暂定最多50条
+          })
+        ]).then(([listRt, deptsRt]) => {
+          let arr = [];
+          if (deptsRt.result) {
+            deptsRt.result.rows.forEach(item =>
+              arr.push(this._createNodeData(node, item))
+            );
+          }
+          if (listRt.result) {
+            listRt.result.forEach(item =>
+              arr.push(this._createNodeData(item, null))
+            );
+          }
+          return arr;
+        });
+      } else {
+        return listnode(node.id, this.treeid).then(resp => {
+          return (resp.result || []).map(item =>
+            this._createNodeData(item, null)
+          );
+        });
+      }
+    },
+    _doSearch(searchkey, pagenum) {
+      return orgquery({
+        treeid: this.treeid,
+        nodeid: 0,
+        searchkey,
+        unittypes: [1, 2, 3, 4, 5],
+        pagenum,
+        pagesize: 100 //FIXME sunwen 实现分页加载 滚动加载
+      }).then(({result}) => result)
+      // return treequery({
+      //   treeid: this.treeid,
+      //   type: 1,
+      //   allsub: true,
+      //   searchkey,
+      //   pagenum,
+      //   pagesize: 100 //TODO sunwen 实现分页加载
+      // }).then(resp => {
+      //   return resp.result;
+      // });
+    },
+    onExpand(expandedKeys) {
+      this.expandedKeys = expandedKeys;
+    },
+    onSelect(selectedKeys, info) {
+      if (selectedKeys.length > 0) {
+        this.selectedKeys = selectedKeys;
+        let nodeData = info.node.dataRef;
+        this.$emit("select", nodeData._node, nodeData._dept);
+      }
+    },
+    onLoadData(treeNode) {
+      let data = treeNode.dataRef;
+      if (data.children) {
+        return Promise.resolve();
+      }
+      return this._loadChildren(data._node, data._dept)
+        .then(children => {
+          treeNode.dataRef.children = children;
+          this.treeData = [...this.treeData];
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    onSearch(e) {
+      let searchkey = e.target.value.trim();
+      if (searchkey) {
+        let sid = ++searchid;
+        this.search.data = null;
+        clearTimeout(searchDelayTimer);
+        //延时500毫秒发起请求，减少连续输入时请求数
+        searchDelayTimer = setTimeout(() => {
+          this._doSearch(searchkey).then(page => {
+            if (searchkey == this.search.key && sid == searchid) {
+              this.search.data = page.rows.map(item => ({
+                id: item._id,
+                name: item.name,
+                data: item
+              }));
+            }
+          }).catch(err => {
+            showError(err);
+          });
+        }, 500);
+      } else {
+        this.clearSearch();
+      }
+    },
+    clearSearch() {
+      this.search.key = null;
+      this.search.data = null;
+      clearTimeout(searchDelayTimer);
+    },
+    _searchClose(e) {
+      if (!e.path.find(ele => ele.className == "org-tree-bar")) {
+        this.clearSearch();
+      }
+    },
+    _searchSelect(_id) {
+      treequery({
+        dataid: _id,
+        allsub: true,
+        pagesize: 1,
+      }).then(({result}) => {
+        if(result.rows.length == 0){
+          return;
+        }
+        this.clearSearch();
+        this._locationPath(this.treeData, [], result.rows[0].id).then(list => {
+          this.treeData = [...list.treeData];
+          this.expandedKeys = [...list.expandedKeys];
+          if (list.selected) {
+            scrollToLocation = true;
+            this.selectedKeys = [list.selected.key];
+            this.$emit("select", list.selected._node, list.selected._dept);
+          }
+        }).catch(err => {
+          showError(err);
+        });
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    _createNodeData(node, dept) {
+      return {
+        key: dept ? dept._id : node.id,
+        title: dept ? dept.name : node.data && (node.data.shortname || node.data.name) || node.name,
+        selectable: this.dirSelectable || !!node.data,
+        scopedSlots: {
+          icon: "icon"
+        },
+        // isLeaf: !!dept,
+        _node: node,
+        _dept: dept
+      };
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-layout {
+  background: none;
+}
+.org-tree-bar {
+  position: relative;
+  .search-input {
+    margin: 12px 20px 0 20px;
+  }
+  .search-data-panel {
+    position: absolute;
+    z-index: 1000;
+    width: 100%;
+    margin-top: 5px;
+    padding: 10px 0;
+    background-color: white;
+    box-shadow: 0px 4px 8px #e5e5e5;
+    .datalist {
+      min-height: 140px;
+      max-height: 490px;
+      overflow: auto;
+      ul {
+        margin: 0;
+      }
+      li {
+        padding: 2px 20px;
+        line-height: 1.8em;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        &:hover {
+          background-color: @primary-1;
+        }
+        .icon {
+          margin-right: 2px;
+        }
+        .text {
+          vertical-align: middle;
+        }
+      }
+    }
+    .searching {
+      display: block;
+      text-align: center;
+      line-height: 140px;
+    }
+    .empty {
+      text-align: center;
+      height: 140px;
+      .icon {
+        margin-top: 40px;
+      }
+      .text {
+        line-height: 26px;
+        color: #c5c5c5;
+      }
+    }
+  }
+}
+.org-tree-body {
+  margin: 5px 5px;
+  overflow: auto;
+}
+</style>
+<style lang="less">
+.org-tree-body .ant-tree {
+  margin-left: 12px;
+}
+.org-tree-body .ant-tree li span.ant-tree-iconEle {
+  width: 18px;
+  height: 20px;
+  line-height: 20px;
+  margin-right: 2px;
+}
+.org-tree-body .ant-tree li span.ant-tree-switcher {
+  width: 16px;
+  height: 20px;
+  line-height: 20px;
+}
+</style>

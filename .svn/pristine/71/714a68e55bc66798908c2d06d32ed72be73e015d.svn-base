@@ -1,0 +1,125 @@
+<!-- 服务接入变更日志 -->
+<template>
+  <a-layout class="open-layout">
+    <div class="body">
+      <div class="tools">
+        <a-input
+          v-model="namelike"
+          placeholder="请输入操作内容"
+          style="width: 200px"
+          class="tsearch"
+        />
+          <!-- @pressEnter="getActionList" -->
+        <a-button type="primary" class="tsearch">搜索</a-button>
+         <!-- @click="getActionList" -->
+        <a-button type="primary"  class="tsearch">重置</a-button>
+        <!-- @click="resetsearch" -->
+      </div>
+      <div>
+          <a-table :columns="columns" :data-source="data" >
+            <!-- <span slot="name" slot-scope="text, record">
+              <p>
+                <span class="actionname">{{text}}</span>
+                <span @click="actionDetail(record)" class="actiondetil">详情</span>
+              </p>
+            </span>
+
+            <span slot="acstate" slot-scope="text">
+              <span>{{stateMap[text]}}</span>
+            </span> -->
+          </a-table>
+      </div>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import { Layout, Button, Input,Table } from "ant-design-vue";
+import { operationlog } from "@/dev/api/app";
+export default {
+  components: {
+      ALayout: Layout,
+      AButton: Button,
+      AInput: Input,
+      ATable: Table,
+
+  },
+
+  props: {},
+
+  data() {
+    return {
+        namelike: "",
+        columns: [
+        {
+          title: "操作对象",
+          dataIndex: "operation",
+          width: "35%",
+        //   scopedSlots: { customRender: "name" }
+        },
+        {
+          title: "操作内容",
+          dataIndex: "desc",
+          width: "15%"
+        },
+        {
+          title: "操作人",
+          dataIndex: "createuser",
+          width: "40%"
+        },
+        {
+          title: "操作时间",
+          dataIndex: "createtime",
+          width: "10%",
+        //   scopedSlots: { customRender: "acstate" },
+        //   customCell: (record, rowIndex) => {
+        //     //在此处可以修改单元格中的样式
+        //     return { style: this.colors(record.state) }; //return 想要设置的样式
+        //   }
+        }
+      ],
+      data: [],
+    };
+  },
+
+  computed: {},
+
+  watch: {},
+
+  created(){
+      this.getChangLog();
+  },
+
+  methods: {
+      getChangLog(){
+          let data = {
+              
+          }
+      },
+  }
+};
+</script>
+<style lang='less' scoped>
+.open-layout {
+    background: #fff;
+  padding: 0 !important;
+  height: 100%;
+  .body {
+    width: 98%;
+    height: 100%;
+    // padding: 8px 10%;
+    margin: 0 auto;
+    overflow-y: auto;
+    background: #fff;
+    .tools {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+    margin-bottom: 10px;
+    .tsearch {
+      margin: 0 5px;
+    }
+  }
+  }
+}
+</style>

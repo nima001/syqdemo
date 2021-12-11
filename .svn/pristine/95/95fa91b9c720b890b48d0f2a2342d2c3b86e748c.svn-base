@@ -1,0 +1,234 @@
+<template>
+  <div>
+    <dialog-box v-model="show">
+      <div class="detail-info">
+        <template>
+          <div class="left">
+            <ul>
+              <li
+                v-for="item in systypes"
+                :key="item.key"
+                :class="{ active: search.systype === item.value }"
+                @click="onSystypeClick(item)"
+              >
+                {{ item.text }}
+              </li>
+            </ul>
+          </div>
+          <div class="right">
+            <div class="header">
+              <div class="left">
+                <a-input v-model="search.searchkey" />
+              </div>
+              <div class="right">
+                <a-button @click="onSearch">搜索</a-button>
+                <a-button @click="onReset">重置</a-button>
+              </div>
+            </div>
+            <ul class="list">
+              <li><span>中共浙江省纪律检查委员会机关</span> <span>1212</span></li>
+              <li><span>中共浙江省委办公厅</span> <span>1212</span></li>
+              <li><span>中共浙江省委组织部</span> <span>1212</span></li>
+              <li><span>中共浙江省委宣传部</span> <span>1212</span></li>
+              <li><span>中共浙江省委统一战线工作部</span> <span>1212</span></li>
+              <li><span>中共浙江省委政法委员会</span> <span>1212</span></li>
+              <li><span>中共浙江省委政政策 </span> <span>1212</span></li>
+              <li><span>中共浙江省委全面深化改革委员办公室</span> <span>1212</span></li>
+              <li><span>中共浙江省委全面依法治省委员会办公室 </span> <span>1212</span></li>
+              <li><span>中共浙江省委网络安全和信息化委员办公室</span> <span>1212</span></li>
+            </ul>
+            <div class="pagination">
+                <div class="prev">
+                    <img src="../../../assets/img/screen/page-prev.png">
+                </div>
+                <div>
+                    <span class="current">1</span>
+                    <span>/</span>
+                    <span>1</span>
+                </div>
+                <div class="next">
+                    <img src="../../../assets/img/screen/page-next.png">
+                </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    </dialog-box>
+  </div>
+</template>
+<script>
+import { Button, Input, Tooltip } from "ant-design-vue";
+import DialogBox from "./DialogBox";
+export default {
+  props: {
+    ageList: Boolean,
+  },
+  components: {
+    DialogBox,
+    AInput: Input,
+    AButton: Button,
+    ATooltip: Tooltip,
+  },
+  data() {
+    return {
+      show: false,
+      search: {
+        systype: null,
+        searchkey: undefined,
+      },
+      dataList: [],
+      pagenum: 1,
+      dataSize: 0, //dataList数据存在分组，不用数组长度判断已经加载的数据长度
+      total: 0,
+      orgDetail: {
+        show: false,
+        orgid: undefined,
+        title: undefined,
+      },
+      intersectionObserver: undefined,
+    };
+  },
+  watch: {
+    ageList(value) {
+      this.show = value;
+    },
+    show(show) {
+      if (!show) {
+        this.$emit("update:ageList", show);
+      }
+    },
+  },
+  computed: {
+    systypes() {
+      let arr = this.$store.getters.dict("usermanage.org.systype") || [];
+      return [{ key: "", value: null, text: "全部" }, ...arr];
+    },
+  },
+  methods: {
+    onReset(){
+      if(this.search.searchkey){
+        this.search.searchkey = undefined;
+        this.loadData(true);
+      }
+    },
+    onSearch() {
+      this.loadData(true);
+    },
+    onSystypeClick(item) {
+      this.search.systype = item.value;
+      this.dataList = [];
+      this.loadData(true);
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.detail-info{
+  height: 600px;
+  display: flex;
+  overflow: hidden;
+  padding: 50px 50px;
+  font-size: 16px;
+  color: #fff;
+  & > .left{
+    width: 200px;
+    height: 100%;
+    flex: none;
+    margin-right: 10px;
+    background-color: #081220;
+    overflow-y: auto;
+    li{
+      line-height: 46px;
+      margin-top: 5px;
+      cursor: pointer;
+      color: fade(#fff, 60%);
+      text-align: center;
+      &:hover{
+        background-color: #23364c;
+      }
+      &.active{
+        background-color: #23364c;
+        color: #fff;
+      }
+    }
+  }
+  & > .right{
+    flex: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 0 10px;
+    & > .header{
+      display: flex;
+      .left{
+        flex: auto;
+      }
+      .right{
+        flex: none;
+      }
+      .ant-input{
+        background: #111c31;
+        border: unset;
+        color: #fff;
+        height: 46px;
+        &:focus{
+          box-shadow: 0 0 3px 1px rgba(158, 197, 255, 0.582);
+        }
+      }
+      .ant-btn{
+        background: #111c31;
+        color: fade(#fff, 60%);
+        border-color: #1c97b8;
+        margin-left: 20px;
+        height: 44px;
+        width: 80px;
+        &:hover{
+          color: #fff;
+        }
+      }
+    }
+    .list {
+        height: 75%;
+        padding: @padding-lg;
+        display: flex;
+        justify-content: space-around;
+        flex-wrap: wrap;
+        li {
+          width: 40%;
+          padding: 0 @padding-xs;
+          line-height: 45px;
+          margin: @layout-space-base;
+          text-align: center;
+          background: url('../../../assets/img/screen/list-bg.png') no-repeat;
+          background-size: 100% 100%;
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          span:first-child {
+            text-overflow: ellipsis;
+            overflow: hidden;
+            white-space: nowrap;
+          }
+        }
+    }
+    .pagination {
+        width: 120px;
+        padding: @padding-xs @padding-lg;
+        margin: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: @border-radius-base;
+        color: fade(#fff, 80%);
+        background: fade(#000, 30%);
+        .current {
+            color: #fff;
+        }
+        .prev, .next {
+            margin: 0 16px;
+            cursor: pointer;
+        }
+    }
+  }
+}
+</style>

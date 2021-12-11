@@ -1,0 +1,58 @@
+
+<!--花名册-->
+<template>
+  <accordion-layout nav-title="组织架构">
+    <org-tree class="org-tree" slot="nav" @select="onOrgSelect" :nodeid="nodeid" :treeid="treeid" />
+    <keep-alive include="orgMain">
+      <router-view />
+    </keep-alive>
+  </accordion-layout>
+</template>
+<script>
+import AccordionLayout from "@/framework/components/AccordionLayout";
+import OrgTree from "@/hall/components/OrgTree";
+import Vue from "vue";
+export default {
+  components: {
+    AccordionLayout,
+    OrgTree
+  },
+  data() {
+    return {
+      nodeid: Number(this.$route.query.id) || undefined,
+      treeid: Number(this.$route.query.treeid) || undefined
+    };
+  },
+  provide() {
+    /**
+     * provide/inject绑定是不可响应的，
+     * 如果传入一个可监听对象，对象属性是可响应的
+     *
+     * nodeTree  : 树形节点数据
+     */
+    const _this = this;
+    return {
+      treeNode: new Vue({
+        data() {
+          return {
+            data: null
+          };
+        }
+      })
+    };
+  },
+  methods: {
+    onOrgSelect(node) {
+      this._provided.treeNode.data = node;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.org-tree {
+  /deep/ .icon,
+  rect {
+    color: @primary-color !important;
+  }
+}
+</style>

@@ -1,0 +1,391 @@
+<template>
+<div>
+  <div class="orgSwiper">
+    <div class="top">
+      <span class="title">{{aveName}}机构绩效平均分</span>
+      <div class="lcdFont">
+        <lcd-font :length="4" :realNumber="aveScore"></lcd-font>
+      </div>
+    </div>
+    <div class="middle">
+      <div class="order">
+        <span class="icon"></span>
+        <span class="text">{{aveName}}机构排序</span>
+      </div>
+      <div class="all">
+        <span class="icon"></span>
+        <span class="text">全部</span>
+      </div>
+    </div>
+    <div class="swiperCont">
+      <swiper-ant :size="2" :pretBtn="pretBtn" :nextBtn="nextBtn" v-model="page">
+        <ul class="swiper" slot="swiper0">
+          <li class="swiperItem" v-for="(item,index) in list_xz" :key="index" @click="detail={
+            show: true, type: 'xz', orgid: item._id, orgname: item.name
+          }">
+            <span class="index">{{index+1}}</span>
+            <span class="orgName">{{item.name}}</span>
+            <span class="percent">
+              <a-progress :showInfo="false" :percent="item.num" status="active"></a-progress>
+            </span>
+            <span class="text">{{item.num}}</span>
+          </li>
+        </ul>
+        <ul class="swiper" slot="swiper1">
+          <li class="swiperItem" v-for="(item,index) in list_sy" :key="index" @click="detail={
+            show: true, type: 'sy', orgid: item._id, orgname: item.name
+          }">
+            <span class="index">{{index}}</span>
+            <span class="orgName">{{item.name}}</span>
+            <span class="percent">
+              <a-progress :showInfo="false" :percent="item.num" status="active"></a-progress>
+            </span>
+            <span class="text">{{item.num}}</span>
+          </li>
+        </ul>
+      </swiper-ant>
+    </div>
+  </div>
+   <dialog-box v-model="detail.show" :title="detail.orgname + '绩效评估详情'" :destroyOnClose="true">
+      <kpi-detail :id="detail.orgid" :type="detail.type" />
+    </dialog-box>
+    </div>
+</template>
+<script>
+import LcdFont from "../components/LcdFont";
+import { Progress } from "ant-design-vue";
+import { mixins } from "../components/minxin";
+import { query } from "@/person/api/integratedquery";
+import { aggregateQuery } from "@/person/api/chart";
+import SwiperAnt from "../components/SwiperAnt";
+import DialogBox from "../components/DialogBox";
+import KpiDetail from "./KpiDetail";
+import { showError } from "@/framework/utils/index";
+export default {
+  components: { LcdFont, AProgress: Progress, SwiperAnt, DialogBox, KpiDetail },
+  data() {
+    return {
+      pretBtn: {
+        left: "-40px"
+      },
+      nextBtn: {
+        right: "-40px"
+      },
+      list_xz: [],
+      list_sy: [],
+      average: [],
+      page: 0,
+      detail: {
+        show: false,
+        type: 'xz',
+        orgid: undefined,
+        orgname: undefined,
+      }
+    };
+  },
+  mixins: [mixins],
+  watch: {
+    dictId(v) {
+      this.getData();
+      this.getAverage();
+    }
+  },
+  computed: {
+    aveScore() {
+      if (this.average[this.page]) {
+        let score = Math.ceil(this.average[this.page]["value"]*100)/100;
+        if(score.toString().split('.')[1] == '00'){
+          score = +score.split('.')[0]
+        }
+        return score;
+      } else {
+        return 0;
+      }
+    },
+    aveName() {
+      if (this.average[this.page]) {
+        return this.average[this.page]["name"];
+      }
+    }
+  },
+  mounted() {
+    this.getData();
+    this.getAverage();
+  },
+  methods: {
+    request(arr) {
+      return query({
+        target: { id: 1 },
+        filter: {
+          op: "and",
+          criteria: [
+            { field: { key: "unittype" }, op: "in", value: arr },
+            { field: { key: "district" }, op: "eq", value: this.dictId }
+          ]
+        },
+        fields: [
+          { key: "name", showname: "机构名称" },
+          {
+            key: "_id@organization.statistic.zgdwjxpg",
+            showname: "主管单位绩效评估"
+          }
+        ],
+        order: [
+          { orderby: "_id@organization.statistic.zgdwjxpg", ordertype: "ASC" }
+        ],
+        pagenum: 1,
+        pagesize: 5
+      });
+    },
+    getData() {
+      let unnitType_xz = [1, 7]; // 行政
+      let unnitType_sy = [2, 3]; // 事业
+      let q1 = this.request(unnitType_xz);
+      let q2 = this.request(unnitType_sy);
+      Promise.all([q1, q2]).then(res => {
+        let [{ result: result1 }, { result: result2 }] = res;
+        this.list_xz = this.formateData(result1);
+        this.list_sy = this.formateData(result2);
+      });
+    },
+    formateData(result) {
+      let { rows, header } = result;
+      return rows.map((item, index) => {
+        return {
+          _id: item._id,
+          name: item[header[0]["column"]],
+          num: item[header[1]["column"]] || 0
+        };
+      });
+    },
+    getAverage() {
+      aggregateQuery({
+        query: {
+          namespace: "report.chart",
+          target: {
+            id: 1,
+            model: "organization"
+          },
+          fields: [
+            {
+              key: "name",
+              showname: "机构名称"
+            },
+            {
+              key: "_id@organization.statistic.zgdwjxpg",
+              showname: "主管单位绩效评估"
+            },
+            {
+              key: "unittype",
+              showname: "单位类别"
+            }
+          ],
+          filter: {
+            op: "and",
+            criteria: [
+              {
+                field: {
+                  key: "unittype",
+                  showname: "单位类别"
+                },
+                op: "in",
+                value: [1, 7, 2, 3]
+              }
+            ]
+          }
+        },
+        groupby: {
+          with: [
+            {
+              type: "section",
+              key: "unittype",
+              showname: "单位类别",
+              id: "ihxsjs",
+              section: {
+                items: [
+                  {
+                    name: "行政",
+                    values: ["xz", "jdxz"]
+                  },
+                  {
+                    name: "事业",
+                    values: ["cg", "sy"]
+                  }
+                ],
+                other: false,
+                otherName: "其它"
+              }
+            }
+          ],
+          fields: [
+            {
+              type: "avg",
+              key: "_id@organization.statistic.zgdwjxpg",
+              showname: "主管单位绩效评估",
+              id: "riewhg"
+            }
+          ]
+        }
+      })
+        .then(res => {
+          let { keyCols, rows, valueCols } = res.result.data;
+          this.average = rows.map(item => {
+            return {
+              type: item[keyCols[0]["column"]],
+              value: item[valueCols[0]["column"]] || 0,
+              name: item[keyCols[0]["column"]]
+            };
+          });
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.orgSwiper {
+  position: absolute;
+  right: 88px;
+  top: 50%;
+  transform: translateY(-50%);
+  .top {
+    display: flex;
+    flex-direction: column;
+    background: none;
+    margin: 0 auto;
+    padding: 0px;
+    align-items: center;
+    .title {
+      height: 21px;
+      font-size: 16px;
+      font-family: Microsoft YaHei;
+      font-weight: 400;
+      line-height: 21px;
+      color: #ffffff;
+      opacity: 0.8;
+    }
+    .lcdFont {
+      padding: 25px 0px;
+    }
+  }
+  .middle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 270px;
+    margin: 0 auto;
+    .order {
+      display: flex;
+      align-items: center;
+      .icon {
+        width: 20px;
+        height: 20px;
+        background: url("../img/order.png");
+      }
+      .text {
+        height: 26px;
+        font-size: 20px;
+        font-family: Microsoft YaHei;
+        font-weight: bold;
+        line-height: 26px;
+        color: #ffffff;
+        opacity: 0.8;
+        margin-left: 8px;
+      }
+    }
+    .all {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      .icon {
+        width: 16px;
+        height: 16px;
+        background: url("../img/all.png");
+        cursor: pointer;
+      }
+      .text {
+        height: 22px;
+        font-size: 16px;
+        font-family: Alibaba PuHuiTi;
+        font-weight: bold;
+        line-height: 22px;
+        color: #ffffff;
+        letter-spacing: 2px;
+        opacity: 0.6;
+        margin-left: 8px;
+      }
+    }
+  }
+  .swiperCont {
+    width: 270px;
+    height: 220px;
+    .swiper {
+      margin: 0px;
+      .swiperItem {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 0px;
+        .index {
+          width: 10px;
+          height: 22px;
+          font-size: 16px;
+          font-family: XinYuGongPinBoTi;
+          font-weight: 400;
+          line-height: 22px;
+          color: #8fc7ff;
+          opacity: 1;
+        }
+        .orgName {
+          width: 108px;
+          height: 22px;
+          font-size: 16px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 22px;
+          color: #ffffff;
+          opacity: 0.6;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          direction: rtl;
+        }
+        .percent {
+          width: 70px;
+          height: 6px;
+          display: flex;
+          align-items: center;
+          /deep/ .ant-progress {
+            line-height: 6px;
+            .ant-progress-inner {
+              background-color: #343434!important;
+              /deep/ .ant-progress-bg {
+                width: 68px;
+                height: 6px !important;
+                border: 1px solid rgba(0, 0, 0, 0);
+                background: linear-gradient(
+                  270deg,
+                  #8fd2ff 0%,
+                  rgba(87, 140, 246, 0.66) 49%,
+                  #5d4ef4 100%
+                );
+              }
+            }
+          }
+        }
+        .text {
+          height: 22px;
+          font-size: 16px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 22px;
+          color: #ffffff;
+          opacity: 0.6;
+        }
+      }
+    }
+  }
+}
+</style>

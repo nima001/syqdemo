@@ -1,0 +1,327 @@
+<template>
+  <div class="main" v-if="!loading">
+    <div class="login-content">
+      <div class="login-header">
+        <div class="logo-end">
+          <div class="logo-big">
+            <img :src="uiConfigs['project.logo'] || defalutLogoUrl" />
+          </div>
+          <span class="login-title">{{uiConfigs['project.title']}}</span>
+        </div>
+      </div>
+      <div class="login-wrap">
+
+        <div class="wrap-right">
+          <div class="wrap-title">账户登录</div>
+          <template>
+            <a-form layout="horizontal" :form="form" @submit="handleSubmit">
+              <a-form-item
+                :validate-status="userNameError() ? 'error' : ''"
+                :help="userNameError() || ''"
+              >
+                <a-input
+                  v-decorator="[
+                            'userName',
+                            {rules: [{ required: true, message: '请输入用户名或手机号!' }]}
+                            ]"
+                  placeholder="用户名/手机号码"
+                ></a-input>
+              </a-form-item>
+              <a-form-item
+                :validate-status="passwordError() ? 'error' : ''"
+                :help="passwordError() || ''"
+              >
+                <a-input
+                  v-decorator="[
+                            'password',
+                            {rules: [{ required: true, message: '请输入密码!' }]}
+                            ]"
+                  type="password"
+                  placeholder="密码"
+                ></a-input>
+              </a-form-item>
+              <a-form-item>
+                <a-button
+                  type="primary"
+                  html-type="submit"
+                  :disabled="hasErrors(form.getFieldsError())"
+                  block
+                  class="login-btn"
+                >登录</a-button>
+              </a-form-item>
+              <div class="forget" @click="forgetPwd()">忘记密码?</div>
+            </a-form>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Form, Input, Button } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+import { loginByPwd, loginByTicket} from "../api/login";
+import Bus from '@/framework/utils/EventBus'
+
+function hasErrors(fieldsError) {
+  return Object.keys(fieldsError).some(field => fieldsError[field]);
+}
+export default {
+  components: {
+    AInput: Input,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AButton: Button
+  },
+  data() {
+    return {
+      defalutLogoUrl: process.env.BASE_URL + 'logo.png',
+      hasErrors,
+      form: this.$form.createForm(this),
+      loading: true,
+      configIdm: false
+    };
+  },
+  computed: {
+    uiConfigs(){
+      return this.$store.getters.config;
+    },
+  },
+  created(){
+    this.$store.dispatch('loadConfig').then((config) => {
+      if(config['sso.login']){
+        window.location.replace(config['sso.login']);
+      }else{
+        this.loading = false;
+      }
+    }).catch(error => {
+      this.loading = false;
+    })
+  },
+  mounted() {
+    this.$nextTick(() => {
+      this.form.validateFields();
+    });
+  },
+  methods: {
+    loginIdm({loginname, password}) {
+      let request;
+      if(this.configIdm){
+        request = Promise.resolve();
+      }else if(idm){
+        const url = this.uiConfigs["idm.url"];
+        const servicecode = this.uiConfigs["idm.servicecode"];
+        if(url && servicecode){
+          request = new Promise((resolve, reject) => {
+            let _this = this;
+            idm.config({
+              debug: false,
+              url: url,
+              servicecode: servicecode,
+              time: this.uiConfigs["time"],
+              sign: this.uiConfigs["sign"],
+              success(r) {
+                _this.configIdm = true;
+                resolve()
+              },
+              fail(r) {
+                reject(r)
+              }
+            });
+          })
+        }else{
+          return Promise.reject({code: 'idm_not_config', message: '未配置单点登录'})  
+        }
+      }else{
+        return Promise.reject({code: 'idm_notfound', message: 'Idm jssdk not found'})
+      }
+      return request.then(() => {
+        return new Promise((resolve, reject) => {
+          idm.user.login({
+            loginname,
+            password,
+            getticket: true, //是否获取票据
+            success(r) {
+              resolve(r.ticket);
+            },
+            fail(r) {
+              let msg = r.msg.replace(/<[^>]+>/g, "");
+              reject({code: r.code, message: msg});
+            }
+          });
+        });
+      })
+    },
+    onLoginSuccess({result}) {
+      Bus.$emit("afterLogin", result);
+      let redirect = new URLSearchParams(window.location.search).get('redirect');
+      if(redirect){
+        this.$router.replace(redirect);
+      }else{
+        window.location.replace(process.env.BASE_URL);
+      }
+    },
+    userNameError() {
+      const { getFieldError, isFieldTouched } = this.form;
+      return isFieldTouched("userName") && getFieldError("userName");
+    },
+    passwordError() {
+      const { getFieldError, isFieldTouched } = this.form;
+      return isFieldTouched("password") && getFieldError("password");
+    },
+    handleSubmit(e) {
+      e.preventDefault();
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let login;
+          if (this.uiConfigs["idm.url"]) {
+            login = this.loginIdm({
+              loginname: values.userName,
+              password: values.password
+            }).then(ticket => {
+              return loginByTicket(ticket);
+            });
+          } else {
+            login = loginByPwd({ 
+              username: values.userName, 
+              pwd: values.password 
+            });
+          }
+          login.then(this.onLoginSuccess).catch(error => {
+            showError(error);
+          });
+        }
+      });
+    },
+    forgetPwd(){
+      // this.$router.push("/main/home");
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.main {
+  width: 100%;
+  height: 100%;
+  .login-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    text-align: center;
+    background: url('../../login-hall/assets/img/bj.jpg') no-repeat center center;
+    background-size:cover;
+    .login-header {
+      position: relative;
+      width: 100%;
+      height: 82px;
+      padding: 18px 80px;
+      .login-icon {
+        width: 35px;
+        height: 50px;
+        overflow: hidden;
+        float: left;
+        .img {
+          width: 100%;
+          height: 100%;
+        }
+      }
+      .logo-end {
+        position: absolute;
+        top: 40px;
+        left: 90px;
+        display: flex;
+        align-items: center;
+        .logo-big {
+          width: 50px;
+          height: 50px;
+          text-align: center;
+          img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain
+          }
+        }
+        .login-title {
+          float: left;
+          height: 46px;
+          line-height: 46px;
+          font-size: 38px;
+          color: @white;
+          margin-left: 15px;
+          text-shadow: 2px 0px 8px #060e69;
+        }
+      }
+    }
+
+    .login-wrap {
+      z-index: 5;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      align-items: center;
+      transform: translate(-50%, -50%);
+      width: 1000px;
+      height: 400px;
+      .wrap-left {
+        margin: 40px 0;
+        width: 430px;
+        height: 330px;
+        float: left;
+        .img {
+          width: 100%;
+          height: 100%;
+        }
+      }
+      .wrap-right {
+        width: 380px;
+        height: 400px;
+        padding: 45px 40px 0px;
+        background: @white;
+        float: right;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        .forget {
+          color: @primary-color;
+          text-align: right;
+          font-size: 12px;
+          cursor: pointer;
+          line-height: 1.8em;
+        }
+        .wrap-title {
+          height: 30px;
+          text-align: center;
+          color: rgba(0, 0, 0, 0.85);
+          font-size: 18px;
+          letter-spacing: 2px;
+          line-height: 30px;
+          font-weight: 500;
+          margin-bottom: 15px;
+        }
+        /deep/ .ant-form-explain {
+          text-align: left;
+        }
+        .login-btn {
+          background-color: @primary-color;
+          color: @white;
+          height: 35px;
+          border: 1px solid @primary-color;
+        }
+      }
+    }
+  }
+  .login-background {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    height: 240px;
+    background: @white;
+    .img-background {
+      width: 100%;
+      height: 100%;
+    }
+  }
+}
+</style>

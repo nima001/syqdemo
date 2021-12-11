@@ -1,0 +1,95 @@
+<template>
+  <div class="wrap">
+    <a-form-item v-if="formLayout != 'horizontal'" :label="name" :required="!!required" :validateStatus="validateStatus">
+      <a-tooltip placement="topLeft" :title="help">
+        <a-cascader placeholder="请选择籍贯" :options="options" v-model="propValue"  :class="{ notEditor: !editor }"
+          :allowClear="true" :title="propValue" :load-data="loadData" change-on-select
+        />
+      </a-tooltip>
+    </a-form-item>
+    <a-form-item v-else :required="!!required" :validateStatus="validateStatus">
+      <div class="compact">
+        <div class="title" :title="name" :class="{ textArea: multiline, required }">
+          {{ name }}
+        </div>
+        <a-tooltip placement="topLeft" :title="help">
+          <a-cascader  placeholder="请选择籍贯" :options="options"  v-model="propValue"  :class="{ notEditor: !editor }"
+            :allowClear="true"  :title="propValue" :load-data="loadData" change-on-select
+          />
+        </a-tooltip>
+      </div>
+    </a-form-item>
+  </div>
+</template>
+
+<script>
+/**
+ * 级联选择组件 (省市区，组织。。。)
+ */
+import { Form, Cascader } from "ant-design-vue";
+import { mixins } from "@formdesign/views/mixin/index";
+import { getRegions } from "@/formdesign/api/index";
+import { showError } from "@framework/utils";
+export default {
+  components: {
+    ACascader: Cascader,
+    AFormItem: Form.Item,
+  },
+  mixins: [mixins],
+  data() {
+    return {
+      options: undefined,
+    };
+  },
+  created() {
+    this.getRegionsList();
+  },
+  methods: {
+    getdistrict(district,targetOption){
+      getRegions(district)
+        .then((res) => {
+          if (res.code == "success") {
+            if(targetOption){
+              targetOption.children = res.result.rows.map((item) => {
+              return {
+                value: item.name,
+                label: item.name,
+                code: item.code,
+                isLeaf: (item.rindex - item.lindex) > 1 ? false : true,
+              };
+            });
+            this.options = [...this.options];
+            targetOption.loading = false;
+            }else{
+            this.options = res.result.rows.map((item) => {
+              return {
+                value: item.name,
+                label: item.name,
+                code: item.code,
+                isLeaf: (item.rindex - item.lindex) > 1 ? false : true,
+              };
+            });
+            }
+          }
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    getRegionsList() {
+      this.getdistrict({pagesize: 100})
+    },
+    loadData(selectedOptions) {
+      const targetOption = selectedOptions[selectedOptions.length - 1];
+      targetOption.loading = true;
+      let pageQuery = {
+        code: targetOption.code,
+        pagesize: 1000,
+      };
+      this.getdistrict(pageQuery,targetOption)
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+</style>

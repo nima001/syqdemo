@@ -1,0 +1,63 @@
+<template>
+  <div class="wrapper">
+    <!-- <div class="top">
+      <div class="left">
+        <span>查看待办业务</span>
+      </div>
+      <div class="right">
+        <a-input-search placeholder="请输入事项名称" style="width: 200px" />
+      </div>
+    </div> -->
+    <div class="content">
+      <Process></Process>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Input } from "ant-design-vue";
+import Process from '@/hall/views/home/components/Process';
+
+export default {
+  props: {},
+  components: {
+    AInputSearch: Input.Search,
+    Process
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.wrapper{
+  height: 100%;
+  .top{
+    // height: 32px;
+    padding: @padding-lg  @padding-lg;
+    display: flex;
+    justify-content: space-between;
+    .left{
+      height: 100%;
+      span{
+        display: inline-block;
+        height: 32px;
+        line-height: 30px;
+        border: 1px solid @primary-color;
+        border-radius: 5px;
+        padding: 0 10px;
+      }
+    }
+  }
+  .content{
+    height: 100%;
+    // padding: @padding-xs @padding-lg;
+  }
+}
+</style>

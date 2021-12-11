@@ -1,0 +1,253 @@
+<!-- 管理员 -->
+<template>
+  <div>
+    <div class="body">
+      <div class="body_2">
+        <a-button icon="plus" @click="add_admin">添加管理员</a-button
+        >应用创建者，默认为该应用的Owner，可以为该应用添加其他管理员
+      </div>
+
+      <div class="body_3"></div>
+      <a-table
+        :rowSelection="rowSelection"
+        :pagination="false"
+        :columns="columns"
+        :dataSource="datas"
+      >
+        <span slot="name" slot-scope="text, record">
+          <!-- <span v-html="name"></span> -->
+          <span v-if="record.id == 'Owner'">
+            {{ record.name }}
+            <span class="creator">{{ record.id }}</span>
+          </span>
+          <span v-else>{{ record.name }}</span>
+        </span>
+        <span slot="tags" slot-scope="text, record">
+          <a-button type="link" @click="edit_admin(record)">编辑</a-button>
+          <a-button type="link" @click="del_admin(record)">删除</a-button>
+        </span>
+      </a-table>
+      <a-pagination
+        v-if="datas.length > 0"
+        :total="total"
+        :showSizeChanger="true"
+        @showSizeChange="onShowSizeChange"
+        :page-size-options="pageSizeOptions"
+        :pageSize="pagination.pagesize"
+        v-model="pagination.pagenum"
+        @change="onPageChange"
+        :showTotal="(total) => `总共：${total}条`"
+      />
+    </div>
+  </div>
+</template>
+
+<script>
+import {
+  Select,
+  Table,
+  Pagination,
+  Button,
+  Tag,
+  Input,
+  notification,
+} from "ant-design-vue";
+import { userlist, userdel } from "@/dev/api/user";
+export default {
+  data() {
+    return {
+      datas: [],
+      columns,
+      total: 1,
+      pagination: {
+        pagesize: 10,
+        pagenum: 1,
+      },
+      pageSizeOptions: ["10", "20", "30", "40", "50"],
+    };
+  },
+
+  components: {
+    ATable: Table,
+    APagination: Pagination,
+    AButton: Button,
+    notification,
+  },
+
+  computed: {
+    rowSelection() {
+      const { selectedRowKeys } = this;
+      return {
+        onChange: (selectedRowKeys, selectedRows) => {},
+        getCheckboxProps: (record) => ({
+          props: {
+            disabled: record.name === "Disabled User", // Column configuration not to be checked
+            name: record.name,
+          },
+        }),
+      };
+    },
+  },
+  created() {
+    this.refresh();
+  },
+  methods: {
+    // 删除管理员
+    del_admin(scope) {
+      // userdel().then( res => {
+      //   if( res.code == 'success') {
+      //     this.refresh();
+      //   } else {
+      //     notification.error({
+      //       message: "提示",
+      //       description: res.message,
+      //       duration: 1.5
+      //     });
+      //   }
+      // })
+      console.log(1111);
+    },
+    // 编辑管理员
+    edit_admin(scope) {
+      console.log("编辑管理员", scope);
+    },
+    // 添加管理员
+    add_admin() {
+      console.log(222);
+    },
+    // 点击页码
+    onPageChange(current, size) {
+      this.pagination.pagesize = size;
+      this.pagination.pagenum = current;
+      this.refresh();
+    },
+    // 重设显示条数
+    onShowSizeChange(current, size) {
+      this.pagination.pagesize = size;
+      this.pagination.pagenum = current;
+      this.refresh();
+    },
+    refresh() {
+      userlist().then((res) => {
+        if (res.code == "success") {
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.message,
+            duration: 1.5,
+          });
+        }
+      });
+    },
+  },
+};
+const columns = [
+  {
+    title: "序号",
+    dataIndex: "key",
+    key: "key",
+    width: "5%",
+  },
+  {
+    title: "管理员名称",
+    dataIndex: "name",
+    key: "name",
+    scopedSlots: { customRender: "name" },
+    width: "15%",
+  },
+  {
+    title: "部门",
+    dataIndex: "department",
+    key: "department",
+    width: "20%",
+  },
+  {
+    title: "联系方式",
+    dataIndex: "phone",
+    key: "phone",
+    width: "15%",
+  },
+  {
+    title: "状态",
+    dataIndex: "state",
+    key: "state",
+    width: "15%",
+    scopedSlots: { customRender: "state" },
+  },
+  {
+    title: "操作",
+    key: "tags",
+    dataIndex: "tags",
+    scopedSlots: { customRender: "tags" },
+  },
+];
+
+// const datas = [
+//   {
+//     key: "1",
+//     // name: '张三 <span style="color: #1890ff;">Owner<span>',
+//     name: "张三",
+//     department: "中央纪检委",
+//     state: "审核中",
+//     phone: "123456",
+//     id: "Owner",
+//   },
+//   {
+//     key: "2",
+//     name: "张三",
+//     department: "中央纪检委",
+//     state: "审核中",
+//     phone: "123456",
+//   },
+//   {
+//     key: "3",
+//     name: "张三",
+//     department: "中央纪检委",
+//     state: "审核中",
+//     phone: "123456",
+//   },
+//   {
+//     key: "4",
+//     name: "张三",
+//     department: "中央纪检委",
+//     state: "审核中",
+//     phone: "123456",
+//   },
+//   {
+//     key: "5",
+//     name: "张三",
+//     department: "中央纪检委",
+//     state: "审核中",
+//     phone: "123456",
+//   },
+// ];
+</script>
+<style lang="less" scoped>
+.ant-pagination {
+  margin-top: 30px;
+  text-align: right;
+}
+.body {
+  width: 100%;
+  margin: 0 auto;
+  .creator {
+    color: @primary-color;
+  }
+}
+.body_2 {
+  margin-top: 25px;
+  .ant-btn {
+    color: @primary-color;
+    border: 1px solid @primary-color;
+    margin-right: 22px;
+  }
+}
+
+.ant-table-wrapper {
+  margin-top: 25px;
+}
+.abq {
+  margin-right: 36px;
+  color: @primary-color;
+}
+</style>

@@ -1,0 +1,280 @@
+<template>
+  <!--职数-->
+  <div class="report">
+    <div class="title">
+      <span class="icon zhishu"></span>
+      <span class="text">职数</span>
+    </div>
+    <div class="cell">
+      <div class="cellItem">
+        <p>行政领导空职数</p>
+        <div
+          class="num"
+          @click="showDetail({
+          title: '行政领导空职数',
+          total: 'hdldzsqy',
+          used: 'hdldzsqy_sy',
+          xz: true,
+          type: 'ld'
+        })"
+        >
+          <lcd-font :length="4" :realNumber="(postInfo['hdldzsqy'] - postInfo['hdldzsqy_sy']) || 0"></lcd-font>
+        </div>
+        <div class="type">
+          <span class="name">核定</span>
+          <span class="number">{{postInfo['hdldzsqy'] || 0}}</span>
+        </div>
+        <div class="type">
+          <span class="name">实有</span>
+          <span class="number">{{postInfo['hdldzsqy_sy']}}</span>
+        </div>
+      </div>
+      <div class="cellItem">
+        <p>行政中层空职数</p>
+        <div
+          class="num"
+          @click="showDetail({
+          title: '行政中层空职数',
+          total: 'hdzcldzsqy',
+          used: 'hdzcldzsqy_sy',
+          xz: true,
+          type: 'zcld'
+        })"
+        >
+          <lcd-font
+            :length="4"
+            :realNumber="(postInfo['hdzcldzsqy'] - postInfo['hdzcldzsqy_sy']) || 0"
+          ></lcd-font>
+        </div>
+        <div class="type">
+          <span class="name">核定</span>
+          <span class="number">{{postInfo['hdzcldzsqy'] || 0}}</span>
+        </div>
+        <div class="type">
+          <span class="name">实有</span>
+          <span class="number">{{postInfo['hdzcldzsqy_sy'] || 0}}</span>
+        </div>
+      </div>
+    </div>
+    <div class="cell last">
+      <div class="cellItem">
+        <p>事业领导空职数</p>
+        <div
+          class="num accent"
+          @click="showDetail({
+          title: '行政中层空职数',
+          total: 'syhdldzsqy',
+          used: 'syhdldzsqy_sy',
+          xz: false,
+          type: 'ld'
+        })"
+        >
+          <lcd-font
+            :length="4"
+            :realNumber="(postInfo['syhdldzsqy'] - postInfo['syhdldzsqy_sy']) || 0"
+            :realStyle="realStyle"
+          ></lcd-font>
+        </div>
+        <div class="type">
+          <span class="name">核定</span>
+          <span class="number">{{postInfo['syhdldzsqy'] || 0}}</span>
+        </div>
+        <div class="type">
+          <span class="name">实有</span>
+          <span class="number">{{postInfo['syhdldzsqy_sy'] || 0}}</span>
+        </div>
+      </div>
+      <div class="cellItem">
+        <p>事业中层空职数</p>
+        <div
+          class="num accent"
+          @click="showDetail({
+          title: '行政中层空职数',
+          total: 'syhdzcldzsqy',
+          used: 'syhdzcldzsqy_sy',
+          xz: false,
+          type: 'zcld'
+        })"
+        >
+          <lcd-font
+            :length="4"
+            :realNumber="(postInfo['syhdzcldzsqy'] - postInfo['syhdzcldzsqy_sy']) || 0"
+            :realStyle="realStyle"
+          ></lcd-font>
+        </div>
+        <div class="type">
+          <span class="name">核定</span>
+          <span class="number">{{postInfo['syhdzcldzsqy'] || 0}}</span>
+        </div>
+        <div class="type">
+          <span class="name">实有</span>
+          <span class="number">{{postInfo['syhdzcldzsqy_sy'] || 0}}</span>
+        </div>
+      </div>
+    </div>
+    <kong-bian-detail v-model="showDialog" v-bind="detail" />
+  </div>
+</template>
+<script>
+import LcdFont from "../components/LcdFont";
+import KongBianDetail from "./KongBianDetail";
+import { mixins } from "../components/minxin";
+import { areaStatistics } from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@/framework/utils/index";
+export default {
+  components: { LcdFont, KongBianDetail },
+  data() {
+    return {
+      realStyle: {
+        color: "#ffd3a3"
+      },
+      postInfo: {},
+      showDialog: false,
+      detail: {
+        num: 0,
+        total: 0,
+        used: 0,
+        type: undefined,
+        xz: undefined
+      }
+    };
+  },
+  mixins: [mixins],
+  mounted() {
+    this.postCount(this.dictId);
+  },
+  watch: {
+    dictId(v) {
+      this.postCount(v);
+    }
+  },
+  /** 
+   * hdldzsqy //行政领导核定
+    hdldzsqy_sy //行政领导实有	
+    hdzcldzsqy //行政中层领导核定
+    hdzcldzsqy_sy //行政中层领导实有
+    syhdldzsqy //事业领导核定
+    syhdldzsqy_sy //事业领导实有
+    syhdzcldzsqy //事业中层领导核定
+    syhdzcldzsqy_sy //事业中层领导实有
+  */
+  methods: {
+    postCount(district) {
+      areaStatistics(district, [
+        "hdldzsqy",
+        "hdldzsqy_sy",
+        "hdzcldzsqy",
+        "hdzcldzsqy_sy",
+        "syhdldzsqy",
+        "syhdldzsqy_sy",
+        "syhdzcldzsqy",
+        "syhdzcldzsqy_sy"
+      ])
+        .then(res => {
+          this.postInfo = res.result;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    showDetail({ title, total, used, xz, type }) {
+      this.detail.title = title;
+      this.detail.total = this.postInfo[total];
+      this.detail.used = this.postInfo[used];
+      this.detail.xz = xz;
+      this.detail.type = type;
+      this.showDialog = true;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.report {
+  .title {
+    display: flex;
+    align-items: center;
+    .icon {
+      width: 24px;
+      height: 24px;
+      &.jigou {
+        background: url("../img/jigou.png");
+      }
+      &.bianzhi {
+        background: url("../img/bainzhi.png");
+      }
+      &.zhishu {
+        background: url("../img/zhishu.png");
+      }
+    }
+    .text {
+      width: 80px;
+      height: 80px;
+      line-height: 80px;
+      text-align: center;
+      background: url("../img/text_bj.png");
+      font-size: 20px;
+      font-family: Microsoft YaHei;
+      font-weight: bold;
+      color: #ffffff;
+      -webkit-text-stroke: 1 #66d9ec;
+      opacity: 0.9;
+      margin-left: -8px;
+    }
+  }
+  .cell {
+    display: flex;
+    width: 270px;
+    justify-content: space-between;
+    &.last {
+      margin-top: 20px;
+    }
+    .cellItem {
+      p {
+        margin: 0px;
+        height: 22px;
+        line-height: 22px;
+        font-size: 16px;
+        font-family: Microsoft YaHei;
+        font-weight: 400;
+        color: #fff;
+        opacity: 0.8;
+      }
+      .num {
+        width: 110px;
+        height: 48px;
+        margin: 4px auto;
+        text-align: center;
+        cursor: pointer;
+      }
+      .type {
+        width: 110px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 4px auto;
+        padding: 0px 5px;
+        .name {
+          height: 21px;
+          font-size: 16px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 21px;
+          color: #ffffff;
+          opacity: 0.6;
+        }
+        .number {
+          height: 18px;
+          font-size: 16px;
+          font-family: Arial;
+          font-weight: 400;
+          line-height: 18px;
+          color: #ffffff;
+          opacity: 0.6;
+          flex: 1;
+          text-align: right;
+        }
+      }
+    }
+  }
+}
+</style>

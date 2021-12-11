@@ -1,0 +1,302 @@
+<template>
+  <div class="workflow">
+    <a-form-item :label="property.showName?property.name:''">
+      <a-input
+        :style="property.showName?'':'margin-top:29px;'"
+        class="hand"
+        :id="property.code"
+        :placeholder="property.placehold"
+        @change="changeHandler"
+        @blur="blur"
+        :disabled="property.editable?false:true"
+        v-decorator="[
+          `${property.code}`,
+          {
+            rules: [{required:property.require,validator:validateRules}],
+            initialValue: $store.getters.formData[property.code]?$store.getters.formData[property.code]:''
+          }
+        ]"
+      ></a-input>
+    </a-form-item>
+    <stamp
+      :property="property"
+      @imgUrl="getStamp"
+      v-if="property.signcomponent.signcode && property.signcomponent.editable"
+    ></stamp>
+    <a-form-item class="stampNotice" v-if="!imgUrl && property.signcomponent.signcode">
+      <a-input
+        ref="stampValue"
+        type="hidden"
+        v-decorator="[
+          `${property.signcomponent.code}`,
+          {
+            rules: [{required: property.signcomponent.require, message: `请选择签章!`}],
+            initialValue: stamp
+          }
+        ]"
+      ></a-input>
+    </a-form-item>
+    <div class="seal" v-if="imgUrl">
+      <img :src="imgUrl" />
+    </div>
+  </div>
+</template>
+<script>
+import Stamp from "./stampComponent/Stamp";
+import { getUserInfo } from "@/workflow/api/workflow";
+import { getStampInfo } from "@/workflow/api/stamplist";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import {
+  validatePhoneNumber,
+  validateEmail,
+  checkIdcard,
+  showError,
+  debounce
+} from "@/framework/utils/index";
+import "@/workflow/style/workflow.css";
+import { Form, Input } from "ant-design-vue";
+export default {
+  name: "InputText",
+  props: {
+    property: {
+      type: Object,
+      required: true
+    },
+    bindform: {
+      type: Object,
+      required: true
+    },
+    typecode: {
+      type: Object
+    },
+    relateControls: {
+      type: Array
+    },
+    resourceId: {
+      type: String
+    }
+  },
+  data() {
+    return {
+      code: this.property["code"],
+      formData: this.$store.getters.formData,
+      imgUrl: null,
+      stamp: null,
+      uiConfigs: uiConfigsCookies()
+    };
+  },
+  components: {
+    AFormItem: Form.Item,
+    AInput: Input,
+    Stamp
+  },
+  created() {
+    if (!this.formData[this.code]) {
+      if (!this.property.require) {
+        this.formData[this.code] = null;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.formData
+        });
+      }
+      if (this.property.defaultType == 2) {
+        this.formData[this.code] = this.property.defaultContent;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.formData
+        });
+      }
+    } else {
+      this.relateControl(this.formData[this.code]);
+    }
+    //签章回显
+    if (this.formData[this.property.signcomponent.code]) {
+      //获取签章图片
+      getStampInfo(this.formData[this.property.signcomponent.code])
+        .then(res => {
+          if (res.code == "success") {
+            this.imgUrl =
+              this.uiConfigs["api.url"] +
+              "/file/v1/download" +
+              "?uri=" +
+              encodeURIComponent(res.result.pictureurl);
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  },
+  methods: {
+    //校验
+    validateRules(rule, value, callback) {
+      if (rule.required) {
+        if (value || value === 0 ) {
+          if (this.property.validate && this.property.validate == "") {
+            callback();
+          } else if (
+            this.property.validate &&
+            this.property.validate == "mobilephone"
+          ) {
+            if (validatePhoneNumber(value)) {
+              callback();
+            } else {
+              callback("手机号格式不正确，请检查后重新输入！");
+            }
+          } else if (
+            this.property.validate &&
+            this.property.validate == "email"
+          ) {
+            if (validateEmail(value)) {
+              callback();
+            } else {
+              callback("邮箱格式不正确，请检查后重新输入！");
+            }
+          } else if (
+            this.property.validate &&
+            this.property.validate == "idcard"
+          ) {
+            if (checkIdcard(value)) {
+              callback();
+            } else {
+              callback("身份证格式不正确，请检查后重新输入！");
+            }
+          } else if (
+            this.property.validate &&
+            this.property.validate.substr(0, 6) == "length"
+          ) {
+            let range = this.property.validate
+              .slice(7, this.property.validate.length - 1)
+              .split(",");
+            let min = parseInt(range[0]);
+            let max = parseInt(range[1]);
+            if (min <= value.length && value.length <= max) {
+              callback();
+            } else {
+              callback(
+                "输入内容长度为" + min + "~" + max + "位，请检查后重新输入！"
+              );
+            }
+          } else {
+            callback();
+          }
+        } else {
+          callback("请输入" + this.property.name + "！");
+        }
+      } else {
+        callback();
+      }
+    },
+    changeHandler: debounce(function(e) {
+      this.$store.getters.formData[this.code] = e.target.value;
+      this.relateControl(e.target.value);
+      this.$store.commit({
+        type: "SET_FORM_DATA",
+        data: this.$store.getters.formData
+      });
+    }, 300),
+    //获取签章
+    getStamp(img) {
+      if (img) {
+        this.imgUrl = img;
+        this.stamp = img;
+      }
+    },
+    //失去焦点请求数据来源
+    blur() {
+      console.log("input-blur");
+      if (this.typecode) {
+        let flag = false;
+        for (var id in this.typecode) {
+          let orgUserVo = {};
+          this.typecode[id].forEach(code => {
+            if (code == this.property.code) {
+              flag = true;
+              orgUserVo.resourceid = this.resourceId;
+              orgUserVo.formatCfgId = parseInt(id);
+              orgUserVo.modelinstanceid = parseInt(
+                this.$route.query.modelinstanceid
+              );
+              orgUserVo.objectMap = {};
+              this.typecode[id].forEach(code => {
+                if (this.$store.getters.formData[code]) {
+                  orgUserVo.objectMap[code] = this.$store.getters.formData[
+                    code
+                  ];
+                }
+              });
+            }
+          });
+          if (JSON.stringify(orgUserVo.objectMap) == "{}") flag = false;
+          if (flag) {
+            getUserInfo(orgUserVo)
+              .then(res => {
+                if (res.code == "success") {
+                  if (JSON.stringify(res.result) !== "{}") {
+                    this.bindform.resetFields();
+                    let obj = {};
+                    for (var a in res.result) {
+                      if (res.result[a] || res.result[a] == 0) {
+                        obj[a] = res.result[a];
+                      }
+                    }
+                    this.formData = Object.assign(
+                      {},
+                      this.$store.getters.formData,
+                      // obj
+                      // TOIDO 
+                      res.result
+                    );
+                    this.$store.commit({
+                      type: "SET_FORM_DATA",
+                      data: this.formData
+                    });
+                  }
+                }
+              })
+              .catch(err => {
+                showError(err);
+              });
+            flag = false;
+          }
+        }
+      }
+    },
+    //关联控件变化
+    relateControl(val) {
+      let formData = {};
+      let flag = false;
+      this.relateControls.forEach(item => {
+        if (item.relate == this.code) {
+          flag = true;
+          if (item.pcode) {
+            if (this.$store.getters.formData[item.pcode]) {
+              this.$set(
+                this.$store.getters.formData[item.pcode],
+                item.code,
+                val
+              );
+            } else {
+              let obj = {};
+              obj[item.code] = val;
+              this.$store.getters.formData[item.pcode] = obj;
+            }
+          } else {
+            this.$store.getters.formData[item.code] = val;
+          }
+        }
+      });
+      if (flag) {
+        this.bindform.resetFields();
+        formData = Object.assign({}, this.$store.getters.formData);
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: formData
+        });
+      }
+    }
+  }
+};
+</script>
+
+

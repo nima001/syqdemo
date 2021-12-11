@@ -1,0 +1,54 @@
+<template>
+  <div class="container">
+    <a-input disabled :defaultValue="defaultValue" @change="handleChange" placeholder="数字英文逗号分隔" />
+  </div>
+</template>
+<script>
+import { debounce } from "@/framework/utils/index";
+import {Input} from 'ant-design-vue';
+export default {
+  name: "TypeTwo",
+  data() {
+    return {
+      defaultValue: ""
+    };
+  },
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  components:{
+    AInput:Input
+  },
+  created() {
+    if (this.defaultData.value) {
+      this.defaultValue = this.defaultData.value.toString();
+    }
+  },
+  methods: {
+    handleChange: debounce(function(e) {
+      let value = e.target.value;
+      let arr = value.split(",");
+      for (let i = 0; i < arr.length; i++) {
+        arr[i] = parseInt(arr[i].replace(/\s/g, ""));
+      }
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value: arr
+      });
+    }, 300)
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  flex: 1;
+}
+</style>

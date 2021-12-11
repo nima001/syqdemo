@@ -1,0 +1,23 @@
+<template>
+  <DictSelect />
+</template>
+
+<script>
+import DictSelect from '@framework/components/DictSelect'
+
+export default {
+  components: {
+    DictSelect,
+  },
+  props: {
+    value: {
+      
+    }
+
+  }
+}
+</script>
+
+<style>
+
+</style>

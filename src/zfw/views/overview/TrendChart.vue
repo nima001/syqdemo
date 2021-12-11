@@ -1,0 +1,129 @@
+<template>
+  <div class="trend">
+    <div class="top">
+      <div class="top_left">
+        {{title}}用户趋势图
+        <span>
+          <img src="../../assets/img/helps.png" alt="">
+        </span>
+      </div>
+      <div class="top_right">
+        <span @click="detail">
+          数据表
+        </span>
+      </div>
+    </div>
+    <div class="date">{{time}}</div>
+    <div class="total">
+      <ul>
+        <li v-for="(list, index) in pageData.totalArr" :key="index">
+          <div class="total_val">{{list.value}}</div>
+          <div class="total_name">{{list.name}}</div>
+        </li>
+      </ul>
+    </div>
+    <LineChart :data="pageData.chartArr" :loading="loading" style="height: 219px;margin-top: 24px;"></LineChart>
+  </div>
+</template>
+
+<script>
+import LineChart from '@/zfw/components/lineChart';
+export default {
+  props: {
+    loading: {
+      type: Boolean
+    },
+    title: {
+      type: String
+    },
+    time: {
+      type: String
+    },
+    pageData: {
+      type: Object
+    },
+    params: {
+      type: Object
+    }
+  },
+  components: { LineChart },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+  },
+  created() {
+  },
+  mounted() {},
+  methods: {
+    detail() {
+      let target = '';
+      if (this.title == '登录') {
+        target = 'login';
+      } else if(this.title == '注册') {
+        target = 'regtendcy';
+      } else {
+        target = 'active';
+      }
+      this.$router.push({
+        path: '/zfw/datatable',
+        query: {
+          target: target,
+          name: this.title + '用户'
+        }
+      })
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.trend{
+  margin-top: 0;
+  .top{
+    display: flex;
+    justify-content: space-between;
+    .top_left{
+      color: black;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .top_right{
+      color: @primary-color;
+      span{
+        cursor: pointer;
+      }
+    }
+  }
+  .date{
+    color: #a2a2a2;
+  }
+  .total{
+    ul{
+      display: flex;
+      li{
+        margin-right: 80px;
+        .total_val{
+          font-size: 30px;
+          &:nth-child(1){
+            color: #185292;
+          }
+          &:nth-child(2){
+            color: #93bd3f;
+          }
+        }
+        .total_name{
+          font-size: 18px;
+          color: #bebebe;
+        }
+      }
+    }
+  }
+  .name{
+    font-weight: bold;
+    color: #939393;
+    margin-bottom: 10px;
+  }
+}
+</style>

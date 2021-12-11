@@ -1,0 +1,261 @@
+<template>
+  <a-layout>
+    <a-spin :spinning="spinning" wrapperClassName="form-submit-spin" :delay="300">
+      <div class="org-record-form">
+        <template v-if="record">
+        <div ref="recordbody" class="body">
+          <a-anchor wrapperClass="anchor-right" :getContainer="() => $refs.recordbody">
+            <a-anchor-link :href="`#top`" :title="record.orgname" class="top-link"/>
+            <a-anchor-link :href="`#base`" title="基本信息" />
+            <a-anchor-link :href="`#bz`" title="编制信息" v-if="!isDelete(record)"/>
+            <a-anchor-link :href="`#zs`" title="职数信息" v-if="!isDelete(record)"/>
+            <a-anchor-link :href="`#ns`" title="内设机构" v-if="!isDelete(record)"/>
+          </a-anchor>
+          <a-form class="form" layout="vertical">
+            <div :id="`top`">
+              <div class="org-tag">{{record.orgname}}</div>
+              <a-row :gutter="20">
+                <a-col :span="16">
+                  <a-form-item label="主题词" 
+                    :required="true"
+                    :validateStatus="subjectsValid.status" 
+                    :help="subjectsValid.message"
+                  >
+                    <dict-select v-if="isUpdate(record)" 
+                      dict="person.orgrecordsubject"
+                      :multiple="true"
+                      v-model="record.subjects" 
+                      @change="onSubjectsChange"
+                      :show-group="false"
+                      :filter="item => item.group == '变更'"
+                    />
+                    <dict-select v-else 
+                      dict="person.orgrecordsubject"
+                      :multiple="true"
+                      :value="record.subjects" 
+                      :show-group="false"
+                      disabled
+                    />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="8">
+                  <a-form-item label="是否为起始文件">
+                    <a-switch v-model="record.begin" />
+                  </a-form-item>
+                </a-col>
+              </a-row>
+            </div>
+            <div :id="`base`">
+              <record-base ref="recordbase" :record="record"/>
+            </div>
+            <div :id="`bz`" v-if="!isDelete(record)">
+              <a-form-item label="编制信息">
+                <record-staff-distr :record="record" category="staff"/>
+              </a-form-item>
+            </div>
+            <div :id="`zs`" v-if="!isDelete(record)">
+              <a-form-item label="职数信息">
+                <record-staff-distr :record="record" category="post"/>
+              </a-form-item>
+            </div>
+            <div :id="`ns`" v-if="!isDelete(record)">
+              <a-form-item label="内设机构">
+                <record-depts :record="record"/>
+              </a-form-item>
+            </div>
+          </a-form>
+        </div>
+        <div class="footer">
+          <a-button type="primary" @click="handleSubmit">提 交</a-button>
+        </div>
+        </template>
+      </div>
+    </a-spin>
+  </a-layout>
+</template>
+<script>
+import {Layout, Row, Col, Spin, Button, Modal, Anchor, Form, Switch} from 'ant-design-vue';
+import RecordBase from "./components/RecordBase";
+import RecordStaffDistr from "./components/RecordStaffDistr";
+import RecordDepts from "./components/RecordDepts";
+import DictSelect from "@/framework/components/DictSelect";
+import { getRecord, saveRecord, checkRemovable } from "@/person/api/orgRecord";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  props: ['params'],
+  components: {
+    ALayout: Layout,
+    ARow: Row,
+    ACol: Col,
+    ASpin: Spin,
+    AButton:Button,
+    AModal:Modal,
+    AAnchor:Anchor,
+    AAnchorLink:Anchor.Link,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASwitch: Switch,
+    DictSelect,
+    RecordBase,
+    RecordStaffDistr,
+    RecordDepts,
+  },
+  data() {
+    return {
+      spinning: false,
+      record: undefined,
+      subjectsValid: {
+        status: undefined,
+        message: undefined,
+      },
+    };
+  },
+  created() {
+    let id = this.$route.query.id;
+    if(id){
+      this.getRecord(id);
+    }
+  },
+  methods: {
+    async handleSubmit(){
+      if(!this.record.id || this.spinning){
+        return;
+      }
+       let {subjects} = this.record;
+      if(!subjects || !subjects.length){
+        this.subjectsValid = {status: 'error', message: '请选择主题词'};
+        return;
+      }
+      this.spinning = true;
+      try{
+        let data = await this.$refs.recordbase.validateFields();
+        await saveRecord({...this.record, ...data});
+        if(this.record.exist){//撤销记录单位如果存在，检查单位是否可删除，提示
+          try{
+            let {result} = await checkRemovable(this.record.orgid);
+            if(!result){
+              Modal.warning({title: '提示', content: `撤销机构【${this.record.orgname}】下存在下设机构或用户，请在撤销下设和转移用户后重新提交`});
+            }
+          }catch(e){
+            //ignore
+          }
+        }
+        this.$message.info('提交成功');
+      }catch(err){
+        showError(err);
+      }
+      this.spinning = false;
+    },
+    getRecord(id) {
+      getRecord(id).then(({result}) => {
+        this.record = result;
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    onSubjectsChange(v){
+      this.subjectsValid = {}
+    },
+    isUpdate(record){//判断台账记录是否是更新
+      let subjects = record.subjects;
+      if(subjects && subjects.length){
+        //主题中包含 设立/三定/撤销 就不是更新
+        if(subjects.some(item => [1, 2, 3, 4, 6].indexOf(item) >= 0)){
+          return false
+        }
+      }
+      return true;
+    },
+    isDelete(record){
+      let subjects = record.subjects;
+      if(subjects && subjects.length){
+        return subjects.indexOf(6) >= 0;
+      }
+      return false;
+    },
+    bzDistrEditable(record){
+      //主题中包含 设立/三定/清理规范/挂牌/编制变动 可以编辑编制信息
+      return (record.subjects || []).some(item => [3, 4, 11, 8, 9].indexOf(item) >= 0);
+    },
+    zsDistrEditable(record){
+      //主题中包含 设立/三定/清理规范/挂牌/职数变动 可以编辑编制信息
+      return (record.subjects || []).some(item => [3, 4, 11, 8, 10].indexOf(item) >= 0);
+    },
+    deptsEditable(record){
+      //主题中包含 设立/三定/清理规范/挂牌/内设科室变动 可以编辑内设科室
+      return (record.subjects || []).some(item => [3, 4, 11, 8, 13].indexOf(item) >= 0);
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-layout{
+  padding: @layout-space-base;
+  height: 100%;
+}
+.form-submit-spin{
+  height: 100%;
+  /deep/.ant-spin-container{
+    height: 100%;
+  }  
+}
+.org-record-form {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: @white;
+  border-radius: @border-radius-base;
+  padding: 10px 0;
+  /deep/.anchor-right{
+    position: absolute;
+    width: 240px;
+    text-align: right;
+    margin-top: 60px;
+    margin-left: 0;
+    margin-right: -4px;
+    padding-right: 4px;
+
+    .top-link{
+      font-size: 16px;
+      font-weight: bold;
+    }
+    .ant-anchor{
+      padding-left: 0;
+      padding-right: 2px;
+    }
+    .ant-anchor-ink{
+      left: unset;
+      right: 0;
+    }
+    .ant-anchor-link{
+      padding: 7px 10px 7px 8px;
+    }
+  }
+  & > .body{
+    flex-shrink: 1;
+    min-height: 0;
+    overflow: auto;
+    .form{
+      padding-left: 300px;
+      padding-right: 200px;
+      .org-tag{
+        border-left: 4px solid @primary-color;
+        margin: 15px 0;
+        line-height: 1.1em;
+        font-size: 16px;
+        text-indent: 0.8em;
+        font-weight: bold;
+      }
+    }
+  }
+  & > .footer{
+    padding: @padding-sm @padding-lg;
+    text-align: center;
+    margin-top: 10px;
+    button:first-child{
+      margin-right: 20px;
+    }
+  }
+}
+</style>

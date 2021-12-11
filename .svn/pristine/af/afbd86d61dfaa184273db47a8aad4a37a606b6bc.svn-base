@@ -1,0 +1,179 @@
+<template>
+  <!--添加扩展数据-->
+  <a-modal
+    title="添加数据"
+    :visible="true"
+    width="600px"
+    :destroyOnClose="true"
+    @cancel="handleCancel"
+  >
+    <a-form layout="vertical" :form="form">
+      <a-row :gutter="24">
+        <a-col :span="12">
+          <a-form-item label="名称">
+            <a-input
+              v-decorator="[
+                  'name',
+                   {rules: [{ required: true, message: '请输入姓名' },{validator: regExpName }]}
+                ]"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="描述">
+            <a-input
+              v-decorator="[
+                  'desc',
+                  {rules: [{ required: true, message: '请输入描述!' }]}
+                ]"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="数据类型">
+            <a-select
+              v-decorator="[
+                  'datatype',
+                  {rules:[{required:true,message:'请选择数据类型'}]}
+                ]"
+              @change="changeHandle"
+            >
+              <a-select-option :value="2">字典</a-select-option>
+              <a-select-option :value="3">引用</a-select-option>
+              <a-select-option :value="4">输入</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12" v-if="datatype == 4">
+          <a-form-item label="输入类型">
+            <a-select
+              v-decorator="[
+                  'inputtype',
+                  {rules:[{required:true,message:'输入类型'}]}
+                ]"
+            >
+              <a-select-option :value="0">字符</a-select-option>
+              <a-select-option :value="1">整数</a-select-option>
+              <a-select-option :value="2">浮点数</a-select-option>
+              <a-select-option :value="3">时间</a-select-option>
+              <a-select-option :value="4">布尔</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12" v-if="datatype == 2 || datatype == 3">
+          <a-form-item label="数据源">
+            <a-input
+              v-decorator="[
+                  'datasource',
+                  {
+                    rules: [{ required: true, message: '请输入数据源!' }],
+                  }
+                ]"
+            />
+          </a-form-item>
+        </a-col>
+        <a-col :span='12'>
+          <a-form-item label="是否必填">
+            <a-select
+              v-decorator="[
+                  'require',
+                  {rules:[{required:true,message:'请选择'}]}
+                ]"
+            >
+              <a-select-option :value="1">必填</a-select-option>
+              <a-select-option :value="0">选填</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+      </a-row>
+    </a-form>
+    <div slot="footer">
+      <a-button type="primary" @click="submit">确定</a-button>
+      <a-button @click="handleCancel">取消</a-button>
+    </div>
+  </a-modal>
+</template>
+
+<script>
+import {Modal,Input,Row,Col,Icon,Button,Select,Form} from "ant-design-vue";
+import cloneDeep from "lodash/cloneDeep";
+export default {
+  props: {
+    initData: {
+      required: true
+    }
+  },
+  data(){
+    return{
+      datatype:undefined
+    }
+  },
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AButton: Button,
+    AModal: Modal,
+    AInput: Input,
+    ARow: Row,
+    ACol: Col
+  },
+  beforeCreate() {
+    this.form = this.$form.createForm(this, { name: "expandForm" });
+  },
+  mounted() {
+    this.initFn();
+  },
+  methods: {
+    initFn(){
+      if(this.initData.datatype){
+        let data = Object.assign({},this.initData,{require:this.initData.require?1:0})
+        this.datatype = this.initData.datatype
+        this.$nextTick(()=>{
+          this.form.setFieldsValue({
+            name: data.name,
+            desc: data.desc,
+            datatype: data.datatype,
+            inputtype: data.inputtype,
+            datasource: data.datasource,
+            require:data.require
+          });
+        })
+      }
+    },
+    handleCancel() {
+      this.$emit("cancel", false);
+    },
+    changeHandle(value){
+      this.datatype = value;
+    },
+    submit() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let length = Reflect.ownKeys(cloneDeep(this.initData)).length;
+          let data = Object.assign({},values,{require:values.require == 1 ? true:false});
+          if (length == 0) {
+            this.$emit("ok", data, "add");
+          } else {
+            this.$emit("ok", data, "update");
+          }
+        }
+      });
+    },
+    regExpName(rule, value, callback) {
+      const regex = /^[a-zA-Z]+$/;
+      if (!regex.test(value)) {
+        callback('只能输入字母!');
+      } else{
+        callback()
+      }
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.ant-form-vertical .ant-form-item {
+  padding: 0px;
+}
+</style>

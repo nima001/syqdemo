@@ -1,0 +1,208 @@
+<template>
+  <card title="评级分布">
+    <div class="kpi-rank">
+      <div id="main" style="width: 100%;height: 300px"></div>
+      <div class="inner"></div>
+    </div>
+  </card>
+</template>
+<script>
+import Card from './ScreenCard'
+import echarts from 'echarts'
+import { Chart} from '@antv/g2'
+import {Pie} from '@antv/g2plot'
+import * as G2 from "@antv/g2";
+/**
+ * 评级分布
+ */
+export default {
+  components: {
+    Card,
+  },
+  data() {
+      return {
+      }
+  },
+  mounted() {
+    this.getPie()
+      
+    },
+  methods: {
+   
+      getPie() {
+//         const data = [
+//           { type: 'A级', value: 20 },
+//           { type: 'B级', value: 20},
+//           { type: 'C级', value: 18 }
+//         ]
+
+
+// const chart = new G2.Chart({
+//         container: 'main',
+//         appendPadding: 10,
+//   data,
+//   angleField: 'value',
+//   colorField: 'type',
+//   radius: 0.75,
+//   label: {
+//     type: 'spider',
+//     labelHeight: 28,
+//     content: '{name}\n{percentage}',
+//   },
+//   interactions: [{ type: 'element-selected' }, { type: 'element-active' }],
+//       });
+  
+// const piePlot = new Pie('container', {
+//   appendPadding: 10,
+//   data,
+//   angleField: 'value',
+//   colorField: 'type',
+//   radius: 0.75,
+//   label: {
+//     type: 'spider',
+//     labelHeight: 28,
+//     content: '{name}\n{percentage}',
+//   },
+//   interactions: [{ type: 'element-selected' }, { type: 'element-active' }],
+// });
+// chart.render();
+
+
+
+
+//         const chart = new Chart({
+//         container: 'main',
+//         autoFit: true,
+//         height: 500,
+//       });
+//       chart.data(data);
+//       chart.scale("value", {
+//         formatter: val => {
+//           val = val  + "%";
+//           return val;
+//         }
+//       });
+//       chart.coordinate('theta', {
+//         radius: 0.75
+//       });
+//       chart.tooltip({
+//         showMarkers: false,
+//       });
+//       chart.legend({
+//         position: 'bottom',
+//         layout: 'vertical',
+       
+// });
+
+//       const interval = chart
+//         .interval()
+//         .adjust('stack')
+//         .position('value')
+//         .color('type', ['#2BFFFF', '#02C0D7', '#158DD1'])
+//         .style({ opacity: 0.4 })
+//         .label('type', (val) => {
+//           return {
+//             offset: -30,
+//             layout: { type: 'pie-spider' },
+//             style: {
+//               fill: 'white',
+//               fontSize: 12,
+//             },
+//             labelLine: {
+//                   style: {
+//                     lineWidth: 2,
+//                   },
+//                 },
+//             content: (obj) => {
+//               return obj.type + '\n' + obj.value;
+//             },
+//           };
+//         });
+
+//       chart.interaction('element-single-selected');
+
+//       chart.render();
+
+      
+
+
+
+
+        var myChart = echarts.init(document.getElementById('main'))
+        var option = {
+          tooltip: {
+            trigger: 'item',
+            formatter: '{b}:{c} ({d}%)'
+          },
+          legend: {
+            bottom: 25,
+            icon: 'circle',
+            left: 'center',
+            orient : 'vertical',
+            textStyle: {
+              color: 'white',
+              fontSize: 14
+            },
+            data: ['优秀', '良好', '一般'],
+            formatter: function(name) {
+                                var index = 0;
+                                var labels = ['优秀', '良好', '一般'];
+                                var counts = [20,20,18];
+                                labels.forEach(function(value,i){
+                                    if(value == name){
+                                        index = i;
+                                    }
+                                });
+                                return name + "                 " + counts[index];
+                            }
+
+          },
+          color: ['#2BFFFF', '#02C0D7', '#158DD1'],
+          series: {
+            type: 'pie',             
+            radius: '50%',           
+            center: ['50%', '30%'], 
+            data: [                  
+              { name: '优秀', value: 20},
+              { name: '良好', value: 20},
+              { name: '一般', value: 18}
+            ],
+            itemStyle: {
+              normal: {
+                label: {
+                  show: true,
+                  formatter: '{b}\n{d}%',
+                  fontSize: 10,
+                  color: 'white'
+                },
+                labelLine: {
+                  show: true
+                }
+              }
+            },
+          }
+
+        }
+        myChart.setOption(option)
+      }
+    }
+}
+</script>
+<style lang="less" scoped>
+.kpi-rank{
+  color: white;
+  position: relative;
+  height: 100%;
+  width: 100%;
+  .inner{
+    width: 262px;
+    height: 81px;
+    background-color: rgba(14, 27, 27, 0.2);
+    border-radius: 6px;
+    position: absolute;
+    bottom: 30px;
+    left:  50%;
+    transform: translateX(-50%);
+  }
+}
+</style>

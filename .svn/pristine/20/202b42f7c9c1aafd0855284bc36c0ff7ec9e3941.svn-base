@@ -1,0 +1,134 @@
+<template>
+  <a-layout>
+    <div class="org-staff-report-panel">
+      <div class="header">
+        <div class="left">
+          <a
+            v-for="item in types"
+            :key="item.id"
+            :class="{active: active == item.id}"
+            @click="onTabChange(item)"
+          >{{item.title}}</a>
+        </div>
+        <div class="right">
+          <a-select v-if="active != 'orgReport'"
+            v-model="params.district"
+            style="width: 100px;margin-right:10px"
+          >
+            <a-select-option key="">绍兴市</a-select-option>
+            <a-select-option v-for="item in districtList" :key="item.value">{{item.text}}</a-select-option>
+          </a-select>
+          <a-select v-model="params.unittype" style="width: 80px">
+            <a-select-option :key="1">机关</a-select-option>
+            <a-select-option :key="3">事业</a-select-option>
+          </a-select>
+        </div>
+      </div>
+      <div class="body">
+        <component :is="active" v-bind="params"/>
+      </div>
+    </div>
+  </a-layout>
+</template>
+<script>
+import { Layout, Select } from "ant-design-vue";
+import OrgReport from './components/OrgReport'
+import StaffReport from './components/StaffReport'
+import PostReport from './components/PostReport'
+import RetireReport from './components/RetireReport'
+import TempStaffReport from './components/TempStaffReport'
+
+/**
+ * 单位编制相关统计
+ */
+export default {
+  components: {
+    ALayout: Layout,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    OrgReport, 
+    StaffReport,
+    PostReport,
+    RetireReport,
+    TempStaffReport,
+  },
+  data(){
+    return {
+      types: [
+        {id: 'orgReport', title: '机构'},
+        {id: 'staffReport', title: '编制'},
+        {id: 'postReport', title: '职数'},
+        {id: 'retireReport', title: '退休'},
+        {id: 'tempStaffReport', title: '周转编制'}
+      ],
+      active: 'orgReport',
+      params: {
+        district: '',
+        unittype: 1,
+      }
+    }
+  },
+  computed: {
+    districtList(){
+      return this.$store.getters.dict('usermanage.org.district');
+    },
+  },
+  methods: {
+    onTabChange(item){
+      this.active = item.id;
+      this.params.district = "";
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.ant-layout{
+  height: 100%;
+  padding: @layout-space-base;
+}
+.org-staff-report-panel{
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: @border-radius-base;
+  background: @white;
+  & > .header {
+    margin-top: 10px;
+    padding: @content-padding-v @content-padding-h;
+    display: flex;
+    .left {
+      flex: auto;
+      a {
+        display: inline-block;
+        box-sizing: content-box;
+        min-width: 3em;
+        height: 32px;
+        line-height: 32px;
+        padding: 0 12px;
+        margin-left: 6px;
+        border-radius: @border-radius-base;
+        text-align: center;
+        &:hover {
+          background: @primary-1;
+        }
+      }
+      a.active {
+        background-color: @primary-color;
+        color: white;
+        &:hover {
+          background: lighten(@primary-color, 5%);
+        }
+      }
+    }
+    .right {
+      flex: none;
+      margin-left: 30px;
+    }
+  }
+
+  & > .body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+}
+</style>

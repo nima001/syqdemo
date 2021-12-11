@@ -1,0 +1,60 @@
+<template>
+    <div class="base-info">
+        <p class="base-info-head">基本信息</p>
+        <p class="base-info-content">用户名：{{this.account.loginname}} <span>[<span class="">修改</span>]</span></p>
+        <p class="base-info-content">账号状态：{{this.account.loginname}}</p>
+        <p class="base-info-content">账号类型：{{this.account.loginname}}</p>
+        <p class="base-info-content">注册时间：{{this.account.createtime}}</p>
+        <p class="safety-info-head">安全等级 <span class="safety-font">高</span> <a-progress :showInfo="false" :percent="100" class="safety-percent" /></p>
+    </div>
+</template>
+
+<script>
+    import {Progress} from "ant-design-vue";
+
+export default {
+    props: ["account"],
+
+    components: {
+        AProgress: Progress,
+    },
+
+    created() {
+        console.log(this.account);
+    },
+}
+</script>
+
+<style lang="less" scoped>
+.base-info{
+    height: 100%;
+    overflow-y: auto;
+    margin: 30px 90px;
+    .base-info-head{
+        font-size: 25px;
+        line-height: 40px;
+        font-weight: bold;
+        margin-bottom: 10px;
+    }
+    .base-info-content{
+        text-indent: 30px;
+        font-size: 16px;
+    }
+    .safety-info-head{
+        font-size: 25px;
+        line-height: 40px;
+        font-weight: bold;
+        margin-top: 20px;
+        .safety-font{
+            font-size: 16px;
+            line-height: 40px;
+            font-weight: normal;
+            color: #52C41A;
+            margin: 0 20px;
+        }
+        .safety-percent{
+            width: 400px;
+        }
+    }
+}
+</style>

@@ -1,0 +1,75 @@
+<template>
+  <card title="绩效变化机构数">
+    <div class="kpi-variation">
+      <div class="top">
+        <div class="up">{{datanum[0]}}</div>
+        <div class="keep">{{datanum[1]}}</div>
+        <div class="down">{{datanum[2]}}</div>
+      </div>
+      <div class="bottom">
+        <div class="upword">上升</div>
+        <div class="keepword">持平</div>
+        <div class="downword">下降</div>
+      </div>
+    </div>
+  </card>
+</template>
+<script>
+import Card from './ScreenCard'
+
+/**
+ * 绩效变化机构数
+ */
+export default {
+  components: {
+    Card,
+  },
+  data() {
+    return{
+      datanum:[22, 9, 18]
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.kpi-variation{
+  background: fade(#000, 20%);
+  color: white;
+ 
+  .top{
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    .up{
+    background: url("../../../assets/img/screen/variation-up-bg.png") no-repeat center center;
+    line-height: 63px;
+    text-align: center;
+    flex: 1;
+  }
+    .keep{
+      width: 73px;
+      height: 73px;
+      background: url("../../../assets/img/screen/variation-keep-bg.png") no-repeat center center;
+      line-height: 63px;
+      text-align: center;
+      flex: 1;
+    }
+    .down{
+      width: 73px;
+      height: 73px;
+      background: url("../../../assets/img/screen/variation-down-bg.png") no-repeat center center;
+      line-height: 63px;
+      text-align: center;
+      flex: 1;
+    }
+  }
+  .bottom{
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    height: 100px;
+    padding-top: 20px;
+  }
+  
+}
+</style>

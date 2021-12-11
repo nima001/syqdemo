@@ -1,0 +1,250 @@
+<template>
+  <div class="layout">
+    <div class="content-left">
+      <org-tree
+        class="org-tree"
+        slot="nav"
+        @select="onOrgSelect"
+        :nodeid="undefined"
+        :treeid="undefined"
+      />
+    </div>
+    <div class="content-right">
+      <div class="top">
+        <div class="top-left"></div>
+        <div class="top-right">
+          <!-- <a-range-picker :style="{width:'200px',margin:'0px 10px'}" v-model="query.date" @change="dateChange"></a-range-picker> -->
+          <a-month-picker
+            :style="{ width: '200px', margin: '0px 10px' }"
+            v-model="query.date"
+            allowClear
+            @change="dateChange"
+          ></a-month-picker>
+          <a-input-search
+            placeholder="请输入人员姓名"
+            :style="{ width: '200px' }"
+            enter-button
+            @search="inputSearch"
+            allowClear
+            v-model="query.searchkey"
+          ></a-input-search>
+        </div>
+      </div>
+      <div class="middle">
+        <a-table
+          rowKey="id"
+          :loading="loading"
+          :columns="columns"
+          :data-source="dataSource"
+          :pagination="false"
+          :customRow="customRow"
+        ></a-table>
+      </div>
+      <div class="bottom">
+        <a-pagination
+          show-size-changer
+          :total="pagination.total"
+          :page-size="pagination.pagesize"
+          :default-current="pagination.pagenum"
+          :show-total="(total) => `共 ${total} 条`"
+          @change="onChange"
+          @showSizeChange="onShowSizeChange"
+        >
+        </a-pagination>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import {
+  DatePicker,
+  Input,
+  Table,
+  Pagination,
+  Select,
+  Button,
+} from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+import OrgTree from "@/hall/components/OrgTree";
+import AccordionLayout from "@/framework/components/AccordionLayout";
+import { showError } from "@/framework/utils/index";
+import { lactationQuery } from "@/hall/api/leave";
+import moment from "moment";
+export default {
+  components: {
+    AMonthPicker: DatePicker.MonthPicker,
+    // ARangePicker: DatePicker.RangePicker,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    APagination: Pagination,
+    AInputSearch: Input.Search,
+    OrgTree,
+    AccordionLayout,
+    AButton: Button,
+  },
+  data() {
+    return {
+      loading: false,
+      dataSource: [],
+      record: {},
+      node: {},
+      query: {
+        searchkey: undefined,
+        date: moment(new Date().toLocaleDateString()).format('YYYY-MM'),
+      },
+      pagination: {
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+        needtotal: true,
+      },
+    };
+  },
+  watch: {
+    node: {
+      handler() {
+        this.getData();
+      },
+      deep: true,
+    },
+  },
+  computed: {
+    columns() {
+      return [
+        {
+          title: "请假人员",
+          dataIndex: "username",
+        },
+        {
+          title: "所属组织",
+          dataIndex: "orgname",
+        },
+        {
+          title: "请假开始时间",
+          dataIndex: "start",
+        },
+        {
+          title: "请假结束时间",
+          dataIndex: "end",
+        },
+        {
+          title: "请假时段（上午）",
+          dataIndex: "morning",
+        },
+        {
+          title: "请假时段（下午）",
+          dataIndex: "night",
+        },
+      ];
+    },
+  },
+  methods: {
+    dictRender(key, attr) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    getData() {
+      this.loading = true;
+      let query = {
+        nodeid: this.node.id,
+        searchkey: this.query.searchkey,
+        starttime: this.query.date
+          ? moment(this.query.date).startOf("month").format("YYYY-MM-DD")
+          : undefined,
+        endtime: this.query.date
+          ? moment(this.query.date).endOf("month").format("YYYY-MM-DD")
+          : undefined,
+        ...this.pagination,
+      };
+      lactationQuery(query)
+        .then(({ result: { pagenum, pagesize, rows = [], total } }) => {
+          rows.forEach((item) => {
+            item.start=item.startdate.slice(0, 11)
+            item.end=item.enddate.slice(0, 11)
+            item.morning=item.morningstart+'-'+item.morningend
+            item.night=item.nightstart+'-'+item.nightend
+          });
+          this.dataSource = rows;
+
+          assign(this.pagination, { pagenum, pagesize, total });
+        })
+        .catch((err) => {
+          showError(err);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    },
+    onOrgSelect(node) {
+      this.node = node;
+    },
+    dateChange() {
+      this.getData();
+    },
+    inputSearch() {
+      this.getData();
+    },
+    customRow(row, index) {
+      return {
+        on: {
+          click: () => {
+            this.record = row;
+          },
+        },
+      };
+    },
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.getData();
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagenum: 1, pagesize });
+      this.getData();
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  .content-left {
+    width: 310px;
+    background: @white;
+    border-radius: @border-radius-base;
+  }
+  .content-right {
+    flex: 1;
+    padding: @content-padding-v @content-padding-h;
+    overflow-y: auto;
+    min-height: 0px;
+    background: @white;
+    display: flex;
+    flex-direction: column;
+    border-radius: @border-radius-base;
+    margin-left: @layout-space-base;
+    .top {
+      display: flex;
+      padding: @content-padding-v 0px;
+      justify-content: space-between;
+    }
+    .middle {
+      flex-shrink: 1;
+      padding: @content-padding-v 0px;
+      overflow-y: auto;
+      /deep/ tr {
+        cursor: pointer;
+      }
+    }
+    .bottom {
+      text-align: right;
+      padding: @content-padding-v 0px;
+    }
+  }
+}
+</style>

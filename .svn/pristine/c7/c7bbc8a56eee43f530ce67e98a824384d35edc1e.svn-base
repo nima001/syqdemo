@@ -1,0 +1,136 @@
+<template>
+  <a-config-provider :locale="locale">
+    <div id="app">
+      <router-view />
+      <a-modal v-if="logoutSrc"
+        :visible="true"
+        :width="300"
+        :closable="false"
+        :footer="null"
+        :maskClosable="false"
+        :keyboard="false"
+        :bodyStyle="{padding: 0}"
+      >
+        <div style="height:60px;line-height: 60px;text-align: center;margin-top: 100px;font-size:16px;">
+          <a-icon type="loading" style="margin-right:10px"/>正在登出，请稍后…
+        </div>
+        <iframe :src="logoutSrc" frameborder="0" scrolling="no" style="position: absolute;top: -9999px"/>
+      </a-modal>
+    </div>
+  </a-config-provider>
+</template>
+<script>
+import { ConfigProvider, Modal, Icon } from "ant-design-vue";
+import zhCN from "ant-design-vue/lib/locale-provider/zh_CN";
+import Bus from '@/framework/utils/EventBus'
+
+export default {
+  data() {
+    return {
+      locale: zhCN,
+      exiting: false,
+      logoutSrc: undefined,
+    };
+  },
+  components: {
+    AConfigProvider: ConfigProvider,
+    AModal: Modal,
+    AIcon: Icon,
+  },
+  created(){
+    this.$store.dispatch('loadConfig', true).then((config) => {
+      console.log('配置加载成功');
+    });
+    Bus.$on('logout', this.exit);
+  },
+  methods:{
+    exit(message) {
+      if(this.exiting){
+        return
+      }
+      this.exiting = true;
+      Bus.$emit('beforeLogout');
+      if (message) {
+        this.$modal.info({
+          title: '提示',
+          content: message,
+          okText: '确定',
+          keyboard: false,
+          onOk: () => {
+            this.logoutSrc = this.$router.resolve('/login/exit').href;
+          },
+        });
+      } else {
+        if (process.env.VUE_APP_PROJECT_NAME === 'person' || process.env.VUE_APP_PROJECT_NAME === "dev") {
+          this.logoutSrc = this.$router.resolve('/login/exit').href;
+        } else {
+          this.logoutSrc = this.$router.resolve('/login/exit/zfw').href;
+        }
+      }
+    },
+  }
+};
+</script>
+<style lang="less">
+body {
+  min-height: 100%;
+  background: unset !important;
+}
+#app {
+  height: 100%;
+  overflow: hidden;
+}
+ul {
+  padding: 0;
+  margin: 0;
+}
+li {
+  list-style: none;
+}
+.layout {
+  height: 100%;
+  .wrapcontent {
+    height: 100%;
+    > .ant-layout {
+      height: 100%;
+    }
+    > .body {
+      height: 100%;
+      > div {
+        height: 100%;
+        .ant-spin-container {
+          height: 100%;
+          > div {
+            height: 100%;
+          }
+        }
+      }
+    }
+  }
+}
+/*滚动条样式*/
+::-webkit-scrollbar {
+  /*滚动条整体样式*/
+  width: 6px; /*高宽分别对应横竖滚动条的尺寸*/
+  height: 6px;
+  background: none;
+}
+
+::-webkit-scrollbar-thumb {
+  /*滚动条里面小方块*/
+  border-radius: 6px;
+  -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.25);
+  &:hover{
+    background: rgba(0, 0, 0, 0.33);
+  }
+}
+::-webkit-scrollbar-track {
+  /*滚动条里面轨道*/
+  // -webkit-box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.18);
+  // box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.18);
+  border-radius: 6px;
+  background: none;
+}
+</style>

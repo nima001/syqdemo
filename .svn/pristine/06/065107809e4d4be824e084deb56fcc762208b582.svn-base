@@ -1,0 +1,27 @@
+<template>
+	<a-layout>
+		<ChartConsole :chart="chart"/>
+	</a-layout>
+</template>
+<script>
+import { Layout } from 'ant-design-vue'
+import ChartConsole from './ChartConsole';
+
+export default {
+	components:{
+		ALayout: Layout,
+		ChartConsole,
+	},
+	data(){
+		return {
+			chart: Number(this.$route.query.id) || undefined,
+		}
+	},
+}
+</script>
+<style lang="less" scoped>
+.ant-layout{
+	height: 100%;
+	padding: @layout-space-base;
+}
+</style>

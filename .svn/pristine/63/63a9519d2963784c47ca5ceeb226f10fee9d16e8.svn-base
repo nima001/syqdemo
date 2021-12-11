@@ -1,0 +1,123 @@
+<template>
+  <div class="donut">
+    <div ref="stackedBarChartContainer">
+    </div>
+  </div>
+</template>
+<script>
+import { StackedBar } from '@antv/g2plot';
+import { problemmonitorCount } from "@/person-shaoxing/api/monitor";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: 'StackedBarChart',
+  props: {
+    areatype: {
+      type: Number,
+      defalut: undefined
+    },
+    title: {
+      type: String
+    }
+  },
+  watch: {
+    areatype: {
+      handler() {
+        this.getData();
+      },
+      immediate: true
+    }
+  },
+  data() {
+    return {
+      isCreated: false,
+      stackBarPlot: null
+    }
+  },
+  created() {
+  },
+  mounted() {
+  },
+  methods: {
+    getData() {
+      let params = {
+        areatype: this.areatype,
+        querytype: 2
+      };
+      problemmonitorCount(params)
+      .then(({result}) => {
+        this.data = result;
+        if(this.isCreated) {
+          // this.stackBarPlot.changeData(result);
+          this.stackBarPlot.updateConfig({
+            title: {
+              text: `${this.title}问题总数`,
+            },
+            data: result
+          })
+          this.stackBarPlot.render();
+        }else{
+          this.stackBarInit(result);
+          this.isCreated = true;
+        }
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    areaCity(key){
+      let d = this.$store.getters.dictKey("usermanage.org.areatype", key);
+      return d && d.text;
+    },
+    area(key){
+      let d = this.$store.getters.dictKey("usermanage.org.systype", key);
+      return d && d.text;
+    },
+    stackBarInit(data) {
+      this.stackBarPlot = new StackedBar(this.$refs.stackedBarChartContainer, {
+        height: 800,
+        forceFit: true,
+        title: {
+          visible: true,
+          text: `${this.title}问题总数`,
+          alignTo: 'middle'
+        },
+        data,
+        yField: 'fieldname',
+        xField: 'value',
+        meta: {// 坐标轴处理
+          fieldname: {
+            alias: 'xname',
+            formatter:(v)=>{
+              if(this.areatype) {
+                return this.area(v);
+              }else{
+                return this.areaCity(v);
+              }
+            }
+          }
+        },
+        xAxis: {
+          visible: true
+        },
+        yAxis: {
+          visible: true
+        },
+        label: {
+          visible: true,
+          // formatter: (v) => Math.round(v / 10000) + '万',
+        },
+        legend: {
+          position: 'bottom-center'
+        },
+        color: ['#D15456', '#5488D1'],
+        stackField: 'xname',
+      });
+
+      this.stackBarPlot.render();
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+
+</style>

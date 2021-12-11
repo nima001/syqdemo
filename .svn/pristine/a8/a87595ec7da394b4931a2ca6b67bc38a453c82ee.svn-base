@@ -1,0 +1,123 @@
+import { organization, getstatisinfo } from '@person/api/org'
+
+/**
+ * 所有评估项
+ */
+export const items = {
+  baseInfo: {
+    name: '基本信息',
+    sort: '基本情况',//分组名称
+    props: ['org'],//需要的属性
+    component: () => import('./BaseItem'),
+    loadData(target){
+      let orgid = target.org && target.org._id;
+      if(!orgid){
+        return Promise.reject({message: '未选择单位'})
+      }
+      return organization(orgid).then(({result}) => {
+        let {name, unittype, suporg, politicallevel, orgtype, institutionssort, fundform} = result;
+        return {name, unittype, suporg, politicallevel, orgtype, institutionssort, fundform}
+      })
+    }
+  },
+  staff: {
+    name: '编制情况',
+    sort: '编制情况',//分组名称
+    props: ['org'],//需要的属性
+    component: () => import('./StaffItem'),
+    loadData(target){
+      let orgid = target.org && target.org._id;
+      if(!orgid){
+        return Promise.reject({message: '未选择单位'})
+      }
+      return getstatisinfo(orgid).then(({result}) => {
+        let {bzzj, bzzj_sy} = result;
+        return {bzzj, bzzj_sy}
+      })
+    }
+  },
+  staffChange: {
+    name: '编制调整情况',
+    sort: '编制调整情况',//分组名称
+    props: ['org', 'staffchange'],//单位， 调整值
+    component: () => import('./StaffChangeItem'),
+    loadData(target){
+      let orgid = target.org && target.org._id;
+      if(!orgid){
+        return Promise.reject({message: '未选择单位'})
+      }
+      return getstatisinfo(orgid).then(({result}) => {
+        let {bzzj} = result;
+        return {change: target.staffchange, result: (target.staffchange||0) + (bzzj||0)}
+      })
+    }
+  },
+}
+
+/**
+ * 根据评估对象加载评估数据
+ * @param {Object} target 评估对象
+ * @param {Array} items 评估项
+ */
+export function loadData(target, items){
+  let requests = [], keys = [];
+  (items || []).forEach(name => {
+    let item = items[name];
+    if(item){
+      keys.push(item);
+      requests.push(item.loadData(target));
+    }
+  })
+  return Promise.all(requests).then(array => {
+    let content = {};
+    array.forEach((result, index) => {
+      connect[keys[index]] = result.result;
+    })
+    return content;
+  })
+}
+
+/**
+ * 根据评估内容获取评估项
+ * @param {Object} content 评估内容
+ */
+export function getItems(content){
+  let arr = [];
+  for(let name in items){
+    if(content.hasOwnProperty(name)){
+      let item = items[name];
+      arr.push({key: name, name: item.name, sort: item.sort});
+    }
+  }
+  return arr;
+}
+
+/**
+ * 获取所有项的控件
+ */
+export function getComponents(){
+  let cs = {};
+  for(let name in items){
+    cs[name] = items[name].component;
+  }
+  return cs;
+}
+
+/**
+ * 获取评估项需要的属性列表
+ * @param {Array} items 评估项列表
+ */
+export function getPops(items){
+  let props = [];
+  items.forEach(name => {
+    let item = items[name];
+    if(item){
+      (item.props || []).forEach(prop => {
+        if(!props.includes(prop)){
+          props.push(prop);
+        }
+      })
+    }
+  });
+  return props;
+}

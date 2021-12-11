@@ -1,0 +1,506 @@
+<!-- 管理中心首页 -->
+<template>
+  <a-layout class="dev-layout">
+    <!-- 转让弹窗 -->
+    <transferview
+      :transfervisible="transfervisible"
+      :transferId="transferId"
+      @closeTransfer="closeTransfer"
+    ></transferview>
+    <!-- 创建应用弹窗 -->
+    <appadd :creatvisible="creatvisible" @closeCreatModal="closeCreatModal" />
+    <div class="body">
+      <a-row class="header">
+        <a-col :span="6">
+          <div>
+            <a-button
+              v-if="hasPermit('/dev/manage/app/create')"
+              icon="plus"
+              @click="addapp"
+              type="primary"
+              style="margin-right:8px"
+            >创建应用</a-button>
+            <!-- <a-button @click="deletes" icon="delete" type="primary" style="margin-right:8px">删除</a-button> -->
+            <a-button
+              v-if="hasPermit('/dev/manage/app/receive')"
+              @click="receive"
+              type="primary"
+            >接收转让</a-button>
+            <!-- <a-button icon="undo">刷新</a-button> -->
+          </div>
+        </a-col>
+        <a-col :span="18">
+          <div class="body_1">
+            <div class="inps">
+              <a-select
+                v-model="appstate"
+                defaultValue
+                style="width:110px"
+                @change="refresh(page.pagenum)"
+              >
+                <a-select-option value>应用状态</a-select-option>
+                <a-select-option :value="0">在用</a-select-option>
+                <a-select-option :value="1">挂起</a-select-option>
+                <a-select-option :value="2">注销</a-select-option>
+              </a-select>
+              <a-input
+                style="width: 200px;margin:0 8px"
+                v-model="val"
+                @pressEnter="refresh(page.pagenum)"
+                placeholder="请输入名称"
+              />
+            </div>
+            <a-button @click="search" type="primary" style="margin-right:8px">搜索</a-button>
+            <a-button @click="reset">重置</a-button>
+          </div>
+        </a-col>
+      </a-row>
+
+      <div class="body_3">
+        <a-table
+          :rowSelection="rowSelection"
+          :columns="columns"
+          :dataSource="data"
+          :size="size"
+          :pagination="false"
+        >
+          <span slot="statevalue" slot-scope="value,record">
+            <span :style="colors(value)">{{verifyAppState(record)}}</span>
+          </span>
+          <span slot="action" slot-scope="text, record">
+            <a v-if="hasPermit('/dev/manage/app')" @click="appmanage(record)">管理</a>
+            <a
+              v-if="(record.state != 2) && hasPermit('/dev/manage/app/transfer')"
+              @click="showtransfermodal(record)"
+            >转让</a>
+            <a
+              v-if="(record.state != 2) && hasPermit('/dev/manage/app/logout')"
+              @click="logoutapp(record)"
+            >注销</a>
+          </span>
+        </a-table>
+        <a-pagination
+          v-if="data.length > 0"
+          :total="total"
+          :showSizeChanger="true"
+          @showSizeChange="onShowSizeChange"
+          :page-size-options="pageSizeOptions"
+          :pageSize="page.pagesize"
+          v-model="page.pagenum"
+          @change="onPageChange"
+          :showTotal="(total) => `总共：${total}条`"
+        />
+      </div>
+      <a-modal
+        title="接收应用"
+        :visible="receivevisible"
+        :confirm-loading="receiveLoading"
+        @ok="receiveOk"
+        @cancel="receiveCancel"
+        width="600px"
+      >
+        <div style="margin:20px auto;text-align:center">
+          <p style="color:rgb(153, 153, 153);font-size:13px;">请联系转让应用的开发者索要转让码，通过转让码接收转让的应用。</p>
+          <!-- okText="转让应用" -->
+          转让码:
+          <a-input
+            v-model="receiveCode"
+            style="width:260px;margin-left:40px;margin-top:10px"
+            placeholder="请输入"
+          />
+        </div>
+      </a-modal>
+      <a-modal
+        title="注销应用"
+        :visible="logoutvisible"
+        :confirm-loading="logoutLoading"
+        @ok="logoutOk"
+        @cancel="logoutCancel"
+        width="600px"
+        okText="确认注销"
+      >
+        <div style="margin:20px auto;text-align:center">
+          <p style="color:rgb(153, 153, 153);font-size:13px;">注销操作不可逆，请谨慎操作。</p>
+        </div>
+      </a-modal>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import {
+  Layout,
+  Select,
+  Table,
+  Button,
+  Input,
+  notification,
+  Pagination,
+  Row,
+  Col,
+  Modal
+} from "ant-design-vue";
+import {
+  applist,
+  appdel,
+  generateTransfercode,
+  receive,
+  logout
+} from "@/dev/api/app";
+import { showError } from "../../framework/utils";
+import AppTransfer from "./app/AppTransfer.vue";
+import AppAdd from "./app/AppAdd";
+export default {
+  data() {
+    return {
+      size: "default",
+      appstate: "",
+      columns: [
+        {
+          title: "序号",
+          customRender: (text, record, index) => index + 1,
+          width: "5%"
+        },
+        {
+          title: "应用名称",
+          dataIndex: "name",
+          key: "name",
+          width: "20%"
+        },
+        {
+          title: "厂商",
+          dataIndex: "devCompany",
+          key: "devCompany",
+          width: "30%"
+        },
+        {
+          title: "状态",
+          dataIndex: "state",
+          key: "state",
+          width: "10%",
+          scopedSlots: { customRender: "statevalue" }
+        },
+        {
+          title: "操作",
+          key: "action",
+          dataIndex: "action",
+          scopedSlots: { customRender: "action" }
+        }
+      ],
+      data: [],
+      selectedRows: [],
+      val: "",
+      selectedRowKeys: [],
+      pageSizeOptions: ["10", "20", "30", "40", "50"],
+      page: {
+        pagesize: 10, // 默认每页显示数量
+        pagenum: 1
+      },
+      total: 0,
+      transfervisible: false,
+      transferId: -1,
+      //接收应用弹窗相关变量
+      receivevisible: false,
+      receiveLoading: false,
+      receiveCode: "",
+      //注销应用相关变量
+      logoutid: 0,
+      logoutvisible: false,
+      logoutLoading: false,
+      //应用创建相关变量
+      creatvisible: false
+    };
+  },
+  components: {
+    ALayout: Layout,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    AButton: Button,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    notification,
+    APagination: Pagination,
+    ARow: Row,
+    ACol: Col,
+    AModal: Modal,
+    transferview: AppTransfer,
+    appadd: AppAdd
+  },
+  created() {
+    this.refresh();
+  },
+  methods: {
+    // 创建应用
+    addapp() {
+      // console.log(this.$store.state.appHasPermit.permit);
+      // console.log(this.appHasPermit('/dev/appadd'));
+      // this.$router.push("/dev/manage/app/create");
+      this.creatvisible = true;
+    },
+    // 管理应用
+    appmanage(record) {
+      console.log(record);
+      this.$store.commit("appInfo_change", record);
+      this.$router.push({
+        path: "/dev/manage/app"
+      });
+    },
+    // 展示转让页面
+    showtransfermodal(record) {
+      this.transferId = record.id;
+      this.transfervisible = true;
+    },
+    //关闭转让页面
+    closeTransfer(flag) {
+      this.transfervisible = flag;
+    },
+    //展示接收应用页面
+    receive() {
+      this.receivevisible = true;
+    },
+    //关闭接收页面弹窗
+    receiveCancel() {
+      this.receivevisible = false;
+    },
+    receiveOk() {
+      console.log(123);
+      if (!this.receiveCode.trim()) {
+        this.$notification.success({
+          message: "提示",
+          description: "转让码不能为空",
+          duration: 3
+        });
+        return;
+      }
+      this.receiveLoading = true;
+      receive(this.receiveCode)
+        .then(res => {
+          this.$notification.success({
+            message: "提示",
+            description: "接收应用成功",
+            duration: 3
+          });
+          this.receiveLoading = false;
+          this.receivevisible = false;
+          this.refresh(this.page.pagenum);
+        })
+        .catch(err => {
+          showError(err);
+          this.receiveLoading = false;
+        });
+    },
+    //注销应用
+    logoutapp(record) {
+      this.logoutid = record.id;
+      this.logoutvisible = true;
+    },
+    //关闭注销页面弹窗
+    logoutCancel() {
+      this.logoutvisible = false;
+    },
+    //确认注销
+    logoutOk() {
+      if (!this.logoutid === 0) {
+        this.$notification.success({
+          message: "提示",
+          description: "未选择要注销的应用",
+          duration: 3
+        });
+        return;
+      }
+      this.logoutLoading = true;
+      logout(this.logoutid)
+        .then(res => {
+          this.$notification.success({
+            message: "提示",
+            description: "注销成功",
+            duration: 3
+          });
+          this.logoutLoading = false;
+          this.logoutvisible = false;
+          this.refresh(this.page.pagenum);
+        })
+        .catch(err => {
+          showError(err);
+          this.logoutLoading = false;
+        });
+    },
+    closeCreatModal() {
+      this.creatvisible = false;
+    },
+    //创建业务
+    createbusiness(record) {
+      this.$store.commit("appInfo_change", record);
+      this.$router.push({
+        path: "/dev/addbusiness"
+      });
+    },
+    onShowSizeChange(current, size) {
+      this.page.pagesize = size;
+      this.refresh(current);
+    },
+    // 分页数据
+    refresh(x = 1) {
+      let params = {
+        name: this.val,
+        needtotal: true,
+        orders: [
+          {
+            orderby: "updatetime",
+            ordertype: "DESC"
+          }
+        ],
+        state: this.appstate,
+        pagenum: x,
+        pagesize: this.page.pagesize
+      };
+
+      applist(params)
+        .then(res => {
+          let result = res.result;
+          let flag = !Object.keys(result).length == 0;
+          this.total = flag ? result.total : 0;
+          this.page.pagenum = flag ? result.pagenum : 1;
+          let data = flag ? result.rows : [];
+          let serial = (x - 1) * 10;
+          if (result && result.total < 11) {
+            serial = 0;
+          }
+          data.forEach(function(i, n) {
+            i.key = n + 1 + serial;
+          });
+          this.data = data;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    // 分页
+    onPageChange(current) {
+      this.refresh(current);
+    },
+    // 搜索
+    search() {
+      this.refresh();
+    },
+    // 重置
+    reset() {
+      this.val = "";
+      this.appstate = "";
+      this.refresh();
+    },
+    // 删除
+    deletes() {
+      if (this.selectedRowKeys.length <= 0) {
+        return false;
+      }
+      let selectedRows = this.selectedRows;
+      let arr = [];
+      selectedRows.forEach(function(i) {
+        arr.push(i.id);
+      });
+      this.selectedRowKeys = [];
+      appdel(arr)
+        .then(res => {
+          this.$notification.success({
+            message: "提示",
+            description: "删除成功",
+            duration: 3
+          });
+          this.refresh(this.page.pagenum);
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    colors(state) {
+      switch (state) {
+        case 0:
+          return;
+        case 1:
+          return "color:#faad14";
+        case 2:
+          return "color:#999";
+        default:
+          return;
+      }
+    },
+    verifyAppState(record) {
+      let str = "";
+      switch (record.state) {
+        case 0:
+          str += "在用";
+          break;
+        case 1:
+          str += "挂起(" + record.suspendDesc + ")";
+          break;
+        case 2:
+          str += "注销";
+          break;
+        default:
+      }
+      return str;
+    }
+  },
+
+  computed: {
+    rowSelection() {
+      const { selectedRowKeys } = this;
+      return {
+        onChange: (selectedRowKeys, selectedRows) => {
+          this.selectedRows = selectedRows;
+          this.selectedRowKeys = selectedRowKeys;
+        },
+        selectedRowKeys: selectedRowKeys
+      };
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.dev-layout {
+  padding: 10px;
+  height: 100%;
+  .ant-pagination {
+    margin-top: 10px;
+    text-align: right;
+  }
+  .body {
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    padding: 8px 24px;
+    margin: 0 auto;
+    background: #fff;
+    .header {
+      padding-top: 10px;
+      .body_1 {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        .inps {
+          display: flex;
+          justify-content: flex-end;
+          width: 100%;
+        }
+      }
+    }
+  }
+  .ant-table-wrapper {
+    margin-top: 10px;
+    line-height: 2.5;
+  }
+  .abq {
+    margin-right: 36px;
+  }
+  .body_3 {
+    span a {
+      margin-right: 15px;
+    }
+  }
+  /deep/ .ant-table-tbody > tr > td {
+    line-height: 3;
+  }
+}
+</style>

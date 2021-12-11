@@ -1,0 +1,499 @@
+<template>
+  <div ref="content" class="pie-chart"  :style="{width: width?`${width}px`:'100%', height: height?`${height}px`:'400px'}">
+    <h2 v-if="mainTitle.visible!==false||title" :style="{ ...style }" v-html="mainTitle.value||title"/>
+    <h3 v-if="subTitle.visible!==false||subtitle" :style="{ margin: 0, ...subStyle }" v-html="subTitle.value||subtitle"/>
+    <div ref="chart" class="chart"></div>
+    <div class="tag" v-if="allowDrag" @mousedown.stop.prevent="drag()"/>
+  </div>
+</template>
+<script>
+import * as G2 from "@antv/g2";
+import BaseMixin from "./BaseMixin";
+import { get, orderBy, cloneDeep, xor, reduce, concat, map, has, assign  } from "lodash";
+import { delTemplate } from "../../api/booklet";
+
+export default {
+  icon: "chart-pie",
+  title: "饼图",
+  name: "PieChart",
+  mixins: [BaseMixin],
+  data() {
+    return {
+      dataSource: [],
+      currentMoveX: 0,
+      currentMoveY: 0,
+      isDrag: false,
+      plot: undefined,
+    };
+  },
+  mounted() {
+    this.draw(this.data);
+  },
+  computed: {
+    width() {
+      if(this.settings.canvas) {
+        let { width } = this.settings.canvas;
+        if(width) {
+          return width;
+        }
+      }
+      return undefined;
+    },
+    height() {
+      if(this.settings.canvas) {
+        let { height } = this.settings.canvas;
+        if(height) {
+          return height;
+        }
+      }
+      return undefined;
+    },
+		title(){
+			let { title, context = {}} = this.settings;
+			if(title&&typeof title=='string'){
+				for(let key in context){
+					title = title.replace(new RegExp('\\$\\{' + key + '\\}', 'g'), context[key]);
+				}
+				return title;
+			}
+			return undefined;
+		},
+		subtitle() {
+			let { subtitle, context = {}} = this.settings;
+			if(subtitle&&typeof title=='string'){
+				for(let key in context){
+					subtitle = subtitle.replace(new RegExp('\\$\\{' + key + '\\}', 'g'), context[key]);
+				}
+				return subtitle;
+			}
+			return undefined;
+		},
+		muitl(){
+			if(this.data){
+			  let { keyCols, valueCols, rows } = this.data;
+			  return valueCols.length > 1 || keyCols.length > 1;
+			}
+		},
+    position() {
+      if(this.settings.title&&this.settings.title.position) {
+        let { position } = this.settings.title;
+        return { textAlign: position };
+      }else{
+        return { textAlign: 'center' }
+      }
+    },
+    fontColor() {
+      if(this.mainTitle) {
+        let { color } = this.mainTitle;
+        if(color) {
+          return {color: color};
+        }
+      }
+      return {}
+    },
+    subFontColor() {
+      if(this.subTitle) {
+        let { color } = this.subTitle;
+        if(color) {
+          return {color: color};
+        }
+      }
+      return {}
+    },
+    fontSize() {
+      if(this.mainTitle) {
+        let { fontSize } = this.mainTitle;
+        if(fontSize) {
+          return {fontSize: fontSize+'px'};
+        }
+      }
+      return {}
+    },
+    subFontSize() {
+      if(this.subTitle) {
+        let { fontSize } = this.subTitle;
+        if(fontSize) {
+          return {fontSize: fontSize+'px'};
+        }
+      }
+      return {}
+    },
+    fontWeight() {
+      if(this.mainTitle) {
+        let { fontWeight } = this.mainTitle;
+        if(fontWeight) {
+          return { fontWeight: 'bold' };
+        }
+      }
+      return {}
+    },
+    subFontWeight() {
+      if(this.subTitle) {
+        let { fontWeight } = this.subTitle;
+        if(fontWeight) {
+          return { fontWeight: 'bold' };
+        }
+      }
+      return {}
+    },
+    fontFamily() {
+      if(this.settings.title&&this.settings.title.fontFamily) {
+        let { fontFamily } = this.settings.title;
+        return { fontFamily: fontFamily };
+      }else{
+        return {}
+      }
+    },
+    style() {
+      let v = assign(this.fontColor, this.position, this.fontWeight, this.fontSize, this.fontFamily);
+      return v;
+    },
+    subStyle() {
+      let v = assign(this.subFontColor, this.position, this.subFontWeight, this.subFontSize, this.fontFamily);
+      return v;
+    },
+    mainTitle() {
+      if(this.settings.title&&this.settings.title.main) {
+        let { main } = this.settings.title;
+        if(!main) {
+          return  {
+            visible: true,
+            value: undefined,
+          }
+        }
+        if(!has(main,'visible')) {
+          main.visible = true;
+        }
+        return main;
+      }else{
+        return {
+          main: {
+            visible: true,
+            value: undefined,
+          }
+        }
+      }
+    },
+    subTitle() {
+      if(this.settings.title&&this.settings.title.sub) {
+        let { sub } = this.settings.title;
+        if(!sub) {
+          return  {
+            visible: true,
+            value: undefined,
+          }
+        }
+        if(!has(sub,'visible')) {
+          sub.visible = true;
+        }
+        return sub;
+      }else{
+        return {
+          sub: {
+            visible: true,
+            value: undefined,
+          }
+        }
+      }
+    },
+    label() {
+      if(this.settings.gemo) {
+        let { label } = this.settings.gemo;
+        return label;
+      }else{
+        return {
+          visible: true
+        }
+      }
+    },
+    legend() {
+      let { legend } = this.settings;
+      if(!legend) {
+        return  {
+          visible: false,
+        }
+      }
+      return legend;
+    },
+    tooltip() {
+      let { tooltip } = this.settings;
+      if(!tooltip) {
+        return  {
+          visible: true,
+        }
+      }
+      return tooltip;
+    },
+    format() {
+      if(this.tooltip) {
+        let { format } = this.tooltip;
+        if(format) {
+          if(!format.unit) {
+            format.unit = '';
+          }
+          if(!format.toFixed) {
+            format.toFixed = 0;
+          }
+          return format;
+        }
+      }
+      return {
+        unit: '',
+        toFixed: 0,
+      };
+    },
+    color() {
+      if(this.settings.gemo) {
+        let { color } = this.settings.gemo;
+        return color;
+      }else{
+        return undefined
+      }
+    },
+    colors() {
+      if (this.color&&(this.color.length||typeof this.color==='string')) {
+        if(typeof this.color==='string') {
+          return this.color.split(',');
+        }
+        return this.color;
+      } else {
+        let colors = this.$store.getters.getConfig("chart.colors");
+        if (colors) {
+          try {
+            colors = JSON.parse(colors);
+            if (colors && colors.length) {
+              return colors;
+            }
+          } catch (err) {}
+        }
+      }
+      return ["#D15456", "#5488D1", "#EDBA55", "#D48265", "#91C7AE", "#749F83", "#BDA29A", "#6E7074", "#585470", "#706254"];
+    },
+  },
+  watch: {
+    data: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true,
+    },
+    settings: {
+      deep: true,
+      handler(val,old) {
+        if(val!=old) {
+          this.draw(this.data)
+        }
+      },
+    },
+    // width(val) {
+    //   if(val) {
+    //     this.$refs.content.style.width = val+'px';
+    //   }else{
+    //     this.$refs.content.style.width = '100%';
+    //   }
+    //   this.plot.changeData(this.dataSource);
+    // },
+    // height(val) {
+    //   if(val) {
+    //     this.$refs.content.style.height = val+'px';
+    //   }else{
+    //     this.$refs.content.style.height = '400px';
+    //   }
+    //   this.plot.changeData(this.dataSource);
+    // }
+  },
+  methods: {
+    drag(e) {
+      let that = this;
+      let startX = event.x;
+      let startY = event.y;
+      let width = that.$refs.content.offsetWidth;
+      let height = that.$refs.content.offsetHeight;
+      that.isDrag = true;
+      document.onmousemove = function (e) {
+        let moveX = e.pageX - startX;
+        let moveY = e.pageY - startY;
+        if(that.currentMoveX!=event.x&&moveX!=0) {
+          that.$refs.content.style.width = Math.min(1400, Math.max(300, moveX*2+width))+'px';
+          that.currentMoveX = event.x;
+        }
+        if(that.currentMoveY!=event.y&&moveY!=0) {
+          that.$refs.content.style.height = Math.min(1400, Math.max(200, moveY+height))+'px';
+          that.currentMoveY = event.y;
+        }
+      };
+      document.onmouseup = function () {
+        let width = that.$refs.content.style.width.split('px')[0];
+        let height = that.$refs.content.style.height.split('px')[0];
+        that.$emit('changeSize', {width, height});
+        that.draw(that.data)
+        that.isDrag = false;
+        document.onmousemove = null;
+        document.onmouseup = null;
+      };
+      return false;
+    },
+    sum(list) {
+      let sum = 0;
+      list.forEach((item) => {
+        sum += parseInt(item.value);
+      });
+      return sum;
+    },
+    createData(dataTable) {
+      if (!dataTable) {
+        return;
+      }
+      let { keyCols, valueCols, rows } = this.transform(dataTable);
+      return this.getRows(rows,keyCols,valueCols);
+    },
+    getRows(rows,keyCols,valueCols) {
+      return rows.map((item) => {
+        let keys = keyCols.map((k) => item[k.column]);
+        return {
+          key: keys.join("-"),
+          value: item[valueCols[0].column] || 0,
+        };
+      });
+    },
+    draw(dataTable) {
+      this.dataSource = this.createData(dataTable);
+      let data = this.dataSource;
+      let sum = this.sum(data);
+      if (!data) {
+        return;
+      }
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      const chart = new G2.Chart({
+        container: this.$refs.chart,
+        autoFit: true,
+        forceFit: true,
+        appendPadding: this.settings.padding || [30, 0, 0, 0],
+      });
+      chart.coordinate("theta", { radius: 0.7 });
+      chart.data(data);
+
+      //提示
+      chart.tooltip({
+        showTitle: false,
+        showMarkers: false,
+      });
+      if (this.tooltip) {
+        if (!this.tooltip.visible) {
+          chart.tooltip(false);
+        }
+      }
+      
+      // 配置图例
+      chart.legend(false);
+      if (this.legend) {
+        if (this.legend.visible) {
+          chart.legend({
+            position: this.legend.position,
+            flipPage: this.legend.flipPage,
+            itemHeight: 15,
+            marker: {
+              symbol: this.legend.marker,
+            },
+          });
+        }
+      }
+      let geometry = chart.interval();
+
+      //是否显示label
+      if (this.label&&this.label.visible) {
+        geometry.label("key*value", {
+          layout: [{ type: "pie-spider" }, { type: "hide-overlap" }],
+          content: (obj) => `${obj.key}:  ${obj.value.toFixed(that.format.toFixed)}`,
+          style: {
+            fill: this.label.color,
+          },
+        });
+      }else{
+        geometry.label(false);
+      }
+      chart.scale("value", {
+        formatter: (val) => {
+          if (sum == 0) {
+            return `${0}%`;
+          } else {
+            if (val == 0) {
+              return `${0}%`;
+            } else {
+              let float = Math.floor((val / sum) * 100);
+              return `${float}%`;
+            }
+          }
+        },
+      });
+
+      let that = this;
+      geometry
+      .adjust("stack")
+      .position("value")
+      .color("key", this.colors)
+      .tooltip('key*value',function (key,value) {
+        return {
+          name: key,
+          value: value.toFixed(that.format.toFixed) + that.format.unit
+        }
+      })
+      .state({
+        active: {
+          style: element => {
+            const shape = element.shape;
+            return {
+              lineWidth: 8,
+              stroke: shape.attr('fill'),
+              strokeOpacity: shape.attr('fillOpacity'),
+            };
+          },
+        },
+      });
+      chart.interaction('element-active');
+      chart.changeData(data);
+      this.plot = chart;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.pie-chart {
+  // width: 100%;
+  // height: 400px;
+  padding: @padding-sm;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  /deep/.chart {
+    display: flex;
+    div {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+  .tag {
+    position: absolute;
+    right: -10px;
+    bottom: -10px;
+    border-right: 5px solid #979797;
+    height: 14px;
+    border-bottom: 5px solid #979797;
+    width: 14px;
+    cursor: nw-resize;
+  }
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

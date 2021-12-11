@@ -1,0 +1,139 @@
+<template>
+  <div class="container">
+    <div class="datedell">
+      <a-input :value="defaultData.value" read-only placeholder="请选择时间" @click="toggleEditor('inputOPen')" />
+      <div class="iconcell">
+        <a-date-picker @change="dateChange" />
+        <span class="fx" @click="toggleEditor">
+          <img src="../../../assets/img/query-value-fn.png" />
+        </span>
+      </div>
+    </div>
+    <equation-editor v-if="dataEditor" :fnData="defaultData.value" namespace="query" @finish="onFinish"></equation-editor>
+  </div>
+</template>
+<script>
+import moment from "moment";
+import { DatePicker, Modal, Icon, Input } from "ant-design-vue";
+export default {
+  name: "TypeSeven",
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      required: true
+    }
+  },
+  components: {
+    AInput: Input,
+    AModal: Modal,
+    ADatePicker: DatePicker,
+    AIcon: Icon,
+    EquationEditor:() => import('../../../components/EquationEditor')
+  },
+  data() {
+    return {
+      dataEditor: false,
+      value: ""
+    };
+  },
+  methods: {
+    moment,
+    onChange(dateString) {
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value: dateString
+      });
+    },
+    dateChange(date) {
+      var dateStr = moment(date).format("YYYY-MM-DD");
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value: dateStr
+      });
+    },
+    toggleEditor(type) {
+      if(type == 'inputOPen'){
+        let value = this.defaultData.value;
+        let flag = (value!= undefined && value != '')?value.indexOf('$') != -1?true:false : false;
+        if(flag){
+          this.dataEditor = !this.dataEditor;
+        }
+      }else{
+        this.dataEditor = !this.dataEditor;
+      }
+      
+    },
+    onFinish(type, data) {
+      this.dataEditor = !this.dataEditor;
+      if(type == 'ok'){
+        this.$store.commit({
+          type: "SET_VALUE",
+          position: this.position,
+          value: `\${${data}\}`
+        });
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  .datedell {
+    display: flex;
+    width: 320px;
+    border: 1px solid @border-color-base;
+    transition: all 0.3s;
+    border-radius: @border-radius-base;
+    padding-right: 11px;
+    &:hover{
+      border-color: @primary-color;
+    }
+    .ant-input{
+      border: none;
+      &:focus{
+        box-shadow: none;
+      }
+    }
+    .iconcell {
+      display: flex;
+      align-items: center;
+      .ant-calendar-picker {
+        /deep/ div {
+          width: 20px;
+          height: 100%;
+          margin-left: 10px;
+          position: relative;
+          input {
+            display: none;
+          }
+          .ant-calendar-picker-clear {
+            display: none;
+          }
+          .ant-calendar-picker-icon {
+            cursor: pointer;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            margin: 0px;
+          }
+        }
+      }
+      .fx {
+        cursor: pointer;
+        margin-left: 8px;
+        width: 16px;
+        height: 16px;
+        img {
+          max-width: 100%;
+          vertical-align: top;
+        }
+      }
+    }
+  }
+}
+</style>

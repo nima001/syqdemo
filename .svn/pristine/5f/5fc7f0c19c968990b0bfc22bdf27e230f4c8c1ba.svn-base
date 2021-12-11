@@ -1,0 +1,243 @@
+<template>
+  <div class="pie-chart">
+    <h2 v-if="settings.titleVisible" :style="{ textAlign: settings.titlePosition||'center' }">{{ title }}</h2>
+    <h3 v-if="settings.subtitleVisible" :style="{ margin: 0, textAlign: settings.titlePosition||'center' }">{{subtitle}}</h3>
+    <div ref="chart"></div>
+  </div>
+</template>
+<script>
+import * as G2 from "@antv/g2";
+import BaseMixin from "./BaseMixin";
+import { orderBy, cloneDeep, xorBy, reduce, concat, map } from "lodash";
+import { delTemplate } from "../../api/booklet";
+
+export default {
+  icon: "chart-ring",
+  title: "饼图",
+  name: "RingChart",
+  mixins: [BaseMixin],
+  data() {
+    return {
+      // plot: undefined,
+    };
+  },
+  mounted() {
+    this.draw(this.data);
+  },
+  computed: {
+    colors() {
+      if (this.settings.color&&(this.settings.color.length||typeof this.settings.color==='string')) {
+        if(typeof this.settings.color==='string') {
+          return this.settings.color.split(',');
+        }
+        return this.settings.color;
+      } else {
+        let colors = this.$store.getters.getConfig("chart.colors");
+        if (colors) {
+          try {
+            colors = JSON.parse(colors);
+            if (colors && colors.length) {
+              return colors;
+            }
+          } catch (err) {}
+        }
+      }
+      return ["#D15456", "#5488D1", "#EDBA55", "#D48265", "#91C7AE", "#749F83", "#BDA29A", "#6E7074", "#585470", "#706254"];
+    },
+  },
+  watch: {
+    data: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true,
+    },
+    settings: {
+      deep: true,
+      handler(val) {
+        this.draw(this.data);
+      },
+    },
+    colors: {
+      deep: true,
+      handler(val, old) {
+        if (val != old) {
+          this.draw(this.data);
+        }
+      },
+    },
+  },
+  methods: {
+    changeColor() {
+      this.geometry.adjust("stack").position("value").color("key", this.colors);
+    },
+    sum(list) {
+      let sum = 0;
+      list.forEach((item) => {
+        sum += parseInt(item.value);
+      });
+      return sum;
+    },
+    createData(dataTable) {
+      if (!dataTable) {
+        return;
+      }
+      let { keyCols, valueCols, rows } = this.transform(dataTable);
+      return rows.map((item) => {
+        let keys = keyCols.map((k) => item[k.column]);
+        return {
+          key: keys.join("-"),
+          value: item[valueCols[0].column] || 0,
+        };
+      });
+    },
+    //排序 截取
+    sortAndMerge(data) {
+      let sortData = cloneDeep(data);
+      let mergeData = [{ key: "其他", value: undefined }];
+      //截取合并之前需要先排序一次，保证截取的正确性
+      if (this.settings.sort && this.settings.sort !== "recover") {
+        //是否排序
+        sortData = orderBy(sortData, "value", this.settings.sort);
+      }
+      if (this.settings.afterintercept) {
+        //是否截取
+        sortData = sortData.slice(
+          this.settings.afterintercept[0] - 1,
+          this.settings.afterintercept[1]
+        );
+      }
+      if (this.settings.merge) {
+        let xorData = map(xorBy(data, sortData, "key"), "value");
+        mergeData[0].value = reduce(xorData, (sum, n) => {
+          return sum + n;
+        });
+        sortData = concat(sortData, mergeData);
+      }
+      if (this.settings.sort && this.settings.sort !== "recover") {
+        //是否排序
+        sortData = orderBy(sortData, "value", this.settings.sort);
+      }
+      return sortData;
+    },
+    draw(dataTable) {
+      let data = this.createData(dataTable).filter((item) => item.value !== 0);
+      let sortData = this.sortAndMerge(data);
+      let sum = this.sum(sortData);
+      if (!data) {
+        return;
+      }
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      const chart = new G2.Chart({
+        container: this.$refs.chart,
+        width: this.settings.width,
+        height: this.settings.height,
+        autoFit: (this.settings.width&&this.settings.height)?false:true,
+      });
+      chart.coordinate("theta", {
+        radius: 0.7,
+        innerRadius: 0.6,
+      });
+      chart.data(sortData);
+      //提示
+      chart.tooltip({
+        showTitle: false,
+        showMarkers: false,
+      });
+      if (this.settings.tooltip) {
+        if (!this.settings.tooltip.visible) {
+          chart.tooltip(false);
+        }
+      }
+      // 配置图例
+      chart.legend(false);
+      if (this.settings.legend) {
+        if (this.settings.legend.visible) {
+          chart.legend({
+            position: this.settings.legend.position,
+            flipPage: this.settings.legend.flipPage,
+            marker: {
+              symbol: this.settings.legend.marker,
+            },
+          });
+        }
+      }
+      // 辅助文本
+      chart
+      .annotation()
+      .text({
+        position: ['50%', '50%'],
+        content: '合计',
+        style: {
+        fontSize: 14,
+        fill: '#8c8c8c',
+        textAlign: 'center',
+        },
+        offsetY: -20,
+      })
+      .text({
+        position: ['50%', '50%'],
+        content: reduce(map(sortData, "value"),(sum,n)=>{return sum+n}),
+        style: {
+        fontSize: 20,
+        fill: '#8c8c8c',
+        textAlign: 'center',
+        },
+        offsetY: 10,
+      })
+      let geometry = chart.interval();
+      //是否显示label
+      if (this.settings.label) {
+        geometry.label("key*value", {
+          layout: [{ type: "pie-spider" }, { type: "hide-overlap" }],
+          content: (obj) => `${obj.key}:  ${obj.value}`,
+        });
+      } else {
+        geometry.label(false); //FIXME 值太多默认不显示
+      }
+      chart.scale("value", {
+        formatter: (val) => {
+          if (sum == 0) {
+            return `${0}%`;
+          } else {
+            if (val == 0) {
+              return `${0}%`;
+            } else {
+              let float = Math.floor((val / sum) * 100);
+              return `${float}%`;
+            }
+          }
+        },
+      });
+
+      geometry.adjust("stack").position("value").color("key", this.colors);
+
+      G2.registerInteraction("element-single-selected", {
+        start: [
+          { trigger: "element:mouseenter", action: "element-single-selected:selected" },
+        ],
+        end: [{ trigger: "element:mouseleave", action: "element-single-selected:reset" }],
+      });
+      chart.interaction("element-single-selected");
+      chart.render();
+      this.plot = chart;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.pie-chart {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

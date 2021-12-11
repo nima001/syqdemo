@@ -1,0 +1,203 @@
+<template>
+  <div class="org-main-panel">
+    <div class="header">
+      <div class="title" :title="title">{{title}}</div>
+      <div class="tabs">
+        <a v-for="item in tabList" :key="item.id" :class="{active: active && active.id == item.id}" @click="active = item">{{item.title}}</a>
+      </div>
+    </div>
+    <div class="body">
+      <component
+        v-if="active"
+        :is="active.component"
+        :org="org"
+        :businesst="businesst"
+        :lineid="lineid"
+        :nodeid="loadData && loadData.node.id"
+        :treeid="loadData && loadData.treeid"
+        :orgid="org && org._id"
+      />
+    </div>
+  </div>
+</template>
+<script>
+import { Button } from "ant-design-vue";
+import OrgInfo from "./components/OrgInfo";
+import MainDuty from "./components/MainDuty";
+import AuthorityList from "./components/AuthorityList";
+import UserList from "./components/UserList";
+import OrgyearReport from "./components/OrgyearReport";
+import SanDing from "./components/SanDing";
+import StaffInfo from "./components/StaffInfo";
+import PostInfo from "./components/PostInfo";
+import ContrastInfo from './components/ContrastInfo';
+import { shaoxingorgline } from "@/person-shaoxing/api/assessment";
+import { concat } from 'lodash';
+export default {
+  name:'orgMain',
+  props: {
+    loadData: {
+      type: Object
+    }
+  },
+  components: {
+    AButton: Button,
+    OrgInfo,
+    MainDuty,
+    AuthorityList,
+    UserList,
+    OrgyearReport,
+    SanDing,
+    StaffInfo,
+    PostInfo,
+    ContrastInfo
+  },
+  data() {
+    return {
+      tabs: [
+        { id: 1, title: "机构信息", component: "OrgInfo",unittype :[0,1,2,3,5,7,11] },
+        { id: 2, title: "编制信息", component: "StaffInfo",unittype :[1,2,3,5,7,11] },
+        { id: 3, title: "职数信息", component: "PostInfo",unittype :[1,2,3,5,7] },
+        { id: 4, title: "主要职责", component: "MainDuty",unittype:[1,2,3,5,6,7,8,9,10,11] },
+        { id: 5, title: "权力清单", component: "AuthorityList",unittype:[1,2,3,5,7,11] },
+        { id: 6, title: "三定一评", component: "SanDing",unittype:[1,2,3,5,7,11]},
+        { id: 7, title: "事业单位年报", component: "OrgyearReport",unittype:[2,3,11] },
+        { id: 8, title: "人员列表", component: "UserList",unittype:[1,2,3,5,6,7,8,9,10,11] },
+      ],
+      lineid: undefined,
+      tabList:[],
+      active: undefined
+    }
+  },
+  computed: {
+    org() {
+      if (this.loadData) {
+        let { node, dept } = this.loadData;
+        return dept || node.data;
+      }
+    },
+    businesst() {
+      return this.$store.getters.dict("person.business.businesstype");
+    },
+    title(){
+      if(this.loadData){
+        let { node, dept } = this.loadData;
+        let title = node.name;
+        if(dept){
+          title += `【${dept.name}】`;
+        }
+        return title;
+      }
+    }
+  },
+  created() {
+    this.init();
+  },
+  watch: {
+    org() {
+      this.init();
+    }
+  },
+  methods: {
+    async init(){
+      if(this.org) {
+        await shaoxingorgline({orgid: this.org['_id']}).then(({result}) => {
+          let val = this.tabs.filter((item)=>item.id==9);
+          if(result){
+            if(!val.length) {
+              this.tabs.push({ id: 9, title: '对比信息', component: 'ContrastInfo',unittype:[1,2,3,5,6,7,8,9,10,11]});
+            }
+            this.lineid = result;
+          }else{
+            if(val.length) {
+              this.tabs.pop();
+              this.lineid = undefined;
+            }
+          }
+        }).catch((error) => {
+          showError(error)
+        })
+      }
+      if(this.org){
+        let list =  this.tabs.filter((item)=>{
+            return item.unittype.includes(this.org.unittype)
+          })
+        this.tabList = list;
+        if(this.active){
+         let type = this.activeInList(this.active,this.tabList)
+         if(!type){
+           this.active = this.tabList[0]
+         }
+        }else{
+          this.active = this.tabList[0]
+        }
+      }else{
+        this.tabList = undefined;
+        this.active = undefined;
+      }
+    },
+    // 判断当前 active的tab 是否在当前Tan列表
+    activeInList(active,list){
+      let type = false;
+      for(let i=0;i<list.length;i++){
+        let cur = list[i];
+        if(cur['component'] == active['component']){
+          type = true;
+          break;
+        }
+      }
+      return type;
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.org-main-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: @border-radius-base;
+  background: @white;
+  & > .header {
+    padding: @content-padding-v @content-padding-h;
+    box-shadow: 2px 10px 10px -12px #dad9d9;
+    .title {
+      flex: auto;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-weight: bold;
+      font-size: 18px;
+      line-height: 26px;
+    }
+    .tabs {
+      padding: @content-padding-v 0px;
+      a {
+        display: inline-block;
+        height: 26px;
+        line-height: 26px;
+        padding: 0 12px;
+        margin-left: 6px;
+        border-radius: @border-radius-base;
+        &:first-child{
+          margin: 0px;
+        }
+        &:hover {
+          background: @primary-1;
+        }
+      }
+      a.active {
+        background-color: @primary-color;
+        color: white;
+        &:hover {
+          background: lighten(@primary-color, 5%);
+        }
+      }
+    }
+  }
+  & > .body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+}
+</style>

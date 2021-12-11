@@ -1,0 +1,74 @@
+<template>
+  <div class="wrapper">
+    <a-form class="event-form" :form="form">
+      <a-form-item 
+        label="评估事件简述"
+        :required="true" 
+        :label-col="formLayout.labelCol" 
+        :wrapper-col="formLayout.wrapperCol"
+        :validateStatus="validateStatus"
+        >
+        <a-input
+        v-model="content"
+        placeholder="填写事简述，如：绍兴市民政局增加行政编制两名"
+        >
+        </a-input>
+      </a-form-item>
+    </a-form>
+  </div>
+</template>
+
+<script>
+import { Form, Input } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  props: {},
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input
+  },
+  data() {
+    return {
+      formLayout: {
+        labelCol: { span: 6 },
+        wrapperCol: { span: 14 },
+      },
+      validateStatus: undefined,
+      content: ''
+    };
+  },
+  watch: {},
+  computed: {},
+  beforeCreate() {
+    this.form = this.$form.createForm(this);
+  },
+  created() {},
+  mounted() {},
+  methods: {
+    onNext() {
+      return new Promise((resolve, reject) => {
+        if(this.content) {
+          this.validateStatus = 'success';
+          this.$store.commit('setContent', this.content); 
+          resolve(true)
+        }else{
+          this.validateStatus = 'error';
+          showError({code:'form_validate_fail', message: '请填写评估事件简述'});
+          resolve(false)
+        }
+      })
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.wrapper{
+  height: 100%;
+  .event-form{
+    margin: 165px auto 0;
+    width: 70%;
+  }
+}
+</style>

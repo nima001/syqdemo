@@ -1,0 +1,92 @@
+<template>
+  <div class="fields">
+    <dl v-for="(item,index) in fields" :key="index">
+      <dt>
+        <a-tooltip>
+          <template slot="title">{{item.sort}}</template>
+          {{item.sort}}
+        </a-tooltip>
+      </dt>
+      <dd>
+        <span
+          v-for="(obj,idx) in item.children"
+          :key="idx"
+          @click="toggleFileds(obj.name,obj.key)"
+          :class="JSON.stringify(selected).indexOf(JSON.stringify({name:obj.name,key:obj.key}))>-1?'active':''"
+        >{{obj.name}}</span>
+      </dd>
+    </dl>
+  </div>
+</template>
+
+<script>
+import { stringify } from "querystring";
+import { Tooltip } from "ant-design-vue";
+
+export default {
+  props: {
+    selected: {
+      type: Array
+    },
+    fields: {
+      required: true
+    }
+  },
+  components: {
+    ATooltip: Tooltip
+  },
+  methods: {
+    toggleFileds(name, key) {
+      let cur = {
+        name,
+        key
+      };
+      let index = JSON.stringify(this.selected).indexOf(JSON.stringify(cur));
+      if (index == -1) {
+        // 添加
+        this.$emit("setSelect", true, cur);
+      } else {
+        // 删除
+        this.$emit("setSelect", false, index);
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.fields {
+  dl {
+    display: flex;
+    dt {
+      font-weight: bold;
+      font-size: 15px;
+      color: #000;
+      width: 100px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    dd {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      span {
+        padding: 0 8px;
+        line-height: 2;
+        display: inline-block;
+        cursor: pointer;
+        &:hover {
+          background: @primary-color;
+          color: @white;
+          border-radius: 5px;
+        }
+        &.active {
+          background: @primary-color;
+          color: @white;
+          border-radius: 5px;
+        }
+      }
+    }
+  }
+}
+</style>

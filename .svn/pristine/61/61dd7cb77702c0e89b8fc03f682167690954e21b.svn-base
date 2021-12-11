@@ -1,0 +1,180 @@
+<template>
+  <a-spin :spinning="loading" :id="spinid">
+    <div :id="id">
+    </div>
+  </a-spin>
+</template>
+<script>
+import { Spin } from "ant-design-vue";
+import { Chart } from '@antv/g2';
+import mixinChart from "@/person-shaoxing/views/monitor/mixins/chart";
+import { colorGroup } from "@/person-shaoxing/utils/index";
+export default {
+  name: 'circular-chart',
+  mixins: [mixinChart],
+  props: {
+    loading: {
+      type: Boolean,
+      default: false
+    },
+    data: {
+      type: Array,
+      default: () => {
+        return [
+          { name: '2016', value: 6 },
+          { name: '2017', value: 1 },
+          { name: '2018', value: 3 }
+        ]
+      }
+    },
+    // 坐标轴名称
+    axisName: {
+      type: Object,
+      default: () => {
+        return {
+          name: 'name',
+          value: 'value'
+        }
+      }
+    },
+    showTooltip: {
+      type: Boolean,
+      default: true
+    },
+    tooltipConfig: {
+      type: Object
+    },
+    // 图例配置
+    legendConfig: {
+      type: Object
+    },
+    showLegend: {
+      type: Boolean,
+      default: true
+    },
+    showLabel: {
+      type: Boolean,
+      default: true
+    },
+    labelConfig: {
+      type: Object,
+      default: () => {
+        return {
+          show: false,
+          offset: 20
+        }
+      }
+    },
+    // 图表类型 ring pie nightingale
+    type: {
+      type: String,
+      default: 'ring'
+    },
+    innerRadius: {
+      type: Number,
+      default: null
+    }
+  },
+  components: {
+    ASpin: Spin
+  },
+  computed: {
+    spinid() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    }
+  },
+  data() {
+    return {
+    }
+  },
+  created() {
+  },
+  mounted() {
+  },
+  methods: {
+    setChartConfig(data) {
+      //  默认坐标轴第一个值为x轴 第二只为y轴
+      let axisArr = Object.keys(this.axisName);
+      // 生成占比数据percent
+      const ds = new this.DataSet()
+      const dv = ds.createView()
+        .source(data)
+        .transform({
+          type: 'percent',
+          field: axisArr[1],
+          dimension: axisArr[0],
+          as: 'percent'
+        })
+      // 设置数据的显示别名并格式化数据
+      let _this = this
+      let scaleConfig = (function () {
+        let obj = {}
+        for (const key in _this.axisName) {
+          if (_this.axisName.hasOwnProperty(key)) {
+            obj[key] = {}
+            obj[key]['alias'] = _this.axisName[key]
+          }
+        }
+        return obj
+      }())
+
+      // 为 chart 装载数据
+      this.chart.data(dv.rows)
+
+      let interval = ''
+      // 根据图表类型(ring,pie,nightingale)选择不同的坐标系(theta,polar)以及设置内半径
+      if (this.type === 'ring') {
+        this.chart.coordinate('theta', {
+          innerRadius: this.innerRadius === null ? 0.75 : this.innerRadius
+        })
+        interval = this.chart.interval().adjust('stack').position('value')
+      } else if (this.type === 'pie') {
+        this.chart.coordinate('theta', {
+          innerRadius: this.innerRadius === null ? 0 : this.innerRadius
+        })
+        interval = this.chart.interval().adjust('stack').position('value')
+      } else if (this.type === 'nightingale') {
+        this.chart.coordinate('polar', {
+          innerRadius: this.innerRadius === null ? 0.2 : this.innerRadius
+        })
+        interval = this.chart.interval().position(`${axisArr[0]}*${axisArr[1]}`)
+      }
+
+      // 关闭坐标轴
+      this.chart.axis(false)
+
+      // 配置颜色
+      interval.color(axisArr[0], colorGroup)
+
+      //  是否使用tooltip
+      if (this.showTooltip) {
+        // 配置 tooltip
+        this.chart.tooltip(this.tooltipConfig)
+        interval.tooltip(`${axisArr[0]}*${axisArr[1]}*percent`)
+      } else {
+        this.chart.tooltip(false)
+      }
+
+      // 配置文本
+      if (this.showLabel) {
+        interval.label('percent', {
+          offset: this.labelConfig.offset,
+          formatter: function formatter (val, item) {
+            return item.point.name + ': ' + val
+          }
+        })
+      }
+
+      // 配置图例
+      if (this.showLegend) {
+        this.chart.legend(this.legendConfig)
+      } else {
+        this.chart.legend(false)
+      }
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+
+</style>

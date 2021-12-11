@@ -1,0 +1,98 @@
+<template>
+  <div class="wrap">
+    <div class="header">
+      <div class="view">
+        <div class="title">
+          <span>绍</span>
+          <span>兴</span>
+          <span>市</span>
+          <span>机</span>
+          <span>构</span>
+          <span>编</span>
+          <span>制</span>
+          <span>智</span>
+          <span>慧</span>
+          <span>化</span>
+          <span>平</span>
+          <span>台</span>
+        </div>
+      </div>
+    </div>
+    <div class="body">
+      <component :is="defaultTab"></component>
+    </div>
+  </div>
+</template>
+
+<script>
+import ResourceMap from "./components/ResourceMap";
+import HouseKeeper from "./components/HouseKeeper";
+import BusinessHelper from "./components/BusinessHelper";
+import KpiLine from "./components/KpiLine";
+export default {
+  components: {
+    ResourceMap,
+    HouseKeeper,
+    BusinessHelper,
+    KpiLine
+  },
+  data() {
+    return {
+      tabList: [
+        { name: "资源地图", cmpt: "ResourceMap" },
+        { name: "编制管家", cmpt: "HouseKeeper" },
+        { name: "业务助手", cmpt: "BusinessHelper" },
+        { name: "绩效曲线", cmpt: "KpiLine" }
+      ],
+      defaultTab: "ResourceMap"
+    };
+  },
+  created() {},
+  methods: {
+    switchTab(tab) {
+      this.defaultTab = tab.cmpt;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  min-width: 1440px;
+  min-height: 900px;
+  height: 100%;
+  background: #00040a url("./img/bj.png");
+  background-size: cover;
+  background-repeat: no-repeat;
+  display: flex;
+  flex-direction: column;
+  .header {
+    height: 156px;
+    position: relative;
+    padding-top: 16px;
+    background: url("./img/header.png") center top;
+    .view {
+      width: 421px;
+      margin: 0 auto;
+      .title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        span {
+          height: 35px;
+          font-size: 26px;
+          font-family: Alibaba PuHuiTi;
+          font-weight: bold;
+          line-height: 35px;
+          color: #ffffff;
+          text-shadow: 0px 0px 16px rgba(28, 28, 30, 0.95);
+          opacity: 1;
+        }
+      }
+    }
+  }
+  .body {
+    flex: 1;
+    margin-top: -56px;
+  }
+}
+</style>

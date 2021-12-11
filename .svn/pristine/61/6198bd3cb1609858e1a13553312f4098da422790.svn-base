@@ -1,0 +1,33 @@
+import Vue from 'vue'
+import Router from 'vue-router'
+
+Vue.use(Router)
+
+/* Router Modules */
+import { importExport } from './modules/importexport';
+import { countchart, chartTemplate, chartManage, tempPreview, Fields } from './modules/booklet';
+import { docCenter } from './modules/doccenter';
+import { orgRoutes } from './modules/org';
+import { integratedQuery } from './modules/query';
+import { orgRecordRoutes } from './modules/orgrecord';
+import { examRoutes } from './modules/exam';
+import { chartRoutes } from './modules/chart';
+
+export default new Router({
+  mode: 'history',
+  base: process.env.BASE_URL,
+  routes: [
+    integratedQuery,
+    docCenter,
+    countchart,
+    chartTemplate,
+    chartManage,
+    Fields,
+    tempPreview,
+    orgRoutes,
+    orgRecordRoutes,
+    importExport,
+    examRoutes,
+    chartRoutes
+  ]
+});

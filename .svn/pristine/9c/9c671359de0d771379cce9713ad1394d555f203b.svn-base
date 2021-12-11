@@ -1,0 +1,429 @@
+import { organization, getstatisinfo } from '@person/api/org'
+import { staffBlacklist, staffViolate, orgNumberLimit, compileNumberLimit, getInternalOrg, orgnameDetails, compileCompare, orgLeadernum } from "@/person-shaoxing/api/assessment";
+
+/**
+ * 所有评估项
+ */
+export const items = {
+  baseInfo: {
+    name: '基本信息',
+    sort: '基本情况',//分组名称
+    props: ['org'],//需要的属性
+    component: () => import('./BaseItem'),
+    loadData(target){
+      let orgid = target.org && target.org._id;
+      if(!orgid){
+        return Promise.reject({message: '未选择单位'})
+      }
+      return organization(orgid).then(({result}) => {
+        let {name, unittype, suporg, politicallevel, orgtype, institutionssort, fundform} = result;
+        return {name, unittype, suporg, politicallevel, orgtype, institutionssort, fundform}
+      })
+    }
+  },
+  staff: {
+    name: '编制情况',
+    sort: '编制情况',//分组名称
+    props: ['org'],//需要的属性
+    component: () => import('./StaffItem'),
+    loadData(target){
+      let orgid = target.org && target.org._id;
+      if(!orgid){
+        return Promise.reject({message: '未选择单位'})
+      }
+      return getstatisinfo(orgid).then(({result}) => {
+        let {bzzj, bzzj_sy} = result;
+        return {bzzj, bzzj_sy}
+      })
+    }
+  },
+  staffChange: {
+    name: '编制调整情况',
+    sort: '编制调整情况',//分组名称
+    props: ['org', 'staffchange'],//单位， 调整值
+    component: () => import('./StaffChangeItem'),
+    loadData(target){
+      let orgid = target.org && target.org._id;
+      if(!orgid){
+        return Promise.reject({message: '未选择单位'})
+      }
+      return getstatisinfo(orgid).then(({result}) => {
+        let {bzzj} = result;
+        return {change: target.staffchange, result: (target.staffchange||0) + (bzzj||0)}
+      })
+    }
+  },
+  staffBlacklist_new: {
+    name: '是否列入机构编制审批黑名单(新设)',
+    sort: '审议条件满足情况',
+    props: ['org'],
+    component: () => import('./StaffBlacklist'),
+    loadData(target, type = 1) {//  type 1/新设 2/已设
+      let orgid = target.org && target.org._id;
+      if(!orgid) {
+        return Promise.reject({message: '未选择单位'})
+      }
+      return staffBlacklist(orgid, type).then(({result}) => {
+        return result
+      })
+    }
+  },
+  staffBlacklist_yet: {
+    name: '是否列入机构编制审批黑名单(已设)',
+    sort: '审议条件满足情况',
+    props: ['org'],
+    component: () => import('./StaffBlacklist'),
+    loadData(target, type = 2) {//  type 1/新设 2/已设
+      let orgid = target.org && target.org._id;
+      if(!orgid) {
+        return Promise.reject({message: '未选择单位'})
+      }
+      return staffBlacklist(orgid, type).then(({result}) => {
+        return result
+      })
+    }
+  },
+  staffViolate_new: {
+    name: '是否存在机构编制违规问题情况(新设)',
+    sort: '审议条件满足情况',
+    props: ['org'],
+    component: () => import('./StaffViolate'),
+    loadData(target, type = 1) {//  type 1/新设 2/已设
+      let orgid = target.org && target.org._id;
+      if(!orgid) {
+        return Promise.reject({message: '未选择单位'})
+      }
+      return staffViolate(orgid, type).then(({result}) => {
+        return result;
+      })
+    }
+  },
+  staffViolate_yet: {
+    name: '是否存在机构编制违规问题情况(已设)',
+    sort: '审议条件满足情况',
+    props: ['org'],
+    component: () => import('./StaffViolate'),
+    loadData(target, type = 2) {//  type 1/新设 2/已设
+      let orgid = target.org && target.org._id;
+      if(!orgid) {
+        return Promise.reject({message: '未选择单位'})
+      }
+      return staffViolate(orgid, type).then(({result}) => {
+        return result
+      })
+    }
+  },
+  //  区域机构限额判定
+  orgLimit_newxz: {
+    name: '区域机构限额(新设行政)',
+    sort: '区域机构限额',
+    props: ['district'],
+    component: () => import('./OrgLimit'),
+    loadData(target, type = 3) {
+      let district = target.district;
+      if(!district) {
+        return Promise.reject({message: '未选择区域'})
+      }
+      return orgNumberLimit(district, type).then(({result}) => {
+        return result;
+      })
+    }
+  },
+  orgLimit_newsy: {
+    name: '区域机构限额(新设事业)',
+    sort: '区域机构限额',
+    props: ['district'],
+    component: () => import('./OrgLimit'),
+    loadData(target, type = 5) {
+      let district = target.district;
+      if(!district) {
+        return Promise.reject({message: '未选择区域'})
+      }
+      return orgNumberLimit(district, type).then(({result}) => {
+        return result
+      })
+    }
+  },
+  //  内设机构情况
+  orgCase_new: {
+    name: '内设机构情况(新设)',
+    sort: '内设机构情况',
+    props: ['table'],
+    component: () => import('./OrgCase'),
+    loadData(target) {
+      let orgid = target.org && target.org._id;
+      if(!orgid) {
+        return Promise.reject({message: '未选择区域'})
+      }
+      return getInternalOrg(orgid).then(({result}) => {
+        let data = (result || []).concat(target.internalOrg);
+        return data;
+      })
+    }
+  },
+  orgCase_yet: {
+    name: '内设机构情况(已设)',
+    sort: '内设机构情况',
+    props: ['table'],
+    component: () => import('./OrgCase'),
+    loadData(target) {
+      let orgid = target.org && target.org._id;
+      if(!orgid) {
+        return Promise.reject({message: '未选择单位'})
+      }
+      return getInternalOrg(orgid).then(({result}) => {
+        let data = (result || []).concat(target.internalOrg);
+        return data;
+      })
+    }
+  },
+  //事业单位机构名称命名规范
+  //ToDo  是够否需要新设 已设
+  orgNamenotation: {
+    name: '事业单位机构名称命名规范',
+    sort: '机构命名情况',
+    props: ['org'],
+    component: () => import('./OrgNamenotation'),
+    loadData(target) {
+      let orgname = target.org && target.org.name;
+      if(!orgname) {
+        return Promise.reject({message: '未选择单位'})
+      }
+      return orgnameDetails(orgname).then(({result}) => {
+        let exist = result.exist ? `机构名称：${orgname}，存在"${result.exist}"等字样` : '';
+        let noexist = result.noexist ? `机构名称：${orgname}，不存在"${result.noexist}"等字样` : '';
+        return { exist, noexist }
+      })
+    }
+  },
+  //机构挂牌情况
+  orgListednumber: {
+    name: '机构挂牌情况',
+    sort: '机构挂牌情况',
+    props: ['org'],
+    component: () => import('./OrgListednumber'),
+    loadData(target) {
+      let orgid = target.org && target.org._id;
+      if(!orgid) {
+        return Promise.reject({message: '未选择单位'})
+      }
+      return organization(orgid).then(({result}) => {
+        let attachname = (result || {}).hasOwnProperty('attachname') ? result.attachname : undefined;
+        return attachname;
+      })
+    }
+  },
+  //不同地区同类机构编制情况对比
+  orgStaffcase_newxz: {
+    name: '不同地区同类机构编制情况对比(新设行政)',
+    sort: '不同地区同类机构编制情况对比',
+    props: ['org', 'orgline'],
+    component: () => import('./OrgStaffcase.vue'),
+    loadData(target) {
+      console.log(target);
+      let orgid = target.org && target.org._id, type = 3, orgline = target.orgline;
+      if(!orgid) {
+        return Promise.reject({message: '未选择单位'})
+      }
+      return compileCompare(orgid, orgline, type).then(({result}) => {
+        console.log(result);
+      })
+    }
+  },
+  // orgStaffcase_newxz: {
+  //   name: '不同地区同类机构编制情况对比(已设行政)',
+  //   sort: '不同地区同类机构编制情况对比',
+  //   props: ['org'],
+  //   component: () => import('./OrgStaffcase.vue'),
+  //   loadData(target) {
+  //     let orgid = target.org && target.org._id, type = 4;
+  //     if(!orgid) {
+  //       return Promise.reject({message: '未选择单位'})
+  //     }
+  //     return compileCompare(orgid, orgline, type).then(({result}) => {
+  //       console.log(result);
+  //     })
+  //   }
+  // },
+  // orgStaffcase_newxz: {
+  //   name: '不同地区同类机构编制情况对比(新设事业)',
+  //   sort: '不同地区同类机构编制情况对比',
+  //   props: ['org', 'orgline'],
+  //   component: () => import('./OrgStaffcase.vue'),
+  //   loadData(target) {
+  //     let orgid = target.org && target.org._id, type = 5;
+  //     if(!orgid) {
+  //       return Promise.reject({message: '未选择单位'})
+  //     }
+  //     return compileCompare(orgid, orgline, type).then(({result}) => {
+  //       console.log(result);
+  //     })
+  //   }
+  // },
+  // orgStaffcase_newxz: {
+  //   name: '不同地区同类机构编制情况对比(已设事业)',
+  //   sort: '不同地区同类机构编制情况对比',
+  //   props: ['org', 'orgline'],
+  //   component: () => import('./OrgStaffcase.vue'),
+  //   loadData(target) {
+  //     let orgid = target.org && target.org._id, type = 6;
+  //     if(!orgid) {
+  //       return Promise.reject({message: '未选择单位'})
+  //     }
+  //     return compileCompare(orgid, orgline, type).then(({result}) => {
+  //       console.log(result);
+  //     })
+  //   }
+  // },
+  //  区域编制限额
+  compileLimit_newxz: {
+    name: '区域内编制限额(新设行政)',
+    sort: '区域内编制限额',
+    props: ['org', 'district'],//  区域
+    component: () => import('./CompileLimit'),
+    loadData(target) {//  type 3/新设行政 4/已设行政 5/新设事业 6/已设事业
+      let orgid = target.org && target.org._id, type = 3;
+      let district = target.hasOwnProperty('district') ? target.district : undefined;
+      if(!orgid) {
+        return Promise.reject({message: '未选择单位'})
+      }
+      return compileNumberLimit(orgid, district, type).then(({result}) => {
+        return result
+      })
+    }
+  },
+  compileLimit_yetxz: {
+    name: '单位内编制限额(已设行政)',
+    sort: '区域内编制限额',
+    props: ['org'],//  区域
+    component: () => import('./CompileLimit'),
+    loadData(target) {//  type 3/新设行政 4/已设行政 5/新设事业 6/已设事业
+      let orgid = target.org && target.org._id, type = 3;
+      let district = target.hasOwnProperty('district') ? target.district : undefined;
+      if(!orgid) {
+        return Promise.reject({message: '未选择单位'})
+      }
+      return compileNumberLimit(orgid, district, type).then(({result}) => {
+        return result
+      })
+    }
+  },
+  compileLimit_newsy: {
+    name: '区域内编制限额(新设事业)',
+    sort: '区域内编制限额',
+    props: ['org', 'district'],//  区域
+    component: () => import('./CompileLimit'),
+    loadData(target) {//  type 3/新设行政 4/已设行政 5/新设事业 6/已设事业
+      let orgid = target.org && target.org._id, type = 3;
+      let district = target.hasOwnProperty('district') ? target.district : undefined;
+      if(!orgid) {
+        return Promise.reject({message: '未选择单位'})
+      }
+      return compileNumberLimit(orgid, district, type).then(({result}) => {
+        return result
+      })
+    }
+  },
+  compileLimit_yetsy: {
+    name: '区域内编制限额(已设事业)',
+    sort: '区域内编制限额',
+    props: ['org'],//  区域
+    component: () => import('./CompileLimit'),
+    loadData(target) {//  type 3/新设行政 4/已设行政 5/新设事业 6/已设事业
+      let orgid = target.org && target.org._id, type = 3;
+      let district = target.hasOwnProperty('district') ? target.district : undefined;
+      if(!orgid) {
+        return Promise.reject({message: '未选择单位'})
+      }
+      return compileNumberLimit(orgid, district, type).then(({result}) => {
+        return result
+      })
+    }
+  },
+  orgLeadernumber_new: {
+    name: '行政机构领导职数配置(新设)',
+    sort: '行政机构领导职数配置',
+    props: ['org', 'compilenum'],//  区域 核定编制数
+    component: () => import('./OrgLeadernum.vue'),
+    loadData(target) {
+      let orgid = target.org && target.org._id, type = 1, compilenum = target.compilenum;
+      //存在内设机构  获取条数 否则为0
+      let internalorgnum = target.hasOwnProperty('internalOrg') ? target.internalOrg.length : 0;
+      if(!orgid) {
+        return Promise.reject({message: '未选择单位'})
+      }
+      return orgLeadernum(orgid, compilenum, internalorgnum, type).then(({result}) => {
+        return result
+      })
+    }
+  },
+}
+
+/**
+ * 根据评估对象加载评估数据
+ * @param {Object} target 评估对象
+ * @param {Array} itemList 评估项
+ */
+export function loadData(target, itemList){
+  let requests = [], keys = [];
+  (itemList || []).forEach(name => {
+    let item = items[name];
+    if(item){
+      keys.push(name);
+      requests.push(item.loadData(target));
+    }
+  })
+  return Promise.all(requests).then(array => {
+    let content = {};
+    array.forEach((result, index) => {
+      content[keys[index]] = result;
+    })
+    return content;
+  })
+}
+
+/**
+ * 根据评估内容获取评估项
+ * @param {Object} content 评估内容
+ */
+export function getItems(content){
+  let arr = [];
+  for(let name in items){
+    if(content.hasOwnProperty(name)){
+      let item = items[name];
+      arr.push({key: name, name: item.name, sort: item.sort});
+    }
+  }
+  return arr;
+}
+
+/**
+ * 获取所有项的控件
+ */
+export function getComponents(){
+  let cs = {};
+  for(let name in items){
+    cs[name] = items[name].component;
+  }
+  return cs;
+}
+
+/**
+ * 获取评估项需要的属性列表
+ * @param {Array} itemList 评估项列表
+ * @returns ['org', 'num']
+ */
+export function getPops(itemList){
+  let props = [];
+  itemList.forEach(name => {
+    let item = items[name];
+    if(item){
+      (item.props || []).forEach(prop => {
+        if(!props.includes(prop)){
+          props.push(prop);
+        }
+      })
+    }
+  });
+  return props;
+}

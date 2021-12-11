@@ -1,0 +1,297 @@
+<template>
+  <div class="workflow">
+    <a-form-item :label="property.showName?property.name:''">
+      <div class="content">
+        <div class="optionsLeft" style="width: 150px;">
+          <a-form-item>
+            <a-select
+              width="200"
+              :style="property.showName?'':'margin-top:29px;'"
+              :palceholder="property.placeholder"
+              :class="property.code"
+              :disabled="property.editable?false:true"
+              :getPopupContainer="triggerNode => triggerNode.parentNode"
+              :mode="property.multiple?'multiple':''"
+              @change="changeHandler"
+              v-decorator="[
+                `${property.childs[0].code}`,
+                {
+                  rules: [{required: property.require, message: '请选择证件类型'}],
+                  initialValue: optionText
+                }]"
+              >
+              <a-select-option
+                :label="item.value"
+                v-for="item in property.childs[0].options"
+                :key="item.value"
+                >
+                {{item.text}}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+        </div>
+        <div class="inputdRight" style="width: calc(100% - 150px);">
+          <a-input
+            v-if="optionText == 1"
+            :style="property.showName?'':'margin-top:29px;'"
+            class="hand"
+            :id="property.code"
+            :placeholder="property.placehold"
+            :disabled="property.editable?false:true"
+            @blur="onBlur"
+            @change="changeInput"
+            v-decorator="[
+              `${property.childs[1].code}`,
+              {
+                rules: [
+                {required: property.require, message: `请输入证件号码!`},
+                { validator: validateIdcode, trigger: 'blur' }],
+                initialValue: idCard
+              }]"
+            >
+          </a-input>
+          <a-input
+            v-else
+            :style="property.showName?'':'margin-top:29px;'"
+            class="hand"
+            :id="property.code"
+            :placeholder="property.placehold"
+            :disabled="property.editable?false:true"
+            @blur="onBlur"
+            @change="changeInput"
+            v-decorator="[
+              `${property.childs[1].code}`,
+              {
+                rules: [
+                {required: property.require, message: `请输入证件号码!`}],
+                initialValue: idCard
+              }]"
+            >
+          </a-input>
+        </div>
+      </div>
+    </a-form-item>
+    <stamp
+      :property="property"
+      @imgUrl="getStamp"
+      v-if="property.signcomponent.signcode && property.signcomponent.editable"
+    ></stamp>
+    <a-form-item class="stampNotice" v-if="!imgUrl && property.signcomponent.signcode">
+      <a-input
+        ref="stampValue"
+        type="hidden"
+        v-decorator="[
+          `${property.signcomponent.code}`,
+          {
+            rules: [{required: property.signcomponent.require, message: `请选择签章!`}],
+            initialValue: stamp
+          }
+        ]"
+      ></a-input>
+    </a-form-item>
+    <div class="seal" v-if="imgUrl">
+      <img :src="imgUrl" />
+    </div>
+  </div>
+</template>
+
+<script>
+import { Form, Input, DatePicker, Select } from "ant-design-vue";
+import Stamp from "./stampComponent/Stamp";
+import { getStampInfo } from "@/workflow/api/stamplist";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import "@/workflow/style/workflow.css";
+import { getUserInfo } from "@/workflow/api/workflow";
+import { showError, debounce, checkIdcard } from "@/framework/utils/index";
+
+export default {
+  name: 'Cetificate',
+  props: {
+    property: {
+      type: Object
+    },
+    bindform: {
+      type: Object,
+      required: true
+    },
+    typecode: {
+      type: Object
+    },
+    resourceId: {
+      type: String
+    }
+  },
+  components: {
+    AFormItem: Form.Item,
+    ATextarea: Input.TextArea,
+    ADatePicker: DatePicker,
+    AInput: Input,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    Stamp
+  },
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      formData: this.$store.getters.formData,
+      optionText: "",
+      idCard: "",
+      imgUrl: null,
+      stamp: null,
+      code: this.property["code"],
+      obj: {}
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    if (this.formData[this.code]) {
+      this.obj = this.formData[this.code];
+      this.idCard = this.$store.getters.formData[this.code][this.property.childs[1].code];
+      this.optionText = this.$store.getters.formData[this.code][this.property.childs[0].code];
+    } else {
+      if (this.property.defaultType == 1) {// 无任何值
+        this.changeHandle(this.property.childs[0].code, undefined);
+        this.changeHandle(this.property.childs[1].code, undefined);
+        this.optionText = undefined;
+        this.idCard = undefined;
+      } else {//  默认值
+        if (this.property.childs[0].defaultContent) {
+          this.changeHandle(
+            this.property.childs[0].code,
+            this.property.childs[0].defaultContent
+          );
+          this.optionText = this.property.childs[0].defaultContent;
+        }
+        if (this.property.childs[1].defaultContent) {
+          this.changeHandle(
+            this.property.childs[1].code,
+            this.property.childs[1].defaultContent
+          );
+          this.idCard = this.property.childs[1].defaultContent;
+        }
+      }
+    }
+    if (this.formData[this.property.signcomponent.code]) {
+      //获取签章图片
+      getStampInfo(this.formData[this.property.signcomponent.code])
+        .then(res => {
+          if (res.code == "success") {
+            this.imgUrl =
+              this.uiConfigs["api.url"] +
+              "/file/v1/download" +
+              "?uri=" +
+              encodeURIComponent(res.result.pictureurl);
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  },
+  mounted() {},
+  methods: {
+    //表单传值
+    changeHandle(type, value) {
+      this.obj[type] = value;
+      this.$store.getters.formData[this.code] = this.obj;
+      this.$store.commit({
+        type: "SET_FORM_DATA",
+        data: this.$store.getters.formData
+      });
+    },
+    //获取签章
+    getStamp(img) {
+      if (img) {
+        this.imgUrl = img;
+        this.stamp = img;
+      }
+    },
+    validateIdcode(rule, value, callback) {
+      if (checkIdcard(value) || !this.property.require) {
+        callback();
+      } else {
+        callback("身份证格式不正确，请检查后重新输入！");
+      }
+    },
+    changeHandler(val) {
+      this.optionText = val;
+      this.$store.getters.formData[this.code][this.property.childs[0].code] = val;
+    },
+    changeInput(e) {
+      this.idCard = e.target.value;
+      this.$store.getters.formData[this.code][this.property.childs[1].code] = e.target.value;
+      this.$store.commit({
+        type: "SET_FORM_DATA",
+        data: this.$store.getters.formData
+      });
+    },
+    onBlur() {
+      if (this.typecode) {
+        let flag = true;
+        for (var id in this.typecode) {
+          let orgUserVo = {};
+          this.typecode[id].forEach(code => {
+            if (code == this.property.childs[0].code) {
+              flag = true;
+              orgUserVo.resourceid = this.resourceId;
+              orgUserVo.formatCfgId = parseInt(id);
+              orgUserVo.modelinstanceid = parseInt(
+                this.$route.query.modelinstanceid
+              );
+              orgUserVo.objectMap = {};
+              this.typecode[id].forEach(code => {
+                let preCode = code.split("_")[0];
+                if (this.$store.getters.formData[preCode]) {
+                  orgUserVo.objectMap[preCode] = this.$store.getters.formData[
+                    preCode
+                  ];
+                }
+              });
+            }
+          });
+          if (JSON.stringify(orgUserVo.objectMap) == "{}") flag = false;
+          if (flag && this.idCard) {
+            getUserInfo(orgUserVo)
+              .then(res => {
+                if (res.code == "success") {
+                  if (JSON.stringify(res.result) !== "{}") {
+                    this.bindform.resetFields();
+                    let obj = {};
+                    for (var a in res.result) {
+                      if (res.result[a] || res.result[a] == 0) {
+                        obj[a] = res.result[a];
+                      }
+                    }
+                    this.formData = Object.assign(
+                      {},
+                      this.$store.getters.formData,
+                      // obj
+                      // TOIDO 
+                      res.result
+                    );  
+                    this.$store.commit({
+                      type: "SET_FORM_DATA",
+                      data: this.formData
+                    });
+                  }
+                }
+              })
+              .catch(err => {
+               showError(err);
+              });
+            flag = false;
+          }
+        }
+      }
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.workflow{
+  .content{
+    display: flex;
+  }
+}
+</style>

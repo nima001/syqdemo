@@ -1,0 +1,191 @@
+<template>
+  <div class="useLayout">
+    <div class="top">
+      <div class="top-bar">
+        <div class="p-left">
+          <img v-if="user.profilephoto" :src="uiConfigs['api.url'] + '/file/v2/file/download?uri=' + user.profilephoto"/>
+          <img v-else :src="defaultPhoto" />
+        </div>
+        <div class="p-right">
+          <p class="name">{{user.username}}</p>
+          <p class="job">{{windowposition || '无'}}</p>
+          <ul class="info-item">
+            <li>{{user.contactway}}</li>
+          </ul>
+        </div>
+      </div>
+      <div class="cover">
+        <a-tabs default-active-key="BasicInfo" @change="callback">
+          <a-tab-pane :key="item.cmpt" :tab="item.name" v-for="item in tabList"></a-tab-pane>
+        </a-tabs>
+      </div>
+    </div>
+    <div class="bottom">
+      <component :is="activeCmpt" :user="user"></component>
+    </div>
+  </div>
+</template>
+
+<script>
+import { getUser, updateUser } from "@/hall/api/usermanage";
+import { showError } from "@/framework/utils";
+import { Button, Spin, Tabs } from "ant-design-vue";
+import BasicInfo from "./components/user/BasicInfo";
+import AskForleave from "./components/user/AskForleave";
+import Attendance from "./components/user/Attendance";
+import OnDuty from "./components/user/OnDuty";
+import WorkOvertime from "./components/user/WorkOvertime";
+import CheckRecord from "./components/user/CheckRecord";
+export default {
+  components: {
+    AButton: Button,
+    BasicInfo,
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    Attendance,
+    AskForleave,
+    OnDuty,
+    WorkOvertime,
+    CheckRecord
+  },
+  data() {
+    return {
+      loading: true,
+      user: {},
+      formLayout: undefined,
+      defaultPhoto: require("@/framework/assets/img/head-default-70x98.png"),
+      activeCmpt: "BasicInfo",
+      tabList: [
+        { name: "基本信息", cmpt: "BasicInfo" },
+        { name: "请销假记录", cmpt: "AskForleave" },
+        { name: "考勤记录", cmpt: "Attendance" },
+        { name: "值班记录", cmpt: "OnDuty" },
+        { name: "加班记录", cmpt: "WorkOvertime" },
+        { name: "考核记录", cmpt: "CheckRecord" }
+      ]
+    };
+  },
+  computed: {
+    userId() {
+      return this.$route.query.userid;
+    },
+    uiConfigs() {
+      return this.$store.getters.config;
+    },
+    windowposition() {
+      if (this.user) {
+        let d = this.$store.getters.dictKey(
+          "usermanage.user.windowposition",
+          this.user.windowposition
+        );
+        return d && d.text;
+      }
+    }
+  },
+  mounted() {
+    this.getUserDetail();
+  },
+  methods: {
+    callback(key) {
+      this.activeCmpt = key;
+    },
+    getUserDetail() {
+      getUser(this.userId)
+        .then(({ result }) => {
+          this.user = result;
+        })
+        .catch(err => {
+          showError(err);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.useLayout {
+  background: @white;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .top {
+    position: relative;
+    .top-bar {
+      width: 100%;
+      height: 140px;
+      background-image: url("../../../assets/img/person-background.jpg");
+      background-repeat: round;
+      padding: @padding-xs @padding-lg;
+      display: flex;
+      .p-left {
+        width: 60px;
+        height: 84px;
+        margin-right: 24px;
+        overflow: hidden;
+        cursor: pointer;
+        img {
+          object-fit: cover;
+          width: 100%;
+          height: 100%;
+        }
+      }
+      .p-right {
+        flex: 1;
+        width: auto;
+        height: 80px;
+        p {
+          margin: 0px;
+          &.name {
+            line-height: 30px;
+            font-size: 18px;
+            font-weight: 700;
+          }
+        }
+        .info-item {
+          margin: 0px;
+          display: flex;
+          li {
+            margin: 0px;
+            padding: 0px;
+            max-width: 20em;
+            line-height: 1.1em;
+            border-left: 4px solid #f39c2b;
+            text-indent: 5px;
+            margin: 5px 10px 5px 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+        }
+      }
+    }
+    .cover {
+      width: 100%;
+      height: 40px;
+      background: #d3d3d333;
+      position: absolute;
+      left: 0px;
+      bottom: 3px;
+      /deep/ .ant-tabs-nav-scroll {
+        padding: 0px @content-padding-h;
+      }
+      /deep/.ant-tabs-bar {
+        margin: 0px;
+      }
+      /deep/ .ant-tabs-tab {
+        color: #262626;
+        font-size: 14px;
+        font-weight: bold;
+        margin-right: 36px;
+        padding: @padding-sm @padding-xs;
+      }
+    }
+  }
+  .bottom {
+    flex: 1;
+    min-height: 0px;
+  }
+}
+</style>

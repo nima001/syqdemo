@@ -1,0 +1,245 @@
+<template>
+  <div class="table-page">
+    <div class="top">
+      <div class="top-con">
+        <div class="title">{{text}}增加(减少)机构数</div>
+        <div class="info">
+          <div>
+            <span><img src="../../../assets/img/icon-monitor-addtotal.png" alt="addtotal"></span>
+            {{text}}增加合计
+          </div>
+          <div>
+            <span><img src="../../../assets/img/icon-monitor-reducetotal.png" alt="reducetotal"></span>
+            {{text}}减少合计
+          </div>
+          <div>
+            <span><img src="../../../assets/img/icon-monitor-increase.png" alt="increase"></span>
+            {{text}}增加机构数
+          </div>
+          <div>
+            <span><img src="../../../assets/img/icon-monitor-reduce.png" alt="reduce"></span>
+            {{text}}减少机构数
+          </div>
+        </div>
+        <div class="total">
+          <div>{{chartData.addtotalnum}}</div>
+          <div>{{chartData.cuttotalnum}}</div>
+          <div>{{chartData.addnum}}</div>
+          <div>{{chartData.cutnum}}</div>
+        </div>
+      </div>
+    </div>
+    <div class="query">
+      <a-input
+        style="width: 200px;"
+        placeholder="组织名称"
+        v-model="searchkey"
+      >
+      </a-input>
+      <a-button style="margin-left: 16px;" type="primary" @click="onQuery">查询</a-button>
+      <a-button style="margin-left: 16px;" @click="onReset">重置</a-button>
+    </div>
+    <div class="table">
+      <a-table
+        class="per-table"
+        :rowKey="Math.random() + ''"
+        :columns="columns"
+        :dataSource="chartData.rows"
+        :pagination="false"
+        :loading="loading"
+        >
+      </a-table>
+    </div>
+    <div class="footer">
+      <a-pagination
+        v-if="chartData.rows && chartData.rows.length"
+        showSizeChanger
+        :showTotal="total => `总共：${total}条`"
+        @showSizeChange="onShowSizeChange"
+        :total="page.total"
+        :pageSize="page.pagesize"
+        v-model="page.pagenum"
+        @change="onPageChange"
+      />
+    </div>
+  </div>
+</template>
+
+<script>
+import { Table, Pagination, Input, Button } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: 'TablePage',
+  props: ['chartData', 'pagetype'],
+  components: {
+    ATable: Table,
+    APagination: Pagination,
+    AInput: Input,
+    AButton: Button
+  },
+  data() {
+    return {
+      columns: null,
+      loading: false,
+      text: '',
+      page: {
+        pagesize: 10,
+        pagenum: 1,
+        total: 0
+      },
+      searchkey: null
+    }
+  },
+  watch: {
+    pagetype: {
+      handler(val) {
+        let arr = [];
+        if(val == 3) {
+          arr = [
+            {
+              title: '组织名称',
+              dataIndex: 'orgname',
+              width: '70%'
+            },
+            {
+              title: '编制增加数',
+              dataIndex: 'bzsincreasenum',
+              width: '15%'
+            },
+            {
+              title: '编制减少数',
+              dataIndex: 'bzsreducenum',
+              width: '15%'
+            },
+          ]
+          this.text = '编制';
+        }else{
+          arr = [
+            {
+              title: '组织名称',
+              dataIndex: 'orgname',
+              width: '70%'
+            },
+            {
+              title: '职数增加数',
+              dataIndex: 'zsincreasenum',
+              width: '15%'
+            },
+            {
+              title: '职数减少数',
+              dataIndex: 'zsreducenum',
+              width: '15%'
+            },
+          ]
+          this.text = '职数';
+        }
+        this.columns = arr;
+      },
+      immediate: true
+    },
+    chartData: {
+      handler(val) {
+        this.page = val;
+      },
+      immediate: true
+    }
+  },
+  created() {
+    this.loading = true;
+  },
+  mounted() {
+    this.loading = false;
+  },
+  methods:{
+    onShowSizeChange(pagenum, pagesize) {
+      this.$emit('pageChange', {pagenum: 1, pagesize, needtotal: true});
+    },
+    onPageChange(pagenum, pagesize) {
+      this.$emit('pageChange', {pagenum, pagesize, needtotal: true});
+    },
+    onQuery() {
+      if(this.searchkey) {
+        this.$emit('pageChange', {pagenum: 1, pagesize: 10, needtotal: true, searchkey: this.searchkey});
+      }else{
+        this.$message.warning("请输入组织名称");
+      }
+    },
+    onReset() {
+      this.searchkey = null;
+      this.$emit('pageChange', {pagenum: 1, pagesize: 10, needtotal: true, searchkey: this.searchkey});
+    }
+  }
+}
+</script>
+
+<style lang="less" scoped>
+.table-page{
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+  background: @white;
+  .top{
+    .top-con{
+      .title{
+        text-align: center;
+        padding: @content-padding-v 0;
+        font-size: 20px;
+        font-weight: bold;
+        color: rgb(102, 102, 102);
+      }
+      .info{
+        display: flex;
+        justify-content: space-between;
+        padding: @content-padding-v 0;
+        > div{
+          width: 25%;
+          text-align: center;
+          span{
+            margin-right: @content-padding-v;
+          }
+        }
+      }
+      .total{
+        display: flex;
+        justify-content: space-between;
+        padding: @content-padding-v 0;
+        > div{
+          width: 25%;
+          text-align: center;
+          font-weight: bold;
+          &:nth-child(odd) {
+            color: #D15456;
+          }
+          &:nth-child(even) {
+            color: #5488D1;
+          }
+        }
+      }
+    }
+  }
+  .query{
+    display: flex;
+    justify-content: flex-end;
+    padding: @content-padding-v @content-padding-h; 
+  }
+  .table{
+    flex-shrink: 1;
+    overflow-y: auto;
+    padding: @content-padding-v @content-padding-h;  
+    .title{
+      padding: @content-padding-h 0;
+      text-align: center;
+    }
+  }
+  .footer {
+    padding: 12px @content-padding-h;
+    .ant-pagination{
+      float: right;
+    }
+  }
+}
+</style>

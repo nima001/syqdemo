@@ -1,0 +1,177 @@
+import request from '@/framework/utils/request'
+
+//获取流程实例列表
+export function getModelinstanceList(modelInstanceQuery) {
+    return request({
+        url: '/workflow/v2/modelinstance/list',
+        method: 'post',
+        dataType: 'json',
+        data:modelInstanceQuery 
+    })
+}
+
+//获取单条实例的数据
+export function getSingleModelinstance(id){
+    return request({
+        url:"/workflow/v2/modelinstance/get/"+id,
+        method:"get"
+    })
+}
+
+//新增流程实例
+export function addModelinstance(modelInstanceV2Vo) {
+    return request({
+        url: '/workflow/v2/modelinstance/add',
+        method: 'post',
+        dataType: 'json',
+        data:modelInstanceV2Vo   
+    })
+}
+
+//删除流程实例
+export function delModelinstance(id){
+    return request({
+        url:"/workflow/v2/modelinstance/delete/"+id,
+        method:"get"
+    })
+}
+
+//获取被删除的节点信息
+export function getDelprocessnode(id){
+    return request({
+        url:"/workflow/v2/processtransfer/delprocessnode/"+id,
+        method:"get"
+    })
+}
+
+//流程发布
+export function deploymentModelinstance(processTransferVo) {
+    return request({
+        url: '/workflow/v2/processtransfer/transfer',
+        method: 'post',
+        dataType: 'json',
+        data:processTransferVo    
+    })
+}
+
+//导出流程
+export function exportModelinstance(id){
+    return request({
+        url:"/workflow/v2/modelinstance/export/"+id,
+        method:"get"
+    })
+}
+
+//导入流程
+export function importModelInstance(file,id) {
+    let formdata = new FormData();
+    formdata.append("file", file);
+    return request({
+        url: '/workflow/v2/modelinstance/import/'+id,
+        method: 'post',
+        dataType: 'multipart/form-data',
+        data:formdata  
+    })
+}
+
+//编辑流程实例
+export function updateModelinstance(modelInstanceV2Vo) {
+    return request({
+        url: '/workflow/v2/modelinstance/update',
+        method: 'post',
+        dataType: 'json',
+        data:modelInstanceV2Vo   
+    })
+}
+
+//获取消息模板下拉框
+export function getmsgtemplatelist(){
+    return request({
+        url:"/workflow/v1/msgtemplate/getmsgtemplatelist",
+        method:"get"
+    })
+}
+
+//获取类型  1:发起校验多选框  2：提交校验多选框
+export function getValidationType(type){
+    return request({
+        url:"/workflow/v1/validation/type",
+        method:"get",
+        params:{
+            type
+        }
+    })
+}
+
+//获取运算符
+export function getValidationOperator(){
+    return request({
+        url:"/workflow/v1/validation/operator",
+        method:"get"
+    })
+}
+
+//获取组织用户常量字段
+export function getListOrgUser(type){
+    return request({
+        url:"/workflow/constant/listorguser",
+        method:"get",
+        params:{
+            type
+        }
+    })
+}
+
+//获取单条流程实例扩展信息
+export function getSingleModelinstanceExtende(modelinstanceid){
+    return request({
+        url:"/workflow/v1/modelinstanceextend/get/"+modelinstanceid,
+        method:"get"
+    })
+}
+
+//保存流程模型扩展属性
+export function saveModelinstanceExtende(modelInstanceExtendVo) {
+    return request({
+        url: '/workflow/v1/modelinstanceextend/save',
+        method: 'post',
+        dataType: 'json',
+        data:modelInstanceExtendVo    
+    })
+}
+
+//获取分组校验下拉框
+export function getListGroupUibox(){
+    return request({
+        url:"/workflow/v2/validationgroup/uibox",
+        method:"get"
+    })
+}
+
+//获取校验分组列表
+export function getModelistGroup(modelInstanceQuery ) {
+    return request({
+        url: '/workflow/v2/validationgroup/list',
+        method: 'post',
+        dataType: 'json',
+        data:modelInstanceQuery     
+    })
+}
+
+//新增校验分组
+export function addModelistGroup(validationGroup  ) {
+    return request({
+        url: '/workflow/v2/validationgroup/add',
+        method: 'post',
+        dataType: 'json',
+        data:validationGroup      
+    })
+}
+
+//删除分组校验
+export function delListGroup(id){
+    return request({
+        url:"/workflow/v2/validationgroup/delete/"+id,
+        method:"get"
+    })
+}

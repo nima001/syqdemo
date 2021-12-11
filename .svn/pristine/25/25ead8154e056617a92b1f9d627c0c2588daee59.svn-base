@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <link id="logo-link" rel="icon">
+  <title id="title"></title>
+  <style type="text/css">
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: rgba(0, 0, 0, 0.75);
+      font-size: 14px;
+      font-family: 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+      font-variant: tabular-nums;
+      line-height: 1.5;
+      background-color: #fff;
+      -webkit-font-feature-settings: 'tnum';
+      font-feature-settings: 'tnum';
+    }
+
+    #shadeDiv {
+      display: none;
+      position: absolute;
+      top: 0;
+      left: 0;
+      opacity: 1;
+      filter: alpha(opacity=100);
+      z-index: 9998;
+      background-color: #000;
+    }
+
+    #prompt {
+      border-radius: 5px;
+      display: none;
+      border: 1px solid #CCC;
+      z-index: 9999;
+      background-color: #fff;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      margin-left: -250px;
+      margin-top: -100px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    #prompt_title {
+      cursor: move;
+      border-radius: 5px;
+      font-size: 14px;
+      font-weight: bold;
+      color: #333;
+      padding-left: 10px;
+      height: 35px;
+      line-height: 35px;
+      border-bottom: 1px solid #ececec;
+      background-color: #fcfcfc;
+    }
+
+    #prompt_close {
+      position: absolute;
+      right: 10px;
+      top: 10px;
+      cursor: pointer;
+      width: 14px;
+      height: 13px;
+      outline: none;
+      display: block;
+    }
+
+    #prompt_body {
+      padding: 30px 20px;
+      font-size: 13px;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    #prompt_body p {
+      margin: 0px;
+      font-size: 14px;
+      line-height: 1.6;
+      text-align: center;
+      margin-top: 30px;
+      font-size: 16px;
+      color: #808080;
+    }
+
+    #prompt_bottom {
+      text-align: center;
+    }
+
+    #prompt_bottom .btn {
+      font-family: 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+      position: relative;
+      display: inline-block;
+      font-weight: 400;
+      white-space: nowrap;
+      text-align: center;
+      background-image: none;
+      box-shadow: 0 2px 0 rgba(0, 0, 0, .015);
+      cursor: pointer;
+      transition: all .3s cubic-bezier(.645, .045, .355, 1);
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
+      touch-action: manipulation;
+      height: 32px;
+      width: 90px;
+      padding: 0 15px;
+      font-size: 14px;
+      border-radius: 4px;
+      color: rgba(0, 0, 0, .65);
+      background-color: #fff;
+      border: 1px solid #d9d9d9;
+      color: #fff;
+      background-color: #1890ff;
+      border-color: #1890ff;
+      text-shadow: 0 -1px 0 rgba(0, 0, 0, .12);
+      box-shadow: 0 2px 0 rgba(0, 0, 0, .045);
+    }
+
+    #prompt_bottom .btn:hover {
+      color: #fff;
+      background-color: #40a9ff;
+      border-color: #40a9ff;
+    }
+
+    #prompt_bottom .btn:active {
+      color: #fff;
+      background-color: #096dd9;
+      border-color: #096dd9;
+    }
+  </style>
+  <script type="text/javascript" src="<%= BASE_URL %>static/yh-idm5.0.0.js"></script>
+  <script type="text/javascript" src="<%= BASE_URL %>static/js.cookie.min.js"></script>
+</head>
+
+<body onload="setTitle()">
+  <div id="app"></div>
+  <!-- built files will be auto injected -->
+  <script>
+    function setTitle() {
+      let data = localStorage.getItem('saveData');
+      if (data) {
+        let uiConfigs = JSON.parse(data).config.config || {};
+        document.getElementById('title').innerText = uiConfigs['project.title'];
+        let dom = document.getElementById('logo-link');
+        dom.setAttribute('href', uiConfigs['project.logo'] || "<%= BASE_URL %>logo.png");
+      }
+    }
+  </script>
+  <script type="text/javascript" src="<%= BASE_URL %>static/checkIE.js"></script>
+</body>
+
+</html>

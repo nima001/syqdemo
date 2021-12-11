@@ -1,0 +1,64 @@
+import Vue from 'vue'
+import Router from 'vue-router'
+import Layout from '../views/Layout'
+
+Vue.use(Router)
+
+export default new Router({
+  mode: 'history',
+  base: process.env.BASE_URL,
+  // base: 'person',
+  routes: [
+    {
+      path: '/zfw',
+      component: Layout,
+      redirect: 'index',
+      children: [
+        {
+          path: 'index',
+          name: 'Index',
+          component: () => import('../views/home/index')
+        },
+        {
+          path: 'overview',
+          redirect: 'overview/index',
+          component: () => import('../views/overview/Layout'),
+          children: [
+            {
+              path: 'index',
+              name: 'Index',
+              component: () => import('../views/overview/index')
+            },
+            {
+              path: 'naturalreg',
+              name: 'Naturalreg',
+              component: () => import('../views/overview/NaturalRegister')
+            },
+            {
+              path: 'naturallogin',
+              name: 'NaturalLogin',
+              component: () => import('../views/overview/NaturalLogin.vue')
+            },
+          ]
+        },
+        {
+          path: 'helps',
+          redirect: 'helps/datatotal',
+          component: () => import('../views/helps/Layout'),
+          children: [
+            {
+              path: 'datatotal',
+              name: 'Datatotal',
+              component: () => import('../views/helps/DataTotal')
+            },
+          ]
+        },
+        {
+          path: 'datatable',
+          name: 'DataTable',
+          component: () => import('../views/overview/DataTable.vue'),
+        },
+      ]
+    }
+  ]
+});

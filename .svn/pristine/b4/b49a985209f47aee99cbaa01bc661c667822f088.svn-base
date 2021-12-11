@@ -1,0 +1,137 @@
+<template>
+  <a-spin :spinning="!!loadid" :delay="200">
+    <div class='chart-panel'>
+      <component v-if="dataTable" :is="chartType" :dataTable="dataTable" :settings="settings" ref="chart"/>
+      <div v-else-if="!loadid" class="error">{{this.name}}加载失败</div>
+    </div>
+  </a-spin>
+</template>
+<script>
+import { Spin } from 'ant-design-vue'
+import { getChartById } from "@person/api/chart";
+import { showError } from "@/framework/utils/index";
+import { components } from "../chart";
+import { mixins } from "@formdesign/views/mixin/index";
+
+export default {
+  mixins: [mixins],
+  components: { 
+    ASpin: Spin,
+    ...components 
+  },
+  props: {
+    code: {
+      type: String,
+      required: true
+    },
+    name: String,
+    defalutValue: Object
+  },
+  inject: ["formData"],
+  data() {
+    return {
+      loadid: 0,
+      chartType: undefined,
+      dataTable: undefined,
+      settings: undefined,
+    };
+  },
+  computed: {
+    chart() {
+      return this.propValue || this.defalutValue;
+    },
+    context(){
+      return this.formData.data;
+    }
+  },
+  watch: {
+    chart(v){
+      this.initData();
+    },
+    context(){
+      this.initData();
+    }
+  },
+  created(){
+    this.initData();
+  },
+  methods: {
+    initData(){
+      // console.log('initData', this.name, this.chart);
+      if(typeof this.chart == 'number'){
+        this.loadData(this.chart);
+      }else if(this.chart){
+        let {data, settings = {}} = this.chart;
+        this.dataTable = data;
+        this.settings = settings;
+        this.chartType = this.switchCmpt(settings.chartType);
+      }else{
+        console.log(this.name, '数据为空');
+      }
+    },
+    loadData(id){
+      if(this.loadid == id){
+        //当前id已经在加载
+        return;
+      }
+      this.dataTable = undefined;
+      this.loadid = id;
+      // console.log('loadData', id, this.loadid);
+      getChartById(id, this.context).then(({result}) => {
+        if(this.loadid != id){//还未加载完成切换存在问题
+          return;
+        }
+        this.propValue = result;
+        this.loadid = 0;
+      }).catch(err => {
+        console.log(err);
+        if(this.loadid != id){
+          return
+        }
+        this.loadid = 0;
+        this.$message.error(this.name + '加载失败')
+      });
+    },
+    switchCmpt(str) {
+      let cmptType = 'PieChart';
+      switch (str) {
+        case "pie-chart":cmptType = "PieChart";break;
+        case "bar-chart" :cmptType = "BarChart";break;
+        case "line-chart" :cmptType = "LineChart";break;
+      }
+      return cmptType;
+    },
+    validate(callback) {
+      if(this.propValue.data){//数据已经加载，propValue值变更会触发validate
+        let chart = this.$refs.chart;
+        if(chart && chart.id){
+          let el = document.getElementById(chart.id);
+          if(el){
+            let canvas = el.querySelector('canvas');
+            if(canvas){
+              this.propValue.image = canvas.toDataURL('image/png');
+            }
+          }
+        }
+      }
+      callback()
+    },
+  }
+};
+</script>
+<style lang='less' scoped>
+//@import url(); 引入公共css类
+.chart-panel{
+  min-height: 400px;
+
+  & > .loading{
+    text-align: center;
+    line-height: 400px;
+  }
+  & > .error{
+    line-height: 400px;
+    text-align: center;
+    color: @error-color;
+  }
+}
+</style>

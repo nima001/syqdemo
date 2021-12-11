@@ -1,0 +1,164 @@
+<template>
+  <a-modal :visible="true" width="600px" @cancel="cancel" @ok="submit">
+    <a-form :form="form">
+      <a-row :gutter="24">
+        <a-col :span="12">
+          <a-form-item label="所在窗口">
+            <a-input :value="node.name"  :disabled="true"></a-input>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="排班人">
+            <a-input :value="session.username" :disabled="true"></a-input>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="日期选择">
+            <a-date-picker :style="{width:'100%'}" v-decorator="['dutydate', { rules: [{ required: true, message: '请选择日期' }] }]"></a-date-picker>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="星期">
+            <a-select :allowClear="true"  v-decorator="['weekday', { rules: [{ required: true, message: '请选择星期' }] }]">
+              <a-select-option :value="item" v-for="(item,index) in weeks" :key="index">{{item}}</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="开始时间">
+            <a-time-picker  v-decorator="['starttime', { rules: [{ required: true, message: '请选择开始时间' }] }]"></a-time-picker>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="结束时间">
+            <a-time-picker v-decorator="['endtime', { rules: [{ required: true, message: '请选择结束时间' }] }]"></a-time-picker>
+          </a-form-item>
+        </a-col>
+        <a-col :span="24">
+          <a-form-item label="值班人员选择">
+            <a-input @click="userModal= true" :value="user"></a-input>
+          </a-form-item>
+        </a-col>
+        <a-col :span="24">
+          <a-form-item label="是否短信通知">
+            <a-select>
+              <a-select-option :value="1">是</a-select-option>
+              <a-select-option :value="0">否</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+      </a-row>
+    </a-form>
+    <a-modal :footer="null" v-model="userModal" :width="800" title="选择用户" :bodyStyle="{ height: '600px', padding: '0'}">
+      <org-user-select mode="user" :show-dept="true" :selected="selectedUser"  :default-root="node.data._id" :max-select="10" @finish="onUserSelected" />
+    </a-modal>
+  </a-modal>
+</template>
+
+<script>
+import {Modal,Form,Select,Row,Col,DatePicker,Input,TimePicker} from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+import OrgUserSelect from "@/hall/components/OrgUserSelect";
+import {addList,editList} from '@/hall/api/onduty';
+import moment from 'moment';
+import { showError } from '@/framework/utils';
+export default {
+  components: {
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ARow: Row,
+    ACol: Col,
+    ADatePicker: DatePicker,
+    OrgUserSelect,
+    AInput: Input,
+    ATimePicker:TimePicker
+  },
+  data() {
+    return {
+      form: this.$form.createForm(this, { name: "schedueForm" }),
+      session: this.$store.getters.session,
+      userModal: false,
+      weeks:['星期一','星期二','星期三','星期四','星期五','星期六','星期日'],
+      selectedUser:[]
+    };
+  },
+  props: {
+    node: {
+      type: Object,
+      required: true
+    },
+    record:{
+      type:Object
+    }
+  },
+  computed:{
+    user(){
+      let list = this.selectedUser.map((item)=>{
+        return item.username
+      })
+      return list.join(',')
+    },
+    userId(){
+      let idlist =  this.selectedUser.map(item=>{
+        return item._id
+      });
+      return idlist.join(',')
+    }
+  },
+  mounted(){
+    this.init()
+  },
+  methods: {
+    init(){
+      let {dutydate,starttime,endtime,weekday,groupBy,userlist} = this.record;
+      this.$nextTick(()=>{
+        if(this.form && groupBy){
+          this.selectedUser = userlist;
+          this.form.setFieldsValue({
+            dutydate,
+            starttime:moment(starttime,'HH:mm:ss'),
+            endtime:moment(endtime,'HH:mm:ss'),
+            weekday
+          })
+        }
+      })
+    },
+    submit(){
+      this.form.validateFields((errors,values)=>{
+        if(!errors){
+          let dutydate = moment(values.dutydate).format("YYYY-MM-DD");
+          let starttime = moment(values.starttime).format("HH:mm:ss");
+          let endtime = moment(values.endtime).format("HH:mm:ss");
+          let userids = this.userId;
+          let query = {dutydate,starttime,endtime,userids,weekday:values.weekday};
+          let request = this.record.groupBy? editList({groupBy:this.record.groupBy,...query}) :addList(query)
+          request.then(res=>{
+            let message = this.record.groupBy ? "编辑成功!":"添加成功";
+            this.$message.success(message);
+            this.$emit("finish", {type:'ok'});
+          }).catch(err=>{
+            showError(err)
+          })
+        }
+      })
+    },
+    onUserSelected(type, list) {
+      this.userModal = false;
+      if (type == "ok") {
+        this.selectedUser = list;
+      }
+    },
+    cancel() {
+      this.$emit("finish", {type:'cancel'});
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.ant-time-picker{
+  width: 100%;
+}
+</style>

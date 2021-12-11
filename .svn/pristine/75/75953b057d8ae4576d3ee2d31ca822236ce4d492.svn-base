@@ -1,0 +1,219 @@
+<template>
+  <div>
+    <Title title="职务层次分布"/>
+    <div style="height:260px;width: 500px" class="container">
+      <div class="header">
+        <div class="title">
+          <span></span>
+          <span>事业核定</span>
+        </div>
+        <div class="title">
+          <span></span>
+          <span>事业实配</span>
+        </div>
+      </div>
+      <SwiperChart :nextBtn="{zIndex: 999}">
+        <div slot="content">
+          <div class="pro-content">
+            <div class="detail">
+              <span>厅级局正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{ '0%': '#9B28FF', '100%': '#EF9EF8'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{ '0%': '#F98F60', '100%': '#E34C2D'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail">
+              <span>厅级局正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{ '0%': '#9B28FF', '100%': '#EF9EF8'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{ '0%': '#F98F60', '100%': '#E34C2D'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail">
+              <span>厅级局正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{ '0%': '#9B28FF', '100%': '#EF9EF8'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{ '0%': '#F98F60', '100%': '#E34C2D'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div slot="content">
+          <div class="pro-content">
+            <div class="detail">
+              <span>厅级局正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{ '0%': '#9B28FF', '100%': '#EF9EF8'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{ '0%': '#F98F60', '100%': '#E34C2D'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail">
+              <span>厅级局正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{ '0%': '#9B28FF', '100%': '#EF9EF8'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{ '0%': '#F98F60', '100%': '#E34C2D'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail">
+              <span>厅级局正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{ '0%': '#9B28FF', '100%': '#EF9EF8'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{ '0%': '#F98F60', '100%': '#E34C2D'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail">
+              <span>厅级局正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{ '0%': '#9B28FF', '100%': '#EF9EF8'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{ '0%': '#F98F60', '100%': '#E34C2D'}" :percent="30">
+                  <template #format="percent">
+                    <span>{{ percent }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+          </div>
+        </div>
+      </SwiperChart>
+    </div>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+import SwiperChart from './SwiperChart'
+import { Progress } from 'ant-design-vue';
+
+export default {
+  props: {
+    districtCode: {
+      type: String
+    }
+  },
+  components: {
+    Title,
+    AProgress: Progress,
+    SwiperChart
+  },
+  watch: {
+    districtCode(val) {
+      return val;
+    }
+  }
+}
+</script>
+
+<style scoped lang="less">
+.container {
+  padding: @layout-space-base;
+  z-index: 999;
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    .title {
+      display: flex;
+      align-items: center;
+      color: #707070;
+      font-weight: bold;
+      &:nth-child(2) {
+        span:first-child {
+          background: #F88D5F;
+        }
+      }
+      span:first-child {
+        width: 8px;
+        height: 8px;
+        border-radius: 2px;
+        margin-right: @padding-xs;
+        display: inline-block;
+        background: #ED9BF8;
+      }
+      span {
+        &:last-child {
+          margin-right: @padding-lg;
+        }
+      }
+    }
+  }
+  .pro-content {
+    padding: @padding-xs @padding-md;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    .detail {
+      width: 45%;
+      margin-left: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      span {
+        margin-right: @layout-space-base;
+        color: fade(#ffffff, 60%);
+      }
+      .progress {
+        flex: 1;
+        /deep/.ant-progress-inner {
+          padding: 2px 4px;
+          background: fade(#39486A, 94%);
+        }
+      }
+    }
+  }
+}
+
+</style>

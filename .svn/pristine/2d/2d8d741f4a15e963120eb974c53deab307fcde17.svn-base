@@ -1,0 +1,20 @@
+<template>
+  <div>
+    <Title title="人员结构"/>
+    <div style="height:260px"></div>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+
+export default {
+  components: {
+    Title
+  }
+}
+</script>
+
+<style>
+
+</style>

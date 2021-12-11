@@ -1,0 +1,752 @@
+<!-- 应用基本信息 -->
+<template>
+  <div class="body">
+    <div class="app-detail">
+      <a-button
+        type="primary"
+        class="updateBtn"
+        @click="boo"
+        v-if="allow && hasPermit('/dev/manage/app/update')"
+      >{{ arr }}</a-button>
+      <a-form :form="form" :hideRequiredMark="false">
+        <ul class="message firstmessage">
+          <li>
+            <a-divider type="vertical" />
+            <h4>接入信息</h4>
+          </li>
+          <li>
+            <p class="p-left">接入码 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                readonly="boole"
+                style="width:30%"
+                v-decorator="[
+                  'accessCode',
+                  {
+                    rules: [{ required: true, message: '请输入接入码' }],
+                    initialValue: data.accessCode,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </li>
+          <li>
+            <p class="p-left">接入密钥 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                style="width:30%"
+                v-decorator="[
+                  'accessKey',
+                  {
+                    rules: [{ required: true, message: '请输入接入密钥' }],
+                    initialValue: data.accessKey,
+                  },
+                ]"
+              >
+                <a-icon
+                  v-if="!boole"
+                  slot="suffix"
+                  class="accesskey-icon"
+                  type="plus"
+                  title="生成密钥"
+                  @click="randomKey"
+                />
+              </a-input>
+            </a-form-item>
+          </li>
+        </ul>
+
+        <ul class="message">
+          <li>
+            <a-divider type="vertical" />
+            <h4>基本信息</h4>
+          </li>
+          <li>
+            <p class="p-left">应用名称 ：</p>
+            <a-form-item>
+              <a-input
+                :readOnly="boole"
+                :class="buer"
+                style="width:40%"
+                v-decorator="[
+                  'name',
+                  {
+                    rules: [{ required: true, message: '请输入应用名称' }],
+                    initialValue: data.name,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </li>
+
+          <li class="iconli">
+            <p class="p-left">应用图标 ：</p>
+            <a-form-item>
+              <div class="imageitem">
+                <a-upload
+                  v-decorator="[
+                    'icon',
+                    {
+                      rules: [{ required: true, message: '请上传图标' }],
+                      
+                      }
+                      
+                    ]"
+                  list-type="picture-card"
+                  :file-list="fileList"
+                  :before-upload="beforeUpload"
+                  :disabled="boole"
+                  @preview="handlePreview"
+                  @change="handleChange"
+                >
+                  <!-- initialValue: data.icon, -->
+                  <!-- <img v-if="imageUrl" :src="imageUrl" alt="avatar" />
+              <div v-else>
+                <a-icon :type="loading ? 'loading' : 'plus'" />
+                <div class="ant-upload-text">Upload</div>
+                  </div>-->
+                  <div v-if="fileList.length < 1">
+                    <a-icon type="plus" />
+                  </div>
+                </a-upload>
+                <div v-show="!boole" style="padding-top:20px;">
+                  <a-upload :before-upload="beforeUpload" @change="handleChange" class="spanupload">
+                    <a>选择本地文件></a>
+                  </a-upload>
+
+                  <br style="height: 10px" />
+                  <a class="recommend">挑选推荐图标></a>
+                </div>
+              </div>
+              <a-modal :visible="previewVisible" :footer="null" @cancel="handleCancel">
+                <img alt="example" style="width: 100%" :src="previewImage" />
+              </a-modal>
+            </a-form-item>
+          </li>
+
+          <li class="desc">
+            <p class="p-left">应用简介 ：</p>
+            <a-form-item>
+              <a-textarea
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                'desc',
+                {
+                  rules: [{ required: true, message: '请输入应用简介' }],
+                  initialValue: data.desc,
+                },
+              ]"
+              ></a-textarea>
+            </a-form-item>
+          </li>
+          <li>
+            <p class="p-left">Host地址 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                style="width:40%"
+                v-decorator="[
+                  'hostAddress',
+                  {
+                    
+                    initialValue: data.hostAddress,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </li>
+          <li>
+            <p class="p-left">PC端应用地址 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                style="width:40%"
+                v-decorator="[
+                  'pcAddress',
+                  {
+                    initialValue: data.pcAddress,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </li>
+          <li>
+            <p class="p-left">移动端应用地址 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                style="width:40%"
+                v-decorator="[
+                  'mobileAddress',
+                  {
+                    initialValue: data.mobileAddress,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </li>
+        </ul>
+
+        <ul class="message lastmessage">
+          <li>
+            <a-divider type="vertical" />
+            <h4>联系信息</h4>
+          </li>
+          <li>
+            <p class="p-left">接入单位 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'unit',
+                  {
+                    rules: [{ required: true, message: '请输入接入单位' }],
+                    initialValue: data.unit,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </li>
+          <li>
+            <p class="p-left">接入单位联系人 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'unitContact',
+                  {
+                    rules: [{ required: true, message: '请输入单位联系人' }],
+                    initialValue: data.unitContact,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+            <p class="p-left">联系方式 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'unitPhone',
+                  {
+                    rules: [
+                      { required: true, message: '请输入正确的联系方式' },
+                    ],
+                    initialValue: data.unitPhone,
+                  },
+                ]"
+                @blur="validatePhoneBlurs"
+              ></a-input>
+            </a-form-item>
+          </li>
+          <li>
+            <p class="p-left">开发公司 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'devCompany',
+                  {
+                    rules: [{ required: true, message: '请输入开发公司' }],
+                    initialValue: data.devCompany,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </li>
+          <li>
+            <p class="p-left">开发公司联系人 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'devCompanyContact',
+                  {
+                    rules: [
+                      { required: true, message: '请输入开发公司联系人' },
+                    ],
+                    initialValue: data.devCompanyContact,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+
+            <p class="p-left">联系方式 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'devCompanyPhone',
+                  {
+                    rules: [
+                      { required: true, message: '请输入正确的联系方式' },
+                    ],
+                    initialValue: data.devCompanyPhone,
+                  },
+                ]"
+                @blur="validatePhoneBlurs"
+              ></a-input>
+            </a-form-item>
+          </li>
+          <li>
+            <p class="p-left">运维联系人 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'operationContact',
+                  {
+                    rules: [{ required: true, message: '请输入运维联系人' }],
+                    initialValue: data.operationContact,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+            <p class="p-left">联系方式 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'operationPhone',
+                  {
+                    rules: [
+                      { required: true, message: '请输入正确的联系方式' },
+                    ],
+                    initialValue: data.operationPhone,
+                  },
+                ]"
+                @blur="validatePhoneBlurs"
+              ></a-input>
+            </a-form-item>
+          </li>
+          <!-- <li> -->
+          <!-- <a-button
+            type="primary"
+            class="agree"
+            @click="serviceApply(1)"
+            v-if="hasPermit('AuditApp')"
+            ><a-icon type="check" />同意申请</a-button
+          >
+          <a-button
+            type="danger"
+            @click="serviceApply(0)"
+            v-if="hasPermit('AuditApp')"
+            ><a-icon type="close" />拒绝申请</a-button
+          >-->
+          <!-- </li> -->
+        </ul>
+      </a-form>
+    </div>
+  </div>
+</template>
+
+<script>
+import {
+  Form,
+  Button,
+  Icon,
+  Divider,
+  Input,
+  notification,
+  Upload
+} from "ant-design-vue";
+import { appdetail, appcodeIsExist, appupdate, generate } from "@/dev/api/app";
+import { serviceVerify } from "@/dev/api/service";
+import { uploadV2 } from "@/framework/api/file";
+import { showError } from "../../../framework/utils";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+function getBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+}
+export default {
+  data() {
+    return {
+      boos: 0,
+      form: this.$form.createForm(this),
+      boole: true,
+      arr: "编辑",
+      data: {},
+      fileList: [],
+      previewVisible: false,
+      previewImage: "",
+      uploadvalid: false,
+      iconid: undefined,
+      uiConfigs: uiConfigsCookies()
+    };
+  },
+  computed: {
+    buer() {
+      if (this.boole == true) {
+        return "input";
+      } else {
+        return;
+      }
+    },
+    //当应用状态不为在用状态时禁止修改
+    allow() {
+      return this.$store.getters.appInfo.state == 0 ? true : false;
+    }
+  },
+  created() {
+    let appid = this.$store.getters.appInfo.id;
+    if (appid !== undefined) {
+      this.refresh(appid);
+    }
+  },
+  methods: {
+    // 审核人员审核应用
+    // serviceApply(state) {
+    //   var data = {
+    //     id: this.$store.getters.appInfo.id,
+    //     state,
+    //   };
+    //   serviceVerify(data)
+    //     .then((res) => {
+    //       console.log(res);
+    //       notification.success({
+    //         message: "提示",
+    //         description: "审核成功",
+    //         duration: 1.5,
+    //       });
+    //     })
+    //     .catch((err) => {
+    //       showError(err);
+    //     });
+    // },
+    // 生成密钥
+    randomKey(e) {
+      generate()
+        .then(res => {
+          this.$set(this.data, "accessKey", res.result);
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    // code规则
+    handleAccessCode(rule, value, callback) {
+      let reg = new RegExp("[\\u4E00-\\u9FFF]+", "g");
+      if (reg.test(value) == true) {
+        callback("不能包含中文字符，请重新输入");
+      } else if (value.length > 0) {
+        this.validExist(value, callback);
+      } else {
+        callback();
+      }
+    },
+    // 判断接入码是否唯一
+    validExist(e, callback) {
+      appcodeIsExist(e)
+        .then(res => {
+          callback && callback();
+        })
+        .catch(err => {
+          showError(err);
+          let a = eval("(" + err.desc + ")");
+          const value = Object.values(a);
+          callback(value[0]);
+        });
+    },
+    // 联系方式正则
+    validatePhoneBlurs(e) {
+      const validatePhoneReg = /^1[34578]\d{9}$/;
+      const validatePhone = /^(\d{3,4}-)?\d{6,8}$/;
+      if (
+        !validatePhone.test(e.target.value) &&
+        !validatePhoneReg.test(e.target.value)
+      ) {
+        if (this.boos < 3) {
+          this.boos += 1;
+        }
+        const arr = [
+          {
+            message: "您输入的手机格式不正确!",
+            field: e.target.id
+          }
+        ];
+        this.form.setFields({
+          [e.target.id]: { value: e.target.value, errors: arr }
+        });
+      } else {
+        if (this.boos > 0) {
+          this.boos -= 1;
+        }
+      }
+    },
+    // 修改应用基本信息
+    boo() {
+      if (this.arr == "编辑") {
+        this.arr = "保存";
+        this.boole = false;
+      } else {
+        if (this.boos == 0) {
+          let data = this.data;
+          if (this.iconid !== undefined) {
+            this.form.setFieldsValue({ icon: this.iconid });
+          }
+          this.form.validateFields((err, values) => {
+            if (err) {
+              notification.error({
+                message: "提示",
+                description: "请正确填写信息！",
+                duration: 2
+              });
+            } else {
+              let obj = Object.assign(data, values);
+              appupdate(data)
+                .then(res => {
+                  notification.success({
+                    message: "提示",
+                    description: "修改成功",
+                    duration: 1.5
+                  });
+                  this.$store.commit("appInfo_change", data);
+                  this.arr = "编辑";
+                  this.boole = true;
+                  // this.$router.push("/dev/manage/app");
+                })
+                .catch(err => {
+                  notification.error({
+                    message: "提示",
+                    description: err.desc,
+                    duration: 1.5
+                  });
+                  this.refresh(this.$route.query.id);
+                });
+            }
+          });
+        }
+      }
+    },
+    // 查询应用基本信息
+    refresh(id) {
+      appdetail(id)
+        .then(res => {
+          let data = res.result;
+          if (this.$store.getters.appInfo.state === undefined) {
+            this.$store.commit("appInfo_change", data);
+          }
+          this.data = data;
+          let fileid = data.icon;
+          if (fileid !== undefined && fileid) {
+            this.iconid = fileid;
+            let iconfile = {
+              uid: "-1",
+              name: "icon.png",
+              url:
+                this.uiConfigs["api.url"] +
+                "/file/v2/file/download?uri=" +
+                data.icon
+            };
+            console.log(iconfile.thumbUrl);
+            this.fileList.push(iconfile);
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    async handlePreview(file) {
+      if (!file.url && !file.preview) {
+        file.preview = await getBase64(file.originFileObj);
+      }
+      this.previewImage = file.url || file.preview;
+      this.previewVisible = true;
+    },
+    handleChange(info) {
+      if (this.uploadvalid) {
+        this.fileList = info.fileList.slice(-1);
+
+        if (this.fileList.length) {
+          uploadV2(info.file)
+            .then(res => {
+              if (res.data.result) {
+                this.iconid = res.data.result.uploadid;
+              }
+              this.$notification.success({
+                message: "提示",
+                description: "文件上传成功!",
+                duration: 3
+              });
+            })
+            .catch(error => {
+              showError(error);
+            });
+        } else {
+          this.iconid = undefined;
+        }
+      }
+    },
+    //上传之前校验
+    beforeUpload(file) {
+      this.uploadvalid = true;
+      const isJpgOrPng =
+        file.type === "image/jpeg" || file.type === "image/png";
+      if (!isJpgOrPng) {
+        this.uploadvalid = false;
+        this.$message.error("只能上传图片!");
+      }
+      const isLt300K = file.size / 1024 < 300;
+      if (!isLt300K) {
+        this.uploadvalid = false;
+        this.$message.error("图片大小不能超过300KB!");
+      }
+      // return isJpgOrPng && isLt300K;
+      return false;
+    },
+    handleCancel() {
+      this.previewVisible = false;
+    }
+  },
+  components: {
+    AButton: Button,
+    ADivider: Divider,
+    AInput: Input,
+    AIcon: Icon,
+    AForm: Form,
+    AFormItem: Form.Item,
+    notification,
+    ATextarea: Input.TextArea,
+    AUpload: Upload
+  }
+};
+</script>
+<style lang="less" scoped>
+.body {
+  // background: #f3f7fa !important;
+  height: 100%;
+  padding: 10px 20px 20px 20px;
+  .app-detail {
+    height: 100%;
+    overflow-y: auto;
+    background: #fff;
+    .updateBtn {
+      margin-left: 8%;
+      // left:1%;
+      // float:left;
+      width: 80px;
+      margin-top: 20px;
+      color: #409eff;
+      background-color: #ecf5ff;
+      border-color: #b3d8ff;
+    }
+    .updateBtn:hover {
+      background-color: #409eff;
+      color: #fff;
+    }
+    .message {
+      padding: 0 7%;
+      margin: 10px auto;
+      margin-bottom: 0;
+      width: 100%;
+      li {
+        list-style: none;
+        display: flex;
+        // height: 35px;
+        width: 70%;
+        .ant-row {
+          flex: 1 !important;
+          textarea {
+            width: 100%;
+          }
+        }
+      }
+      .iconli {
+        height: 80px;
+        .imageitem {
+          display: flex;
+          justify-content: flex-start;
+          height: 90px;
+          margin-top: 5px;
+          // margin-bottom: 15px;
+          .recommend {
+            position: relative;
+            top: -50px;
+          }
+        }
+      }
+
+      h4 {
+        color: @primary-color;
+        font-size: 18px;
+        margin-bottom: 5px;
+      }
+      .ant-divider {
+        width: 3px;
+        height: 20px;
+        background-color: @primary-color;
+        margin-top: 5px;
+      }
+      p {
+        color: #595959;
+        // margin: 0;
+      }
+      .p-left {
+        display: inline-block;
+        width: 120px;
+        // height: 35px;
+        line-height: 35px;
+        text-align: left;
+        margin-right: 20px;
+        margin-left: 20px;
+        margin-bottom: 0;
+        color: #171717;
+      }
+      .ant-btn {
+        margin: 30px 0 0 120px;
+      }
+      .input {
+        border: none;
+      }
+      .desc {
+        margin-top: 10px;
+        // margin-bottom: 15px;
+      }
+    }
+    .lastmessage {
+      margin-bottom: 10px;
+    }
+    // .firstmessage {
+    //   margin-top: 15px;
+    // }
+    .ant-form-item {
+      margin-bottom: 0;
+    }
+    /deep/.ant-upload.ant-upload-select-picture-card {
+      width: 80px !important;
+      height: 80px !important;
+    }
+    /deep/.ant-upload-list-picture-card .ant-upload-list-item {
+      width: 80px !important;
+      height: 80px !important;
+      margin: 0;
+      padding: 3px;
+    }
+    /deep/.ant-upload-list-picture-card .ant-upload-list-item-uploading-text {
+      font-size: 12px;
+    }
+    .ant-upload-picture-card-wrapper {
+      width: 90px;
+    }
+  }
+}
+</style>

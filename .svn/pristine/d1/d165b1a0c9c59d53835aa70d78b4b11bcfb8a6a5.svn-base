@@ -1,0 +1,63 @@
+<template>
+  <ul>
+    <li v-for="(item, index) in fields" :key="index">
+      <component :is="item.type" :field="item" :data="{}" ref="inputBox"/>
+    </li>
+  </ul>
+</template>
+<script>
+import InputOrg from '../../components/InputOrg'
+import InputDict from '../../components/InputDict'
+
+export default {
+  components:{
+    InputOrg, InputDict
+  },
+  props: {
+    scopes: {
+      type: Array,
+      default: () => []
+    }
+  },
+  data(){
+    return {
+      fields: []
+    }
+  },
+  created(){
+    this.initData();
+  },
+  watch: {
+    scopes(){
+      this.initData();
+    }
+  },
+  methods: {
+    initData(){
+      let list = [];
+      (this.scopes || []).forEach(item => {
+        let type = this.getComType(item);
+        if(type){
+          list.push({ 
+            type,
+            name: item.code,
+            desc: item.name,
+            datasource: item.datasource,
+          })
+        }
+      })
+      this.fields = list;
+    },
+    getComType(item){
+      if(item.datatype == 2){
+        return 'InputDict'
+      }else if(item.datatype == 3){
+        if(item.datasource == 'organization'){
+          return 'InputOrg'
+        }
+      }
+    }
+
+  }
+}
+</script>

@@ -1,0 +1,139 @@
+<template>
+  <div class="wrap">
+    <h2 v-if="settings&&settings.title" :style="{textAlign:'center'}">{{settings.title}}</h2>
+    <div :id="id"></div>
+  </div>
+</template>
+<script>
+import * as G2 from "@antv/g2";
+export default {
+  name: "PieChart",
+  props: {
+    // 数据
+    dataTable: {
+      type: Object
+    },
+    // 配置
+    settings: {
+      type: Object
+    }
+  },
+  data() {
+    return {
+      id: Math.random().toString(36).substr(2),
+      plot: undefined,
+    };
+  },
+  mounted() {
+    this.draw(this.dataTable);
+  },
+  computed: {
+    colors(){
+      let colors = this.$store.getters.getConfig('chart.colors');
+      if(colors){
+        try{
+          colors = JSON.parse(colors)
+          if(colors && colors.length){
+            return colors;
+          }
+        }catch(err){
+
+        }
+      }
+      return ["#D15456","#5488D1","#EDBA55","#D48265","#91C7AE","#749F83","#BDA29A","#6E7074","#585470","#706254"]
+    },
+  },
+  watch: {
+    dataTable: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true
+    }
+  },
+  methods: {
+    sum(list) {
+      let sum = 0;
+      list.forEach(item => {
+        sum += parseInt(item.value);
+      });
+      return sum;
+    },
+    createData(dataTable) {
+      if (!dataTable) {
+        return;
+      }
+      let { keyCols, valueCols, rows } = dataTable;
+      return rows.map(item => {
+        let keys = keyCols.map(k => item[k.column]);
+        return {
+          key: keys.join("-"),
+          value: item[valueCols[0].column] || 0
+        };
+      });
+    },
+    draw(dataTable) {
+      let data = this.createData(dataTable);
+      let sum = this.sum(data);
+      if (!data) {
+        return;
+      }
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      const chart = new G2.Chart({
+        container: this.id,
+        autoFit: true
+      });
+      chart.coordinate("theta", { radius: 0.7 });
+      chart.data(data);
+      chart.scale("value", {
+        formatter: val => {
+          if (sum == 0) {
+            return `${0}%`;
+          } else {
+            if (val == 0) {
+              return `${0}%`;
+            } else {
+              let float = Math.floor((val / sum) * 100);
+              return `${float}%`;
+            }
+          }
+        }
+      });
+      chart.tooltip({
+        showTitle: false,
+        showMarkers: false
+      });
+      chart.legend({ position: "right" });
+      chart
+        .interval()
+        .adjust("stack")
+        .position("value")
+        .color("key", this.colors)
+        .label("key", {
+          content: data => {
+            return `${data.key}: ${data.value}`;
+          }
+        });
+      chart.interaction("element-active");
+      this.plot = chart;
+      chart.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

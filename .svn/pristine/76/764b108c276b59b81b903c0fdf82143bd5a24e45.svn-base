@@ -1,0 +1,358 @@
+<template>
+  <div class="businessWrap">
+    <div class="top">
+      <a-button class="businessBtn" @click="showBusiness" >业务查看</a-button>
+      <div class="right">
+        <a-input-search
+          placeholder="输入事项名称查询"
+          @search="onSearch"
+          v-model="searchContent"
+          enterButton
+          style="width: 100%;"
+          allowClear
+        />
+      </div>
+    </div>
+    <div class="middle">
+      <a-table
+        v-if="contentList.length"
+        :key="tableKey"
+        :columns="columns"
+        :dataSource="contentList"
+        @change="handleTableChange"
+        :rowKey="(record)=>{return record.id}"
+        :expandRowByClick="true"
+        :pagination="false"
+        :defaultExpandAllRows="true"
+        :showHeader="false"
+        :loading="loading"
+      >
+        <template slot="name" slot-scope="text, record">
+          <span class="processname" :style="{'padding-left':(record.num-1)*25+'px'}">
+            <custom-icon type="list" class="icon" />
+            &nbsp;&nbsp;{{record.name}}
+          </span>
+        </template>
+        <template slot="operation" slot-scope="text, record">
+          <div class="operation">
+            <div class="operation-btn" v-if="!record.children" @click="openPc(record)">在线办理</div>
+            <a-icon type="down" style="font-size:18px;color:gray" v-else></a-icon>
+          </div>
+        </template>
+      </a-table>
+      <EmptyData :style="{height:'260px'}" v-else></EmptyData>
+    </div>
+    <a-modal
+      :visible="visiblePc"
+      title="请选择发起单位"
+      @cancel="visiblePc=false"
+      :footer="null"
+      width="450px"
+      :bodyStyle="tStyle"
+    >
+      <org-user-select mode="org" @finish="deptOk" :rootSelectable="true"></org-user-select>
+    </a-modal>
+    <!-- 发起用户选择弹框 -->
+    <a-modal
+      :visible="visibleUser"
+      title="选择被操作人员"
+      @cancel="visibleUser=false"
+      :footer="null"
+      width="500px"
+      :bodyStyle="{'height':'330px','padding':0}"
+      :destroyOnClose="true"
+    >
+      <select-process-user @userOk="userOk"></select-process-user>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import {
+  getListCatalogv1,
+  getCodeProcess,
+  chooseOrg
+} from "@/workflow/api/catalog";
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+import CustomIcon from "@/framework/components/CustomIcon";
+import EmptyData from "@/framework/components/EmptyData";
+import SelectProcessUser from "@/hall/components/SelectProcessUser";
+import { showError, guid } from "@/framework/utils/index";
+import "@/workflow/style/process.css";
+import {
+  Layout,
+  Breadcrumb,
+  Input,
+  Button,
+  Pagination,
+  Cascader,
+  Modal,
+  Select,
+  Table,
+  Icon,
+  Row,
+  Col
+} from "ant-design-vue";
+const columns = [
+  {
+    title: "流程名称",
+    dataIndex: "name",
+    key: "name",
+    scopedSlots: { customRender: "name" }
+  },
+  {
+    title: "",
+    dataIndex: "operation",
+    width: 45,
+    key: "operation",
+    scopedSlots: { customRender: "operation" }
+  }
+];
+export default {
+  name: "ProcessV2",
+  components: {
+    ALayout: Layout,
+    ALayoutHeader: Layout.Header,
+    ALayoutContent: Layout.Content,
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    AInputSearch: Input.Search,
+    AButton: Button,
+    APagination: Pagination,
+    AModal: Modal,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    AIcon: Icon,
+    OrgUserSelect,
+    ARow: Row,
+    ACol: Col,
+    SelectProcessUser,
+    CustomIcon,
+    EmptyData
+  },
+  data() {
+    return {
+      pagination: {
+        current: 1,
+        pagesize: 10,
+        total: 0,
+        showTotal: function(total, range) {
+          return `共 ${total} 条记录`;
+        }
+      },
+      contentList: [],
+      searchContent: "",
+      processValue: null,
+      subjects: [],
+      subjectsKey: undefined,
+      columns,
+      visiblePc: false,
+      tStyle: {
+        padding: "5px 3px 5px 10px",
+        width: "100%",
+        height: "550px",
+        color: "black"
+      },
+      curCode: undefined,
+      tableKey: guid(),
+      visibleUser: false,
+      visibleFlag: true,
+      loading: false
+    };
+  },
+  created() {
+    this.getSearch();
+  },
+  methods: {
+    //获取业务流程的全部信息
+    getSearch() {
+      this.loading = true;
+      let query = {};
+      query.needtotal = true;
+      query.pagenum = this.pagination.current;
+      query.pagesize = this.pagination.pagesize;
+      query.searchkey = this.searchContent;
+      query.subjectkey = this.subjectsKey;
+      query.status = 1;
+      getListCatalogv1(query)
+        .then(res => {
+          this.contentList = [];
+          if (res.code == "success") {
+            this.loading = false;
+            this.contentList = res.result.rows;
+            this.pagination.total = res.result.total ? res.result.total : 0;
+            this.tableKey = guid();
+          }
+        })
+        .catch(err => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    //分页
+    handleTableChange(pagination) {
+      const pager = { ...this.pagination };
+      pager.current = pagination.current;
+      this.pagination = pager;
+      this.getSearch();
+    },
+    //查询
+    onSearch(value) {
+      this.getSearch();
+    },
+    reset() {
+      this.searchContent = "";
+      this.subjectsKey = undefined;
+      this.getSearch();
+    },
+    //办理指南
+    processGuide(record) {
+      this.$router.push({
+        path: "/workflow/processguide",
+        query: {
+          id: record.id,
+          name: record.name,
+          code: record.code
+        }
+      });
+    },
+    //办理流程
+    openPc(record) {
+      this.curCode = record.code;
+      getCodeProcess(record.code)
+        .then(res => {
+          if (res.code == "success") {
+            if (res.result.showtype == 3) {
+              this.visibleFlag = true;
+              this.isUrl(res.result.gotoUrl);
+            } else if (res.result.showtype == 1) {
+              this.visiblePc = true;
+              this.visibleFlag = true;
+            } else if (res.result.showtype == 5) {
+              this.visibleUser = true;
+              this.visibleFlag = false;
+            }
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //确定选择的机构
+    deptOk(type, list) {
+      if (type == "ok" && list.length > 0) {
+        let obj = list[0];
+        this.visiblePc = false;
+        let query = {};
+        query.code = this.curCode;
+        query.orgid = obj._id;
+        chooseOrg(query)
+          .then(res => {
+            this.isUrl(res.result.gotoUrl);
+          })
+          .catch(err => {
+            showError(err);
+          });
+      } else if (type == "cancel") {
+        this.visiblePc = false;
+      }
+    },
+    //确定选择的用户
+    userOk(val) {
+      this.visibleUser = false;
+      let query = {};
+      query.code = this.curCode;
+      query.userid = val;
+      chooseOrg(query)
+        .then(res => {
+          this.isUrl(res.result.gotoUrl);
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //判断跳转的路径是否需要拼接
+    isUrl(url) {
+      if (url) {
+        let link = decodeURIComponent(url);
+        if (link.indexOf("http://") == 0 || link.indexOf("https://") == 0) {
+          // 直接跳转
+          window.open(link, "_blank");
+        } else {
+          // 相对路径
+          if (link.indexOf("/") == 0) {
+            link = link.substr(1);
+          }
+          let newURL =
+            process.env.NODE_ENV === "production"
+              ? process.env.BASE_URL + link
+              : window.location.origin + "/" + link;
+          window.open(newURL, "_blank");
+        }
+      }
+    },
+    showBusiness() {
+      this.$router.push({
+        path: "/workflow/businessapproval"
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.businessWrap {
+  display: flex;
+  flex-direction: column;
+  .top {
+    padding: @content-padding-v @content-padding-h;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+    .businessBtn{
+      font-size: 16px;
+      font-family: Microsoft YaHei;
+      font-weight: 400;
+      line-height: 21px;
+      color: #1B5293;
+      border: 1px solid #1B5293;
+      border-radius: 4px;
+    }
+    .right {
+      width: 460px;
+    }
+  }
+  .middle {
+    max-height: 460px;
+    overflow-y: auto;
+    /deep/ tr {
+      height: 60px;
+      cursor: pointer;
+      &:last-child {
+        td {
+          border: none;
+        }
+      }
+      td {
+        padding: 0px @content-padding-h;
+        .processname {
+          font-size: 16px;
+        }
+        .operation-btn {
+          width: 96px;
+          height: 37px;
+          background: #f2f4f8;
+          border-radius: 4px;
+          font-size: 16px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          color: #5488d1;
+          text-align: center;
+          line-height: 37px;
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,758 @@
+<template>
+  <!-- 工资发放审批 -->
+  <div class="SalarypaymentApprovalUnit">
+    <a-layout>
+      <a-layout-content class="content">
+        <div>
+          <div class="tip">
+            <span @click="towaitDo" class="spanBtn" :class="waitDo?'active':''">待办</span>
+            <span
+              @click="tohaveDone"
+              :class="haveDone? 'active':'' "
+              class="spanBtn spanBtnRight"
+            >已办</span>
+          </div>
+          <!-- 待办 -->
+          <div v-if="waitDo">
+            <div class="search">
+              <div>
+                <a-input
+                  allowClear
+                  read-only
+                  @click="OrgModelShow"
+                  @change="resetRange"
+                  v-model="node.nodename"
+                  placeholder="请选择组织范围"
+                />
+              </div>
+            </div>
+            <!-- 表格 -->
+            <a-table
+              class="tableCls"
+              :columns="columns"
+              :dataSource="datasource"
+              :pagination="pagination"
+              :loading="loading"
+              :bordered="false"
+              @change="changePagination"
+            >
+              <span slot-scope="val,record" slot="operate">
+                <span @click="showInner(record)" class="operateBtn" style="margin-right: 10px;">查看详情</span>
+                <span
+                  @click="showIdea(record)"
+                  class="operateBtn"
+                  style="margin-left: 10px;margin-right: 10px;"
+                >审批意见</span>
+                <span @click="change(record)" class="operateBtn" style="margin-left: 10px;">修改</span>
+              </span>
+              <span slot-scope="val" slot="status">{{val | state}}</span>
+            </a-table>
+            <showIdeaModal
+              v-if="ifshowIdea"
+              :ifshowIdea="ifshowIdea"
+              @close="closeIdeaModal"
+              :IdeaData="IdeaData"
+            ></showIdeaModal>
+          </div>
+
+          <!-- 已办 -->
+          <div v-if="haveDone">
+            <div class="search">
+              <!-- 审批人 -->
+              <div>
+                <span>审批人：</span>
+                <a-select @change="changeAudit" v-model="approvalSel" style="width: 200px">
+                  <a-select-option value="allaudit">全部</a-select-option>
+                  <a-select-option
+                    v-for="(item,index) in auditArr"
+                    :value="item.orgid"
+                    :key="index"
+                  >{{item.name}}</a-select-option>
+                </a-select>
+              </div>
+              <!-- 状态 -->
+              <div style="margin-right: 10px;">
+                <span>状态：</span>
+                <a-select @change="changeState" defaultValue="全部" style="width: 100px">
+                  <a-select-option value="9">全部</a-select-option>
+                  <a-select-option value="2">通过</a-select-option>
+                  <a-select-option value="1">待审核</a-select-option>
+                </a-select>
+              </div>
+              <!-- 处理时间 -->
+              <div style="margin-right: 10px;">
+                <span>处理时间：</span>
+                <a-date-picker
+                  :disabledDate="notAllowFnStart"
+                  @change="start_time"
+                  style="width: 120px;"
+                />--
+                <a-date-picker
+                  :disabledDate="notAllowFnOver"
+                  @change="over_time"
+                  style="width: 120px;"
+                />
+              </div>
+              <!-- 地区 -->
+              <div style="margin-right: 10px;">
+                <a-input
+                  class="nodeinput"
+                  allowClear
+                  read-only
+                  @click="OrgModelShow"
+                  @change="resetRange"
+                  v-model="node.nodename"
+                  placeholder="请选择组织范围"
+                />
+              </div>
+            </div>
+            <!-- 表格 -->
+            <a-table
+              class="tableCls"
+              :columns="columnsDone"
+              :loading="loadingDone"
+              :dataSource="datasourceDone"
+              :pagination="paginationDone"
+              :bordered="false"
+              @change="changePaginationDone"
+            >
+              <!-- 查看详情  -->
+              <span v-if="record.status!=2" slot-scope="val,record" slot="operate">
+                <span @click="showInner(record)" class="operateBtn">查看详情</span>
+              </span>
+              <!-- 查看详情 审批意见 -->
+              <span v-else slot-scope="val,record" slot="operate">
+                <span @click="showInner(record)" class="operateBtn" style="margin-right: 12px;">查看详情</span>
+                <span @click="showIdea(record)" class="operateBtn" style="margin-left: 12px;">审批意见</span>
+              </span>
+
+              <span slot-scope="val" slot="status">{{val | state}}</span>
+
+              <span slot-scope="val" slot="approvalTime">{{val?val:'--'}}</span>
+              <!-- <span slot-scope="val,record" slot="approvalTime">{{val?val:'--'}}</span> -->
+            </a-table>
+            <showIdeaModal
+              v-if="ifshowIdea"
+              :ifshowIdea="ifshowIdea"
+              @close="closeIdeaModal"
+              :IdeaData="IdeaData"
+            ></showIdeaModal>
+          </div>
+        </div>
+        <!--组织选择-->
+        <a-modal
+          title="选择组织"
+          v-model="orgVisible"
+          :footer="null"
+          :width="500"
+          :bodyStyle="{ height: '600px', padding: '0'}"
+        >
+          <org-user-select
+            mode="orgtree"
+            :defaultTree="catalogid"
+            :root-selectable="true"
+            @finish="selectOrg"
+          />
+        </a-modal>
+      </a-layout-content>
+    </a-layout>
+  </div>
+</template>
+<script>
+import { salaryAuditdept, process } from "@/salary/api/salaryManage";
+import { showError } from "@/framework/utils/index";
+import showIdeaModal from "./ShowIdeaUnit.vue";
+import moment from "moment";
+import { treeroot } from "@/salary/api/org";
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+import {
+  Layout,
+  Breadcrumb,
+  Select,
+  Table,
+  DatePicker,
+  Input,
+  Modal
+} from "ant-design-vue";
+export default {
+  components: {
+    ALayout: Layout,
+    AModal: Modal,
+    AInput: Input,
+    ALayoutHeader: Layout.Header,
+    ALayoutContent: Layout.Content,
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    ADatePicker: DatePicker,
+    showIdeaModal,
+    OrgUserSelect
+  },
+  data() {
+    return {
+      node: {
+        nodeid: null,
+        nodename: null,
+        orgid: null
+      },
+      orgVisible: false,
+      catalogid: undefined,
+      IdeaData: "", //审批意见 信息
+      starttime: "",
+      overtime: "",
+      auditArr: [],
+      nowOrgDone: "", //已办的当前 org
+      nowState: 9, //代表全部
+      nowAudit: "",
+      loadingDone: true,
+      loading: true,
+      approvalSel: "全部", //申请人下拉
+      nowOrg: "", //当前的组织
+      ifshowIdea: false,
+      waitDo: true,
+      haveDone: false,
+      columns: [
+        {
+          dataIndex: "orgname",
+          key: "orgname",
+          title: "单位名称",
+          align: "left",
+          scopedSlots: { customRender: "orgname" }
+        },
+        {
+          dataIndex: "name",
+          key: "name",
+          title: "工资月份",
+          align: "left",
+          scopedSlots: { customRender: "name" }
+        },
+        {
+          dataIndex: "createtime",
+          key: "createtime",
+          title: "发起时间",
+          align: "left",
+          scopedSlots: { customRender: "createtime" }
+        },
+        {
+          dataIndex: "username",
+          key: "username",
+          title: "申请人",
+          align: "left",
+          scopedSlots: { customRender: "username" }
+        },
+        {
+          dataIndex: "status",
+          key: "status",
+          title: "状态",
+          align: "left",
+          scopedSlots: { customRender: "status" }
+        },
+        {
+          dataIndex: "auditname",
+          key: "auditname",
+          title: "审批单位",
+          align: "left",
+          scopedSlots: { customRender: "auditname" }
+        },
+        {
+          dataIndex: "operate",
+          key: "operate",
+          title: "操作",
+          align: "left",
+          width: "15%",
+          scopedSlots: { customRender: "operate" }
+        }
+      ],
+      datasource: [],
+      pagination: {
+        defaultPageSize: 10,
+        showTotal: total => `总共：${total}条`,
+        showSizeChanger: true,
+        pageSizeOptions: ["10", "20", "30", "40"],
+        onShowSizeChange: (current, pageSize) => (this.pageSize = pageSize)
+      },
+      columnsDone: [
+        {
+          dataIndex: "orgname",
+          key: "orgname",
+          title: "单位名称",
+          align: "left",
+          scopedSlots: { customRender: "orgname" }
+        },
+        {
+          dataIndex: "name",
+          key: "name",
+          title: "工资月份",
+          align: "left",
+          scopedSlots: { customRender: "name" }
+        },
+        {
+          dataIndex: "createtime",
+          key: "createtime",
+          title: "发起时间",
+          align: "left",
+          scopedSlots: { customRender: "createtime" }
+        },
+        {
+          dataIndex: "username",
+          key: "username",
+          title: "申请人",
+          align: "left",
+          scopedSlots: { customRender: "username" }
+        },
+        {
+          dataIndex: "status",
+          key: "status",
+          title: "状态",
+          align: "left",
+          scopedSlots: { customRender: "status" }
+        },
+        {
+          dataIndex: "auditname",
+          key: "auditname",
+          title: "审批单位",
+          align: "left",
+          scopedSlots: { customRender: "auditname" }
+        },
+        {
+          dataIndex: "approvalTime",
+          key: "approvalTime",
+          title: "处理时间",
+          align: "left",
+          scopedSlots: { customRender: "approvalTime" }
+        },
+        {
+          dataIndex: "operate",
+          key: "operate",
+          title: "操作",
+          align: "left",
+          width: "20%",
+          scopedSlots: { customRender: "operate" }
+        }
+      ],
+      datasourceDone: [],
+      paginationDone: {
+        defaultPageSize: 10,
+        showTotal: total => `总共：${total}条`,
+        showSizeChanger: true,
+        pageSizeOptions: ["10", "20", "30", "40"],
+        onShowSizeChange: (current, pageSize) => (this.pageSize = pageSize)
+      }
+    };
+  },
+  filters: {
+    state(val) {
+      switch (val) {
+        case 1:
+          return "待审核";
+        case 2:
+          return "审核通过";
+        case 3:
+          return "驳回";
+      }
+    }
+  },
+  created() {
+    this.getAuditdept();
+    this.getorg();
+  },
+  methods: {
+    getAuditdept() {
+      salaryAuditdept()
+        .then(res => {
+          this.auditArr = res.result;
+        })
+        .catch(err => {
+          showError(err);
+          return;
+        });
+    },
+    getorg() {
+      treeroot()
+        .then(res => {
+          this.node.nodeid = res.result.children[0].id;
+          this.node.nodename = res.result.children[0].data.name;
+          this.node.orgid = res.result.children[0].data._id;
+          this.nowOrgId = this.node.orgid;
+          this.nowOrgDone = this.nowOrgId;
+          if (this.$route.params && this.$route.params.ifsuccess) {
+            this.tohaveDone(0, 1, "", "", "");
+            return;
+          }
+          //获取当前组织的表格数据
+          this.getData(1, this.nowOrgId, 3);
+        })
+        .catch(err => {
+          this.loading = false;
+          this.loadingDone = false;
+          showError(err);
+        });
+    },
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok" && list.length) {
+        this.node.nodename = list[0].name;
+        this.node.nodeid = list[0].id;
+        this.node.orgid = list[0].data._id;
+        this.nowOrgId = this.node.orgid;
+        if (this.$route.params && this.$route.params.ifsuccess) {
+          this.tohaveDone(0, 1, "", "", "");
+          return;
+        }
+        //获取当前组织的表格数据
+        this.getData(1, this.nowOrgId, 3);
+      }
+    },
+    OrgModelShow() {
+      this.orgVisible = true;
+    },
+    resetRange() {
+      if (!this.node.nodename && this.node.nodeid) {
+        this.node.nodeid = "";
+      }
+    },
+    start_time(val) {
+      if (val) {
+        this.starttime = moment(val);
+      } else {
+        this.starttime = "";
+        if (this.starttime == "" && this.overtime == "") {
+          this.nowState == 9
+            ? this.tohaveDone(0, 1, this.nowAudit)
+            : this.getDataDone(
+                1,
+                this.nowOrgDone,
+                this.nowState,
+                this.nowAudit
+              );
+        }
+      }
+      if (this.starttime && this.overtime) {
+        let startDate = this.starttime.format("YYYY-MM-DD");
+        let endDate = this.overtime.format("YYYY-MM-DD");
+        this.nowState == 9
+          ? this.tohaveDone(0, 1, this.nowAudit, startDate, endDate)
+          : this.getDataDone(
+              1,
+              this.nowOrgDone,
+              this.nowState,
+              this.nowAudit,
+              startDate,
+              endDate
+            );
+      }
+    },
+    over_time(val) {
+      if (val) {
+        this.overtime = moment(val);
+      } else {
+        this.overtime = "";
+        if (this.starttime == "" && this.overtime == "") {
+          this.nowState == 9
+            ? this.tohaveDone(0, 1, this.nowAudit)
+            : this.getDataDone(
+                1,
+                this.nowOrgDone,
+                this.nowState,
+                this.nowAudit
+              );
+        }
+      }
+
+      if (this.starttime && this.overtime) {
+        let startDate = this.starttime.format("YYYY-MM-DD");
+        let endDate = this.overtime.format("YYYY-MM-DD");
+        this.nowState == 9
+          ? this.tohaveDone(0, 1, this.nowAudit, startDate, endDate)
+          : this.getDataDone(
+              1,
+              this.nowOrgDone,
+              this.nowState,
+              this.nowAudit,
+              startDate,
+              endDate
+            );
+      }
+    },
+    getData(pagenum, orgid, status) {
+      //待办ajax
+      let that = this;
+      this.loading = true;
+      let data = {
+        status: [status],
+        orgid: orgid,
+        needtotal: true,
+        pagenum: pagenum,
+        pagesize: 10
+      };
+      process(data)
+        .then(function(res) {
+          if (res.result.rows.length == 0) {
+            that.datasource = [];
+            that.pagination = {
+              pageSize: 0,
+              current: 0,
+              total: 0
+            };
+            that.loading = false;
+            return;
+          }
+          for (let i = 0; i < res.result.rows.length; i++) {
+            res.result.rows[i].key = i + 1;
+          }
+          that.loading = false;
+          //总条数
+          if (res.result.total < 1) {
+            that.datasource = [];
+            return;
+          }
+          //待办
+          if (status == 3) {
+            that.datasource = res.result.rows;
+            that.paginationDone = {
+              total: res.result.total,
+              showTotal: function(total, range) {
+                return `总共：${total}条`;
+              }
+            };
+          } else {
+            that.datasourceDone = res.result.rows;
+          }
+        })
+        .catch(err => {
+          that.loading = false;
+          that.datasource = [];
+          that.pagination = {
+            pageSize: 0,
+            current: 0,
+            total: 0
+          };
+          showError(err);
+          return;
+        });
+    },
+    getDataDone(pagenum, status, auditDept, startDate, endDate) {
+      let that = this;
+      this.loadingDone = true;
+      let data = {
+        startDate: startDate,
+        endDate: endDate,
+        auditDept: auditDept,
+        status: [status],
+        orgid: this.nowOrgDone,
+        needtotal: true,
+        pagenum: pagenum,
+        pagesize: 10
+      };
+      process(data)
+        .then(function(res) {
+          if (res.result.rows.length == 0) {
+            that.datasourceDone = [];
+            that.loadingDone = false;
+            return;
+          }
+          for (let i = 0; i < res.result.rows.length; i++) {
+            res.result.rows[i].key = `1-${i + 1}`;
+          }
+          that.loadingDone = false;
+          //总条数
+          that.pagination.total = res.result.total;
+          //待办
+          that.datasourceDone = res.result.rows;
+        })
+        .catch(err => {
+          that.loadingDone = false;
+          showError(err);
+          return;
+        });
+    },
+    changeState(val) {
+      this.nowState = val;
+      let starttime = this.starttime ? this.starttime.format("YYYY-MM-DD") : "";
+      let overtime = this.overtime ? this.overtime.format("YYYY-MM-DD") : "";
+      this.nowState == 9
+        ? this.tohaveDone(0, 1, this.nowAudit, starttime, overtime)
+        : this.getDataDone(1, val, this.nowAudit, starttime, overtime);
+    },
+    //限制时间的选择
+    notAllowFnStart(current) {
+      if (this.overtime) {
+        return current && current > this.overtime;
+      }
+    },
+    notAllowFnOver(current) {
+      if (this.starttime) {
+        return current && current < this.starttime;
+      }
+    },
+    //根据 audit 获取数据
+    changeAudit(val) {
+      let value = val == "allaudit" ? "" : val;
+      this.nowAudit = value;
+      let starttime = this.starttime ? this.starttime.format("YYYY-MM-DD") : "";
+      let overtime = this.overtime ? this.overtime.format("YYYY-MM-DD") : "";
+      this.nowState == 9
+        ? this.tohaveDone(0, 1, this.nowAudit, starttime, overtime)
+        : this.getDataDone(
+            1,
+            this.nowState,
+            this.nowAudit,
+            starttime,
+            overtime
+          );
+    },
+    closeIdeaModal() {
+      this.ifshowIdea = false;
+    },
+    //查看内容
+    showInner(record) {
+      this.$router.push({
+        name: "doneDetailunit",
+        params: { record: record }
+      });
+    },
+    //查看审批意见
+    showIdea(record) {
+      this.ifshowIdea = true;
+      this.IdeaData = record;
+    },
+    //待办
+    towaitDo() {
+      this.waitDo = true;
+      this.haveDone = false;
+    },
+    //已办
+    tohaveDone(e, pagenum, auditdept, startDate, endDate) {
+      let pagenumTrue = pagenum ? pagenum : 1;
+      this.loadingDone = true;
+      let that = this;
+      //全部的数据
+      let totalArr = [];
+      let data = {
+        startDate: startDate,
+        endDate: endDate,
+        auditdept: auditdept,
+        status: [1, 2],
+        orgid: that.nowOrgDone,
+        needtotal: true,
+        pagenum: pagenumTrue,
+        pagesize: 10
+      };
+      process(data)
+        .then(function(res) {
+          for (let i = 0; i < res.result.rows.length; i++) {
+            res.result.rows[i].key = `1-${i + 1}`;
+          }
+          //待办
+          totalArr = res.result.rows;
+          that.datasourceDone = totalArr;
+          that.paginationDone.total = res.result.total;
+          that.waitDo = false;
+          that.haveDone = true;
+          that.loadingDone = false;
+        })
+        .catch(err => {
+          that.waitDo = false;
+          that.haveDone = true;
+          that.loadingDone = false;
+          showError(err);
+        });
+    },
+    changePagination(pagination) {
+      //点击分页的回调  待办
+      this.pagination.current = pagination.current;
+      this.getData(this.pagination.current, this.nowOrgId, 3);
+    },
+    //已办 分页
+    changePaginationDone(pagination) {
+      let starttime = this.starttime ? this.starttime.format("YYYY-MM-DD") : "";
+      let overtime = this.overtime ? this.overtime.format("YYYY-MM-DD") : "";
+
+      if (this.nowState == 9) {
+        this.paginationDone.current = pagination.current;
+        this.tohaveDone(
+          this.paginationDone.current,
+          this.nowAudit,
+          starttime,
+          overtime
+        );
+      } else {
+        this.paginationDone.current = pagination.current;
+        this.getDataDone(
+          this.paginationDone.current,
+          this.nowOrgId,
+          this.nowState,
+          this.nowAudit,
+          starttime,
+          overtime
+        );
+      }
+    },
+    change(record) {
+      //本地存储 id  和 date
+      this.$store.commit("changeApprovalUnitNowRecord", record);
+      this.$router.push({
+        name: "changeunit",
+        params: { record: record }
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.SalarypaymentApprovalUnit {
+  height: 100%;
+  .ant-layout {
+    height: 100%;
+  }
+  .content {
+    padding: 12px;
+  }
+  .content > div {
+    background-color: white;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    padding: 12px 24px;
+    padding-top: 0;
+  }
+
+  .tip {
+    overflow: hidden;
+  }
+  .tip .spanBtn {
+    display: inline-block;
+    height: 19px;
+    border-right: 1px solid grey;
+    line-height: 19px;
+    margin-top: 12px;
+    float: left;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 10px;
+  }
+  .tip .spanBtnRight {
+    border: none;
+  }
+  .active {
+    color: @primary-color;
+  }
+  .search {
+    height: 50px;
+    width: 100%;
+    display: flex;
+    flex-direction: row-reverse;
+  }
+  .operateBtn {
+    display: inline-block;
+    cursor: pointer;
+    color: @primary-color;
+  }
+  .tableCls {
+    height: 80vh;
+    overflow-y: auto;
+  }
+}
+</style>

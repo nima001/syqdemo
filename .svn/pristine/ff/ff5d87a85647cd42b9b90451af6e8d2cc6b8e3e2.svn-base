@@ -1,0 +1,226 @@
+<template>
+  <div :class="['doc-enter',{'EmptyData': !fileList.length}]">
+    <a-spin :spinning="spinning" class="spin">
+      <div class="spin-content">
+        <ul class="newList">
+          <li v-for="item in fileList" :key="item.id" @click="openDetail(item)">
+            <div class="type" v-if="item.type == 1">【台账文件】</div>
+            <div class="type" v-if="item.type == 2">【综合文件】</div>
+            <div class="type" v-if="item.type == 3">【法律文件】</div>
+            <div class="type" v-if="item.type == 4">【编外文件】</div>
+            <div class="detail" :title="item.title">{{item.title}}</div>
+            <div class="num">（{{item.num}}）</div>
+            <div class="holder"></div>
+            <div class="date">{{item.dispatchdate}}</div>
+          </li>
+        </ul>
+        <empty-data class="file-list-nodata" v-if="fileList&&fileList.length == 0"/>
+      </div>
+    </a-spin>
+    <a-modal
+      class="doc-detail"
+      title="文件详情"
+      :width="550"
+      v-model="visible"
+      :bodyStyle="{padding: '8px 24px'}"
+    >
+      <div class="int">
+        <span class="title">发文字号：</span>
+        <span class="detail">{{showdetail.num}}</span>
+      </div>
+      <div class="int">
+        <span class="title">文件标题：</span>
+        <span class="detail" :title="showdetail.title">{{showdetail.title}}</span>
+        <a @click="downloadFile(showdetail.fileuri)">下载</a>
+      </div>
+      <div class="int">
+        <span class="title">发文时间：</span>
+        <span class="detail">{{showdetail.dispatchdate}}</span>
+      </div>
+      <div class="int">
+        <span class="title">文件来源：</span>
+        <span class="detail">{{showdetail.type == 1 ? '上级文件':'本级文件'}}</span>
+      </div>
+      <div class="int">
+        <span class="title">文件类型：</span>
+        <span
+          class="detail"
+        >{{showdetail.type == 1 ? '台账文件':showdetail.type == 2 ?'综合文件':showdetail.type == 3 ?'法律文件':showdetail.type == 4 ? '编外文件':'测试文件'}}</span>
+      </div>
+      <div class="int">
+        <span class="title">相关单位：</span>
+        <div>
+          <div class="orgname" v-for="ele in showdetail.orgs" :key="ele.orgid">{{ele.orgname}}</div>
+        </div>
+      </div>
+      <div class="int">
+        <span class="title">关键字：</span>
+        <div>
+          <span v-for="(kw,index) in showdetail.keywords" :key="index">
+            <span v-if="index != 0">、</span>
+            {{kw}}
+          </span>
+        </div>
+      </div>
+      <template slot="footer">
+        <a-button type="primary" @click="visible = false">关闭</a-button>
+      </template>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Modal, Button, Card,Spin } from "ant-design-vue";
+import EmptyData from "@/framework/components/EmptyData";
+import { docQuery, getdoc } from "../api/document";
+import { download } from "@/framework/api/file";
+import { showError } from "@/framework/utils/index";
+export default {
+  //index首页实现改变高度加载数据，需要新增的方法
+  props:{
+    //数据条数
+    rowcount:{
+      type: Number
+    },
+  },
+  data() {
+    return {spinning: false,
+      fileList: [],
+      visible: false,
+      showdetail: {},
+    };
+  },
+  components: {ASpin: Spin,
+    ACard: Card,
+    AModal: Modal,
+    AButton: Button,
+    EmptyData,
+  },
+  //index首页实现改变高度加载数据，需要新增的方法
+  watch:{
+    rowcount(val){
+      this.loadData();
+      return val;
+    },
+  },
+  created() {
+    this.loadData();
+  },
+  methods: {
+    downloadFile(uri) {
+      if (uri) {
+        download(uri);
+      }
+    },
+    openDetail(item) {
+      this.visible = true;
+      this.showdetail = {};
+      getdoc(item.id)
+        .then(({ result }) => {
+          this.showdetail = result;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    loadData() {
+      this.spinning = true;
+      docQuery({
+        pagenum: 1,
+        pagesize: this.rowcount,//index首页实现改变高度加载数据，需要新增的代码
+        type: 1,
+        statusIn: [1], //查询已入库文件
+        orders: [{ orderby: "dispatchdate", ordertype: "DESC" }],
+      })
+        .then(({ result }) => {
+          this.spinning = false;
+          this.fileList = result.rows;
+        })
+        .catch((err) => {this.spinning = false;
+          showError(err);
+        });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.doc-enter {
+  padding: 10px 20px;
+  overflow: hidden;
+  border: none;
+  // height: 28px * 9 + 20;//fsh注释，防止高度写死
+  /deep/.spin {
+    height: 100%;
+    .ant-spin-container,.spin-content{
+      height: 100%;
+    }
+    ul.newList {
+      padding: 0;
+      margin-bottom: 0;//新增
+      li {
+        height: 28px;
+        display: flex;
+        list-style: none;
+        line-height: 28px;
+        cursor: pointer;
+        &:hover {
+          background: @primary-1;
+        }
+        .type {
+          flex: none;
+        }
+        .detail {
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+        .num {
+          flex: none;
+        }
+        .holder {
+          flex: auto;
+        }
+        .date {
+          flex: none;
+          text-indent: 10px;
+        }
+      }
+    }
+    .file-list-nodata {
+      height: 100%;
+    }
+  }
+}
+.doc-detail {
+  .int {
+    display: flex;
+    font-size: 14px;
+    padding: 5px 0;
+    .orgname {
+      margin-bottom: 8px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .title {
+      width: 5em;
+      flex: none;
+    }
+    .detail {
+      width: 70%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+.EmptyData{
+  height: 272px;
+  min-height: 132px;
+}
+.list-enter-active, .list-leave-active { 
+  transition: all .2s; 
+} 
+.list-enter, .list-leave-to { 
+  opacity: 0; 
+}
+</style>

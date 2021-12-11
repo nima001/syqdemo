@@ -1,0 +1,251 @@
+<template>
+  <a-modal title="应用信息" :visible="true" @ok="closeModal" @cancel="closeModal" width="900px" okText="确定"> 
+    <div class="form">
+      <a-form class="app-form" :form="form" layout="horizontal">
+        <a-row :gutter="24">
+          <a-col :span="20">
+            <a-row :gutter="24">
+              <a-col :span="8">
+                <a-form-item label="姓名">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['username', {initialValue:AppData.data && AppData.data.username}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="登录名">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['loginname', {initialValue:AppData.data && AppData.data.loginname}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="手机号">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['mobilephone', {initialValue:AppData.data && AppData.data.mobilephone}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="16">
+                <a-form-item label="身份证号">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['idcard', {initialValue:AppData.data && AppData.data.idcard}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="邮箱">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['email', {initialValue:AppData.data && AppData.data.email}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="应用全称">
+                  <a-input :read-only="true" v-decorator="['name', {initialValue:AppData.name}]"></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="PC端应用地址：">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['pcAddress',{initialValue:AppData.pcAddress}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="移动端应用地址：">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['mobileAddress',{initialValue:AppData.mobileAddress}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="接入单位">
+                  <a-input :read-only="true" v-decorator="['unit',{initialValue:AppData.unit}]"></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="接入单位联系人">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['unitContact',{initialValue:AppData.unitContact}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="接入单位联系方式">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['unitPhone',{initialValue:AppData.unitPhone}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </a-col>
+          <a-col :span="4">
+            <a-form-item label="应用图标:">
+              <a-upload
+                :disabled="true"
+                v-decorator="['icon']"
+                list-type="picture-card"
+                :show-upload-list="false"
+              >
+                <div class="iconCell">
+                  <img :src="url" />
+                </div>
+              </a-upload>
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-row>
+          <a-col :span="20">
+            <a-row :gutter="24">
+              <a-col :span="8">
+                <a-form-item label="开发公司">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['devCompany',{initialValue:AppData.devCompany}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="开发公司联系人">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['devCompanyContact',{initialValue:AppData.devCompanyContact}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="开发公司联系方式">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['devCompanyPhone',{initialValue:AppData.devCompanyPhone}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="Host地址：">
+                  <a-input :read-only="true" v-decorator="['hostAddress']"></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="运维联系人">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['operationContact',{initialValue:AppData.operationContact}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span="8">
+                <a-form-item label="运维联系方式">
+                  <a-input
+                    :read-only="true"
+                    v-decorator="['operationPhone',{initialValue:AppData.operationPhone}]"
+                  ></a-input>
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </a-col>
+        </a-row>
+        <a-row :gutter="24">
+          <a-col :span="24">
+            <a-form-item label="应用简介">
+              <a-textarea
+                :rows="4"
+                :auto-size="{ minRows: 4, maxRows: 4 }"
+                :maxLength="200"
+                :read-only="true"
+                v-decorator="['desc',{initialValue:AppData.desc}]"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
+    </div>
+  </a-modal>
+</template>
+<script>
+import { Form, Input, Upload, Icon, Modal, Row, Col } from "ant-design-vue";
+import { appInfo } from "@/dev/api/app";
+import { showError } from "@/framework/utils/index";
+import { downloadV2 } from "@/framework/api/file";
+export default {
+  data() {
+    return {
+      form: this.$form.createForm(this),
+      AppData: {}
+    };
+  },
+  props: {
+    value: {
+      type: Boolean,
+      required: true
+    },
+    receiveCode: {
+      required: true
+    }
+  },
+  components: {
+    AForm: Form,
+    ARow: Row,
+    ACol: Col,
+    AFormItem: Form.Item,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    AUpload: Upload,
+    AIcon: Icon,
+    AModal: Modal
+  },
+  mounted() {
+    this.getAppInfo();
+  },
+  computed: {
+    url() {
+      return downloadV2(this.AppData.icon);
+    }
+  },
+  methods: {
+    closeModal() {
+      this.$emit("input", false);
+    },
+    getAppInfo() {
+      appInfo(this.receiveCode)
+        .then(res => {
+          this.$message.success("获取应用信息成功");
+          this.AppData = res.result;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.form {
+  width: 100%;
+  height: 100%;
+  /deep/ .ant-form-item {
+    margin-bottom: 12px;
+    .ant-form-item-label {
+      line-height: 26px;
+    }
+  }
+  /deep/ .iconCell {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    img {
+      max-width: 100%;
+    }
+  }
+}
+</style>

@@ -1,0 +1,171 @@
+<template>
+  <div>
+    <div
+      class="add-business"
+    >
+      <a-icon
+        type="plus-circle"
+        theme="filled"
+        class="add"
+        @click="showModal"
+      />
+      <div>添加</div>
+    </div>
+    <a-modal v-model="visible" title="添加常用业务" on-ok="handleOk">
+      <template slot="footer">
+        <a-button key="back" @click="handleCancel"> 取消 </a-button>
+        <a-button
+          key="submit"
+          type="primary"
+          :loading="loading"
+          @click="handleOk"
+        >
+          确定
+        </a-button>
+      </template>
+      <a-tree
+        checkable
+        showIcon
+        :tree-data="menutree"
+        :default-expanded-keys="[3]"
+        v-model="checkedId"
+        :selectable="false"
+        :style="{ height: '380px', overflow: 'auto' }"
+        @check="oncheck"
+      >
+        <template slot="icon" slot-scope="data">
+          <img
+            :src="downloadUrl(data.icon)"
+          />
+        </template>
+      </a-tree>
+    </a-modal>
+  </div>
+</template>
+<script>
+import {Icon, Button, Modal, Tree } from "ant-design-vue";
+import { showError } from "../../utils/index";
+import { downloadUrl } from '../../api/file'
+import { updateStarMenu, } from "@/framework/api/menu";
+
+export default {
+  name: "AddBusiness",
+  model:{
+  prop:'menuList',
+  event:'change'
+  },
+   props:['menuList'],
+  components: {
+    AIcon: Icon,
+    AButton: Button,
+    AModal: Modal,
+    ATree: Tree,
+  },
+  data() {
+    return {
+      loading: false,
+      visible: false,
+      checkedId: [],
+      firstCheckedId: [],
+    };
+  },
+  computed: {
+    menutree() {
+      return this.replaceFields(this.$store.getters.menuList);
+    },
+  },
+  methods: {
+    downloadUrl,
+    replaceFields(list) {
+      return (list || []).map((item) => {
+        return {
+          children: this.replaceFields(item.children),
+          title: item.name,
+          key: item.id,
+          name: item.name,
+          id: item.id,
+          scopedSlots: {
+            icon: "icon",
+          },
+        };
+      });
+    },
+    showModal() {
+      this.visible = true;
+      this.checkedId=this.menuList.map(item=>item.id)
+      this.firstCheckedId = [...this.checkedId];
+    },
+    getCheckedList(value) {
+      let seletedNoder = [];
+      this.checkedId.forEach((item) => {
+        function checkedMenu(obj) {
+          for (const key in obj) {
+            if (obj[key].id == item) {
+              seletedNoder.push(obj[key]);
+            }
+            if (typeof obj[key] == "object") {
+              checkedMenu(obj[key]);
+            }
+          }
+        }
+        checkedMenu(value);
+      });
+
+      return seletedNoder;
+    },
+    handleOk(e) {
+      this.loading = true;
+      if (
+        this.checkedId.sort().toString() ==
+        this.firstCheckedId.sort().toString()
+      ) {
+        this.visible = false;
+        this.loading = false;
+      } else {
+        const ids = this.checkedId;
+        updateStarMenu(ids)
+          .then(() => {
+            this.$emit('checkedList',this.getCheckedList(this.menutree))
+            this.visible = false;
+            this.loading = false;
+          })
+          .catch((err) => {
+            this.loading = false;
+            showError(err);
+          });
+      }
+    },
+    handleCancel() {
+      this.visible = false;
+    },
+    oncheck(checkedKeys) {
+      let fatherNodeId = [3, 12, 20, 33];
+      fatherNodeId.forEach((item) => {
+        if (this.checkedId.indexOf(item) != -1) {
+          checkedKeys.splice(this.checkedId.indexOf(item), 1);
+        }
+      });
+      this.checkedId = checkedKeys;
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+.add-business {
+    height: 105px;
+    width: 115px;
+    position: relative;
+    /deep/.add {
+      font-size: 50px;
+      color: rgb(230, 230, 230);
+      position: absolute;
+      left: 50%;
+      top: 15px;
+      margin-left: -25px;
+    }
+    div {
+      text-align: center;
+      padding-top: 70px;
+    }
+  }
+</style>

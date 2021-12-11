@@ -1,0 +1,209 @@
+<template>
+  <div class="wrap">
+    <p class="title">超编、超职机构数监测</p>
+    <div class="content">
+      <swiper-ant :size="3" :slideSyle="slideSyle">
+        <template slot="swiper0">
+          <div class="cell">
+            <div class="cellItem">
+              <p>行政编制超编机构数</p>
+              <div @click="showOrgList('行政编制超编机构列表', 1, 'bz')" class="num">
+                <lcd-font :length="4" :realNumber="result['行政编制超编机构数']" :realStyle="realStyle"/>
+              </div>
+            </div>
+            <div class="cellItem">
+              <p>事业编制超编机构数</p>
+              <div @click="showOrgList('事业编制超编机构列表', 0, 'bz')" class="num">
+                <lcd-font :length="4" :realNumber="result['事业编制超编机构数']" :realStyle="realStyle"/>
+              </div>
+            </div>
+            <div class="cellItem">
+              <p>行政领导超职机构数</p>
+              <div @click="showOrgList('行政领导超职机构列表', 1, 'ld')" class="num">
+                <lcd-font :length="4" :realNumber="result['行政领导超职机构数']" :realStyle="realStyle"/>
+              </div>
+            </div>
+            <div class="cellItem">
+              <p>事业领导超职机构数</p>
+              <div @click="showOrgList('事业领导超职机构列表', 0, 'ld')" class="num">
+                <lcd-font :length="4" :realNumber="result['事业领导超职机构数']" :realStyle="realStyle"/>
+              </div> 
+            </div>
+          </div>
+        </template>
+        <template slot="swiper1">
+          <div class="cell">
+            <div class="cellItem">
+              <p>行政中层领导超职</p>
+              <div @click="showOrgList('行政中层领导超职机构列表', 1, 'zcld')" class="num">
+                <lcd-font :length="4" :realNumber="result['行政中层领导超职机构数']" :realStyle="realStyle"/>
+              </div>
+            </div>
+            <div class="cellItem">
+              <p>事业中层领导超职</p>
+              <div  @click="showOrgList('事业中层领导超职机构列表', 0, 'zcld')" class="num">
+                <lcd-font :length="4" :realNumber="result['事业中层领导超职机构数']" :realStyle="realStyle"/>
+              </div>
+            </div>
+            <div class="cellItem">
+              <p>行政领导配置异常</p>
+              <div  @click="showOrgList('行政领导配置异常机构列表', 1, 'ldyc')" class="num">
+                <lcd-font :length="4" :realNumber="result['行政领导配置异常机构数']" :realStyle="realStyle"/>
+              </div>
+            </div>
+            <div class="cellItem">
+              <p>事业领导配置异常</p>
+              <div  @click="showOrgList('事业领导配置异常机构列表', 0, 'ldyc')" class="num">
+                <lcd-font :length="4" :realNumber="result['事业领导配置异常机构数']" :realStyle="realStyle"/>
+              </div>
+            </div>
+          </div>
+        </template>
+        <template slot="swiper2">
+          <div class="cell">
+            <div class="cellItem">
+              <p>行政中层配置异常</p>
+              <div @click="showOrgList('行政中层领导配置异常机构列表', 1, 'zcldyc')" class="num">
+                <lcd-font :length="4" :realNumber="result['行政中层领导配置异常机构数']" :realStyle="realStyle"/>
+              </div>
+            </div>
+            <div class="cellItem">
+              <p>事业中层配置异常</p>
+              <div @click="showOrgList('事业中层领导配置异常机构列表', 0, 'zcldyc')" class="num">
+                <lcd-font :length="4" :realNumber="result['事业中层领导配置异常机构数']" :realStyle="realStyle"/>
+              </div>
+            </div>
+          </div>
+        </template>
+      </swiper-ant>
+    </div>
+    <org-list v-model="orgList.show" :title="orgList.title" :params="orgList.params"/>
+  </div>
+</template>
+
+<script>
+import SwiperAnt from "../components/SwiperAnt";
+import { sliceArr } from "@/person-shaoxing/utils/index";
+import MonitotItem from "./MonitotItem";
+import { orgCountErrortReport } from "@/person-shaoxing/api/orgStaffReport";
+import { mixins } from "../components/minxin";
+import { showError } from "@/framework/utils/index";
+import LcdFont from "../components/LcdFont";
+import OrgList from '../components/OrgList'
+
+export default {
+  components: {
+    SwiperAnt,
+    MonitotItem,
+    LcdFont,
+    OrgList
+  },
+  data() {
+    return {
+      realStyle: {
+        color: "#FFD3A3",
+        textStroke: "1 #ECA066"
+      },
+      pretBtn:{
+
+      },
+      slideSyle: {
+        padding: "0px"
+      },
+      result: {},
+      orgList: {
+        show: false,
+        title: '',
+        params: {}
+      }
+    };
+  },
+  mixins: [mixins],
+  watch: {
+    dictId(v) {
+      this.orgCount();
+    }
+  },
+  mounted() {
+    this.orgCount();
+  },
+  methods: {
+    orgCount() {
+      orgCountErrortReport(this.dictId)
+        .then(res => {
+          this.result = res.result;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    showOrgList(title, xz, type){
+      this.orgList = {
+        show: true,
+        title,
+        params: {
+          district: this.dictId,
+          cktype: -1,
+          type, xz
+        }
+      }
+    },
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  background: url("../img/short-line.png") center bottom no-repeat;
+  padding-bottom: 35px;
+  .title {
+    height: 26px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.8;
+    margin: 0px;
+  }
+  .content {
+    height: 248px;
+    .cell {
+      height: 100%;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      line-height: initial;
+      height: 100%;
+      padding: 0px 16px;
+      .cellItem {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        .lcdfont{
+          cursor: pointer;
+        }
+        &:nth-child(3) {
+          margin-top: 30px;
+        }
+        &:nth-child(4) {
+          margin-top: 30px;
+        }
+        p {
+          height: 22px;
+          font-size: 16px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 22px;
+          color: #ffffff;
+          opacity: 0.8;
+          margin-bottom: 10px;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          overflow: hidden;
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,137 @@
+<template>
+  <a-modal :visible="true" :footer="null" width="998px" @cancel="cancel">
+    <p class="title">{{user.username}}的离岗详情</p>
+    <div class="total">
+      <span>离岗合计：</span>
+      <span class="num">{{pagination.total}}次</span>
+    </div>
+    <div class="content">
+      <div class="table">
+        <a-table rowKey="dutytime" :loading="loading"  :columns="columns" :data-source="dataSource"  :pagination="false"></a-table>
+      </div>
+      <div class="pagination">
+        <a-pagination show-size-changer :total="pagination.total" :page-size="pagination.pagesize"
+         :default-current="pagination.pagenum" :show-total="(total) => `共 ${total} 条`" 
+         @change="onChange" @showSizeChange="onShowSizeChange">
+        </a-pagination>
+      </div>
+    </div>
+  </a-modal>
+</template>
+
+<script>
+import { Modal, Table, Pagination } from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+import {quitlist} from "@/hall/api/quit";
+import { showError } from "@/framework/utils/index";
+export default {
+  components: {
+    AModal: Modal,
+    ATable: Table,
+    APagination: Pagination
+  },
+  data() {
+    return {
+      loading: false,
+      dataSource: [],
+      columns: [
+        {
+          title: "离岗开始时间",
+          dataIndex: "starttime",
+          width: "33.3%",
+          align: "center"
+        },
+        {
+          title: "离岗结束时间",
+          dataIndex: "endtime",
+          width: "33.3%",
+          align: "center"
+        },
+        {
+          title: "离岗时长(小时)",
+          dataIndex: "duration",
+          width: "33.3%",
+          align: "center"
+        }
+      ],
+      pagination: {
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+        needtotal: true
+      }
+    };
+  },
+  props:{
+    user:{
+      type:Object,
+      required:true
+    }
+  },
+  mounted(){
+    this.getData();
+  },
+  methods: {
+    getData() {
+      this.loading = true;
+      let {userid,nodeid} = this.user;
+      let query = {
+        userid,
+        nodeid,
+        ...this.pagination
+      };
+      quitlist(query)
+        .then(({result:{ pagesize, pagenum, total, rows=[]}}) => {
+          assign(this.pagination, { pagesize, pagenum, total });
+          this.dataSource = rows;
+        })
+        .catch(err => {
+          showError(err);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    },
+    cancel() {
+      this.$emit("input", false);
+    },
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagenum: 1, pagesize });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.title {
+  font-size: 18px;
+  color: @black;
+  font-weight: bold;
+  text-align: center;
+  margin: 0px;
+  padding: @content-padding-v 0px;
+}
+.total {
+  padding: @content-padding-v 0px;
+  display: flex;
+  .num {
+    color: @primary-color;
+  }
+}
+.content {
+  max-height: 600px;
+  display: flex;
+  flex-direction: column;
+  .table {
+    flex-shrink: 1;
+    overflow-y: auto;
+    padding: @content-padding-v 0px;
+  }
+  .pagination {
+    text-align: right;
+    padding: @content-padding-v 0px;
+  }
+}
+</style>

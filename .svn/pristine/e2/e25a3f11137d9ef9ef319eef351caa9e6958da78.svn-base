@@ -1,0 +1,26 @@
+import request from '@/framework/utils/request'
+
+//获取查询模板列表
+export function queryList(data) {
+    return request({
+        url: '/person/evaluate/query/template',
+        method: 'post',
+        data
+    })
+}
+//新增模板
+export function addTemplate(data) {
+    return request({
+        url: '/person/evaluate/insert/template',
+        method: 'post',
+        data
+    })
+}
+//修改模板列表
+export function updataTemplate(data) {
+    return request({
+        url: '/person/evaluate/updata/template',
+        method: 'post',
+        data
+    })
+}

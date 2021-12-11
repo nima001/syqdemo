@@ -1,0 +1,289 @@
+<template>
+  <div class="server-catalog">
+    <div class="choose-panel">
+      <div class="header">
+        <div class="search-bar">
+          <a-input placeholder="输入关键词搜索" v-model="searchkey" @change="onSearch" @pressEnter="onSearch">
+            <a-icon slot="suffix" :type="searchkey ? 'close-circle' : 'search'" @click="clearSearch" />
+          </a-input>
+        </div>
+      </div>
+      <div class="body">
+        <div class="choose-data">
+          <div class="data-list">
+            <a-tree
+              v-model="selectedKeys"
+              :checkable="true"
+              :checkStrictly="true"
+              :tree-data="treeData"
+              :replace-fields="replaceFields"
+              :load-data="onLoadData"
+              @check="onCheck"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="selected-panel">
+      <div class="header">
+        <div class="select-desc">
+          <span class="tag">已选{{selectList.length}}</span>
+          <span class="desc"></span>
+        </div>
+        <a class="select-clear" @click="onClearAll">
+          <a-icon type="delete"></a-icon>
+          清空
+        </a>
+      </div>
+      <div class="body">
+        <div class="selected-data">
+          <ul class="list" v-if="selectList.length">
+            <li v-for="(item, index) in selectList" :key="index">
+              <a-icon type="unordered-list" class="icon"></a-icon>
+              <span class="text">{{item.catalog}}</span>
+              <a-icon type="delete" class="delete" @click="onDeleteItem(item)"></a-icon>
+            </li>
+          </ul>
+          <empty-data v-else tips="`请选择"/>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="left">
+
+      </div>
+      <div class="right">
+        <a-button>取消</a-button>
+        <a-button type="primary">确认</a-button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Breadcrumb, Button, Checkbox, Icon, Spin, Input, Tree } from "ant-design-vue"
+import EmptyData from "@framework/components/EmptyData";
+import { policyServerCatalog } from "@/person-shaoxing/api/assessment";
+import { showError } from '../../../../../framework/utils';
+export default {
+  props: {},
+  components: {
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    AInput: Input,
+    ACheckbox: Checkbox ,
+    AButton: Button,
+    ASpin: Spin,
+    AIcon: Icon,
+    ATree: Tree,
+    EmptyData
+  },
+  data() {
+    return {
+      searchkey: undefined,
+      loading: false,
+      dataList: [],
+      selectList: [],
+
+      treeData: [],
+      autoExpandParent: true,
+      selectedKeys: {},
+      replaceFields: {
+        title: 'catalog'
+      }
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    //  首次搜索 pid = 0   type = 1
+    this.getData(0, this.searchkey, 1);
+  },
+  mounted() {},
+  methods: {
+    getData(pid, searchkey, type) {
+      policyServerCatalog(pid, searchkey, type)
+      .then(({result}) => {
+        result.forEach(item => {
+          item.isLeaf = false
+        })
+        this.treeData = [...result];
+        console.log(this.treeData);
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    onSearch() {
+
+    },
+    clearSearch() {
+
+    },
+    onCheck(selectedKeys, info) {
+      console.log(selectedKeys, 'key');
+      this.selectedKeys = selectedKeys;
+      let selectData = [];
+      if(info && info.checkedNodes.length > 0) {
+        let nodes = info.checkedNodes;
+        nodes.forEach(item => {
+          selectData.push(item.data.props.dataRef);
+        })
+      }else{
+        selectData = [];
+      }
+      this.selectList = [...selectData];
+      console.log(this.selectList);
+    },
+    onClearAll() {
+      this.selectedKeys = {};
+      this.selectList = [];
+    },
+    onDeleteItem(item) {
+      let index = this.selectList.findIndex(i => i.id = item.id);
+      this.selectList.splice(index, 1);
+      //  ToDo selectedkey对应清除
+      console.log(this.selectList, 'select');
+    },
+    onLoadData(treeNode) {
+      return new Promise(resolve => {
+        // console.log(treeNode.dataRef);
+        policyServerCatalog(treeNode.dataRef.id, undefined, 1)
+        .then(({result}) => {
+          // console.log(result);
+          if(result && result.length > 0) {
+            result.forEach(item => {
+              item.isLeaf = false;
+            })
+            treeNode.dataRef.children = result;
+          }else{
+            treeNode.dataRef.isLeaf = true;
+          }
+          this.treeData = [...this.treeData];
+          resolve();
+        })
+        .catch(err => {
+          showError(err);
+        })
+      })
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+@header-height: 58px;
+@footer-height: 60px;
+@base-padding: 34px;
+
+.server-catalog{
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  .header{
+    height: @header-height;
+    padding: 20px @base-padding 8px @base-padding;
+  }
+  .body{
+    height: 100%;
+    box-sizing: border-box;
+    margin-top: -@header-height;
+    padding-top: @header-height;
+    padding-bottom: @footer-height;
+  }
+
+  //左侧待选数据
+  & > .choose-panel{
+    flex: 1 1 50%;
+    min-width: 0;
+    .choose-data{
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      .data-list{
+        flex: 1 1 100%;
+        overflow: hidden;
+        padding: 6px 4px 0 20px;
+      }
+    }
+  }
+
+  //右侧已选列表
+  & > .selected-panel{
+    flex: 1 1 50%;
+    min-width: 0;
+    border-left: 1px solid @border-color-split;
+    .select-desc{
+      float: left;
+      line-height: 32px;
+      .tag{
+        line-height: 1.4em;
+        border-left: 4px solid @primary-color;
+        padding: 0 4px 0 6px;
+      }
+      .desc{
+        color: @primary-color;
+      }
+    }
+    .select-clear{
+      float: right;
+      line-height: 32px;
+      i{
+        margin-right: 6px;
+      }
+      &:hover{
+        color: lighten(@primary-color, 20%);
+      }
+    }
+    .selected-data{
+      height: 100%;
+      overflow-y: auto;
+      .list{
+        padding: 0 @base-padding - 4;
+        li{
+          padding: 8px 20px 8px 0;
+          position: relative;
+          .icon{
+            margin-right: 6px;
+          }
+          .delete{
+            position: absolute;
+            right: 0;
+            top: 50%;
+            margin-top: -0.5em;
+            margin-right: 3px;
+            color: @primary-color;
+            cursor: pointer;
+            &:hover{
+              color: @primary-color;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  //底部功能按钮
+  & > .footer{
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: @footer-height;
+    display: flex;
+    & > .left{
+      width: 50%;
+      line-height: @footer-height - 20;
+      padding: 10px @base-padding;
+    }
+    & > .right{
+      flex: 1 0 50%;
+      line-height: @footer-height - 20;
+      padding: 10px 20px;
+      text-align: right;
+      .ant-btn{
+        margin-left: 12px;
+      }
+    }
+  }
+}
+</style>

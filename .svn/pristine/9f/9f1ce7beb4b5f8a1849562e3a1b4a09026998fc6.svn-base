@@ -1,0 +1,250 @@
+<template>
+  <div>
+    <h2 v-if="settings.titleVisible" :style="{ textAlign: settings.titlePosition || 'center' }">{{ title }}</h2>
+    <h3 v-if="settings.subtitleVisible" :style="{ margin: 0, textAlign: settings.titlePosition || 'center' }">{{ subtitle }}</h3>
+    <div ref="chart"></div>
+  </div>
+</template>
+
+<script>
+import * as G2 from "@antv/g2";
+import BaseMixin from "./BaseMixin";
+import { get } from 'lodash';
+export default {
+  icon: 'chart-radar',
+  title: "雷达图",
+  name: "BarChart",
+  mixins: [BaseMixin],
+  watch: {
+    data: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true,
+    },
+    'settings': {
+      deep:true,
+      handler(val) {
+        this.draw(this.data);
+      }
+    },
+    colors: {
+      deep: true,
+      handler(val,old) {
+        if(val!=old) {
+          this.draw(this.data);
+        }
+      }
+    }
+  },
+  data() {
+    return {
+        // plot: undefined
+    };
+  },
+  computed: {
+    colors() {
+      if (this.settings.color&&(this.settings.color.length||typeof this.settings.color==='string')) {
+        if(typeof this.settings.color==='string') {
+          return this.settings.color.split(',');
+        }
+        return this.settings.color;
+      } else {
+        let colors = this.$store.getters.getConfig("chart.colors");
+        if (colors) {
+          try {
+            colors = JSON.parse(colors);
+            if (colors && colors.length) {
+              return colors;
+            }
+          } catch (err) {}
+        }
+      }
+      return ["#D15456", "#5488D1", "#EDBA55", "#D48265", "#91C7AE", "#749F83", "#BDA29A", "#6E7074", "#585470", "#706254"];
+    },
+  },
+  mounted() {
+    this.draw(this.data);
+  },
+  methods: {
+    changeColor() {
+      if(this.muitl){
+        //线
+        this.geometry.color("type", this.colors);
+      }else{
+        //线
+        this.geometry.color(this.colors[0]);
+      }
+    },
+    createData(dataTable) {
+      if (!dataTable) {
+        return;
+      }
+      let { keyCols, valueCols, rows } = this.transform(dataTable);
+      return rows.map(item => {
+        let key, type;
+        if(keyCols.length > 1){
+          let keys = keyCols.map(k => item[k.column]);
+          type = keys.pop();
+          key = keys.join("-")
+        }else{
+          key = item[keyCols[0].column]
+        }
+        return {
+          key, type,
+          value: item[valueCols[0].column] || 0
+        };
+      });
+    },
+    draw(dataTable) {
+        let data = this.createData(dataTable).filter((item)=>item.value!==0);
+        this.changeData = data;
+        if (!data) {
+          return false;
+        }
+        if (this.plot) {
+          this.plot.destroy();
+        }
+        const chart = new G2.Chart({
+          container: this.$refs.chart,
+          width: this.settings.width,
+          height: this.settings.height||500,
+          autoFit: (this.settings.width&&this.settings.height)?false:true,
+          appendPadding: this.settings.padding || [20, 0, 0, 0],
+        });
+        chart.data(data);
+        
+        chart.coordinate('polar', {
+          radius: 0.8,
+        });
+        chart.axis('key', {
+          line: null,
+          tickLine: null,
+          grid: {
+            line: {
+              style: {
+                lineDash: null,
+              },
+            },
+          },
+        });
+        chart.axis('value', {
+          line: null,
+          tickLine: null,
+          grid: {
+            line: {
+              style: {
+                lineDash: null,
+              },
+            },
+          },
+        });
+        //是否显示lebal
+        if(this.settings.label) {
+          chart.point().position("key*value").label("value", {
+            layout: [
+              { type: 'fixed-overlap' },
+            ]}
+          );
+        }else{
+          chart.point().position("key*value").label(false);//FIXME 值太多默认不显示
+        }
+        // 配置图例
+        chart.legend(false);
+        if(this.settings.legend) {
+          if(this.settings.legend.visible) {
+            chart.legend({
+              position: this.settings.legend.position,
+              flipPage: this.settings.legend.flipPage,
+              marker: {
+                symbol: this.settings.legend.marker
+              },
+            });
+          }
+        }
+        //滑块
+        if(this.settings.slider) {
+          chart.option('slider', {
+            backgroundStyle: {
+              fill: this.colors[0],
+            }
+          });
+        }
+        //提示
+        if(this.settings.tooltip) {
+          if(this.settings.tooltip.visible) {
+            chart.tooltip({
+              shared: true,
+              showCrosshairs: true,
+            })
+          }else{
+            chart.tooltip(false);
+          }
+        }
+        chart
+          .line()
+          .position('key*value')
+          .tooltip(false)
+          .color(this.muitl?'type':'key', this.colors)
+          .size(2);
+        chart
+          .point()
+          .position('key*value')
+          .tooltip(false)
+          .color(this.muitl?'type':'key', this.colors)
+          .shape('circle')
+          .size(4)
+          .style({
+              stroke: '#fff',
+              lineWidth: 1,
+              fillOpacity: 1,
+          });
+        chart
+          .area()
+          .position('key*value')
+          .color(this.muitl?'type':'key', this.colors)
+          .tooltip(false);
+        chart.render();
+        this.plot = chart;
+    },
+    colorRgba(sHex, alpha) {
+      // 十六进制颜色值的正则表达式
+      var reg = /^#([0-9a-fA-f]{3}|[0-9a-fA-f]{6})$/;
+      /* 16进制颜色转为RGB格式 */
+      let sColor = sHex;
+      if (sColor && reg.test(sColor)) {
+        if (sColor.length === 4) {
+          var sColorNew = "#";
+          for (let i = 1; i < 4; i += 1) {
+            sColorNew += sColor.slice(i, i + 1).concat(sColor.slice(i, i + 1));
+          }
+          sColor = sColorNew;
+        }
+        // 处理六位的颜色值
+        var sColorChange = [];
+        for (let i = 1; i < 7; i += 2) {
+          sColorChange.push(parseInt("0x" + sColor.slice(i, i + 2)));
+        }
+        // return sColorChange.join(',')
+        return "rgba(" + sColorChange.join(",") + "," + alpha + ")";
+      } else {
+        return sColor;
+      }
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.bar-chart {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

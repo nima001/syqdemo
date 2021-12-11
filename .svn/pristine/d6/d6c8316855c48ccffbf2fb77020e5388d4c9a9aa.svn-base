@@ -1,0 +1,113 @@
+<template>
+  <div>
+    <Title title="规则体系"/>
+    <div style="height:280px" class="container">
+      <cloud-carousel
+        v-if="categorys&&categorys.length"
+        class="city" 
+        :bringToFront="true" 
+        :farScale="0.75"
+        :yOrigin="50"
+        :initIndex="initIndex"
+        frontItemClass="front"
+        @changed="onChanged"
+      >
+        <div v-for="item in categorys" :key="item.value" class="item" @click="showModal(item)">{{item.text}}</div>
+      </cloud-carousel>
+    </div>
+    <RuleDetail v-model="show" :category="category" />
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+import RuleDetail from './RuleDetail';
+import CloudCarousel from '@framework/components/CloudCarousel';
+
+
+export default {
+  components: {
+    Title,
+    CloudCarousel,
+    RuleDetail
+  },
+  data() {
+    return {
+      show: false,
+      category: undefined,
+    }
+  },
+  computed: {
+    initIndex() {
+      return this.categorys[0].value;
+    },
+    categorys() {
+      return this.$store.getters.dict('person.sbb.problemcategory');
+    }
+  },
+  methods: {
+    showModal(item) {
+      this.category = item.value;
+    },
+    onChanged() {
+      this.show = true;
+    },
+  }
+}
+</script>
+
+<style lang="less" scoped>
+@keyframes bounce-down {
+  25% {
+    transform: translateY(-10px);
+  }
+  50%, 100% {
+    transform: translateY(0);
+  }
+  75% {
+    transform: translateY(10px);
+  }
+}
+
+.container {
+  background: url("../../../assets/img/screen/tags-bg.png") no-repeat;
+  background-position: 100%;
+  position: relative;
+  .diamond {
+    width: 72px;
+    height: 72px;
+    // background: url("../img/diamond.png");
+    position: absolute;
+    top: 90px;
+    left: 310px;
+    animation: bounce-down 1.5s linear infinite;
+  }
+  /deep/.city {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0px;
+    left: 0;
+    margin: 0px;
+    overflow: visible;
+    .item {
+      width: 215px;
+      height: 48px;
+      background: url("../../../assets/img/screen/tag-border.png") no-repeat;
+      background-size: 100% 100%;
+      font-size: 1em;
+      font-weight: bold;
+      line-height: 21px;
+      color: #01E3FC;
+      text-align: center;
+      line-height: 41px;
+      opacity: 0.6;
+      cursor: pointer;
+      &.front {
+       opacity: 1;
+       transform: scale(1.1);
+      }
+    }
+  }
+}
+</style>

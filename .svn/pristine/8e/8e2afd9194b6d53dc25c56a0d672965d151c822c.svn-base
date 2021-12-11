@@ -1,0 +1,116 @@
+<template>
+  <div class="wrap">
+    <div class="title">
+      <span></span>
+      <span>行政</span>
+      <span>事业</span>
+    </div>
+    <ul>
+      <li v-for="(item,index) in list" :key="index">
+        <span class="name">{{item.name}}</span>
+        <span class="v1">{{item.v1}}</span>
+        <span class="v2">{{item.v2}}</span>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+export default {
+  components: {},
+  data() {
+    return {};
+  },
+  props: {
+    unittype: {
+      type: Number,
+      required: true
+    }
+  },
+  computed: {
+    list() {
+      if (this.unittype == 1) {
+        return [
+          { name: "增设机构", v1: 633, v2: 625 },
+          { name: "核减机构", v1: 256, v2: 617 },
+          { name: "核增编制数", v1: 251, v2: 146 },
+          { name: "核减编制数", v1: 426, v2: 115 },
+          { name: "核增领导职数", v1: 214, v2: 163 },
+          { name: "核减领导职数", v1: 137, v2: 243 }
+        ];
+      } else {
+        return [
+          { name: "增设机构", v1: 22, v2: 56 },
+          { name: "核减机构", v1: 57, v2: 12 },
+          { name: "核增编制数", v1: 21, v2: 56 },
+          { name: "核减编制数", v1: 14, v2: 11 },
+          { name: "核增领导职数", v1: 21, v2: 14 },
+          { name: "核减领导职数", v1: 72, v2: 23 }
+        ];
+      }
+    }
+  },
+  watch: {
+    unittype: {
+      handler(v) {}
+    }
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .title {
+    border-bottom: 1px solid #d9d9d9;
+    padding: @padding-xs 0px;
+    display: flex;
+    justify-content: space-between;
+    span {
+      flex: 1;
+      color: #262626;
+      font-weight: 100;
+      text-align: center;
+      &:first-child {
+        min-width: 84px;
+        flex: 1;
+      }
+    }
+  }
+  ul {
+    flex: 1;
+    margin: 0px;
+    padding: 0px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    li {
+      display: flex;
+      justify-content: space-between;
+      padding: @padding-xs / 4 0px;
+      span {
+        &.name {
+          color: #666;
+          flex: 1;
+          min-width: 84px;
+        }
+        &.v1 {
+          text-align: center;
+          color: #d15456;
+          font-weight: bold;
+          flex: 1;
+        }
+        &.v2 {
+          text-align: center;
+          color: #5488d1;
+          font-weight: bold;
+          flex: 1;
+        }
+      }
+    }
+  }
+}
+</style>

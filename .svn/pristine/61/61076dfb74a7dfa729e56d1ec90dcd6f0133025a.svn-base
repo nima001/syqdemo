@@ -1,0 +1,193 @@
+import request from '@/framework/utils/request'
+
+/**
+ * 机构数统计
+ */
+export function orgCountReport(){
+  return request({
+    url: '/person/sx/orgstaffreport/orgcount',
+    method: 'get',
+  })
+}
+
+/**
+ * 编制数统计
+ * @param {Number} unittype 单位类型
+ * @param {String} district 区域编码
+ */
+export function orgStaffReport(unittype, district){
+  return request({
+    url: '/person/sx/orgstaffreport/staff',
+    method: 'get',
+    params: {
+      unittype, district
+    }
+  })
+}
+
+/**
+ * 单位编制数数查询
+ * @param {Object} data {unittype, district, systype, ckb, searchkey} 
+ */
+export function orgStaffQuery(data){
+  return request({
+    url: '/person/sx/orgstaffreport/staff/query',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 职数统计
+ * @param {Number} unittype 单位类型
+ * @param {String} district 区域编码
+ */
+export function orgPostReport(unittype, district){
+  return request({
+    url: '/person/sx/orgstaffreport/post',
+    method: 'get',
+    params: {
+      unittype, district
+    }
+  })
+}
+
+/**
+ * 职数配置错误统计
+ * @param {String} type 类型 zcld 中层领导
+ * @param {Number} unittype 单位类型
+ * @param {String} district 区域编码
+ */
+export function orgPostErrorReport(type, unittype, district){
+  return request({
+    url: '/person/sx/orgstaffreport/posterror',
+    method: 'get',
+    params: {
+      type, unittype, district
+    }
+  })
+}
+
+/**
+ * 单位职数查询
+ * @param {Object} data {unittype, district, systype, searchkey} 
+ */
+export function orgPostQuery(data){
+  return request({
+    url: '/person/sx/orgstaffreport/post/query',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 退休人数统计
+ * @param {Number} unittype 单位类型
+ * @param {String} district 区域编码
+ */
+export function orgRetireReport(unittype, district){
+  return request({
+    url: '/person/sx/orgstaffreport/retire',
+    method: 'get',
+    params: {
+      unittype, district
+    }
+  })
+}
+
+/**
+ * 区域近5年退休统计
+ */
+export function orgRetireChart(){
+  return request({
+    url: '/person/sx/orgstaffreport/retire/chart',
+    method: 'get',
+  })
+}
+
+
+/**
+ * 单位退休人数查询
+ * @param {Object} data {unittype, district, systype, searchkey} 
+ */
+export function orgRetireQuery(data){
+  return request({
+    url: '/person/sx/orgstaffreport/retire/query',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 周转编制数统计
+ * @param {Number} unittype 
+ */
+export function orgTempStaffReport(unittype, district){
+  //模拟数据
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      if(district){
+        resolve({
+          result: {
+            keyCols: [
+              {column: 'k0', showname: ''},
+            ],
+            valueCols: [
+              {column: 'v0', showname: '已使用周转编制数'},
+            ],
+            rows: [
+              { k0: '党委系统', v0: 11 },
+              { k0: '人大系统', v0: 32 },
+              { k0: '政府系统', v0: 14 },
+              { k0: '派出机构', v0: 14 },
+              { k0: '政协系统', v0: 12 },
+              { k0: '法院', v0: 1 },
+              { k0: '检察院', v0: 10 },
+              { k0: '民主党派系统', v0: 1 },
+              { k0: '群众团体', v0: 1 },
+              { k0: '经济实体', v0: 1 },
+              { k0: '其他系统', v0: 1 },
+              { k0: '街道办事处', v0: 10 },
+              { k0: '乡', v0: 17 },
+              { k0: '镇', v0: 27 },
+              { k0: '政法系统', v0: 7 },
+              { k0: '其他', v0: 12 },
+            ]
+          }
+        })
+      }else{
+        resolve({
+          result: {
+            keyCols: [
+              {column: 'k0', showname: '区域'},
+            ],
+            valueCols: [
+              {column: 'v0', showname: '周转池编制数'},
+              {column: 'v1', showname: '已使用周转编制数'},
+              {column: 'v2', showname: '剩余数'},
+              {column: 'v3', showname: '本年度将回收编制数'},
+            ],
+            rows: [
+              { k0: '市本级', v0: 111, v1: 22, v2: 23, v3: 43 },
+              { k0: '越城区', v0: 321, v1: 32, v2: 23, v3: 43 },
+              { k0: '柯桥区', v0: 141, v1: 12, v2: 23, v3: 43 },
+              { k0: '上虞区', v0: 141, v1: 12, v2: 23, v3: 43 },
+              { k0: '诸暨市', v0: 121, v1: 12, v2: 23, v3: 43 },
+              { k0: '嵊州市', v0: 111, v1: 12, v2: 23, v3: 43 },
+              { k0: '新昌县', v0: 101, v1: 62, v2: 23, v3: 43 },
+            ]
+          }
+        })
+      }
+    }, 400)
+  })
+  // return request({
+  //   url: '/person/sx/orgstaffreport/tempstaff',
+  //   method: 'get',
+  //   params: {
+  //     unittype, district
+  //   }
+  // })
+}
+
+

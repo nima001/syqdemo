@@ -1,0 +1,406 @@
+<template>
+  <div class="treeheader">
+    <!-- 机构职责 -->
+    <org-detail @watchDetails="watchDetails" :dutieslist="dutieslist" :childrenlist="childrenlist" :typearr="typearr" :orgtitle="orgtitle" :inputvalue="inputvalue"/>
+    <!-- 权力清单 -->
+    <div class="details-tree" v-if="qlsxlist">
+      <ul
+        v-for="(item, idex) in qlsxlist.qlxs"
+        v-show="qlsxlist.qlxs"
+        :key="idex"
+        :style="qlsxlist.qlxs ? 'width: 90.5%;min-height: 32px;' : ''"
+      >
+        <li class="li-quanliname">
+          <span class="pointer"></span><span class="desc">{{item.quanliname}}</span>
+        </li>
+      </ul>
+      <ul v-for="(item, idex) in qlsxchildlist" v-show="item" :key="idex">
+        <li class="li-quanliname" v-for="qlsxitem in item.qlxs" :key="qlsxitem.id" >
+          <span class="pointer"></span><span class="desc">{{qlsxitem.quanliname}}</span>
+        </li>
+      </ul>
+    </div>
+    <!-- 定岗定员定责 -->
+    <div class="details-tree" v-if="dingganglist">
+      <h4 style="margin-bottom: 10px; font-weight: 700">{{ dinggangtitle }}</h4>
+      <ul
+        v-for="(im, inex) in dingganglist.dingGdingYdingZ"
+        :key="inex"
+        :style="
+          dingganglist.dingGdingYdingZ ? '' : 'width: 90%;min-height: 32px;'
+        "
+        :class="dingganglist.dingGdingYdingZ ? 'tree-ul' : 'tree-ul-s tree-ul'"
+      >
+        <span class="tree-ul-li" style="font-weight: 700"
+          >【{{ im.deptname }}|{{ im.postname }}】</span
+        >
+        <li class="details-li">
+          <span class="duty" v-html="brightenKeyword(im.duty)"></span>
+          <div class="ul-a-button" style="float: right">
+            <a-button @click="dinggangwatch(im, dinggangtitle)"
+              >查看详情</a-button
+            >
+          </div>
+        </li>
+      </ul>
+      <ul
+        v-for="(a, anx) in dingganglist.children"
+        v-show="dingganglist.children"
+        :key="anx"
+        class="tree-ul"
+        style="margin-top: 10px; min-height: 32px"
+      >
+        <span class="tree-ul-li">{{ a.orgname }}</span>
+        <ul
+          v-for="(im, inex) in a.dingGdingYdingZ"
+          v-show="a.dingGdingYdingZ"
+          :key="inex"
+          style="margin-top: 10px"
+          class="tree-ul"
+        >
+          <span class="tree-ul-li" style="font-weight: 700"
+            >【{{ im.deptname }}|{{ im.postname }}】</span
+          >
+          <li class="details-li">
+            <span class="duty" v-html="brightenKeyword(im.duty)"></span>
+            <div class="ul-a-button" style="float: right">
+              <a-button @click="dinggangwatch(im, dinggangtitle)"
+                >查看详情</a-button
+              >
+            </div>
+          </li>
+        </ul>
+      </ul>
+    </div>
+    <a-modal
+      title="查看详情"
+      :visible="visible"
+      @cancel="close"
+      :footer="null"
+      v-if="detailsData"
+      width="800px"
+      :bodyStyle="{ padding: '15px', height: '500px', overflow: 'auto' }"
+    >
+      <div class="detailsmodal">
+        <div class="details-top">
+          <div>
+            <p class="detailspcss" :title="detailsData.documentVo.title">
+              <span>相关文件：</span>
+              {{ detailsData.documentVo.title }}
+            </p>
+            <span style="color: #c9c9c9">
+              <span style="margin-right: 20px">{{
+                detailsData.documentVo.num
+              }}</span>
+              <span>{{ detailsData.documentVo.dispatchdate }}</span>
+            </span>
+          </div>
+          <a-button @click="downloadFile(detailsData.documentVo.fileuri)"
+            >下载文件</a-button
+          >
+        </div>
+        <div>
+          <span
+            v-for="(e, enx) in typearr"
+            :key="enx"
+            v-show="detailsData.documentVo.type == e.value"
+            >{{ e.text }}:</span
+          >
+          <p
+            v-html="brightenAllKeyword(transformationContent(detailsData.content))"
+            style="line-height: 25px"
+          ></p>
+        </div>
+      </div>
+    </a-modal>
+    <!-- 定岗定员详情 -->
+    <a-modal
+      title="查看详情"
+      :visible="dinggangvisible"
+      @cancel="dinggangclose"
+      v-if="dinggangData"
+      :footer="null"
+      width="800px"
+      :bodyStyle="{ padding: '15px', height: '500px', overflow: 'auto' }"
+    >
+      <div class="detailsmodal">
+        <div class="details-top" style="margin-bottom: 5px">
+          <div>
+            <p class="detailspcss">{{ dinggangData.title }}</p>
+            <div style="color: #c9c9c9; padding-top: 5px">
+              {{ dinggangData.deptname }}|{{ dinggangData.postname }}
+            </div>
+          </div>
+        </div>
+        <div>
+          <p
+            v-html="brightenAllKeyword(transformationContent(dinggangData.duty))"
+            style="line-height: 25px; text-indent: 2em"
+          ></p>
+        </div>
+      </div>
+    </a-modal>
+  </div>
+</template>
+<script>
+import moment from "moment";
+import { Input, Icon, Button, Empty, Modal, Tooltip } from "ant-design-vue";
+import { getorgfuncdesc } from "@/person-shaoxing/api/analysis";
+import { download } from "@/framework/api/file";
+import  orgDetail  from "./orgDetail";
+export default {
+  name: "",
+  components: {
+    AIcon: Icon,
+    AButton: Button,
+    AModal: Modal,
+    ATooltip: Tooltip,
+    orgDetail,
+  },
+  props: [
+    "childrenlist",
+    "dutieslist",
+    "orgtitle",
+    "qlsxtitle",
+    "dingganglist",
+    "dinggangtitle",
+    "qlsxlist",
+    "qlsxchildlist",
+    "inputvalue",
+    "typearr",
+  ],
+  data() {
+    return {
+      visible: false,
+      detailsData: null,
+      dinggangData: null,
+      dinggangvisible: false,
+    };
+  },
+  methods: {
+    moment,
+     brightenAllKeyword(content) {
+      let inputvalue = this.inputvalue;
+      const Reg = new RegExp(inputvalue, "g");
+      let res = "";
+      res = content.replace(
+        Reg,
+        `<span style="color: #d60002;">${inputvalue}</span>`
+      );
+      return res;
+    },
+    //判断搜索记录是否包含某个关键字
+    brightenKeyword(content) {
+      // inputvalue为搜索框中的value
+      let inputvalue = this.inputvalue;
+      let index = content.indexOf(inputvalue);
+      if (content.length < 200) {
+        const Reg = new RegExp(inputvalue, "g");
+        let res = "";
+        res = content.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+        return res;
+      } else if (index < 20) {
+        let newtext = content.slice(index, index + 200);
+        let newcontent = `......${newtext}......`;
+        const Reg = new RegExp(inputvalue, "g");
+        let res = "";
+        res = newcontent.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+        return res;
+      } else {
+        let newtext = content.slice(index - 15, index + 185);
+        let newcontent = `......${newtext}......`;
+        const Reg = new RegExp(inputvalue, "g");
+        let res = "";
+        res = newcontent.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+        return res;
+      }
+    },
+    watchDetails(item) {
+      getorgfuncdesc(item.id).then((res) => {
+        this.detailsData = res.result;
+      });
+      this.visible = true;
+    },
+    dinggangwatch(item, title) {
+      this.dinggangData = {
+        ...item,
+        title: title,
+      };
+      this.dinggangvisible = true;
+    },
+    close() {
+      this.visible = false;
+    },
+    dinggangclose() {
+      this.dinggangvisible = false;
+    },
+    transformationContent(content) {
+      //原始字符串
+      let string = content;
+      //替换所有的换行符
+      string = string.replace(/\r\n/g, "<br>");
+      string = string.replace(/\n/g, "<br>");
+      string = string.replace(/(\r\n)|(\n)/g, "<br>");
+      //替换所有的空格（中文空格、英文空格都会被替换）
+      string = string.replace(/\s/g, " ");
+      //输出转换后的字符串
+      return string;
+    },
+    //下载文件
+    downloadFile(fileuri) {
+      if (fileuri) {
+        download(fileuri);
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.treeheader {
+  .details-tree {
+    ul {
+      margin-bottom: 0;
+      li.li-quanliname {
+        margin-bottom: 14px;
+        padding-left: 10px;
+        position: relative;
+        .pointer {
+          display: inline-block;
+          position: absolute;
+          top: 9px;
+          left: 0;
+          width: 5px;
+          height: 5px;
+          border-radius: 100%;
+          background: #7F7F7F;
+        }
+        .desc {
+          display: inline-block;
+          text-align: justify;
+        }
+      }
+    }
+    .tree-ul {
+      margin-left: 30px;
+      margin-bottom: 14px;
+      border-left: 1px dashed @primary-color;
+      .titlecolor {
+        color: @primary-color;
+      }
+      .tree-ul-s {
+        min-height: 32px;
+        width: 90%;
+        border-left: 1px dashed @primary-color;
+        margin: 10px 0px 0px 30px;
+        .tree-ul-a {
+          margin-left: @layout-space-base;
+          width: 85%;
+          display: inline-flex;
+          .audiot_style {
+            color: rgba(0, 0, 0, 0.5);
+          }
+        }
+        .ul-a-button {
+          float: right;
+          // margin: auto;
+        }
+      }
+      // 竖线
+      .tree-ul-li {
+        position: relative;
+        padding-left: 18px; // 缩进量
+        //   border-left: 1px dashed @primary-color;
+        .ul-a-button {
+          float: right;
+          // margin: auto;
+        }
+      }
+      .duty {
+        // width: 91%;
+        width: 87%;
+        margin-left: 60px;
+        color: rgba(0, 0, 0, 0.5);
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      // 竖线
+      .tree-ul-li::before {
+        content: "";
+        height: 100%;
+        width: 1px;
+        position: absolute;
+        left: -1px;
+        top: -12px;
+        border-width: 1px;
+        border-left: 1px dashed @primary-color;
+      }
+      // 当前层最后一个节点的竖线高度固定
+      .tree-ul-li:last-child::before {
+        height: 38px; // 可以自己调节到合适数值
+      }
+      // 横线
+      .tree-ul-li::after {
+        content: "";
+        // width: 24px;
+        width: 16px;
+        height: 20px;
+        position: absolute;
+        left: 0px;
+        top: 10px;
+        border-width: 1px;
+        border-top: 1px dashed @primary-color;
+      }
+      //去掉最下面的虚线
+      &:last-child {
+        border-left: 1px dashed white;
+      }
+      .tree-ul-s {
+        &:last-child {
+          border-left: 1px dashed white;
+        }
+      }
+      .details-li {
+        height: 32px;
+        width: 91.7%;
+        display: flex;
+        justify-content: space-between;
+      }
+      @media screen and(max-width:1440px) {
+        .details-li {
+          width: 92.6%;
+        }
+      }
+    }
+  }
+}
+.detailsmodal {
+  .details-top {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: @layout-space-base;
+    .detailspcss {
+      font-weight: 700;
+      font-size: 1.14em;
+      width: 600px;
+      overflow: hidden;
+      margin: 0;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    p {
+      margin-bottom: 0;
+    }
+  }
+}
+</style>

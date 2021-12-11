@@ -1,0 +1,48 @@
+<template>
+  <div class="business">
+    <div class="container">
+      <div class="item" v-for="(item, index) in list" :key="index">
+        {{item.name}}
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {},
+  components: {},
+  data() {
+    return {
+      list: [
+        { name: '数组分析平台' },
+        { name: '后台管理' },
+        { name: '业务系统1' },
+        { name: '业务系统2' },
+      ]
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.business{
+  .container{
+    display: flex;
+    padding-left: 15px;
+    .item{
+      width: 115px;
+      height: 115px;
+      line-height: 115px;
+      margin: 5px;
+      text-align: center;
+      background-color: #f3f4f5;
+      cursor: pointer;
+    }
+  }
+}
+</style>

@@ -1,0 +1,455 @@
+<template>
+  <div class="chartlist">
+    <div class="header">
+      <qlsxselect
+        :codes.sync="codes"
+        :qlsxOptions.sync="qlsxOptions"
+        :type="'skip'"
+        style="width: 25%"
+      />
+    </div>
+    <div class="content">
+      <div class="chartcontent left">
+        <div class="top-chart">
+          <div class="chart1 chart">
+            <chartconsole
+              :loading="loading_one"
+              :chartType="'StackBarChart'"
+              :setting="{ 'color': ['#BDF33F','#76C722'] }"
+              :queryData.sync="queryData.qlsxdistribution"
+              @districtGroup="districtGroup"
+            >
+              <template slot="detail" v-if="queryData.qlsxdistribution">
+                <div class="header">
+                  <span class="detail">
+                    <h2 class="title"><img src="../../../assets/img/icon_responsibility_title.png"/><span title="地区分布">地区分布</span></h2>
+                    <span @click="toDetail(1)"><a-icon type="file-text" /> <span class="text">查看详情</span></span>
+                  </span>
+                </div>
+              </template>
+            </chartconsole>
+          </div>
+          <div class="chart2 chart">
+            <chartconsole
+              :loading="loading_two"
+              :chartType="'PersonalBarChart'"
+              :setting="{ 'type': 'column', color: '#6279FD' }"
+              :queryData.sync="queryData.qlsxdistrictsame"
+            >
+              <template slot="detail" v-if="queryData.qlsxdistrictsame">
+                <div class="header">
+                  <span class="detail">
+                    <h2 class="title"><img src="../../../assets/img/icon_responsibility_title.png"/><span title="绍兴市共性、个性事项分布情况">绍兴市共性、个性事项分布情况</span></h2>
+                    <span @click="toDetail(4)"><a-icon type="file-text" /> <span class="text">查看详情</span></span>
+                  </span>
+                  <ul class="desc">
+                    <li>共性事项数 <span style="color: #6279FD">{{ this.generalitynum }}</span></li>
+                    <li>个性事项数 <span style="color: #6279FD">{{ this.personalitynum }}</span></li>
+                  </ul>
+                </div>
+              </template>
+            </chartconsole>
+          </div>
+        </div>
+        <div class="bottom-chart">
+          <div class="chart3 chart">
+            <chartconsole
+              :loading="loading_three"
+              :chartType="'line-chart'"
+              :queryData.sync="queryData.qlsxtransform"
+              @qlsxdateLine="qlsxdateLine"
+            >
+              <template slot="detail" v-if="queryData.qlsxtransform">
+                <div class="header">
+                  <span class="detail">
+                    <h2 class="title"><img src="../../../assets/img/icon_responsibility_title.png"/><span title="绍兴市权力事项变化趋势(总量)">绍兴市权力事项变化趋势(总量)</span></h2>
+                    <span @click="toDetail(3)"><a-icon type="file-text" /> <span class="text">查看详情</span></span>
+                  </span>
+                  <ul class="screen">
+                    <li
+                      v-for="item in screen"
+                      :key="item.value"
+                      @click="Active(item)"
+                      :class="{ active: checkActive(item) }"
+                    >
+                      {{ item.text }}
+                    </li>
+                  </ul>
+                </div>
+              </template>
+            </chartconsole>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Icon } from "ant-design-vue";
+import chartconsole from "./components/chartconsole";
+import qlsxselect from "./components/qlsxselect";
+import { assign, cloneDeep, orderBy } from "lodash";
+import { showError } from "@/framework/utils";
+import {
+  districtgroup,
+  qlsxdistrict,
+  qlsxline,
+  qlsxlinetable,
+  qlsxdateline,
+  qlsxsearchorg,
+  qlsxsearchcode,
+  districtsame,
+  qlsxpersonal,
+} from "@/person-shaoxing/api/assessment";
+import { validateCom } from "@/framework/api/menu";
+import dict from "@/framework/store/modules/dict";
+export default {
+  components: {
+    AIcon: Icon,
+    chartconsole,
+    qlsxselect,
+  },
+  data() {
+    return {
+      check: 4,
+      personcheck: 1,
+      codes: [],
+      valihaspermit: false, //组件权限
+      qlsxOptions: [],
+      loading_one: true,
+      loading_two: true,
+      loading_three: true,
+      monthlength: 6,
+      generalitynum: 0, //共性事项数： 7
+      personalitynum: 0, //个性事项数： 1，2，3，4，5，6
+      setting: { title: undefined },
+      screen: [
+        { text: "年度", value: 1 , monthlength: 2 },
+        { text: "季度", value: 3 , monthlength: 4},
+        { text: "月度", value: 4 , monthlength: 6 },
+      ],
+      queryData: {
+        qlsxdistribution: undefined, //绍兴市权力事项区划分布情况
+        qlsxtransform: undefined, //绍兴市权力事项变化趋势(总量)
+        qlsxdistrictsame: undefined, //绍兴市共性权力事项分布情况
+      },
+    };
+  },
+  computed: {
+    dict() {
+      return this.$store.getters.dict("person.business.businesstype");
+    },
+  },
+  watch: {
+    check(val) {
+      this.queryData.qlsxtransform = undefined;
+      this.qlsxdateLine();
+      return val;
+    },
+    personcheck(val) {
+      this.queryData.qlsxpersonal = undefined;
+      this.qlsxPersonal();
+      return val;
+    },
+    dict(val) {
+      return val;
+    },
+  },
+  async created() {
+    await this.valiDateCom();
+    if (!this.valihaspermit) {
+      this.$router.replace({ name: "details", params: { active: "issue", codes: this.codes } });
+    }
+  },
+  mounted() {
+    this.districtGroup();
+    this.qlsxdateLine();
+    this.districtSame();
+  },
+  methods: {
+    //验证组件是否有权限
+    async valiDateCom() {
+      await validateCom("/person/qlsx/chart")
+        .then(({ result }) => {
+          this.valihaspermit = result;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    Active(item) {
+      this.check = item.value;
+      this.monthlength = item.monthlength;
+    },
+    personActive(item) {
+      this.personcheck = item.value;
+    },
+    checkActive(item) {
+      return this.check === item.value;
+    },
+    checkPersonActive(item) {
+      return this.personcheck === item.value;
+    },
+    toDetail(val) {
+      let active = undefined;
+      if (val === 1 || val === 2) {
+        active = { active: "history" };
+      } else if (val === 3) {
+        active = { active: "transformation", checked: this.check };
+      } else if (val === 4) {
+        active = { active: "issue", codes: this.codes };
+      }
+      this.$router.push({ name: "details", params: { ...active } });
+    },
+    initData(showname) {
+      let initquerydata = {
+        data: {
+          keyCols: [{ column: "k0", key: "strict", showname: showname }],
+          valueCols: [{ column: "v0", showname: "事项数" }],
+          rows: [],
+        },
+      };
+      return initquerydata;
+    },
+    districtGroup() {
+      this.loading_one = true;
+      districtgroup().then(({result})=>{
+        this.queryData.qlsxdistribution = {
+          data: {
+            keyCols: [
+              {
+                column: "k0",
+                key: "usermanage.org.district"
+              }
+            ],
+            rows: [
+              {
+                k0: "330600",
+                v0: 12865,
+                v1: 6866,
+                v2: 5999
+              },
+              {
+                k0: "330602",
+                v0: 6971,
+                v1: 3900,
+                v2: 3071
+              },
+              {
+                k0: "330604",
+                v0: 11276,
+                v1: 5924,
+                v2: 5352
+              },
+              {
+                k0: "330603",
+                v0: 11589,
+                v1: 5815,
+                v2: 5774
+              },
+              {
+                k0: "330681",
+                v0: 12469,
+                v1: 6603,
+                v2: 5866
+              },
+              {
+                k0: "330683",
+                v0: 11327,
+                v1: 5745,
+                v2: 5582
+              },
+              {
+                k0: "330624",
+                v0: 11132,
+                v1: 5709,
+                v2: 5423
+              }
+            ],
+            valueCols: [
+              {
+                column: "v0",
+                key: "总数"
+              },
+              {
+                column: "v1",
+                key: "政务服务"
+              },
+              {
+                column: "v2",
+                key: "执法监管"
+              }
+            ]
+          }
+      };
+      }).catch((err)=>{
+        showError(err);
+      }).finally(()=>{
+        this.loading_one =false;
+      })
+    },
+    getDate() {
+      let myDate = new Date();
+      var tYear = myDate.getFullYear();
+      var tMonth = myDate.getMonth();
+      return `${tYear}-${tMonth + 1}-1`;
+    },
+    loadQuarter(check,date) {
+      let result = undefined;
+      if (check === 1) {
+        //年度
+        let year = date.split("-")[0];
+        result = `${year}年度`;
+      } else if (check === 3) {
+        //季度
+        let month = date.split("-")[1];
+        if (month < 4) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第1季度`;
+        }
+        if (3 < month && month < 7) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第2季度`;
+        }
+        if (6 < month && month < 10) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第3季度`;
+        }
+        if (month > 9) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第4季度`;
+        }
+      } else {
+        //月度
+        let month = date.split("-")[1];
+        result = `${date.split("-")[0].substr(-2, 2)}年${month}月`;
+      }
+      return result;
+    },
+    qlsxdateLine() {
+      let data = {
+        type: 1,
+        monthlength: this.monthlength,
+        dateStep: this.check,
+        startDate: this.getDate(),
+        orgid: "41e21453acc24719bd3f9faaadfb5e68",
+      };
+      this.loading_three = true;
+      qlsxdateline(data)
+        .then((res) => {
+          this.loading_three = false;
+          if (res.result) {
+            this.queryData.qlsxtransform = cloneDeep(this.initData("时间"));
+            orderBy(res.result.rows[0].data, ["date"], ["asc"]).forEach((item) => {
+              this.queryData.qlsxtransform.data.rows.push({
+                k0: this.loadQuarter(this.check,item.date),
+                v0: item.total,
+              });
+            });
+          } else {
+            this.queryData.qlsxtransform = undefined;
+          }
+        })
+        .catch((err) => {
+          this.loading_three = false;
+          showError(err);
+        });
+    },
+    districtSame() {
+      this.loading_two = true;
+      this.generalitynum = 0;
+      this.personalitynum = 0;
+      districtsame()
+        .then((res) => {
+          this.loading_two = false;
+          if (res.result) {
+            this.queryData.qlsxdistrictsame = cloneDeep(this.initData("共性事项数"));
+            for (let item in res.result) {
+              if (item === "7") {
+                this.generalitynum = res.result[item];
+              } else {
+                this.personalitynum += parseInt(res.result[item]);
+              }
+              this.queryData.qlsxdistrictsame.data.rows.push({
+                k0: item,
+                v0: res.result[item],
+              });
+            }
+          } else {
+            this.queryData.qlsxdistrictsame = undefined;
+          }
+        })
+        .catch((err) => {
+          this.loading_two = false;
+          showError(err);
+        });
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+.chartlist {
+  height: auto;
+  padding: @layout-space-base;
+  display: flex;
+  flex-direction: column;
+  .header {
+    height: 70px;
+    margin-bottom: 10px;
+    padding: @padding-xs @padding-lg;
+    background-color: #ffffff;
+    .detail{
+      .title {
+        display: flex;
+        align-items: center;
+        font-size: 1.5em;
+        font-weight: bold;
+        color: @primary-color;
+        overflow: hidden;
+        img {
+          margin-right: 10px;
+        }
+        span {
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+      span {
+        white-space: nowrap;
+      }
+    }
+  }
+  & > .content {
+    display: flex;
+    & .chartcontent {
+      height: 100%;
+      .top-chart {
+        margin-bottom: 10px;
+      }
+      .top-chart,.bottom-chart {
+        display: flex;
+        .chart {
+          min-height: 465px;
+          background: white;
+        }
+        .chart1 {
+          width: 50%;
+          margin-right: 10px;
+        }
+        .chart2 {
+          flex: 1;
+          width: 0;
+        }
+        .chart3 {
+          width: 100%;
+        }
+        .chart{
+          padding: 10px;
+        }
+      }
+    }
+    .left {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+  }
+}
+</style>

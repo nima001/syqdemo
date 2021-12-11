@@ -1,0 +1,65 @@
+import { connect, mapProps } from '@formily/vue'
+import DictSelect from '@framework/components/DictSelect'
+import ChangeDict from './ChangeDict'
+import DictList from './DictList'
+
+
+const Select = connect(
+  DictSelect,
+  mapProps(
+    // { dataSource: 'dict' },
+    (props, field) => {
+      return {
+        allowClear: !field.required,
+      }
+    }
+  ),
+)
+
+export default Select;
+
+export const Meta = {
+  name: 'DictSelect',
+  type: 'widget',
+  title: '下拉选择',
+  icon: 'dict',
+  component: Select,
+  initialSchema: () => {
+    return {
+      type: 'string',
+      title: "下拉选择",
+      'x-decorator': 'FieldDecorator',
+      'x-component': 'DictSelect',
+    }
+  },
+  props: {
+    placeholder: {
+      type: 'string',
+      title: '提示信息'
+    },
+    multiple: {
+      type: 'boolean',
+      title: '多选'
+    },
+    dict: {
+      type: ChangeDict,
+      title: '选项',
+      content: DictList
+    },
+    showSearch: {
+      type: 'boolean',
+      title: '显示搜索',
+      attrs: {
+        defaultValue: true,
+      }
+    },
+    showGroup: {
+      type: 'boolean',
+      title: '显示分组',
+      attrs: {
+        defaultValue: true,
+      }
+    }
+  }
+};
+

@@ -1,0 +1,185 @@
+<template>
+  <div class="content">
+    <div class="addAndSearch">
+      <div>
+        <a-button type="primary" @click="add()">新增</a-button>
+      </div>
+      <div>
+        <a-input-search placeholder="输入名称搜索" enter-button="搜索" @search="onSearch" />
+      </div>
+    </div>
+    <div class="table">
+      <a-table
+        :pagination="false"
+        :columns="columns"
+        :data-source="data"
+        :rowKey="row=>row.id"
+        :scroll="{ y: 500 }"
+      >
+        <span slot="action" slot-scope="text, record" class="action">
+          <a href="javascript:;" @click.prevent="edit(record.id)">编辑</a>
+          <a-popconfirm title="Sure to delete?" @confirm="() => onDelete(record.id)">
+            <a href="javascript:;">删除</a>
+          </a-popconfirm>
+        </span>
+      </a-table>
+      <a-modal v-model="visible" title="新增/编辑" @ok="handleOk">
+        <a-form :form="form" :label-col="{ span: 5 }" :wrapper-col="{ span: 12 }">
+          <a-form-item label="名称">
+            <a-input v-decorator="['name', { rules: [{ required: true, message: '请输入节点名称!' }] }]" />
+          </a-form-item>
+          <a-form-item label="类型">
+            <a-select
+              placeholder="请选择类型"
+              v-decorator="[
+                'datatype',
+                { rules: [{ required: true, message: '请选择类型!' }] },
+              ]"
+              @change="changeDatatype"
+            >
+              <a-select-option
+                v-for="(item,index) in datatype"
+                :value="Number(index)+1"
+                :key="index"
+              >{{item}}</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </div>
+  </div>
+</template>
+<script>
+import {
+  Button,
+  InputSearch,
+  Table,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Popconfirm,
+} from "ant-design-vue";
+const columns = [
+  {
+    title: "名称",
+    dataIndex: "name",
+    align: "center",
+    width: "5%",
+  },
+  {
+    title: "参数类型",
+    dataIndex: "datatype",
+    align: "center",
+    width: "60%",
+    customRender(datatype) {
+      return datatype == 1
+        ? "对象"
+        : datatype == 2
+        ? "字典"
+        : datatype == 3
+        ? "引用"
+        : datatype == "4"
+        ? "输入"
+        : ""; //数字转文字
+    },
+  },
+  {
+    title: "操作",
+    dataIndex: "action",
+    align: "center",
+    scopedSlots: { customRender: "action" },
+  },
+];
+const datatype = ["对象", "字典", "引用", "输入"];
+export default {
+  components: {
+    AButton: Button,
+    ATable: Table,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInputSearch: Input.Search,
+    APopconfirm: Popconfirm,
+  },
+  props: {
+    data: {
+      type: Array,
+    },
+  },
+  data() {
+    return {
+      columns,
+      visible: false,
+      datatype,
+      id: 0,
+      datatypeselect: 1,
+      form: this.$form.createForm(this, { name: "scopeForm" }),
+    };
+  },
+  methods: {
+    //新增按钮点击事件
+    add() {
+      this.showModal();
+    },
+    onDelete(id) {
+      this.$emit("delete", id); //通知父组件改变
+    },
+    //查询
+    onSearch(value) {
+      this.$emit("search", value);
+    },
+    //编辑按钮点击事件
+    edit(id) {
+      this.id = id;
+      this.showModal();
+    },
+    showModal() {
+      this.visible = true;
+    },
+    changeDatatype(value) {
+      this.datatypeselect = value;
+      console.log(this.datatypeselect);
+    },
+    //确定
+    handleOk(e) {
+      e.preventDefault();
+      //验证输入
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          this.$emit("save", {
+            id: this.id,
+            name: values.name,
+            datatype: this.datatypeselect,
+          });
+          //重置所有组件
+          this.form.resetFields();
+          this.visible = false;
+        }
+      });
+    },
+  },
+};
+</script>
+
+<style lang="less" scoped>
+.content {
+  height: 100%;
+  padding: @layout-space-base;
+  background-color: @white;
+  .addAndSearch {
+    display: flex;
+    justify-content: space-between;
+    margin: 12px;
+  }
+  .action {
+    & a:not(:nth-child(4)) {
+      margin-right: 15px;
+      color: @primary-color;
+    }
+  }
+}
+</style>

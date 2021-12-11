@@ -1,0 +1,119 @@
+<template>
+  <div class="org-info">
+    <div class="main-form">
+      <form-display :formConfig="formConfig" :formData="formData" :editor="editor" ref="formDisplay" v-if="show">
+        <org-info-table :orgid="org._id" category="staff" name="编制信息"></org-info-table>
+        <org-info-table :orgid="org._id" category="post" name="职数信息"></org-info-table>
+      </form-display>
+    </div>
+  </div>
+</template>
+<script>
+import FormDisplay from "@/formdesign/views/FormDisplay";
+import { showError } from "@/framework/utils/index";
+import { organization, getEditableProps } from "@/person/api/org";
+import { modelForm } from "@/person/api/user";
+import cloneDeep from "lodash/cloneDeep";
+import OrgInfoTable from './OrgInfoTable';
+export default {
+  components: {
+    FormDisplay,
+    OrgInfoTable
+  },
+  props: {
+    org: {
+      type: Object
+    }
+  },
+  data() {
+    return {
+      // 表单配置
+      formConfig: [],
+      // 表单初始化数据
+      formData: cloneDeep(this.org),
+      // 表单可编辑
+      editor: true   
+    };
+  },
+  computed:{
+    show(){
+      return this.formConfig.length ==0 ? false:true;
+    }
+  },  
+  watch: {
+    org: {
+      handler(v) {
+        this.formData = v;
+        this.renderForm()
+      },
+      deep: true
+    }
+  },
+  created() {
+    this.renderForm();
+  },
+  methods: {
+    /** 
+     * fn1  : 获取表单数据
+     * Fn2  : 获取可编辑的字段
+    */
+    renderForm(){
+      let config = undefined
+      if(!this.org._id){
+        return false;
+      }
+      Promise.all([modelForm("organization", this.org._id),getEditableProps('organization')]).then(res=>{
+        if(res[0]['code'] == "success" && res[1]['code'] == "success"){
+          config = res[0]['code'];
+          let configArr = JSON.parse(res[0]['result']).list;
+          let editCode = res[1]['result'];
+          this.formatData(configArr,editCode);
+          this.formConfig = configArr;
+        }
+      }).catch(err=>{
+        if(config!= "success"){
+          this.formConfig = []
+        }
+        showError(err)
+      });
+    },
+    // 判断表单字段是否可编辑
+    formatData(formConfig,codeArr){
+      (formConfig || []).forEach(c=>{
+        if(c.children){
+          c.children.forEach(ele => this.formatData(ele.components,codeArr))
+        }else{
+          let disabled = c.disabled;
+          let unittype = this.org['unittype'];
+          if((unittype >= 1 && unittype <= 5) || (unittype >= 20 && unittype <= 21)){
+            let disabled = undefined;
+            if(codeArr.includes(c.code)){
+              disabled =  false;
+              if(c.disabled){
+                disabled = true;
+              }else{
+                disabled = false;
+              }
+            }else{
+              disabled = true;
+            }
+            c.disabled = disabled;
+          }
+        }
+      })
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.org-info {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .main-form {
+    flex: 1 1 100%;
+    min-height: 0;
+    margin: @content-padding-v 0;
+  }
+}
+</style>

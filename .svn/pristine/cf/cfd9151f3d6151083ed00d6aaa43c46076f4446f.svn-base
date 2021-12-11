@@ -1,0 +1,289 @@
+<template>
+  <accordion-layout :resizeable="false">
+    <div slot="nav" class="nav-panel">
+      <div class="title">对比单位<a @click="orgSelectVisible=true"><a-icon type="plus"/></a></div>
+      <draggable class="list orgs"
+        v-model="orgList" 
+        handle='.sort-handle'
+        :animation="200"
+        ghost-class="ghost"
+        tag="ul"
+      >
+        <transition-group>
+          <li v-for="(item, index) in orgList" :key="item._id" :title="item.name">
+            <a-icon type="bars" class="sort-handle"/>
+            {{item.name}}
+            <a class="remove" @click="orgList.splice(index, 1)"><a-icon type="delete"/></a>
+          </li>
+        </transition-group>
+      </draggable>
+      <div class="title">对比属性<a @click="propSelectVisible=true"><a-icon type="plus"/></a></div>
+      <draggable class="list props"
+        v-model="propList" 
+        handle='.sort-handle'
+        :animation="200"
+        ghost-class="ghost"
+        tag="ul"
+      >
+        <transition-group>
+          <li v-for="(item, index) in propList" :key="item.key" :title="item.showname">
+            <a-icon type="bars" class="sort-handle"/>
+            {{item.showname}}
+            <a class="remove" @click="propList.splice(index, 1)"><a-icon type="delete"/></a>
+          </li>
+        </transition-group>
+      </draggable>
+      <div class="footer">
+        <a-button type="primary" style="width:100%" @click="onCompare">确定</a-button>
+      </div>
+      <a-modal title="选择单位" v-model="orgSelectVisible" :footer="null"
+        :width="800" :bodyStyle="{ height: '600px', padding: '0'}">
+        <org-user-select mode="org" :max-select="10" :selected="orgList" @finish="onOrgSelected"/>
+      </a-modal>
+      <a-modal title="选择属性" v-model="propSelectVisible" :footer="null" :destroyOnClose="true"
+        :width="800" :bodyStyle="{ height: '600px', padding: '0'}">
+        <select-field :targetid="target.id" :multi="true" :default-selected="propList" @finish="onPropSelected"/>
+      </a-modal>
+    </div>
+    <div class="content-panel">
+      <div class="header">
+        <a-button type="primary" @click='onExport'>导出</a-button>
+        <task-progress :taskid="exportTaskid" defaultInfo="正在导出" @finish="onProgressFinish" />
+      </div>
+      <div class="body">
+        <a-table tableLayout="fixed"
+          :loading="loading"
+          :columns="columns"
+          :dataSource="tableData"
+          :pagination="false"
+        />
+      </div>
+    </div>
+  </accordion-layout>
+</template>
+<script>
+import { Spin, Button, Icon, Modal, Table } from 'ant-design-vue'
+import draggable from "vuedraggable";
+import AccordionLayout from '@framework/components/AccordionLayout'
+import OrgUserSelect from '@person/components/OrgUserSelect'
+import SelectField from '@person/views/integratedquery/components/SelectField'
+import { query } from "@/person/api/integratedquery";
+import { exportExcel } from "@/person-shaoxing/api/analysis";
+import { showError } from "@/framework/utils/index";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import TaskProgress from "@/framework/components/TaskProgress";
+
+/**
+ * 组织信息比较
+ * @author sunwen
+ */
+export default {
+  components:{
+    AIcon: Icon,
+    AButton: Button,
+    AModal: Modal,
+    ATable: Table,
+    draggable,
+    AccordionLayout,
+    OrgUserSelect,
+    SelectField,
+    TaskProgress
+  },
+  data(){
+    return {
+      target: { 
+        id: 1,
+        model: "organization",
+        title: "组织"
+      },
+      orgSelectVisible: false,
+      orgList: [],
+      propSelectVisible: false,
+      propList: [],
+      queryData: undefined,
+      loading: false,
+      exporting: false,
+      exportTaskid: undefined,
+    }
+  },
+  computed: {
+    columns(){
+      let arr = [{ title: '属性', dataIndex: 'key' }];
+      this.orgList.forEach(item => {
+        arr.push({title: item.name, dataIndex: item._id })
+      });
+      return arr
+    },
+    tableData(){
+      if(this.queryData){
+        let orgMap = {}, keyMap = {};
+        this.queryData.rows.forEach(item => {
+          orgMap[item._id] = item;
+        })
+        this.queryData.header.forEach(item => {
+          keyMap[item.key] = item.column;
+        })
+        return this.propList.map(item => {
+          let row = { key: item.showname };
+          let propKey = keyMap[item.key];
+          if(propKey){
+            this.orgList.forEach(org => {
+              let o = orgMap[org._id];
+              if(o){
+                row[o._id] = o[propKey];
+              }
+            })
+          }
+          return row
+        })
+      }
+    }
+  },
+  methods: {
+    onOrgSelected(type, list){  
+      this.orgSelectVisible = false;
+      if(type == 'ok'){
+        this.orgList = list;
+        if(this.queryData){
+          this.onCompare();
+        }
+      }
+    },
+    onPropSelected(type, list){
+      this.propSelectVisible = false;
+      if(type == 'ok'){
+        this.propList = list;
+        if(this.queryData){
+          this.onCompare();
+        }
+      }
+    },
+    onCompare(){
+      if(!this.orgList.length){
+        this.$message.info('请选择需要对比的单位');
+        return;
+      }
+      if(!this.propList.length){
+        this.$message.info('请选择需要对比的属性');
+        return;
+      }
+      this.loading = true
+      query({
+        target: this.target,
+        filter: {
+          op: 'and',
+          criteria: [
+            { field: {key: '_id', showname: '主键'}, op: 'in', value: this.orgList }
+          ]
+        },
+        fields: this.propList,
+        pagesize: this.orgList.length
+      }).then(res => {
+        this.queryData = res.result;
+      }).catch(error => {
+        showError(error);
+      }).finally(()=>{
+        this.loading = false;
+      });
+    },
+    onExport() {
+      let tableColumn = this.columns;
+      let tableDataSource = this.tableData;
+      exportExcel({
+        columns: tableColumn,
+        dataSource: tableDataSource,
+        title: '信息对比分析结果'
+      }).then(({result}) => {
+        this.exportTaskid = result;
+        }).catch(err => {
+          showError(err);
+          });
+    },
+    onProgressFinish(res) {
+      window.open(
+        uiConfigsCookies()["api.url"] +
+        "/file/v1/download?uri=" +
+        decodeURI(res),
+        "_blank"
+      )
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.nav-panel{
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  & > .title{
+    position: relative;
+    line-height: 34px;
+    background-color: #fafbfc;
+    padding-left: @content-padding-h;
+    padding-right: 40px;
+    color: @primary-color;
+    a{
+      position: absolute;
+      top: 0;
+      right: 15px;
+      padding: 0 5px;
+    }
+    a:hover{
+      color: lighten(@primary-color, 20%);
+    }
+  }
+  .orgs{
+    flex: 1 1 40%;
+  }
+  .props{
+    flex: 1 1 60%;
+  }
+  .list{
+    margin-bottom: 0;
+    overflow: hidden auto;
+    li{
+      position: relative;
+      padding-left: @content-padding-h;
+      padding-right: 40px;
+      line-height: 32px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      &:hover{
+        background-color: @primary-1;
+      }
+      .sort-handle{
+        cursor: move;
+      }
+      .remove{
+        position: absolute;
+        top: 0;
+        right: 15px;
+        padding: 0 5px;
+      }
+    }
+  }
+  
+  & > .footer{
+    flex: none;
+    padding: @content-padding-v @content-padding-h;
+  }
+}
+.content-panel{
+  height: 100%;
+  background-color: @white;
+  display: flex;
+  flex-direction: column;
+  & > .header{
+    margin-top: 10px;
+    padding: @content-padding-v @content-padding-h;
+    text-align: right;
+  }
+  & > .body{
+    flex: auto;
+    min-height: 1px;
+    padding: @content-padding-v @content-padding-h;
+    overflow: hidden auto;
+  }
+}
+</style>

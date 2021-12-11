@@ -1,0 +1,26 @@
+<template>
+  <swiper-ant :size="2" :pretBtn="{visibility:'hidden'}" :nextBtn="{visibility:'hidden'}" v-if="cmptAllShow && cmptChangeShow">
+    <template slot="swiper0">
+      <power-change v-model="cmptChangeShow"></power-change>
+    </template>
+    <template slot="swiper1">
+      <power-all v-model="cmptAllShow"></power-all>
+    </template>
+  </swiper-ant>
+</template>
+<script>
+import PowerAll from "./PowerAll";
+import PowerChange from "./PowerChange";
+import SwiperAnt from "../components/SwiperAnt";
+export default {
+  components: { PowerAll, PowerChange, SwiperAnt },
+  data() {
+    return {
+      cmptAllShow: true,
+      cmptChangeShow: true
+    };
+  }
+};
+</script>
+<style lang='less' scoped>
+</style>

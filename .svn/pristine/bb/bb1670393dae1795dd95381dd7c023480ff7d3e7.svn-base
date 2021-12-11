@@ -1,0 +1,173 @@
+<template>
+  <div class="form-panel">
+    <div class="top_card">
+      <div class="card" v-for="(item, index) in list" :key="index">
+        <div class="title">{{item.title}}</div>
+        <proportion 
+          :totalText="item.totalText" 
+          :total="data[item.total]" 
+          :numText="item.numText" 
+          :num="data[item.num]" 
+          :surplusText="item.surplusText" 
+          class="content"
+        />
+      </div>
+      <div class="total">
+        <ul>
+          <li v-for="(total, num) in total" :key="num">
+            <p>
+              <span>{{total.ld_name}}</span>
+              <span>{{total.zc_name}}</span>
+            </p>
+            <p>
+              <span>{{total.ld_num}}</span>
+              <span>{{total.zc_num}}</span>
+            </p>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Table } from "ant-design-vue";
+import Proportion from './Proportion'
+import { areaStatistics } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '@framework/utils'
+
+/**
+ * 职数监测
+ */
+export default {
+  name: 'PostReport',
+  components: {
+    ATable: Table,
+    Proportion
+  },
+  props: {
+    district: {
+      type: String,
+    },
+    orgCount: {
+      type: Object
+    }
+  },
+  data(){
+    return {
+      data: {},
+      list: [
+        { title: '行政领导职数', total: 'hdldzsqy', totalText: '核定', num: 'hdldzsqy_sy', numText: '实有', surplusText: '空职数' },
+        { title: '行政中层职数', total: 'hdzcldzsqy', totalText: '核定', num: 'hdzcldzsqy_sy', numText: '实有', surplusText: '空职数' },
+        { title: '事业领导职数', total: 'syhdldzsqy', totalText: '核定', num: 'syhdldzsqy_sy', numText: '实有', surplusText: '空职数' },
+        { title: '事业中层职数', total: 'syhdzcldzsqy', totalText: '核定', num: 'syhdzcldzsqy_sy', numText: '实有', surplusText: '空职数' },
+      ],
+      totalList: [
+        { ld_name: '行政领导超职机构数', ld_num: 0, zc_name: '行政中层领导超职机构数', zc_num: 0 },
+        { ld_name: '事业领导超职机构数', ld_num: 0, zc_name: '事业中层领导超职机构数', zc_num: 0 },
+        { ld_name: '行政领导配置异常机构数', ld_num: 0, zc_name: '行政中层领导配置异常机构数', zc_num: 0 },
+        { ld_name: '事业领导配置异常机构数', ld_num: 0, zc_name: '事业中层领导配置异常机构数', zc_num: 0 },
+      ]
+    }
+  },
+  computed: {
+    total: {
+      get() {
+        this.totalList.forEach(item => {
+          item.ld_num = this.orgCount[item.ld_name];
+          item.zc_num = this.orgCount[item.zc_name];
+        })
+        return this.totalList;
+      },
+      set() {
+        this.totalList.forEach(item => {
+          item.ld_num = this.orgCount[item.ld_name];
+          item.zc_num = this.orgCount[item.zc_name];
+        })
+        return this.totalList;
+      }
+    }
+  },
+  watch: {
+    district(district){
+      this.loadData(district);
+    }
+  },
+  created(){
+    this.loadData(this.district);
+  },
+  methods: {
+    loadData(district){
+      areaStatistics(district, [
+        'hdldzsqy', 'hdldzsqy_sy', 
+        'hdzcldzsqy', 'hdzcldzsqy_sy',
+        'syhdldzsqy', 'syhdldzsqy_sy',
+        'syhdzcldzsqy', 'syhdzcldzsqy_sy',
+      ]).then(({result}) => {
+        this.data = result;
+      }).catch(error => {
+        showError(error);
+      });
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  width: 100%;
+  > div{
+    display: flex;
+    justify-content: space-between;
+  }
+  .top_card{
+    .card{
+      width: 200px;
+      border: 1px solid @border-color-split;
+      border-radius: 5px;
+      .title{
+        white-space: nowrap;
+        overflow: hidden;
+        line-height: 50px;
+        text-align: center;
+        font-weight: bold;
+        border-bottom: 1px solid @border-color-split;
+      }
+      .content{
+        margin-top: 10px;
+        padding: 10px 0;
+      }
+    }
+    .total{
+      width: 430px;
+      ul{
+        margin: 0;
+        li{
+          text-align: center;
+          border-bottom: 1px solid #e8e8e8;
+          &:last-child{
+            border-bottom: none;
+          }
+          p{
+            margin: 0;
+            span{
+              display: inline-block;
+              width: 50%;
+            }
+            &:nth-child(1) {
+              span{
+                line-height: 24px;
+              }
+            }
+            &:nth-child(2) {
+              span{
+                font-weight: bold;
+                line-height: 44px;
+                color: #1890ff;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</style>

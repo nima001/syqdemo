@@ -1,0 +1,17 @@
+/** 
+ * 管理配置路由
+*/
+import Layout from '../../views/Layout'
+
+export const manageRoutes = {
+  path: '/person/manage',
+  component: Layout,
+  children: [
+    {
+      path: 'auxiliaryevaluation',
+      component: () => import('../../views/manage/auxiliaryEvaluation/index.vue'),
+      name: 'auxiliaryEvaluation',
+      meta: { path: [{ name: '辅助评估内容管理', path: '/person/manage/auxiliaryevaluation' }] }
+    }
+  ]
+}

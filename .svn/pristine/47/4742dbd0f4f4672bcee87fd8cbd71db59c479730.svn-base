@@ -1,0 +1,145 @@
+<template>
+  <div class="wrap">
+    <div class="title">
+      <span></span>
+      <span v-for="(item,index) in keyCols" :key="index">{{item.name}}</span>
+    </div>
+    <a-spin :spinning="loading">
+      <ul>
+        <li v-for="(item,index) in list" :key="index">
+          <span class="name">{{item.name}}</span>
+          <span class="v1">{{item['list'][0]}}</span>
+          <span class="v2">{{item['list'][1]}}</span>
+        </li>
+      </ul>
+    </a-spin>
+  </div>
+</template>
+<script>
+import { orgDistrChange } from "@/person-shaoxing/api/monitor";
+import { showError } from "@framework/utils";
+import { Spin } from "ant-design-vue";
+export default {
+  components: {
+    ASpin: Spin
+  },
+  data() {
+    return {
+      list: [],
+      keyCols: [],
+      loading: false
+    };
+  },
+  props: {
+    unittype: {
+      type: Number,
+      required: true
+    }
+  },
+  watch: {
+    unittype: {
+      handler(v) {
+        this.distrChange();
+      }
+    }
+  },
+  mounted(){
+    this.distrChange();
+  },
+  methods: {
+    distrChange() {
+      this.loading = true;
+      orgDistrChange(this.unittype)
+        .then(res => {
+          let { keyCols, rows, valueCols } = res.result.data;
+          keyCols = keyCols.map(item => {
+            return {
+              name: item.showname
+            };
+          });
+          this.keyCols = keyCols;
+          let arr = [];
+          valueCols.forEach(item => {
+            let obj = {};
+            let vCol = item["column"];
+            obj.name = item.showname;
+            let list = [];
+            rows.forEach(lk => {
+              list.push(lk[vCol]);
+            });
+            obj.list = list;
+            arr.push(obj);
+          });
+          this.list = arr;
+        })
+        .catch(err => {
+          showError(err);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .title {
+    border-bottom: 1px solid #d9d9d9;
+    padding: @padding-xs 0px;
+    display: flex;
+    justify-content: space-between;
+    span {
+      flex: 1;
+      color: #262626;
+      font-weight: 100;
+      text-align: center;
+      &:first-child {
+        min-width: 84px;
+        flex: 1;
+      }
+    }
+  }
+  .ant-spin-nested-loading {
+    flex: 1;
+    /deep/.ant-spin-container {
+      height: 100%;
+      ul {
+        margin: 0px;
+        padding: 0px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        li {
+          display: flex;
+          justify-content: space-between;
+          padding: @padding-xs / 4 0px;
+          span {
+            &.name {
+              color: #666;
+              flex: 1;
+              min-width: 84px;
+            }
+            &.v1 {
+              text-align: center;
+              color: #d15456;
+              font-weight: bold;
+              flex: 1;
+            }
+            &.v2 {
+              text-align: center;
+              color: #5488d1;
+              font-weight: bold;
+              flex: 1;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</style>

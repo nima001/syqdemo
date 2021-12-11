@@ -1,0 +1,312 @@
+<template>
+  <div class="table-list">
+    <div class="antd-table-top">
+      <a-col class="tabs">
+        <span :class="[ handlestatus == 0 ? 'active' : '' ]" @click="onChangeStatus(0)">未整改</span>
+        <span :class="[ handlestatus == 1 ? 'active' : '' ]" @click="onChangeStatus(1)">已整改</span>
+        <!-- <span :class="[ handlestatus == 2 ? 'active' : '' ]" @click="onChangeStatus(2)">已核实</span> -->
+      </a-col>
+    </div>
+    <a-row class="antd-table-query">
+      <a-col class="query-info" :span="3">
+        <span v-show="!handlestatus" @click="onSendMsg">消息通知</span>
+      </a-col>
+      <a-col class="query-serach" :span="21">
+        <dict-select
+          class="queryitem"
+          allowClear
+          style="width: 160px;"
+          dict="usermanage.org.systype"
+          v-model="search.systype"
+          placeholder="请选择"
+        ></dict-select>
+        <dict-select
+          allowClear
+          class="queryitem"
+          style="width: 160px;"
+          dict="person.monitor.strategytype"
+          v-model="search.strategytype"
+          placeholder="请选择"
+        ></dict-select>
+        <a-input 
+          allowClear
+          class="queryitem" 
+          style="width: 160px"
+          v-model="search.searchkey"
+          >
+        </a-input>
+        <a-button class="queryitem" type="primary" @click="onSearch">搜索</a-button>
+        <a-button class="queryitem" @click="onReset">重置</a-button>
+      </a-col>
+    </a-row>
+    <a-table
+      class="antd-table-con"
+      :rowKey="Math.random() + ''"
+      :columns="columns"
+      :dataSource="tableData"
+      :pagination="false"
+      :loading="loading"
+      :rowSelection="rowSelection"
+      >
+    </a-table>
+    <div class="footer">
+      <a-pagination
+        v-if="tableData && tableData.length"
+        showSizeChanger
+        :showTotal="total => `总共：${total}条`"
+        @showSizeChange="onShowSizeChange"
+        :total="pagination.total"
+        :pageSize="pagination.pagesize"
+        v-model="pagination.pagenum"
+        @change="onPageChange"
+      />
+    </div>
+  </div>
+</template>
+<script>
+import { Row, Col, Input, Table, Pagination, Button, Modal } from "ant-design-vue";
+import DictSelect from "@/framework/components/DictSelect";
+import { dataqualityPage, dataqualityMsg } from "@/person-shaoxing/api/monitor";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: 'TableList',
+  props: ['district', 'orgid'],
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    ATable: Table,
+    AButton: Button,
+    APagination: Pagination,
+    AModal: Modal,
+    DictSelect
+  },
+  computed: {
+    columns: {
+      get() {
+        return this.initColumn.concat(this.addColumn);
+      },
+      set() {
+        return this.initColumn.concat(this.addColumn);
+      }
+    },
+  },
+  watch: {
+    district: {
+      handler() {
+        this.handlestatus = 0;
+        this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+      },
+      immediate: true
+    },
+    handlestatus(val) {
+      if(val) {
+        this.rowSelection = null;
+      }else{
+        this.rowSelection = {
+          onChange: (selectedRowKeys, selectedRows) => {
+            this.selectedRows = selectedRows;
+            this.selectedRowKeys = selectedRowKeys;
+          }
+        };
+      }
+    },
+    orgid(val) {
+      if(val) {
+        this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+      }
+    }
+  },
+  data() {
+    return {
+      initColumn: [
+        { title: '类别', dataIndex: 'strategytype', customRender: this.dictRender('person.monitor.strategytype') },
+        { title: '相关部门', dataIndex: 'orgname' },
+        { title: '问题或异动情况描述', dataIndex: 'content' },
+      ],
+      addColumn: [
+        { title: '时间', dataIndex: 'discovertime', customRender: (text) => (text && text.substr(0, 10)) },
+        { title: '状态', dataIndex: 'noticestatus', customRender: (text) => text? '未通知': '已通知', },
+      ],
+      tableData: [],
+      loading: false,
+      search: {
+        searchkey: undefined,
+        systype: undefined,
+        strategytype: undefined,
+      },
+      pagination: {
+        total: 0,
+        pagenum: 1,
+        pagesize: 10
+      },
+      handlestatus: 0,
+      selectedRowKeys: [],
+      selectedRow: [],
+      rowSelection: {
+        onChange: (selectedRowKeys, selectedRows) => {
+          this.selectedRows = selectedRows;
+          this.selectedRowKeys = selectedRowKeys;
+        },
+      }
+    }
+  },
+  created() {
+    },
+  methods: {
+    getData(page) {
+      this.loading = true;
+      let orgquery = JSON.stringify({
+        district: this.district,
+        systype: this.search.systype
+      });
+      let params = {
+        ...page,
+        needtotal: true,
+        orgquery,
+        orgid: this.orgid,
+        handlestatus: this.handlestatus,
+        searchkey: this.search.searchkey,
+        strategytype: this.search.strategytype
+      };
+    console.log(this.orgid, this.params)
+      dataqualityPage(params)
+      .then(({result}) => {
+        this.loading = false;
+        this.pagination = result;
+        this.tableData = result.rows;
+      })
+      .catch(err => {
+        this.loading = false;
+        showError(err);
+      })
+    },
+    dictRender(key, attr){
+      return (text, row, index) => {
+        let v =  this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || ''
+        return <span title={text}>{text}</span>;
+      }
+    },
+    onChangeStatus(status) {
+      this.handlestatus = status;
+      if(status == 1) {
+        this.addColumn = [
+          { title: '发现时间', dataIndex: 'discovertime', customRender: (text) => (text && text.substr(0, 10)) },
+          { title: '整改时间', dataIndex: 'handletime', customRender: (text) => (text && text.substr(0, 10)) },
+        ];
+      }
+      // else if(status == 2) {
+      //   this.addColumn = [
+      //     { title: '发现时间', dataIndex: 'discovertime', customRender: (text) => (text && text.substr(0, 10)) },
+      //     { title: '整改时间', dataIndex: 'handletime', customRender: (text) => (text && text.substr(0, 10)) },
+      //     { title: '核实时间', dataIndex: 'checktime', customRender: (text) => (text && text.substr(0, 10)) },
+      //   ];
+      // }
+      else{
+        this.addColumn = [
+          { title: '时间', dataIndex: 'discovertime', customRender: (text) => (text && text.substr(0, 10)) },
+          { title: '状态', dataIndex: 'noticestatus', customRender: (text) => text? '未通知': '已通知', },
+        ];
+      }
+      for(let key in this.search) {
+        this.search[key] = undefined;
+      };
+      this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+    },
+    onSearch() {
+      this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+    },
+    onReset() {
+      for(let key in this.search) {
+        this.search[key] = undefined;
+      }
+      this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+    },
+    onPageChange(pagenum, pagesize) {
+      this.getData({ pagenum, pagesize });
+    },
+    onShowSizeChange(pagenum, pagesize) {
+      this.getData({ pagenum: 1, pagesize });
+    },
+    onSendMsg() {
+      if(this.selectedRowKeys.length > 0) {
+        let arr = [];
+        this.selectedRows.forEach(item => {
+          arr.push(item.id);
+        })
+        let ids = arr.join(',');
+        dataqualityMsg(ids)
+        .then(res => {
+          this.$notification.success({
+            message: "提示",
+            description: "通知成功",
+            duration: 3
+          });
+          this.getData({ pagenum: this.pagination.pagenum, pagesize: this.pagination.pagesize });
+        })
+        .catch(err => {
+          showError(err);
+        })
+      }else{
+        this.$notification.warning({
+          message: "提示",
+          description: "请选择",
+          duration: 3
+        });
+      }
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.table-list{
+  .antd-table-top{
+    margin-top: 10px;
+    padding: @content-padding-v @content-padding-h;
+    .tabs{
+      span {
+        cursor: pointer;
+        padding: 0 10px;
+        border-right: 1px solid #c6c6c6;
+      }
+      span.active{
+        color: @primary-color;
+      }
+      :last-child {
+        border: 0;
+      }
+    } 
+  }
+  .antd-table-query{
+    padding: @content-padding-v @content-padding-h;
+    .query-info{
+      span{
+        display: inline-block;
+        padding: 0 10px;
+        height: 32px;
+        line-height: 32px;
+        background-color: @primary-color;
+        color: @white;
+        border-radius: 5%;
+        cursor: pointer;
+      }
+    }
+    .query-serach{
+      display: flex;
+      justify-content: flex-end;
+      .queryitem{
+        margin-left: 20px;
+      }
+    }
+  }
+  .antd-table-con{
+    padding: @content-padding-v @content-padding-h;
+  }
+  .footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 12px @content-padding-h;
+  }
+}
+</style>

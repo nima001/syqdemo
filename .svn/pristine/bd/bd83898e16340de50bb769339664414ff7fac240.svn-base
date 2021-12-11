@@ -1,0 +1,943 @@
+<template>
+  <div class="report-chart-panel">
+    <div class="header">
+      <div class="left">
+        <!-- <span class="title">数据：</span> -->
+        <a-input
+          :value="chartData.query && chartData.query.title"
+          :read-only="false"
+          placeholder="数据集"
+          style="width: 300px"
+        >
+          <a slot="addonAfter" @click="showQueryModal = true">编辑</a>
+        </a-input>
+        <a-button
+          v-if="fieldsEditable"
+          style="margin-left: 10px"
+          @click="editFields = true"
+          >自定义数据</a-button
+        >
+      </div>
+      <div class="right">
+        <a-button type="primary" @click="aggregate()">查询</a-button>
+        <a-button type="primary" @click="save()">保存</a-button>
+        <a-button
+          v-if="chartCmpts && chartCmpts.length"
+          type="primary"
+          @click="doExport()"
+          :disabled="!queryData"
+          >导出</a-button
+        >
+      </div>
+    </div>
+    <div class="body">
+      <div class="left">
+        <div class="title">
+          维度
+          <a-tooltip placement="right">
+            <a-icon type="question-circle" />
+            <span slot="title">按什么统计</span>
+          </a-tooltip>
+        </div>
+        <ul class="dimension">
+          <li
+            v-for="item in dimension"
+            :key="item.key"
+            :title="item.showname"
+            @click="onDimensionClick(item)"
+          >
+            <custom-icon :type="item.icon" />
+            <span>{{ item.showname }}</span>
+          </li>
+        </ul>
+        <div class="title">
+          指标
+          <a-tooltip placement="right">
+            <a-icon type="question-circle" />
+            <span slot="title">统计的数据</span>
+          </a-tooltip>
+        </div>
+        <ul class="measure">
+          <li
+            v-for="item in measure"
+            :key="item.key"
+            :title="item.showname"
+            @click="onMeasureClick(item)"
+          >
+            <custom-icon :type="item.icon" />
+            <span>{{ item.showname }}</span>
+          </li>
+        </ul>
+      </div>
+      <div class="right">
+        <div class="header">
+          <div class="axis">
+            <div class="title">维度</div>
+            <draggable v-model="groupWith" tag="ul" :animation="200">
+              <transition-group>
+                <dimension
+                  v-for="(item, index) in groupWith"
+                  :key="item.id"
+                  v-model="groupWith[index]"
+                  :field="item.key && fieldMap[item.key]"
+                  :measures="$refs.measure"
+                  @remove="onDimensionRemove(index)"
+                />
+              </transition-group>
+            </draggable>
+          </div>
+          <div class="axis">
+            <div class="title">指标</div>
+            <draggable v-model="groupField" tag="ul" :animation="200">
+              <transition-group>
+                <measure
+                  v-for="(item, index) in groupField"
+                  :key="item.id"
+                  v-model="groupField[index]"
+                  :field="item.key && fieldMap[item.key]"
+                  @remove="onMeasureRemove(index)"
+                  ref="measure"
+                />
+              </transition-group>
+            </draggable>
+          </div>
+        </div>
+        <div class="body">
+          <div class="left">
+            <div class="chart-view" v-if="queryData" ref="chart">
+              <slot v-if="chartType" :name="chartType" v-bind="queryData" />
+              <data-table v-else v-bind="queryData" />
+            </div>
+            <div class="loading" v-if="loading">
+              <a-spin size="large" tip="正在查询" />
+            </div>
+          </div>
+          <div class="right" v-if="chartCmpts && chartCmpts.length">
+            <a-tabs v-model="chartData.settings.chartType" tabPosition="left" :tabBarGutter="0">
+              <a-tab-pane v-for="item in chartCmpts" :key="item.type">
+                <span slot="tab" :title="item.title"
+                  ><custom-icon :type="item.icon"
+                /></span>
+              </a-tab-pane>
+            </a-tabs>
+            <Settings
+              v-model="chartData"
+              :queryData="queryData"
+              :titleModel="titleModel"
+              @editTitle="editTitle"
+              @onTitleEdit="onTitleEdit"
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 设置查询数据集合 -->
+    <query-modal
+      :show="showQueryModal"
+      :query="chartData.query"
+      :namespace="ns"
+      :contextFields="chartData.fields"
+      :submit="false"
+      @ok="onDataSetSelected"
+      @cancel="() => (showQueryModal = false)"
+    />
+    <!-- 外部参数 -->
+    <a-modal
+      v-model="editFields"
+      title="自定义数据"
+      :width="360"
+      :destroyOnClose="true"
+      :footer="null"
+      :bodyStyle="{ height: '360px', paddingTop: '5px' }"
+    >
+      <data-source v-model="chartData.fields" />
+    </a-modal>
+    <a-modal
+      v-model="queryContext.show"
+      title="设置自定义数据"
+      :width="500"
+      :destroyOnClose="true"
+      @ok="onFiledsInputFinish"
+      :bodyStyle="{ paddingTop: '5px' }"
+    >
+      <prop-value-form
+        v-model="queryContext.value"
+        :properties="chartData.fields"
+        ref="propValueForm"
+      />
+    </a-modal>
+    <input-modal v-model="titleSetter.show" v-bind="titleSetter" />
+  </div>
+</template>
+<script>
+import {
+  Modal,
+  Input,
+  Button,
+  Icon,
+  Tooltip,
+  Spin,
+  Collapse,
+  Tabs,
+  Switch,
+} from "ant-design-vue";
+import Dimension from "./components/Dimension";
+import Measure from "./components/Measure";
+import Settings from "./components/Settings";
+import QueryModal from "@person/views/integratedquery/QueryModal";
+import DataSource from "../components/DataSource";
+import DataTable from "./components/DataTable";
+import PropValueForm from "@person/components/PropValueForm";
+import CustomIcon from "@framework/components/CustomIcon";
+import InputModal from '@framework/components/InputModal'
+import draggable from "vuedraggable";
+import html2canvas from "html2canvas";
+import { getChart, aggregateQuery, saveChart } from "@person/api/chart";
+import { showError, randomStr } from "@framework/utils";
+import { merge, cloneDeep } from "lodash";
+import treeListVue from '../../../../person-shaoxing/views/assessment/functionAlanalysis/components/treeList.vue';
+
+const TYPE_DICT = 2,
+  TYPE_INPUT = 4,
+  TYPE_INT = 1,
+  TYPE_FLOAT = 2,
+  TYPE_DATE = 3,
+  TYPE_BOOL = 4;
+const chartStruct = {
+  namespace: undefined,
+  title: undefined,
+  query: undefined,
+  groupby: { with: [], fields: [] },
+  fields: undefined,
+  settings: {
+    chartType: 'table',//图表类型
+	  table: {
+      bordered: false,//是否需要表格边框
+      lineHeight: undefined,//行高
+      headBackgroundColor: undefined,//表头背景色
+      bodyBackgroundColor: undefined,//表体背景色
+      bodyColor: undefined,//表体字体颜色
+      headColor: undefined,//表头字体颜色
+      sumPosition: 1,//合计位置 1-顶部 0-底部
+    },
+    canvas: {
+      width: undefined,//画布宽度
+      height: undefined,//画布高度
+    },
+    title: {
+      main: {
+        visible: true,//false时不显示，不设置就默认显示
+        value: undefined,
+      },
+      sub: {
+        visible: true,//false时不显示，不设置就默认显示
+        value: undefined,
+      },
+      position: undefined,//标题位置-'top'|'left'
+    },
+    tooltip: {
+      visible: true,//是否显示tooltip,默认显示
+      shared: true,
+    },
+    legend: {
+      visible: true,//是否显示图例，默认不显示
+      position: "top-left",//位置
+      marker: undefined,//形状
+      flipPage: true,//是否分页
+    },
+    xAxis: {
+      disabled: true,//是否禁用x轴配置 true-不禁用 false 禁用
+      grid: false,//是否显示网格线
+      title: {
+        disabled: true,//是否禁用标题 true-不禁用 false 禁用
+        content: undefined,//标题内容
+      },
+    },
+    yAxis: {
+      disabled: true,//是否禁用y轴配置 true-不禁用 false 禁用
+      grid: true,//是否显示网格线
+      title: {
+        disabled: true,//是否禁用标题 true-不禁用 false 禁用
+        content: undefined,//标题内容
+      },
+    },
+    gemo: {
+      color: undefined,//颜色(数组)
+      label: {
+        visible: true,
+        color: undefined,
+      },
+      background: false,//背景色 false-不显示，可自定义颜色字符串
+      exchange: false,//是否翻转(柱状图，折线图)
+      slider: false,//是否显示缩略轴
+      annotation: false,//标注
+      size: undefined,//柱状图中柱子大小
+    },
+    rangeControl: true,//范围控制 用于折线图
+    sort:{
+      type: 'recover',//排序方式,升序-asc,降序-desc,还原(不排序)-recover，只支持单维度
+      mergeOther: false,//是否合并
+      range: undefined,
+    },
+  },
+};
+
+export default {
+  components: {
+    AModal: Modal,
+    AInput: Input,
+    AButton: Button,
+    Settings,
+    AIcon: Icon,
+    ATooltip: Tooltip,
+    ASpin: Spin,
+    ASwitch: Switch,
+    ACollapse: Collapse,
+    ACollapsePanel: Collapse.Panel,
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    draggable,
+    CustomIcon,
+    QueryModal,
+    Dimension,
+    Measure,
+    DataTable,
+    DataSource,
+    PropValueForm,
+    InputModal,
+  },
+  model: {
+    prop: "chart",
+    event: "save",
+  },
+  props: {
+    chart: {
+      //统计图对象(v-model) //可以只传id 如：{id: 1}
+      type: Object,
+      default: () => ({}),
+    },
+    namespace: {
+      //命名空间
+      type: String,
+      required: true,
+    },
+    submit: {
+      //保存时否提交服务器
+      type: Boolean,
+      default: true,
+    },
+    fieldsEditable: {
+      //自定义数据是否可编辑
+      type: Boolean,
+      default: true,
+    },
+  },
+  data() {
+    return {
+      showQueryModal: false,
+      loading: false,
+      isExchange: false,
+      chartData: cloneDeep(chartStruct),
+      queryData: undefined, //统计结果数据表
+      chartCmpts: undefined, //统计图组件列表
+      editFields: false,
+      queryContext: {
+        //查询上下文
+        show: false,
+        value: undefined,
+        callback: undefined,
+      },
+      titleSetter: {
+        show: false,
+        title: undefined,
+        value: undefined,
+        placeholder: undefined,
+      },
+      titleModel: {
+        show: false,
+        value: undefined,
+        placeholder: undefined,
+      },
+    };
+  },
+  computed: {
+    ns() {
+      return this.chartData.namespace || this.namespace;
+    },
+    chartType() {
+      let type = this.chartData.settings.chartType;
+      if (
+        type &&
+        this.chartCmpts &&
+        this.chartCmpts.find((item) => item.type == type)
+      ) {
+        return type;
+      }
+    },
+    fieldMap() {
+      let map = {};
+      if (this.chartData.query) {
+        this.chartData.query.fields.forEach((item) => {
+          map[item.key] = item;
+        });
+      }
+      return map;
+    },
+    dimension() {
+      //根据数据源字段获取维度
+      if (this.chartData.query) {
+        let arr = [{ showname: "指标名称", icon: "dimension-column" }];
+        this.chartData.query.fields.forEach((item) => {
+          let icon;
+          if (item.datatype == TYPE_DICT) {
+            //字典
+            icon = "dict";
+          } else if (item.datatype == TYPE_INPUT) {
+            //输入类型（排除字符串）
+            if (TYPE_INT == item.inputtype) {
+              icon = "int";
+            } else if (TYPE_FLOAT == item.inputtype) {
+              icon = "float";
+            } else if (TYPE_DATE == item.inputtype) {
+              icon = "date";
+            } else if (TYPE_BOOL == item.inputtype) {
+              icon = "bool";
+            }
+          }
+          if (icon) {
+            arr.push({ ...item, icon });
+          }
+        });
+        return arr;
+      }
+    },
+    measure() {
+      //根据数据源字段获取指标
+      if (this.chartData.query) {
+        let arr = [{ showname: "记录数", icon: "measure-count" }];
+        this.chartData.query.fields.forEach((item) => {
+          let icon;
+          if (item.datatype == TYPE_INPUT) {
+            //输入类型（排除字符串）
+            if (TYPE_INT == item.inputtype) {
+              icon = "int";
+            } else if (TYPE_FLOAT == item.inputtype) {
+              icon = "float";
+            }
+          }
+          if (icon) {
+            arr.push({ ...item, icon });
+          }
+        });
+        return arr;
+      }
+    },
+    groupWith: {
+      get() {
+        let arr = this.chartData.groupby.with;
+        if (arr) {
+          arr.forEach((item) => this.generateId(item));
+        }
+        return arr;
+      },
+      set(value) {
+        this.chartData.groupby.with = value;
+      },
+    },
+    groupField: {
+      get() {
+        let arr = this.chartData.groupby.fields;
+        if (arr) {
+          arr.forEach((item) => this.generateId(item));
+        }
+        return arr;
+      },
+      set(value) {
+        this.chartData.groupby.fields = value;
+      },
+    },
+  },
+  watch: {
+    chart(chart) {
+      if (this.chartData !== chart) {
+        this.initData(chart);
+      }
+    },
+    "chartData.settings": {
+      deep: true,
+      handler(settings) {
+        //设置变更后同步到数据中
+        if (this.queryData) {
+          this.queryData.settings = Object.assign({}, this.queryData.settings, settings);
+        }
+      },
+    },
+    "chartData.settings.chartType": {
+      deep: true,
+      handler(val) {
+        if (val === "pie-chart" || val === "radar-chart") {
+          if (this.isExchange) {
+            this.exchange();
+          }
+        }
+      },
+    },
+  },
+  created() {
+    this.initData(this.chart);
+  },
+  mounted() {
+    this.readChartComponent();
+  },
+  methods: {
+    exchange() {
+      if (this.isExchange) {
+        this.isExchange = false;
+      } else {
+        this.isExchange = true;
+      }
+      let exchange = this.groupField;
+      this.groupField = this.groupWith;
+      this.groupWith = exchange;
+      this.chartData.settings.exchange = this.isExchange;
+    },
+    async initData(chart = {}) {
+      if (chart.id) {
+        try {
+          let { result } = await getChart(chart.id);
+          chart = Object.assign(result, chart);
+        } catch (error) {
+          showError(error);
+        }
+      } else if (!chart.namespace) {
+        //新增时初始化命名空间
+        chart.namespace = this.namespace;
+      }
+      if (chart.query && !chart.query.title) {
+        chart.query.title = "未命名";
+      }
+      this.chartData = merge(cloneDeep(chartStruct), chart);
+    },
+    onDataSetSelected(query) {
+      this.chartData.query = query;
+      if (this.chartData.query) {
+        //修改查询，看到已选的维度和指标是否任然存在
+        let { with: _with, fields } = this.chartData.groupby;
+        this.chartData.groupby = {
+          with: (_with || []).filter((item) => !item.key || this.fieldMap[item.key]),
+          fields: (fields || []).filter((item) => !item.key || this.fieldMap[item.key]),
+        };
+      }
+      this.showQueryModal = false;
+    },
+    onDimensionClick(d) {
+      let type,
+        withs = this.groupWith;
+      if (!d.key) {
+        //key为空（指标名称）
+        if (withs.find((item) => item.type == "field")) {
+          this.$message.error("指标名称已经添加");
+          return;
+        }
+        type = "field";
+      } else {
+        type = "value"; //字典按值统计
+        if (d.datatype == TYPE_INPUT) {
+          if (d.inputtype == TYPE_DATE) {
+            //时间默认按日统计
+            type = "date"; //按值分组
+          } else if (d.inputtype == TYPE_INT || d.inputtype == TYPE_FLOAT) {
+            //数字按区间
+            type = "section";
+          }
+        }
+      }
+      withs.push({
+        type,
+        key: d.key,
+        showname: d.showname,
+      });
+    },
+    onMeasureClick(i) {
+      let type,
+        fields = this.groupField;
+      if (!i.key) {
+        //key为空（记录数）
+        if (fields.find((item) => item.type == "count")) {
+          this.$message.error("记录数已经添加");
+          return;
+        }
+        type = "count";
+      } else if (!fields.find((item) => item.key == i.key && item.type == "sum")) {
+        type = "sum";
+      } else if (!fields.find((item) => item.key == i.key && item.type == "avg")) {
+        type = "avg";
+      } else {
+        type = "sum";
+      }
+      fields.push({ type, key: i.key, showname: i.showname });
+    },
+    onDimensionRemove(index) {
+      this.$delete(this.groupWith, index);
+    },
+    onMeasureRemove(index) {
+      this.$delete(this.groupField, index);
+    },
+    // onlegendEdit(val, type) {
+    //   if (type === "position") {
+    //     this.chartData.settings.legend.position = val;
+    //   } else if (type === "marker") {
+    //     this.chartData.settings.legend.marker = val;
+    //   }
+    // },
+    // changeColor(val) {
+    //   this.$set(this.chartData.settings, "color", val);
+    // },
+    editTitle({ value, placeholder, callback }) {
+      this.titleModel = { show: true, value, placeholder, callback };
+    },
+    onTitleEdit() {
+      this.titleModel.show = false;
+      this.titleModel.callback(this.titleModel.value);
+    },
+    validate() {
+      if (!this.chartData.query) {
+        this.$message.error("未设置数据集");
+        return;
+      }
+      let { with: _with, fields } = this.chartData.groupby;
+      if (!_with.length) {
+        //TODO 验证提示优化
+        this.$message.error("未设置维度");
+        return;
+      }
+      if (!fields.length) {
+        this.$message.error("未设置指标");
+        return;
+      }
+      let unSetSection = _with.find((item) => item.type == "section" && !item.section);
+      if (unSetSection) {
+        this.$message.error(unSetSection.showname + "未设置区间");
+        return;
+      }
+      // if(!this.chartType){
+      //   this.$message.error('请选择图表类型');
+      //   return;
+      // }
+      return true;
+    },
+    save() {
+      if (!this.validate()) {
+        return;
+      }
+      this.titleSetter = { 
+        show: true, 
+        title: '标题',
+        value: this.chartData.title,
+        callback: (value)=>{
+          this.chartData.title = value;
+          if (this.submit) {
+            return saveChart(this.chartData)
+              .then(({ result }) => {
+                this.chartData.id = result; //设置ID，防止新增时多次点击保存，重复创建数据
+                this.$emit("save", this.chartData);
+              })
+              .catch((error) => {
+                showError(error);
+              });
+          } else {
+            this.$emit("save", this.chartData);
+          }
+        }
+      };
+    },
+    aggregate() {
+      if (!this.validate()) {
+        return;
+      }
+      this.getQueryContext((context) => {
+        this.loading = true;
+        aggregateQuery({
+          ...this.chartData,
+          context,
+        })
+          .then(({ result }) => {
+            this.queryData = result;
+          })
+          .catch((error) => {
+            showError(error);
+          })
+          .finally(() => {
+            this.loading = false;
+          });
+      });
+    },
+    doExport() {
+      let chart = this.$refs.chart;
+      if (!chart) {
+        this.$message.info("未查询数据");
+        return;
+      }
+      let name = this.queryData.settings.title || this.chartData.title || "未命名";
+      html2canvas(chart).then((canvas) => {
+        // let dataurl = canvas.toDataURL('image/png');//直接用base64部分浏览器不支持下载，图片过大导致url过长
+        canvas.toBlob((blob) => {
+          let a = document.createElement("a");
+          a.style.display = "none";
+          a.setAttribute("href", URL.createObjectURL(blob));
+          a.setAttribute("download", name + ".png");
+          document.body.appendChild(a);
+          a.click();
+          URL.revokeObjectURL(blob);
+          document.body.removeChild(a);
+        }, "image/png");
+      });
+    },
+    getQueryContext(callback) {
+      if (this.chartData.fields && this.chartData.fields.length) {
+        this.queryContext.show = true;
+        this.queryContext.callback = callback;
+      } else {
+        callback();
+      }
+    },
+    onFiledsInputFinish() {
+      this.$refs.propValueForm
+        .getFieldsValue()
+        .then((context) => {
+          this.queryContext.show = false;
+          this.queryContext.value = context;
+          this.queryContext.callback(context);
+        })
+        .catch((error) => {
+          this.$message.error(error);
+        });
+    },
+    generateId(item) {
+      if (!item.id) {
+        item.id = randomStr(6);
+      }
+      return item.id;
+    },
+    readChartComponent() {
+      let slots = this.$scopedSlots;
+      let cmpts = [];
+      for (let key in slots) {
+        let [node] = slots[key]();
+        let { title, icon, props } = node.componentOptions.Ctor.extendOptions;
+        cmpts.push({ type: key, title, icon, props });
+      }
+      this.chartCmpts = cmpts;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+@axis-height: 42px;
+
+.report-chart-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: @white;
+  & > .header {
+    flex: none;
+    margin: 0 @content-padding-h;
+    padding: @content-padding-v + 10 0;
+    border-bottom: 1px dashed @border-color-base;
+    .left {
+      width: 50%;
+      float: left;
+      .title {
+        line-height: 32px;
+      }
+    }
+    .right {
+      width: 50%;
+      float: right;
+      text-align: right;
+      .ant-btn {
+        margin: 0 4px;
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+      .ant-btn:last-child {
+        margin-right: 0;
+      }
+    }
+  }
+  & > .body {
+    flex: auto;
+    min-height: 1px;
+    display: flex;
+    & > .left {
+      width: 280px;
+      flex: none;
+      // height: 100%;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px dashed @border-color-base;
+      margin: @content-padding-v 0;
+      padding: 0 8px 0 @content-padding-h;
+      .title {
+        padding-top: 10px;
+        font-weight: bold;
+        line-height: 1.8em;
+        border-top: 1px dashed @border-color-base;
+      }
+      .title:first-child {
+        padding-top: 0;
+        border: none;
+      }
+      .dimension {
+        flex: 1 1 50%;
+        margin: 0;
+        overflow-y: auto;
+      }
+      .measure {
+        flex: 1 1 50%;
+        margin: 0;
+        overflow-y: auto;
+      }
+      .dimension li,
+      .measure li {
+        line-height: 2em;
+        cursor: pointer;
+        text-indent: 5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        &:hover {
+          background-color: @primary-1;
+        }
+        .icon {
+          color: @primary-color;
+          margin-right: 5px;
+        }
+      }
+      .measure li {
+        .icon {
+          color: #5ad8a6;
+        }
+      }
+    }
+    & > .right {
+      flex: auto;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      & > .header {
+        flex: none;
+        padding: @content-padding-v @content-padding-h;
+        position: relative;
+        .axis {
+          height: @axis-height;
+          margin-top: 10px;
+          padding-left: 50px;
+          border-radius: @border-radius-base;
+          background: @background-color-base;
+          overflow: hidden;
+          &:first-child {
+            margin-top: 0;
+          }
+          & > .title {
+            position: absolute;
+            width: 50px;
+            margin-left: -50px;
+            padding: 0 @padding-xs;
+            line-height: @axis-height;
+            border-right: 1px dashed @border-color-base;
+            text-align: center;
+          }
+          & > ul {
+            width: 100%;
+            margin: 6px 0 0 0;
+            padding: 0 @padding-xs;
+            line-height: @axis-height - 12px;
+            white-space: nowrap;
+            overflow-x: auto;
+          }
+        }
+        .exchange {
+          width: 100%;
+          height: 10px;
+          position: absolute;
+          opacity: 0;
+          &:hover {
+            opacity: 1;
+          }
+          .anticon {
+            position: absolute;
+            top: 0;
+            left: 90px;
+            transform: translateY(-20%);
+            transition: all 0.3s;
+            &:hover {
+              cursor: pointer;
+              color: @primary-color;
+            }
+          }
+        }
+      }
+      & > .body {
+        flex: auto;
+        display: flex;
+        min-height: 1px;
+        & > .left {
+          flex: auto;
+          padding: @content-padding-v @content-padding-h;
+          position: relative;
+          overflow: auto;
+          .loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            .ant-spin {
+              position: absolute;
+              top: 30%;
+              left: 50%;
+              width: 100px;
+              margin-left: -50px;
+              padding: 12px 8px 8px 8px;
+              text-align: center;
+              background: fade(@background-color-base, 90%);
+              box-shadow: 1px 1px 10px #dad9d9;
+              border-radius: @border-radius-base;
+            }
+          }
+        }
+        & > .right {
+          flex: 0 0 300px;
+          // border-left: 1px dashed @border-color-base;
+          display: flex;
+          height: 100%;
+          padding-right: @content-padding-h;
+          /deep/ .ant-tabs {
+            height: 100%;
+            .ant-tabs-left-bar {
+              border-right-style: dashed;
+            }
+            .ant-tabs-tab {
+              font-size: 24px;
+              padding: 8px 10px;
+            }
+            .ant-tabs-left-content {
+              padding: 5px;
+            }
+          }
+          .ant-collapse {
+            flex: auto;
+            /deep/ .ant-collapse-item {
+              border-bottom-style: dashed;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</style>

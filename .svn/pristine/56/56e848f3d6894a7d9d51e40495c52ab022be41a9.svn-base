@@ -1,0 +1,543 @@
+<template>
+  <accordion-layout>
+    <div slot="navTitle" class="nav-title">
+      <a v-for="item in types" 
+        :key="item.key"
+        :class="{selected: filter.type == item.value}"
+        @click="filter.type = item.value"
+      >{{item.text}}</a>
+    </div>
+    <div slot="nav" class="nav-panel">
+      <div class="title">分析条件</div>
+      <div class="header">
+        <empty-data v-if="filteredList && filteredList.length == 0"/>
+        <template v-if="subjects && subjects.length > 1">
+          <div class="label">主题</div>
+          <ul>
+            <li v-for="item in subjects" :key="item" 
+              :class="{selected: filter.subject == item}"
+              @click="filter.subject = item"
+            >{{item}}</li>
+          </ul>
+        </template>
+        <template v-if="scopetypes && scopetypes.length > 1">
+          <div class="label">范围</div>
+          <ul>
+            <li v-for="item in scopetypes" :key="item" 
+              :class="{selected: filter.scopetype == item}"
+              @click="filter.scopetype = item"
+            >{{item}}</li>
+          </ul>
+        </template>
+        <prop-value-form v-if="scope && scope.length" 
+          :value="scopeData" 
+          :properties="scope" 
+          class="scopes-select" 
+          ref="scopeData"
+        />
+      </div>
+      <div class="title">分析内容</div>
+      <div class="body">
+        <a-spin v-if="loading"/>
+        <content-select v-else-if="content && content.length" 
+          v-model="contentSelected"
+          :content="content"
+          class="content-select"
+        />
+        <empty-data v-else/>
+      </div>
+      <div class="footer">
+        <a-button type="primary" style="width:100%" @click="doReport">确定</a-button>
+      </div>
+    </div>
+    <div class="content">
+      <div class="header">
+        <a-dropdown-button class="export" type="primary" :disabled="!formConfig" size="small" @click="doExport('pdf')">
+          <a-icon :type="exporting ? 'loading' : 'export'"/>导出
+          <a-icon slot="icon" type="more"/>
+          <a-menu slot="overlay" @click="doExport($event.key)">
+            <a-menu-item key="pdf"><a-icon type="file-pdf" />导出PDF</a-menu-item>
+            <a-menu-item key="word"><a-icon type="file-word" />导出Word</a-menu-item>
+          </a-menu>
+        </a-dropdown-button>
+        <a-button type="primary" :disabled="!formConfig" size="small" style="margin-left: 10px" @click="showSave">保存</a-button>
+      </div>
+      <div class="body">
+        <analysis-report :formConfig="formConfig" :formData="formData" ref="report"/>
+      </div>
+    </div>
+    <a-modal v-model="saveOption.show" title="保存选项"
+      @ok="doSave"
+    >
+      <a-input v-model="saveOption.name" :placeholder="reportName" style="margin-bottom: 16px"/>
+      <a-radio-group v-model="saveOption.value">
+        <a-radio :value="1">仅保存模板</a-radio>
+        <div class="save-option-desc">说明：保存分析条件和分析内容，不保存报告文件。可在常用模板中查看。下次可直接使用模板生成最新的报告。</div>
+        <a-radio :value="2">仅保存报告</a-radio>
+        <div class="save-option-desc">说明：保存报告文件（默认PDF格式）。可在已保存中查看，点击可直接预览。</div>
+        <a-radio :value="3">同时保存</a-radio>
+      </a-radio-group>
+    </a-modal>
+  </accordion-layout>
+</template>
+<script>
+import { Spin, Button, Select, Dropdown, Menu, Icon, Modal, Radio, Input } from 'ant-design-vue'
+import AccordionLayout from '@framework/components/AccordionLayout'
+import EmptyData from '@framework/components/EmptyData'
+import PropValueForm from '@person/components/PropValueForm'
+import ContentSelect from './components/ContentSelect'
+import AnalysisReport from './components/AnalysisReport.vue'
+import { showError } from '@framework/utils'
+import {convertHtmlToFileAsync} from '@framework/api/file'
+import { analysisquery, queryScope, queryContent, saveReport, getSetting} from '@person/api/statistics'
+
+
+/**
+ * 分析报告编辑
+ */
+export default {
+  components: {
+    AButton: Button,
+    ASpin: Spin,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ADropdownButton: Dropdown.Button,
+    AMenu: Menu,
+    AMenuItem: Menu.Item,
+    AIcon: Icon,
+    AModal: Modal,
+    ARadio: Radio,
+    ARadioGroup: Radio.Group,
+    AInput: Input,
+    AccordionLayout,
+    EmptyData,
+    PropValueForm,
+    ContentSelect,
+    AnalysisReport,
+  },
+  data(){
+    return {
+      setting: undefined,
+      list: [],//分析列表
+      filter: {
+        type: undefined,
+        subject: undefined,
+        scopetype: undefined,
+      },
+      loading: false,
+      analyzeTarget: undefined,
+      scope: undefined,//分析范围
+      scopeData: {},
+      content: undefined,//分析内容
+      contentSelected: [],
+      formData: {},
+      formConfig: undefined,
+      exporting: false,
+      saveOption: {
+        show: false,
+        value: 1,
+        name: undefined,
+      },
+    }
+  },
+  created(){
+    this.initData(this.$route.query.id);
+  },
+  computed: {
+    types(){
+      let ts = this.$store.getters.dict('analyze.report.analyzetype');
+      if(ts && ts.length > 3){//取前面3个
+        return [ts[0], ts[1], ts[2]];
+      }else{
+        return ts
+      }
+    },
+    filteredList(){//
+      let { type, subject, scopetype } = this.filter;
+      if(type){
+        return this.list.filter(item => {
+          return (item.type == type && (!subject || (item.subject == subject 
+            && (!scopetype || item.scopetype == scopetype))));
+        });
+      }
+    },
+    subjects(){
+      let { type } = this.filter; 
+      if(type){
+        let arr = [];
+        this.list.forEach(item => {
+          if(item.type == type){
+            if(!arr.find(e => e == item.subject)){
+              arr.push(item.subject);
+            }
+          }
+        })
+        return arr;
+      }
+    },
+    scopetypes(){
+      let { type, subject } = this.filter; 
+      if(type && (subject || !this.subjects)){
+        let arr = [];
+        this.list.forEach(item => {
+          if(item.type == type && (!subject || item.subject == subject)){
+            if(!arr.find(e => e == item.scopetype)){
+              arr.push(item.scopetype);
+            }
+          }
+        })
+        return arr;
+      }
+    },
+    reportName(){
+      let name = this.setting && this.setting.name;
+      return name || (this.analyzeTarget && this.analyzeTarget.name);
+    }
+  },
+  watch: {
+    filter: {
+      deep: true,
+      handler(filter){
+        let { type, subject, scopetype } = filter; 
+        if(this.filteredList && type && subject && scopetype){//所有条件都选择了返回列表第一条
+          this.setAnlyzeTarget(this.filteredList[0]);
+        }
+      },
+    },
+    types: {
+      immediate: true,
+      handler(types){
+        if(!this.filter.type && types && types.length){
+          this.filter.type = types[0].value;
+        }
+      }
+    },
+    subjects(arr){
+      //默认值 当前分析type变更时切换到第一个主题
+      if(!this.analyzeTarget || this.analyzeTarget.type != this.filter.type){
+        this.filter.subject = arr[0];
+      }
+    },
+    scopetypes(arr){
+      if(!this.analyzeTarget || this.analyzeTarget.type != this.filter.type 
+        || this.analyzeTarget.subject != this.filter.subject){
+        this.filter.scopetype = arr[0];
+      }
+    }
+  },
+  methods:{
+    initData(id){
+      analysisquery({}).then((resp) => {
+        if(id){
+          return getSetting(id).then(({result}) => {
+            this.setting = result;
+            return resp;
+          }).catch(error => {
+            showError(error);
+            return resp;
+          })
+        }else{
+          return resp;
+        }
+      }).then(({result}) => {
+        this.list = result || [];
+        if(this.setting){
+          let {analyzeid, scope, content} = this.setting;
+          let t = this.list.find(item => item.id == analyzeid);
+          if(t){//TODO setting 存在自动加载报告
+            this.filter = {type: t.type, subject: t.subject, scopetype: t.scopetype};
+            this.setAnlyzeTarget(t, scope, content);//FIXME sunwen filter后的分析不等于t时t将会被替换
+            return;
+          }
+        }
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    setAnlyzeTarget(analyze, scopeData, contentSelected){
+      if(this.analyzeTarget === analyze){
+        return;
+      }
+      console.log('setAnlyzeTarget', analyze);
+      this.analyzeTarget = analyze;
+      this.scopeData = scopeData || {};
+      this.contentSelected = contentSelected || [];
+      this.formConfig = undefined;
+      this.formData = {};
+      if(analyze){
+        this.loadScopeAndContent(analyze, scopeData && contentSelected);
+      }
+    },
+    loadScopeAndContent(analyze, report){
+      this.loading = true;
+      Promise.all([
+        queryScope({analyzeid: analyze.id}),
+        queryContent({analyzeid: analyze.id})
+      ]).then(([scope, content]) => {
+        this.loading = false;
+        this.scope = scope.result;
+        this.content = content.result;
+        if(report){
+          this.doReport();
+        }
+      }).catch(error => {
+        showError(error);
+        this.loading = false;
+      })
+    },
+    validate(){
+      if(!this.analyzeTarget){
+        this.$message.info('请选择条件筛选分析模板');
+        return;
+      }
+      if(this.loading){
+        this.$message.info('正在加载分析内容，请稍后');
+        return;
+      }
+      if(!this.content || !this.content.length){
+        this.$message.info('该模板暂无可分析的内容');
+        return;
+      }
+      if(this.contentSelected.length == 0){
+        this.$message.info('请选择报告内容');
+        return;
+      }
+      return true;
+    },
+    async doReport(){
+      if(!this.validate()){
+        return;
+      }
+      let data = {}, form = [];
+      let scopeForm = this.$refs.scopeData;
+      if(scopeForm){
+        try{
+          this.scopeData = await scopeForm.getFieldsValue();
+          Object.assign(data, this.scopeData);
+        }catch(error){
+          this.$message.info(error);
+          return;
+        }
+      }
+      let indexArr = [];
+      this.contentSelected.forEach(id => {
+        let c = this.content.find(item => item.id == id);
+        if(c){
+          indexArr.push(c.lindex);
+        }
+      });
+      this.content.forEach(item => {
+        let selected = indexArr.some(idx => item.lindex <= idx && idx < item.rindex);
+        if(selected){
+          if(item.form){
+            form = [...form, ...JSON.parse(item.form)];
+            if(item.data){
+              data = Object.assign(data, JSON.parse(item.data));
+            }
+          }
+        }
+      });
+      this.formData = data;
+      this.formConfig = form;
+    },
+    async doExport(type){
+      if(this.exporting){
+        this.$message.info('正在导出中，请稍后');
+        return
+      }
+      try {
+        this.exporting = true;
+        let {sheets, error} = await this.$refs.report.getSheets();
+        if(error.length){
+          try {
+            await new Promise((resolve, reject) => {
+              this.$confirm({
+                title: '提示',
+                content: '部分内容正在加载或加载失败，确定导出？',
+                onOk: () => {resolve()},
+                onCancel: () => {reject()},
+              })
+            });
+          } catch (error) {
+            return;
+          }
+        }
+        await convertHtmlToFileAsync({
+          title: this.analyzeTarget.name,
+          pagesize: 'A4',
+          rotate: false,
+          margins: [96, 120, 96, 120],
+          children: sheets
+        },false,type);
+      } catch (error) {
+        showError(error)
+      } finally{
+        this.exporting = false;
+      }
+    },
+    showSave(){
+      if(!this.validate()){
+        return;
+      }
+      this.saveOption.show = true;
+      this.saveOption.name = this.reportName;
+    },
+    async doSave(){
+      if(!this.validate()){
+        return;
+      }
+      let name = this.saveOption.name || this.reportName,
+        setting, report;
+      if(this.saveOption.value == 1 || this.saveOption.value == 3){
+        setting = {
+          id: this.setting && this.setting.id,
+          name,
+          analyzeid: this.analyzeTarget.id,
+          scope: this.scopeData,
+          content: this.contentSelected
+        }
+      }
+      if(this.saveOption.value == 2 || this.saveOption.value == 3){
+        let formData = await this.$refs.report.getData();//FIXME sunwen 部分数据未加载
+        console.log(formData);
+        report = {
+          name,
+          form: JSON.stringify(this.formConfig), 
+          data: JSON.stringify(formData)
+        }
+      }
+      saveReport({
+        setting, report
+      }).then(({result}) => {
+        if(setting && result){//新增配置模板时，更新配置信息，再次点击保存，不重复新增
+          setting.id = result;
+          this.setting = setting;
+        }
+        this.$message.info('保存成功')
+        this.saveOption.show = false;
+      }).catch(error => {
+        showError(error)
+        this.saveOption.show = false;
+      })
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.nav-title{
+  min-width: 250px;
+  display: flex;
+  a{
+    flex: 1 1 100%;
+    line-height: 40px;
+    text-align: center;
+    color: @text-color;
+    &:hover{
+      color: @primary-color;
+    }
+    &.selected{
+      color: @primary-color;
+      font-weight: bold;
+    }
+  }
+}
+.nav-panel{
+  min-width: 250px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  & > .title{
+    line-height: 34px;
+    background-color: #fafbfc;
+    padding: 0 @content-padding-h;
+    color: @primary-color;
+  }
+  & > .header{
+    flex: 1 1 40%;
+    padding: 0 @content-padding-h;
+    overflow-y: auto;
+    & > .label{
+      line-height: 26px;
+      &::after{
+        content: ':';
+      }
+    }
+    ul{
+      margin: 0 -5px;
+      line-height: 34px;
+      li{
+        display: inline-block;
+        margin: 0 5px;
+        padding: 0 8px;
+        line-height: 24px;
+        border: 1px solid @border-color-base;
+        border-radius: @border-radius-base;
+        cursor: pointer;
+        &:hover{
+          color: @primary-color;
+          border-color: @primary-color;
+        }
+        &.selected{
+          color: white;
+          background-color: @primary-color;
+          border-color: @primary-color;
+        }
+        &.selected:hover{
+          border-color: lighten(@primary-color, 5%);
+          background-color: lighten(@primary-color, 5%);
+        }
+      }
+    }
+    .scopes-select{
+      /deep/ .ant-form-item-label{
+        line-height: 26px;
+      }
+    }
+  }
+  & > .body{
+    flex: 1 1 60%;
+    overflow: hidden auto;
+    position: relative;
+    .ant-spin{
+      position: absolute;
+      top: 38%;
+      left: 50%;
+      margin-left: -10px;
+      margin-top: -12px;
+    }
+  }
+  & > .footer{
+    flex: none;
+    padding: @content-padding-v @content-padding-h;
+  }
+}
+.content{
+  position: relative;
+  background-color: @white;
+  border-radius: @border-radius-base;
+  height: 100%;
+  padding-top: 40px;
+  & > .header{
+    position: absolute;
+    width: 100%;
+    margin-top: -40px;
+    line-height: 40px;
+    padding: 0 @content-padding-h;
+    text-align: right;
+    z-index: 1;
+    box-shadow: 0px 5px 10px -5px #dad9d9;
+    .export /deep/.ant-dropdown-trigger{
+      padding: 0 1px;
+    }
+  }
+  & > .body{
+    height: 100%;
+  }
+}
+.save-option-desc{
+  margin: 8px 16px;
+  padding: 0 8px;
+  color: @disabled-color;
+  font-size: 0.9em;
+}
+</style>

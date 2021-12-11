@@ -1,0 +1,252 @@
+<template>
+  <div class="Term-query">
+    <div class="panel">
+      <div class="toolbar">
+        <a-form class="ant-advanced-search-form" :form="form">
+          <div class="box">
+            <ul class="in-box">
+              <li class="li-content" style="width: 180px">
+                <div>
+                  <span class="name">用语查询:</span>
+                  <a-select
+                    v-model="searchCondition.type"
+                    placeholder="请选择用语类型"
+                    @change="typeChange"
+                  >
+                    <a-select-option
+                      v-for="(item, index) in typeList"
+                      :key="index"
+                      :value="item.value"
+                      >{{ item.text }}</a-select-option
+                    >
+                  </a-select>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">关键字:</span>
+                  <a-input
+                    placeholder="请输入关键字"
+                    v-model="searchCondition.keywords"
+                  />
+                </div>
+              </li>
+              <li class="li-button">
+                <div>
+                  <span class="name"></span>
+                  <div>
+                    <a-button
+                      type="primary"
+                      @click="onSearch"
+                      style="margin-right: 10px"
+                      >搜索</a-button
+                    >
+                    <a-button @click="onreset">重置</a-button>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </a-form>
+      </div>
+    </div>
+    <div class="Term-main"></div>
+    <div class="Term-list">
+      <div class="Term-content">
+        <h3 class="Term-h3">查询结果:</h3>
+        <div class="list-content">
+          <span class="title-span">【{{ one }}】{{ two }}</span>
+          <span class="time-span"
+            >批准文号:{{ three }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;发文时间:{{
+              four
+            }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;相关单位:{{ five }}</span
+          >
+          <span class="content-span">{{ six }}</span>
+        </div>
+      </div>
+      <!-- <div class="main-image" v-else>
+        <empty-data :tips="warningtext" />
+      </div> -->
+    </div>
+  </div>
+</template>
+<script>
+import moment from "moment";
+import { showError } from "@/framework/utils/index";
+import EmptyData from "@/framework/components/EmptyData";
+import { Form, Row, Col, Input, Button, Select, Modal } from "ant-design-vue";
+export default {
+  name: "Termquery",
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AModal: Modal,
+    EmptyData,
+  },
+  data() {
+    return {
+      one: "我是机构",
+      two: "我是title",
+      three: "我是文号",
+      four: "我是时间",
+      five: "我是单位",
+      six:
+        "我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容",
+      warningtext: "请选择机构或进行关键字搜索",
+      typeList: [],
+      form: this.$form.createForm(this, { name: "advanced_search" }),
+      searchCondition: {
+        keywords: null,
+        type: undefined,
+      },
+    };
+  },
+  created() {
+    this.dictList();
+  },
+  methods: {
+    dictList() {
+      this.typeList = this.$store.getters.dict("library.doctype");
+    },
+    typeChange(value) {
+      this.typevalue = value;
+    },
+    //带参查询
+    onSearch() {},
+    onreset() {
+      this.searchCondition = { input: {} };
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.Term-query {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .panel {
+    display: flex;
+    // flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    .toolbar {
+      padding: @layout-space-base;
+      width: 100%;
+      margin: 0 auto;
+      .ant-advanced-search-form {
+        .box {
+          width: 100%;
+          .in-box {
+            margin-bottom: 0;
+            overflow: hidden;
+            // margin: 5px;
+            .li-content {
+              float: left;
+              padding: @layout-space-base;
+            }
+            .li-button {
+              float: left;
+              padding: @layout-space-base;
+            }
+            .name {
+              line-height: 32px;
+              padding-right: 5px;
+              // vertical-align: initial;
+            }
+            .ant-input-group.ant-input-group-compact {
+              display: inline-block;
+              vertical-align: super;
+            }
+            /deep/ .ant-input-group {
+              top: 0.8px;
+            }
+            /deep/.ant-select-selection--multiple {
+              padding-bottom: 0px;
+            }
+            @media screen and(max-width:1410px) {
+              .li-content {
+                width: 33%;
+              }
+            }
+            @media screen and (min-width: 1410px) and(max-width:1750px) {
+              .li-content {
+                width: 25%;
+              }
+            }
+            @media screen and (min-width: 1750px) {
+              .li-content {
+                width: 20%;
+              }
+            }
+          }
+        }
+      }
+      .pzwh {
+        width: auto;
+        border: 1px solid #d9d9d9;
+        border-radius: 4px;
+        &:hover {
+          border-color: @primary-color;
+        }
+        &:focus-within {
+          border-color: @primary-color;
+          box-shadow: 0 0 0 2px fade(@primary-color, 20%);
+        }
+        /deep/.ant-input {
+          border: none;
+          height: 30px;
+        }
+        /deep/.ant-input-group-addon {
+          border: none;
+          background: none;
+        }
+      }
+    }
+  }
+  .Term-main {
+    background: #f3f7fa;
+    height: @layout-space-base;
+    width: 100%;
+  }
+  .Term-list {
+    flex: 1;
+    padding: 10px 24px;
+    .Term-h3 {
+      font-weight: 700;
+      color: #666666;
+    }
+    .main-image {
+      position: relative;
+      top: 40%;
+    }
+    .Term-content {
+      .list-content {
+        padding-bottom: @layout-space-base;
+        border-bottom: 1px dashed rgb(222, 222, 222);
+        display: flex;
+        flex-direction: column;
+        span {
+          margin-bottom: 5px;
+        }
+        .title-span {
+          font-size: 18px;
+        }
+        .time-span {
+          color: #cccccc;
+        }
+        .content-span {
+          width: 88%;
+          color: rgba(0, 0, 0, 0.5);
+        }
+      }
+    }
+  }
+}
+</style>

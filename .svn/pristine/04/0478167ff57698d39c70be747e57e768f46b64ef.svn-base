@@ -1,0 +1,203 @@
+<template>
+  <div class="analysis-report">
+    <!-- <div class="form-bg"> -->
+      <div class="form-wrap">
+        <div class="empty" v-if="!formConfig">请选择条件和内容生成分析报告</div>
+        <template v-else> 
+          <form-display ref="formDisplay"
+            :formConfig="formConfig" 
+            :formData="formData" 
+            :showAnchor="false" 
+            style="margin: 96px 120px"
+            :bodyStyle="{padding: 0, overflow: 'unset'}"
+          >
+            <ant-chart slot="chart" slot-scope="props" v-bind="props"/>
+            <report-template slot="template" slot-scope="props" v-bind="props" />
+            <document-title slot="titleBar" slot-scope="props" v-bind="props"/>
+          </form-display>
+          <!-- <div class="loading-mask" v-if="contentCount > 0"></div> -->
+        </template>
+      </div>
+      <!-- <a-spin v-if="formConfig && contentCount > 0" class="loading" size="large" tip="正在分析"/> -->
+    <!-- </div> -->
+  </div>
+</template>
+<script>
+import { Spin } from 'ant-design-vue'
+import FormDisplay from "@formdesign/views/FormDisplay";
+import { components } from '@person/components/formdesign'
+import { get } from "lodash";
+
+/**
+ * 分析报告
+ */
+export default {
+  components: {
+    ASpin: Spin,
+    FormDisplay,
+    ...components,
+  },
+  props: {
+    formConfig: Array,
+    formData: Object,
+  },
+  data(){
+    return {
+      form: undefined,
+      docTree: undefined,
+    }
+  },
+  created(){
+    //
+  },
+  watch: {
+    formConfig: {
+      immediate: true,
+      handler(config){
+        if(config){
+          this.docTree = this.getDocTree(config);
+          this.from = config;
+        }
+      }
+    },
+  },
+  methods: {
+    getReportMeta(){//获取报告元数据
+      return this.getFormData().then((data) => {
+        let error = [];
+        let sheets = this.convertSheet(this.docTree, data, error);
+        return {data, sheets, error}
+      })
+    },
+    getFormData(){
+      let from = this.$refs.formDisplay;
+      if(from){
+        return from.submit();
+      }else{
+        return Promise.reject();
+      }
+    },
+    getDocTree(form){//获取文档结构树，并将文档标题按规则添加序号
+      let queue = [...form], path = [{level: 0, index: 0, children: []}];
+      while(queue.length > 0){
+        let item = queue.shift();
+        if(item.type == 'titleBar'){//给标题添加序号
+          let level = item.level >= 1 ? item.level : 1;//默认为1级标题
+          let parent;//父节点
+          for(let i = path.length - 1; i >= 0; i--){//根据标题级别查找父节点
+            let node = path[i];
+            if(node.level < level){
+              parent = node;
+              break;
+            }else{
+              path.pop();
+            }
+          }
+          parent.index++;
+          let ordinal = '';//FIXME sunwen 这里给标题添加序号的方案，不支持标题组件配置隐藏条件，后续调整添加序号由表单内部实现
+          path.forEach(item => {
+            ordinal += ordinal ? '.' + item.index : item.index;
+          })
+          item.ordinal = ordinal;
+          let node = { level, title: item.name, ordinal, index: 0, children: []};
+          parent.children.push(node);
+          path.push(node);
+        }else if (item.type == "chart" || item.type == 'template') {
+          path[path.length - 1].children.push(item);
+        } else if (item.children) {//布局，循环布局内的组件
+          for(let i = item.children.length - 1; i >= 0; i--){
+            let child = item.children[i];
+            if(child.components){
+              queue = child.components.concat(queue);
+            }
+          }
+        }
+      }
+      return path[0].children;
+    },
+    convertSheet(list, data, error = []){
+      let sheets = [];
+      list.forEach(item => {
+        if(item.type == 'chart'){
+          let c = get(data, item.code);
+          if(c !== undefined){ //FIXME sunwen 数据为空存在2种情况，1未设置 2组件根据条件不显示；直接去掉该内容页
+            if(c.image){
+              sheets.push({ title: get(c, 'settings.title'), showtitle: true, image: c.image })
+            }else{
+              error.push(item.name);
+            }
+          }
+        }else if(item.type == 'template'){
+          let c = get(data, item.code);
+          if(c !== undefined){ //FIXME sunwen 数据为空存在2种情况，1未设置 2组件根据条件不显示；直接去掉该内容页
+            if(c.template){
+              sheets.push({ html: c.template })
+            }else{
+              error.push(item.name);
+            }
+          }
+        }else if(item.children){
+          sheets.push({
+            title: item.ordinal + ' ' + item.title,
+            showtitle: true,
+            children: this.convertSheet(item.children, data, error)
+          });
+        }
+      })
+      return sheets;
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.analysis-report{
+  height: 100%;
+  overflow-y: auto;
+  background-color: #eee;
+  background-image: url('../../../../assets/img/analysis_watermark.png');
+  // .form-bg{
+  //   overflow: hidden;
+  //   background-image: url('../../../../assets/img/analysis_watermark.png');
+  // }
+  .form-wrap{
+    width: 794px;
+    min-height: 1123px;
+    margin: 20px auto;
+    box-shadow: 1px 1px 20px #dad9d9;
+    background-color: @white;
+    position: relative;
+    overflow: hidden;
+  }
+  .empty{
+    position: absolute;
+    top: 30%;
+    width: 100%;
+    text-align: center;
+    color: @disabled-color;
+    font-size: 1.6em;
+  }
+  // .loading-mask{
+  //   position: absolute;
+  //   z-index: 1000;
+  //   top: 0;
+  //   left: 0;
+  //   width: 100%;
+  //   height: 100%;
+  //   text-align: center;
+  //   background-color: inherit;
+  // }
+  // .loading{
+  //   position: absolute;
+  //   z-index: 1001;
+  //   top: 38%;
+  //   left: 50%;
+  //   width: 100px;
+  //   margin-left: -50px;
+  //   padding: 12px 8px 8px 8px;
+  //   text-align: center;
+  //   background: fade(@background-color-base, 90%);
+  //   box-shadow: 1px 1px 10px #dad9d9;
+  //   border-radius: @border-radius-base;
+  // }
+}
+</style>

@@ -1,0 +1,177 @@
+<template>
+  <div class="view">
+    <div class="top">
+      <ul class="tree">
+        <li v-for="(item,index) in cityList" :key="index" :class="{'active':index ==0}">
+          <span class="icon">
+            <icon :active="index ==0"></icon>
+          </span>
+          <span class="name">{{item}}</span>
+        </li>
+      </ul>
+      <div class="content">
+        <div class="borderBar left"></div>
+        <div class="borderBar right"></div>
+        <div class="kpiWrap">
+          <div class="kpi_diamond"></div>
+          <div class="kpiCount kpiOrg">
+            <span class="name">机构</span>
+            <span class="num">98</span>
+          </div>
+          <div class="kpiCount kpiQuestion">
+            <span class="name">问题</span>
+            <span class="num">97</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import Icon from "./Icon";
+export default {
+  components: { Icon },
+  data() {
+    return {
+      cityList: [
+        "市本級",
+        "上虞区",
+        "越城区",
+        "柯桥区",
+        "诸暨市",
+        "嵊州市",
+        "新昌县"
+      ]
+    };
+  }
+};
+</script>
+<style lang='less' scoped>
+.view {
+  .top {
+    padding: 0px 30px;
+    display: flex;
+    align-items: center;
+    .tree {
+      width: 120px;
+      margin: 0px;
+      li {
+        width: 100%;
+        height: 24px;
+        margin-top: 26px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-left: 16px;
+        position: relative;
+        cursor: pointer;
+        &::before {
+          content: "";
+          width: 4px;
+          height: 20px;
+          background: #323440;
+          position: absolute;
+          left: 0px;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        &.active {
+          &::before {
+            background: #00f7fa;
+          }
+        }
+        &:first-child {
+          margin-top: 0px;
+        }
+        .icon {
+          width: 24px;
+          height: 24px;
+          &.active /deep/ {
+            fill: #00f7fa;
+          }
+        }
+        .name {
+          height: 26px;
+          font-size: 20px;
+          font-family: Microsoft YaHei;
+          font-weight: bold;
+          line-height: 26px;
+          color: #ffffff;
+          text-shadow: 0px 3px 6px rgba(74, 171, 255, 0.16);
+          opacity: 0.5;
+          letter-spacing: 2px;
+        }
+      }
+    }
+    .content {
+      flex: 1;
+      height: 441px;
+      position: relative;
+      margin-left: 45px;
+      position: relative;
+      .borderBar {
+        width: 109px;
+        height: 100%;
+        position: absolute;
+        top: 0px;
+        &.left {
+          left: 0px;
+          background: url("../img/left-border.png") center center no-repeat;
+        }
+        &.right {
+          right: 0px;
+          background: url("../img/right-border.png") center center no-repeat;
+        }
+      }
+      .kpiWrap {
+        width: 700px;
+        height: 206px;
+        background: url("../img/kpi-circle.png") center center no-repeat;
+        position: absolute;
+        left: 76px;
+        bottom: 56px;
+        .kpi_diamond {
+          width: 648px;
+          height: 315px;
+          background: url("../img/kpi-diamond.png") center center no-repeat;
+          position: absolute;
+          top: -126px;
+          left: 14px;
+        }
+        .kpiCount {
+          display: inline-flex;
+          flex-direction: column;
+          position: absolute;
+          .name {
+            height: 19px;
+            font-size: 14px;
+            font-family: Microsoft YaHei;
+            font-weight: 400;
+            line-height: 19px;
+            color: #ffffff;
+            opacity: 0.6;
+          }
+          .num {
+            height: 27px;
+            font-size: 24px;
+            font-family: Arial;
+            font-weight: bold;
+            line-height: 28px;
+            color: #8fc7ff;
+            opacity: 1;
+            margin-top: 12px;
+          }
+          &.kpiOrg {
+            left: 165px;
+            top: -76px;
+          }
+          &.kpiQuestion {
+            left: 168px;
+            top: 20px;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

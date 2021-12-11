@@ -1,0 +1,49 @@
+<template>
+  <div style="height:450px;background:red" >
+    <Map330100 style="width: 100%;height: 100%"/>
+  </div>
+</template>
+<script>
+import Map330000 from '../map/Map330000'
+import Map330100 from '../map/Map330100'
+import Map330200 from '../map/Map330200'
+import Map330300 from '../map/Map330300'
+import Map330400 from '../map/Map330400'
+import Map330500 from '../map/Map330500'
+import Map330600 from '../map/Map330600'
+import Map330700 from '../map/Map330700'
+import Map330800 from '../map/Map330800'
+import Map330900 from '../map/Map330900'
+import Map331000 from '../map/Map331000'
+import Map331100 from '../map/Map331100'
+
+export default {
+  components: {
+    Map330000,
+    Map330100,
+    Map330200,
+    Map330300,
+    Map330400,
+    Map330500,
+    Map330600,
+    Map330700,
+    Map330800,
+    Map330900,
+    Map331000,
+    Map331100,
+  },
+  created(){
+  },
+  computed: {
+    area(){
+
+    },
+  },
+  methods: {
+
+  }
+  
+}
+</script>
+<style lang="less" scoped>
+</style>

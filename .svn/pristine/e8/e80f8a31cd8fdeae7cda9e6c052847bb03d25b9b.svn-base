@@ -1,0 +1,447 @@
+<template>
+  <div class="wrapper">
+    <div class="layout_header">
+      <SelectCondition @handleData="getData" :title="'用户' + title"></SelectCondition>
+    </div>
+    <div :style="{ margin: '16px', overflow: 'initial' }">
+      <div class="main">
+
+        
+        <div class="trend">
+          <div class="top">
+            <div class="top_left">
+              注册用户趋势图
+              <span>
+                <img src="../../assets/img/helps.png" alt="">
+              </span>
+            </div>
+            <div class="top_right">
+              数据表
+            </div>
+          </div>
+          <div class="date">2021/3/3</div>
+          <div class="total" v-if="pageData">{{pageData.regNumList[0].num}}</div>
+          <div class="name" v-if="pageData">{{pageData.regNumList[0].name}}</div>
+          <div class="chart_container" id="trendChart"></div>
+          <!-- <LineChart :data="regData" style="height: 219px;margin-top: 24px;"></LineChart> -->
+        </div>
+
+        <div class="percent">
+          <div class="percent_item">
+            <div class="title">业务平台注册占比</div>
+            <div class="date">2020/3/20</div>
+            <div>
+              <span>数据表</span>
+              <span>普通页面数据分析</span>
+            </div>
+            <div class="chart" id="businessOneChart"></div>
+          </div>
+          <div class="percent_item">
+            <div class="title">业务平台注册占比</div>
+            <div class="date">2020/3/20</div>
+            <div>
+              <span>数据表</span>
+              <span>普通页面数据分析</span>
+            </div>
+            <div class="chart" id="businessTwoChart"></div>
+          </div>
+          <div class="percent_item">
+            <div class="title">业务平台注册占比</div>
+            <div class="date">2020/3/20</div>
+            <div>
+              <span>数据表</span>
+              <span>普通页面数据分析</span>
+            </div>
+            <div class="chart" id="businessThreeChart"></div>
+          </div>
+        </div>
+
+        <div class="relevance">
+          <div class="title">账号关联数</div>
+          <div class="date">2020/1/1</div>
+          <ul>
+            <li>
+              <div class="num">10</div>
+              <div class="name">微信小程序账号</div>
+            </li>
+            <li>
+              <div class="num">10</div>
+              <div class="name">微信小程序账号</div>
+            </li>
+            <li>
+              <div class="num">10</div>
+              <div class="name">微信小程序账号</div>
+            </li>
+            <li>
+              <div class="num">10</div>
+              <div class="name">微信小程序账号</div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="attribute">
+          <div class="title">注册用户属性</div>
+          <div class="date">2021/2/2</div>
+          <ul class="ring_container">
+            <li>
+              <div class="name">认证等级</div>
+              <div class="attribute_chart" id="levelChart"></div>
+            </li>
+            <li>
+              <div class="name">认证等级</div>
+              <div class="attribute_chart" id="ageChart"></div>
+            </li>
+            <li>
+              <div class="name">认证等级</div>
+              <div class="attribute_chart" id="sexChart"></div>
+            </li>
+          </ul>
+          <div class="name">地域分布</div>
+          <div class="map">
+            <div class="left_map">
+              <div id="map">
+              </div>
+            </div>
+            <div class="right_percent">
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Chart, registerShape } from '@antv/g2';
+import SelectCondition from '@/zfw/components/overview/SelectCondition';
+import { Scene } from '@antv/l7';
+import { CountryLayer } from '@antv/l7-district';
+import { Mapbox } from '@antv/l7-maps';
+import { regReportDate } from "@/zfw/api/naturalRegister";
+import { showError } from '../../../framework/utils';
+import LineChart from '@/zfw/components/lineChart';
+
+const colors = [ '#B8E1FF', '#7DAAFF', '#3D76DD', '#0047A5', '#001D70' ];
+
+export default {
+  props: {},
+  components: { SelectCondition, LineChart },
+  data() {
+    return {
+      title: '注册',
+      trandChart: null,
+      trandChartData: [
+        { year: '1991', value: 15468 },
+        { year: '1992', value: 16100 },
+        { year: '1993', value: 15900 },
+        { year: '1994', value: 17409 },
+        { year: '1995', value: 17000 },
+        { year: '1996', value: 31056 },
+        { year: '1997', value: 31982 },
+        { year: '1998', value: 32040 },
+        { year: '1999', value: 33233 },
+      ],
+      ringChart: null,
+      ringChartData: [
+        { type: '分类一', value: 20 },
+        { type: '分类二', value: 18 },
+        { type: '分类三', value: 32 },
+        { type: '分类四', value: 15 },
+        { type: 'Other', value: 15 },
+      ],
+      pageData: undefined
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {},
+  mounted() {
+    this.initTrandChart(this.trandChart, 'trendChart', this.trandChartData);
+    this.initRingChart(this.ringChart, 'businessOneChart', this.ringChartData);
+    this.initRingChart(this.ringChart, 'businessTwoChart', this.ringChartData);
+    this.initRingChart(this.ringChart, 'businessThreeChart', this.ringChartData);
+    this.initRingChart(this.ringChart, 'levelChart', this.ringChartData);
+    this.initRingChart(this.ringChart, 'ageChart', this.ringChartData);
+    this.initRingChart(this.ringChart, 'sexChart', this.ringChartData);
+    // this.initMap();
+  },
+  methods: {
+    getData(data) {
+      regReportDate(data)
+      .then(({attr}) => {
+        this.pageData = attr;
+        console.log(this.pageData.regNumList[0].name);
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    initTrandChart(chart, id, data) {
+      chart = new Chart({
+        container: id,
+        autoFit: true,
+        height: 220,
+      });
+
+      chart.data(data);
+      chart.scale({
+        value: {
+          min: 0,
+          nice: true,
+        },
+        year: {
+          range: [0, 1],
+        },
+      });
+      chart.tooltip({
+        showCrosshairs: true,
+        shared: true,
+      });
+
+      chart.axis('value', {
+        label: {
+          // formatter: (val) => {
+          //   return (+val / 10000).toFixed(1) + 'k';
+          // },
+        },
+      });
+
+      chart.area().position('year*value');
+      chart.line().position('year*value');
+
+      chart.render();
+    },
+    initRingChart(chart, id, data) {
+      // 可以通过调整这个数值控制分割空白处的间距，0-1 之间的数值
+      const sliceNumber = 0.01;
+
+      // 自定义 other 的图形，增加两条线
+      registerShape('interval', 'slice-shape', {
+        draw(cfg, container) {
+          const points = cfg.points;
+          let path = [];
+          path.push(['M', points[0].x, points[0].y]);
+          path.push(['L', points[1].x, points[1].y - sliceNumber]);
+          path.push(['L', points[2].x, points[2].y - sliceNumber]);
+          path.push(['L', points[3].x, points[3].y]);
+          path.push('Z');
+          path = this.parsePath(path);
+          return container.addShape('path', {
+            attrs: {
+              fill: cfg.color,
+              path,
+            },
+          });
+        },
+      });
+
+      chart = new Chart({
+        container: id,
+        autoFit: true,
+        height: 350,
+      });
+
+      chart.data(data);
+      chart.coordinate('theta', {
+        radius: 0.75,
+        innerRadius: 0.6,
+      });
+      chart.tooltip({
+        showTitle: false,
+        showMarkers: false,
+      });
+      chart
+        .interval()
+        .adjust('stack')
+        .position('value')
+        .color('type')
+        .shape('slice-shape');
+
+      chart.render();
+    },
+    initMap() {
+      const scene = new Scene({
+        id: 'map',
+        map: new Mapbox({
+          center: [ 116.2825, 39.9 ],
+          pitch: 0,
+          style: 'blank',
+          zoom: 3,
+          minZoom: 0,
+          maxZoom: 10
+        })
+      });
+      const attachMapContainer = document.createElement('div');
+      attachMapContainer.id = 'attach';
+      attachMapContainer.style.cssText = `position: absolute;
+      height: 125px;
+      width: 98px;
+      right: 50px;
+      bottom: 20px;
+      border: 1px solid #333;`;
+      document.getElementById('map').parentElement.append(attachMapContainer);
+
+      scene.on('loaded', () => {
+        new CountryLayer(scene, {
+          data: [],
+          joinBy: [ 'NAME_CHN', 'name' ],
+          depth: 1,
+          provinceStroke: '#fff',
+          cityStroke: '#EBCCB4',
+          cityStrokeWidth: 1,
+          label: {
+            enable: false
+          },
+          fill: {
+            color: {
+              field: 'NAME_CHN',
+              values: colors
+            }
+          },
+          popup: {
+            enable: true,
+            Html: props => {
+              return `<span>${props.NAME_CHN}</span>`;
+            }
+          }
+        });
+      });
+
+      // 添加附图，附图需要和主图保持一致
+
+      const scene2 = new Scene({
+        id: 'attach',
+        logoVisible: false,
+        map: new Mapbox({
+          center: [ 113.60540108435657, 12.833692637803168 ],
+          pitch: 0,
+          style: 'blank',
+          zoom: 1.93,
+          minZoom: 0,
+          maxZoom: 3,
+          interactive: false
+        })
+      });
+      scene2.on('loaded', () => {
+        new CountryLayer(scene2, {
+          data: [],
+          label: {
+            enable: false
+          },
+          popup: {
+            enable: false
+          },
+          autoFit: false,
+          depth: 1,
+          fill: {
+            color: {
+              field: 'NAME_CHN',
+              values: [
+                '#feedde',
+                '#fdd0a2',
+                '#fdae6b',
+                '#fd8d3c',
+                '#e6550d',
+                '#a63603'
+              ]
+            }
+          }
+        });
+      });
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.wrapper{
+  .main{
+
+    >div{
+      padding: @padding-lg;
+      background-color: @white;
+      margin-top: 16px;
+      border-radius: 5px;
+      -moz-box-shadow:0px 0px 10px #E7E7E7; 
+      -webkit-box-shadow:0px 0px 10px #E7E7E7; 
+      box-shadow:0px 0px 10px #E7E7E7;
+      .title{
+        color: black;
+        font-size: 20px;
+        font-weight: bold;
+      }
+      .date{
+        color: #a2a2a2;
+      }
+    }
+
+    .trend{
+      margin-top: 0;
+      .top{
+        display: flex;
+        justify-content: space-between;
+        .top_left{
+          color: black;
+          font-size: 20px;
+          font-weight: bold;
+        }
+        .top_right{
+          color: @primary-color;
+        }
+      }
+      .total{
+        color: @primary-color;
+        font-size: 30px;
+      }
+      .name{
+        font-weight: bold;
+        color: #939393;
+        margin-bottom: 10px;
+      }
+    }
+
+    .percent{
+      display: flex;
+      .percent_item{
+        width: 33%;
+      }
+    }
+
+    .relevance{
+      ul{
+        display: flex;
+        li{
+          text-align: center;
+          width: 25%;
+          .num{
+            font-size: 30px;
+            color: @primary-color;
+          }
+        }
+      }
+    }
+
+    .attribute{
+      .ring_container{
+        display: flex;
+        li{
+          width: 33%;
+        }
+      }
+      .map{
+        display: flex;
+        flex-direction: row;
+        height: 500px;
+        .left_map{
+          flex: 7;
+        }
+        .right_percent{
+          flex: 5;
+        }
+      }
+    }
+
+  }
+}
+</style>

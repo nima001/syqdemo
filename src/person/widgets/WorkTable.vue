@@ -1,0 +1,149 @@
+<template>
+  <div class="work">
+    <div v-if="tabList && tabList.length">
+      <div class="people-topright">
+        <a-radio-group v-model="selectedIndex" @change="tabChange(false)">
+          <a-radio-button
+            v-for="(item,index) in tabList"
+            :value="index"
+            :key="item.id"
+          >{{item.name}}</a-radio-button>
+        </a-radio-group>
+        <a @click="tabChange(true)">刷新</a>
+      </div>
+      <a-spin :spinning="!tabList[selectedIndex].useable">
+        <iframe
+          id="external-frame"
+          :style="{width:'100%',height:'600px'}"
+          class="coverimg"
+          frameborder="0px"
+          :src="tabList[selectedIndex].src"
+        />
+      </a-spin>
+    </div>
+    <div :style="{height:'600px'}" v-else-if="tabList">
+      <empty-data />
+    </div>
+  </div>
+</template>
+<script>
+import { Card, Radio, Spin } from "ant-design-vue";
+import { listReportDisplay, buildSheet } from "../api/booklet";
+import { showError } from "@/framework/utils/index";
+import EmptyData from "@/framework/components/EmptyData";
+export default {
+  name: "WorkTabale",
+  components: {
+    ACard: Card,
+    ARadioButton: Radio.Button,
+    ARadioGroup: Radio.Group,
+    ASpin: Spin,
+    EmptyData,
+  },
+  //index首页实现改变高度加载数据，需要新增的方法
+  props:{
+    rowcount:{
+      type: Number
+    },
+  },
+  data() {
+    return {
+      tabList: undefined,
+      selectedIndex: 0,
+    };
+  },
+  //index首页实现改变高度加载数据，需要新增的方法
+  watch:{
+    rowcount(){
+      listReportDisplay({
+        namespace: "home",
+        pagenum: 1,
+        pagesize: this.rowcount || 10, //暂定最多10条
+      })
+      .then(({ result }) => {
+        this.tabList = result.rows || [];
+        this.tabChange();
+      })
+      .catch((err) => {
+        showError(err);
+      });
+    }
+  },
+  created() {
+    listReportDisplay({
+      namespace: "home",
+      pagenum: 1,
+      pagesize: 10, //暂定最多10条
+    })
+      .then(({ result }) => {
+        this.tabList = result.rows || [];
+        this.tabChange();
+      })
+      .catch((err) => {
+        showError(err);
+      });
+  },
+  methods: {
+    tabChange(refresh) {
+      let index = this.selectedIndex;
+      if (!this.tabList || index >= this.tabList.length) {
+        return;
+      }
+      let tab = this.tabList[index];
+      if (refresh || !tab.src) {
+        this.$set(tab, "useable", false);
+        buildSheet(tab.id, null, refresh)
+          .then(({ result }) => {
+            tab.useable = true;
+            let html = result.content ? result.content.replace(/\'/g, '\\\'') : '';
+            this.$set(
+              tab,
+              "src",
+              `javascript:void(function(){document.open();document.write('${html}');document.close();}())`
+            );
+          })
+          .catch((error) => {
+            tab.useable = true;
+            if (index == this.selectedIndex) {
+              //停留在当前tab提示错误信息
+              showError(error);
+            }
+          });
+      }
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+.people-topright {
+  position: relative;
+  margin-bottom: 10px;
+  padding-right: 40px;
+  .ant-radio-group {
+    width: 100%;
+    white-space: nowrap;
+    overflow-x: auto;
+  }
+  & > a {
+    position: absolute;
+    right: 0;
+    top: 0;
+    line-height: 32px;
+  }
+}
+.work {
+  padding: 12px 32px;
+  overflow: hidden;
+  border: none;
+}
+//新增，防止iframe对拖动造成影响
+/deep/.ant-spin-container::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  opacity: 0;
+}
+</style>

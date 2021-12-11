@@ -1,0 +1,113 @@
+<template>
+  <div class="attribute">
+    <div class="title">注册用户属性</div>
+    <div class="date">{{time}}</div>
+    <ul class="ring_container">
+      <li>
+        <div class="name">认证等级</div>
+        <RingChart :data="$attrs.pageData.ringDatas[0]" :loading="loading" style="height: 219px;margin-top: 24px;"></RingChart>
+      </li>
+      <li>
+        <div class="name">年龄结构</div>
+        <RingChart :data="$attrs.pageData.ringDatas[1]" :loading="loading" style="height: 219px;margin-top: 24px;"></RingChart>
+      </li>
+      <li>
+        <div class="name">性别分分布</div>
+        <RingChart :data="$attrs.pageData.ringDatas[2]" :loading="loading" style="height: 219px;margin-top: 24px;"></RingChart>
+      </li>
+    </ul>
+    <div class="name">地域分布</div>
+    <div class="map">
+      <div class="left_map">
+        <MapChart :data="$attrs.pageData.mapseriesdataList" :loading="loading"></MapChart>
+        <div class="colors">
+          高
+          <span v-for="(color, index) in colorList" :key="index" :style="'background:' + color"></span>
+          低
+        </div>
+      </div>
+      <div class="right_percent">
+        <RankList :rankList="$attrs.pageData.topList" :total="$attrs.pageData.maptotalusernum" :loading="loading"></RankList>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import MapChart from '@/zfw/components/mapChart';
+import RingChart from '@/zfw/components/ringChart';
+import RankList from '@/zfw/components/overview/RankList';
+import { colors } from "../../utils/index";
+
+export default {
+  props: {
+    loading: {
+      type: Boolean
+    },
+    title: {
+      type: String
+    },
+    time: {
+      type: String
+    },
+    // pageData: {
+    //   type: Object
+    // }
+  },
+  components: { MapChart, RingChart, RankList },
+  data() {
+    return {
+    };
+  },
+  watch: {
+  },
+  computed: {
+    colorList() {
+      return colors;
+    }
+  },
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.attribute{
+  .ring_container{
+    display: flex;
+    li{
+      width: 33%;
+      .name{
+        font-size: 20px;
+      }
+    }
+  }
+  .name{
+    font-size: 20px;
+  }
+  .map{
+    display: flex;
+    flex-direction: row;
+    height: 550px;
+    .left_map{
+      flex: 7;
+      position: relative;
+      .colors{
+        line-height: 20px;
+        position: absolute;
+        left: 20px;
+        bottom: 20px;
+        span{
+          display: inline-block;
+          width: 13px;
+          height: 13px;
+          margin-left: 5px;
+        }
+      }
+    }
+    .right_percent{
+      flex: 5;
+    }
+  }
+}
+</style>

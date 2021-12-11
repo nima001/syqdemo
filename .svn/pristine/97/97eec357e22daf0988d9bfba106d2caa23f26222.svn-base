@@ -1,0 +1,82 @@
+<template>
+  <div class="addorg">
+    <div class="content">
+      <div class="head">新增组织</div>
+      <div class="formcontent"><add-org-form :selectedtreeid="selectedtreeid" /></div>  
+      <div class="footer">
+        <a-button class="btn1">
+          取消
+        </a-button>
+        <a-button class="btn2" type="primary" @click="confirm">
+          确定
+        </a-button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import {Button} from "ant-design-vue";
+import AddOrgForm from "./components/AddOrgForm"
+export default {
+  name: 'addOrg',
+  components: {
+    AButton: Button,
+    AddOrgForm
+  },
+  data() {
+    return {
+      selectedtreeid: null,
+    };
+  },
+  created(){
+    this.selectedtreeid = this.$route.query.selectedtreeid
+  },
+  
+  methods: {
+    confirm() {
+      this.$router.push({name:'accountMain', query:{keynum: 3, treeid: this.selectedtreeid}})
+    }
+  }
+}
+</script>
+
+<style lang="less" scoped>
+.addorg {
+  height: 100%;
+  padding: 10px;
+  .content{
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: @white;
+    padding: @content-padding-v @content-padding-h;
+    .head{
+      padding: @content-padding-v @content-padding-h;
+      width:100%;
+      font-size: 18px;   
+    }
+    .formcontent{
+      padding: @content-padding-v @content-padding-h;
+      flex-shrink: 1;
+      overflow: auto;
+    }
+    .footer{
+      padding: @content-padding-v @content-padding-h;
+      width: 100%;
+      position: relative;
+      margin-bottom: 20px;
+      .btn1{
+        position: absolute;
+        left: 50%;
+      }
+      .btn2{
+        position: absolute;
+        right: 50%;
+        transform: translateX(-50%);
+      }
+    }
+  }
+}
+</style>

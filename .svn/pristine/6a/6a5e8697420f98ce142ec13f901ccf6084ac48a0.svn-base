@@ -1,0 +1,427 @@
+<template>
+  <div>
+    <!-- <dialog-box v-model="show"> -->
+      <div class="detail-info">
+        <template>
+          <!-- <div class="left" v-if="showsys">
+            <ul>
+              <li
+                v-for="item in systypes"
+                :key="item.key"
+                :class="{ active: sysvalue === item.value }"
+                @click="onSystypeClick(item)"
+              >
+                {{ item.text }}
+              </li>
+            </ul>
+          </div> -->
+          <div class="right">
+            <div class="header">
+              <p></p>
+            </div>
+            <div class="table">
+              <div class="header">
+                <span>人员姓名</span>
+                <span>年龄</span>
+                <span>职务层次</span>
+                <span>学历</span>
+                </div>
+                <div class="body">
+                  <ul v-for="item in dataList" @click="orgClick(item)">
+                    <li>{{item.username}}</li>
+                    <li>{{item.age}}</li>
+                    <li>{{item.leaderpostlevel}}</li>
+                    <li>{{item.education}}</li>
+                  </ul>
+              </div>
+            </div>
+            <div class="pagination">
+              <div class="prev">
+                <img src="../../../assets/img/screen/page-prev.png" @click="changePage('prev')">
+              </div>
+              <div>
+                <span class="current">{{this.pagination.pagenum}}</span>
+                <span>/</span>
+                <span>{{this.pagination.pagetotal}}</span>
+              </div>
+              <div class="next">
+                <img src="../../../assets/img/screen/page-next.png" @click="changePage('next')">
+              </div>
+            </div>
+          </div>
+        </template>
+      </div>
+    <!-- </dialog-box> -->
+  </div>
+</template>
+<script>
+import { Button, Input, Icon } from "ant-design-vue";
+import DialogBox from "./DialogBox";
+import { query } from "@/person/api/integratedquery";
+import { showError } from "@/framework/utils/index";
+import { openUserInfo } from './smzUtils';
+export default {
+  props: {
+    showsys: {
+      type: Boolean,
+      default: true,
+    },
+    showList: Boolean,
+    district: {
+      type: String,
+    },
+    // unittypes: {
+    //   type: Array,
+    //   default: () => []
+    // },
+    systype: {
+      
+    },
+    displayField: {
+      type: String,
+    },
+    filter: {
+      type: Object,
+    }
+  },
+  components: {
+    DialogBox,
+    AInput: Input,
+    AButton: Button,
+    AIcon: Icon
+  },
+  data() {
+    return {
+      show: false,
+      sysvalue: this.systype,
+      dataList: [],
+      pagination: {
+        pagenum: 1,
+        pagesize: 20,
+        total: 0,
+        pagetotal: 0,
+      },
+      intersectionObserver: undefined,
+    };
+  },
+  watch: {
+    showList(value) {
+      this.show = value;
+    },
+    show(show) {
+      if (!show) {
+        this.$emit("update:showList", show);
+      }
+    },
+    query: {
+      deep: true,
+      handler(val) {
+        if(val.filter) {
+          this.sysvalue = val.filter.criteria[0].value;
+          this.params = val;
+        }
+      }
+    },
+    sysvalue: {
+      deep: true,
+      handler(val) {
+        this.pagination = {
+          needTotal: true,
+          pagenum: 1,
+          pagesize: 20,
+          total: 0,
+          pagetotal:0,
+        };
+        this.dataList = [];
+        this.loadData();
+      }
+    },
+  },
+  computed: {
+    systypes() {
+      let arr = this.$store.getters.dict("usermanage.org.systype") || [];
+      return [{ key: "", value: null, text: "全部" }, ...arr];
+    },
+    distList(){
+      return this.$store.getters.dict("usermanage.org.district") || [];
+    },
+    displayFieldCode(){
+      return this.displayField && this.displayField.replace('_id@organization.statistic.', '_join0.');
+    },
+    params(){
+      let query = {
+        target: { id: 2, title: "人员" },
+        fields: [
+          {key: "gongwuyuanid", name: "实名制id"},
+          { key: "org@organization.orgcode", showname: "组织编码" },
+          { key: "username", showname: "姓名", },
+          { key: "age", showname: "年龄", },
+          { key: "leaderpostlevel", showname: "职务层次"},
+          { key: "education", showname: "学历", },
+        ],
+        filter: { 
+          op: 'and',
+          criteria: [],
+        },
+        // orders: [
+        //   { orderby: 'index', ordertype: "ASC" }  
+        // ],
+      }
+      // if(this.displayField){
+      //   query.fields.push({ key: this.displayField });
+      //   query.orders.unshift({ orderby: this.displayField, ordertype: "DESC" });
+      // }
+      // let criteria = [];
+      // if(this.district){
+      //   criteria.push({
+      //     field: { key: "district", showname: "所在区划" },
+      //     op: "in",
+      //     value: this.matchCode(this.district, this.distList),
+      //   })
+      // }
+      // if(this.unittypes){
+      //   criteria.push({
+      //     field: { key: "unittypes", showname: "单位类型" },
+      //     op: "in",
+      //     value: this.unittypes,
+      //   })
+      // }
+      // if(this.sysvalue){
+      //   criteria.push({
+      //     field: { key: "systype", showname: "系统类别" },
+      //     op: "eq",
+      //     value: this.sysvalue,
+      //   })
+      // }
+      if(this.filter){
+        query.filter = this.filter;
+      }
+      
+      return query;
+    }
+  },
+  mounted() {
+    this.dataList = [];
+    this.show = false;
+    this.loadData(this.pagination);
+  },
+  destroyed(){
+    this.unBindScrollSentinel();
+  },
+  methods: {
+    orgClick(item) {
+      openUserInfo(item['_join0.orgcode'],item.gongwuyuanid);
+    },
+    onSystypeClick(item) {
+      this.pagination = {
+        pagenum: 1,
+        pagesize: 20,
+        total: 0,
+        pagetotal:0,
+      };
+      this.dataList = [];
+      this.sysvalue = item.value;
+      this.loadData(this.pagination);
+    },
+    changePage(type) {
+      if(type=='prev'&&this.pagination.pagenum>1) {
+        this.pagination.pagenum--;
+      }else if(type=='next'&&this.pagination.pagenum<this.pagination.pagetotal) {
+        this.pagination.pagenum++;
+      }
+      this.loadData(this.pagination);
+    },
+    loadData({ pagenum, pagesize }) {
+      query({
+        ...this.params,
+        pagenum,
+        pagesize,
+        needTotal: true,
+      }).then(({result})=>{
+        this.dataList = result.rows;
+        this.pagination.pagenum = result.pagenum;
+        this.pagination.pagesize = result.pagesize;
+        this.pagination.total = result.total;
+        this.pagination.pagetotal = Math.ceil(this.pagination.total/this.pagination.pagesize);
+        if(this.pagination.pagenum < this.pagination.pagetotal){
+          // this.bindScrollSentinel();
+        }else{
+          this.unBindScrollSentinel();
+        }
+      }).catch((err)=>{
+        showError(err);
+      })
+    },
+    bindScrollSentinel(){
+      if(this.intersectionObserver){
+        return;
+      }
+      let sentinel = this.$refs.sentinel;
+      if(sentinel){
+        this.intersectionObserver = new IntersectionObserver((entries) => {
+          if (entries[0].intersectionRatio > 0){
+            let { pagenum, pagesize } = this.pagination;
+            this.loadData({ pagenum: pagenum + 1, pagesize });
+          }
+        });
+        this.intersectionObserver.observe(sentinel);
+      }
+    },
+    unBindScrollSentinel(){
+      if(this.intersectionObserver){
+        this.intersectionObserver.disconnect();
+        this.intersectionObserver = undefined;
+      }
+    },
+    // matchCode(code, list){
+    //   for(let i = (code.length/2) - 1; i >= 0; i--){
+    //     if(+code.substring(i * 2) != 0){
+    //       code = code.substring(0, (i + 1) * 2)
+    //       break          
+    //     }
+    //   }
+    //   let arr = [];
+    //   list.forEach(item => {
+    //     if(item.value.startsWith(code)){
+    //       arr.push(item.value);
+    //     }
+    //   });
+    //   return arr;
+    // }
+  },
+};
+</script>
+<style lang="less" scoped>
+.detail-info{
+  height: 600px;
+  display: flex;
+  overflow: hidden;
+  padding: 50px 50px;
+  font-size: 16px;
+  color: #fff;
+  & > .left{
+    width: 200px;
+    height: 100%;
+    flex: none;
+    margin-right: 10px;
+    background-color: #081220;
+    overflow-y: auto;
+    li{
+      line-height: 46px;
+      margin-top: 5px;
+      cursor: pointer;
+      color: fade(#fff, 60%);
+      text-align: center;
+      &:hover{
+        background-color: #23364c;
+      }
+      &.active{
+        background-color: #23364c;
+        color: #fff;
+      }
+    }
+  }
+  & > .right{
+    flex: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 0 10px;
+    & > .header{
+      display: flex;
+      .left{
+        flex: auto;
+      }
+      .right{
+        flex: none;
+      }
+      .ant-input{
+        background: #111c31;
+        border: unset;
+        color: #fff;
+        height: 46px;
+        &:focus{
+          box-shadow: 0 0 3px 1px rgba(158, 197, 255, 0.582);
+        }
+      }
+      .ant-btn{
+        background: #111c31;
+        color: fade(#fff, 60%);
+        border-color: #1c97b8;
+        margin-left: 20px;
+        height: 44px;
+        width: 80px;
+        &:hover{
+          color: #fff;
+        }
+      }
+    }
+    .table {
+      height: 100%;
+      color: #fff;
+      .header {
+        padding: @padding-xs;
+        margin-bottom: @layout-space-base;
+        display: flex;
+        justify-content: space-evenly;
+        // background: url('../../../assets/img/screen/top-adorn.png') no-repeat;
+        background-size: cover;
+        position: relative;
+        &::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 0;
+          bottom: 0;
+          background: fade(#151326, 80%);
+          z-index: -1;
+        }
+        span {
+          display: inline-block;
+          width: 140px;
+        }
+      }
+      .body {
+        height: 400px;
+        color: fade(#fff, 80%);
+        overflow: auto;
+        ul {
+          padding: @padding-xs;
+          margin: 0;
+          display: flex;
+          justify-content: space-evenly;
+          &:nth-child(2n-1) {
+            background: #151E32;
+          }
+          li {
+            width: 140px;
+          }
+          .footer-sentinel{
+            flex: none;
+            width: 100%;
+            padding: 5px;
+          }
+        }
+      }
+    }
+    .pagination {
+        width: 120px;
+        padding: @padding-xs @padding-lg;
+        margin: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: @border-radius-base;
+        color: fade(#fff, 80%);
+        background: fade(#000, 30%);
+        .current {
+            color: #fff;
+        }
+        .prev, .next {
+            margin: 0 16px;
+            cursor: pointer;
+        }
+    }
+  }
+}
+</style>

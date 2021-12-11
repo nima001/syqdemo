@@ -1,0 +1,176 @@
+<template>
+  <a-select
+    show-search
+    class="query-select"
+    :value="value"
+    placeholder="查询历史"
+    style="width: 200px"
+    :show-arrow="false"
+    :filter-option="false"
+    :not-found-content="null"
+    @search="onSearch"
+    @change="onChange"
+    @focus="allSearch()"
+    @popupScroll="onScroll"
+  >
+    <a-select-option  v-for="res in displayData" :key="res.id" >
+      <span v-if="res.id != 'loading'">
+        {{ res.title }}
+      </span>
+       <div  v-if="data.length == 0 ">
+        <empty-data></empty-data>
+      </div>
+      <a-spin
+        v-if="res.id == 'loading'"
+        class="loading-more"
+        tip="加载中..."
+      >
+        <a-icon slot="indicator" type="loading" />
+      </a-spin>
+    </a-select-option>
+  </a-select>
+</template>
+<script>
+import { Select, Icon, Spin } from "ant-design-vue";
+import { querylist } from "@/person/api/integratedquery";
+import { showError } from "@framework/utils";
+import EmptyData from "@/framework/components/EmptyData";
+/**
+ * 查询选择
+ * 提供外部事件
+ * 1.select 选中查询事件 返回查询ID
+ */
+export default {
+  components: {
+    ASpin: Spin,
+    AIcon: Icon,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    EmptyData
+  },
+  props: {
+    namespace: {
+      //搜索查询的命名空间
+      type: String,
+      required: true,
+    },
+  },
+  data() {
+    return {
+      data: [],
+      pagenum: 1,
+      pagesize: 20,
+      value: undefined,
+      loading: true, ////加载状态 false未加载 true 加载中 scroll 滚动加载下一页
+      timeout: null,
+      canceltoken: 0,
+      query: undefined,
+    };
+  },
+  computed: {
+    displayData() {
+      if (this.query && this.query.hasNext() && this.data.length != 0) {
+        return [...this.data, { id: "loading" }];
+      } else {
+        return [...this.data];
+      }
+    },
+  },
+  created() {
+    console.log("select source", this.namespace);
+  },
+  methods: {
+    fetch(value, time) {
+      this.loading = true;
+      this.data = [];
+      this.query = undefined;
+      if (this.timeout) {
+        clearTimeout(this.timeout);
+        this.timeout = null;
+      }
+      this.timeout = setTimeout(() => {
+        this.value = value;
+        this.query = this.createQuery();
+        this.query.nextpage();
+      }, time);
+    },
+    onSearch(value) {
+      this.value = value;
+      this.fetch(value, 500);
+    },
+    onChange(value) {
+      this.$emit("select", value);
+      this.value = undefined;
+    },
+    allSearch(value) {
+      this.fetch(value, 0);
+    },
+    onScroll(e) {
+      if (!this.loading && this.query && this.query.hasNext()) {
+        if (
+          e.target.scrollHeight - e.target.clientHeight - e.target.scrollTop <=
+          34
+        ) {
+          //剩余可滚动区域小于底部加载中高度
+          this.loading = true;
+          this.query.nextpage();
+        }
+      }
+    },
+    createQuery() {
+      let nextList = true;
+      let params = {
+        searchkey: this.value,
+        pagenum: 0,
+        pagesize: this.pagesize,
+        namespace: this.namespace
+      };
+      return {
+        hasNext: () => {
+          return nextList;
+        },
+        nextpage: () => {
+          let token = ++this.canceltoken;
+          params.pagenum++;
+          querylist(params)
+            .then((res) => {
+              if (this.canceltoken == token) {
+                if (this.loading) {
+                  this.loading = false;
+                  let list = res.result.rows || [];
+                  this.data = [...this.data, ...list];
+                  if (params.pagesize > list.length) {
+                    nextList = false;
+                  }
+                  return list;
+                } else {
+                  this.data = res.result.rows;
+                }
+              }
+            })
+            .catch((error) => {
+              this.loading = false;
+              showError(error);
+            });
+        },
+      };
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.loading-more {
+  display: block;
+  text-align: center;
+  /deep/.anticon-loading {
+    vertical-align: middle;
+  }
+  /deep/.ant-spin-text {
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 6px;
+    line-height: 10px;
+    color: fade(@black, 25%);
+  }
+}
+</style>

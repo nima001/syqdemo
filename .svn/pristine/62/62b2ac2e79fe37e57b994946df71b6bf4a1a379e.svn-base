@@ -1,0 +1,45 @@
+<template>
+  <div>
+    <a-form-item :label="name" :required="!!required" :validateStatus="validateStatus" :class="{editor:!editor}">
+      <a-tooltip placement="topLeft" :title="title">
+        <a-input-number style="width:100%" v-model="propValue" :disabled="!!disabled" />
+      </a-tooltip>
+    </a-form-item>
+  </div>
+</template>
+<script>
+import { Form, InputNumber } from "ant-design-vue";
+import { mixins } from "@formdesign/views/mixin/index";
+export default {
+  title: "数字框",
+  components: {
+    AFormItem: Form.Item,
+    AInputNumber: InputNumber
+  },
+  mixins: [mixins],
+  computed: {
+    title() {
+      return this.validateStatus == "error" ? `请输入正确的${this.name}` : "";
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-form-item {
+  margin-bottom: 0;
+  &.editor{
+    position: relative;
+    &::before{
+      position: absolute;
+      left: 0px;
+      top: 0px;
+      content: '';
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: not-allowed;
+      z-index: 3;
+    }
+  }
+}
+</style>

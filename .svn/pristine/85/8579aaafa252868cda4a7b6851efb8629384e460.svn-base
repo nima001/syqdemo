@@ -1,0 +1,337 @@
+<template>
+  <div class="wrap">
+    <div class="header">
+      <div class="logo"></div>
+      <span class="title">绍兴市机构编制智慧化管理系统</span>
+    </div>
+    <div class="clound">
+      <div class="animate animate_one"></div>
+      <div class="animate animate_two"></div>
+      <div class="animate animate_three"></div>
+    </div>
+    <div class="content">
+      <ul :class="{'active':active}">
+        <li :class="'li_'+index" v-for="(item,index) in list" :key="index" @click="jump(item)" @mouseenter="over($event)">
+          <div class="cell" :id="'cell_'+index">
+            <div class="star" v-if="index == 2"></div>
+            <div class="info">
+              <span class="img"></span>
+              <span class="text">{{item.name}}</span>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</template>
+<script>
+export default {
+  data() {
+    return {
+      active: false,
+      list: [
+        { name: "业务办理", path: "/person/business" ,_blank:true},
+        { name: "预警监管", path: "/person/orgstaffreport" ,_blank:true},
+        { name: "智控中心", path: "/person/screen/index",_blank:true },
+        { name: "分析评估", path: "/person/statistics/analysis/index" ,_blank:true},
+        { name: "信息共享", path: "/person/information/intelligent" ,_blank:true}
+      ]
+    };
+  },
+  mounted() {
+    setTimeout(() => {
+      this.active = true;
+    }, 200);
+  },
+  methods: {
+    jump(obj) {
+      if(obj._blank){
+        let {href} = this.$router.resolve({path: obj.path});
+        window.open(href, '_blank');
+      }else{
+        this.$router.push(obj.path);
+      }
+    },
+    over(e){
+      e.target.classList.add('current')
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+@keyframes mystar {
+  from {
+    left: -156px;
+    transform: rotate(0deg);
+  }
+  to {
+    left: 75px;
+    transform: rotate(360deg);
+  }
+}
+@keyframes clound_one {
+  from {
+    left: -1521px;
+  }
+  to {
+    left: 0;
+  }
+}
+@keyframes clound_two {
+  from {
+    left: 0;
+  }
+  to {
+    left: 1521px;
+  }
+}
+@keyframes clound_three {
+  from {
+    left: 1521px;
+  }
+  to {
+    left: 3042px;
+  }
+}
+.wrap {
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4) url("./img/entry.jpg") center center;
+  position: relative;
+  background-size: cover;
+  .header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    padding: 24px 40px;
+    .logo {
+      width: 32px;
+      height: 32px;
+      line-height: 32px;
+      background: url("./img/logo.png") no-repeat center center;
+    }
+    .title {
+      font-size: 24px;
+      color: #fff;
+      letter-spacing: 2px;
+      margin-left: 12px;
+    }
+  }
+  .clound {
+    width: 100%;
+    height: 42%;
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    .animate {
+      width: 1521px;
+      height: 100%;
+      position: absolute;
+      left: 0px;
+      top: 0px;
+      background:url("./img/clound.png") no-repeat top center;
+      background-size: 100% 100%;
+    }
+    .animate_one {
+      animation: clound_one 30s infinite linear;
+    }
+    .animate_two {
+      animation: clound_two 30s infinite linear;
+    }
+    .animate_three {
+      animation: clound_three 30s infinite linear;
+    }
+  }
+  .content {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    ul {
+      width: 1380px;
+      height: 480px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      position: relative;
+      li {
+        position: absolute;
+        left: 50%;
+        top: 0px;
+        transform: translate(-50%);
+        width: 240px;
+        height: 480px;
+        border: 2px solid #fbd9a2;
+        border-radius: 8px;
+        z-index: 1;
+        cursor: pointer;
+        transition: all 0.4s cubic-bezier(0.645, 0.045, 0.355, 1);
+        &::after{
+          width: 240px;
+          height: 120px;
+          content: '';
+          position:absolute;
+          bottom: -120px;
+          left: 0px;
+          background: url('./img/shadow.png') no-repeat center center;
+        }
+        &.li_2{
+          z-index: 999;
+        }
+        .cell {
+          width: 100%;
+          height: 100%;
+          border-radius: 8px;
+          position: relative;
+          .info {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 100px 0px 70px 0px;
+            .img {
+              width: 100%;
+              height: 169px;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+            }
+            .text {
+              font-size: 36px;
+              letter-spacing: 2px;
+              font-weight: bold;
+              background-image: -webkit-linear-gradient(top, #fedda6, #a47940);
+              background-clip: text;
+              -webkit-text-fill-color: transparent;
+            }
+          }
+        }
+        #cell_0 {
+          background-image: linear-gradient(
+            rgba(59, 59, 59, 0.4),
+            rgba(0, 0, 0, 0.4)
+          );
+          .info {
+            .img {
+              background: url("./img/item_1.png") no-repeat center center;
+            }
+          }
+        }
+        #cell_1 {
+          background-image: linear-gradient(
+            rgba(59, 59, 59, 0.7),
+            rgba(0, 0, 0, 0.7)
+          );
+          .img {
+            background: url("./img/item_2.png") no-repeat center center;
+          }
+        }
+        #cell_2 {
+          background-image: linear-gradient(
+            rgba(59, 59, 59, 0.9),
+            rgba(0, 0, 0, 0.9)
+          );
+          .img {
+            background: url("./img/item_3.png") no-repeat center center;
+          }
+          .star {
+            width: 312px;
+            height: 344px;
+            background: url("./img/star.png") no-repeat center center;
+            position: absolute;
+            top: -170px;
+            left: -156px;
+            opacity: 0.6;
+          }
+          .info {
+            background: url("./img/cover.png") no-repeat center center;
+          }
+        }
+        #cell_3 {
+          background-image: linear-gradient(
+            rgba(59, 59, 59, 0.7),
+            rgba(0, 0, 0, 0.7)
+          );
+          .img {
+            background: url("./img/item_4.png") no-repeat center center;
+          }
+        }
+        #cell_4 {
+          background-image: linear-gradient(
+            rgba(59, 59, 59, 0.4),
+            rgba(0, 0, 0, 0.4)
+          );
+          .img {
+            background: url("./img/item_5.png") no-repeat center center;
+          }
+        }
+      }
+      &.active {
+        li {
+          &.li_0 {
+            transform: perspective(60px) rotateY(-2deg) scale(0.9);
+            margin-left: -708px;
+            transition-delay: 0.8s;
+          }
+          &.li_1 {
+            transform: perspective(200px) rotateY(-2deg) scale(0.985);
+            margin-left: -440px;
+            transition-delay: 0.4s;
+          }
+          &.li_2 {
+            transform: scale(1.03);
+            margin-left: -152px;
+            transition-delay: 1s;
+          }
+          &.li_3 {
+            transform: perspective(200px) rotateY(2deg) scale(0.985);
+            margin-left: 138px;
+            transition-delay: 0.2s;
+          }
+          &.li_4 {
+            transform: perspective(60px) rotateY(2deg) scale(0.9);
+            margin-left: 412px;
+            transition-delay: 0.6s;
+          }
+          &:hover {
+            .cell {
+              .star {
+                animation: mystar 1s both;
+              }
+            }
+          }
+          &.current{
+            transition-delay: 0s ;
+            &.li_0 {
+            &:hover {
+              transform: perspective(60px) scale(1.048);
+            }
+          }
+          &.li_1 {
+            &:hover {
+              transform: perspective(200px) scale(1.048);
+            }
+          }
+          &.li_2 {
+            &:hover {
+              transform: scale(1.048);
+            }
+          }
+          &.li_3 {
+            &:hover {
+              transform: perspective(200px) scale(1.048);
+            }
+          }
+            &.li_4 {
+              &:hover {
+                transform: perspective(60px) scale(1.048);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</style>

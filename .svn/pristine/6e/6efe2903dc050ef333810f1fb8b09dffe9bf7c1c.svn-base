@@ -1,0 +1,69 @@
+<template>
+  <div class="form-group">
+    <!-- <a-form :form="form"> -->
+      <template v-for="item in props">
+        <component 
+          ref="inputBox"
+          :is="`input-${item}`"
+          :property="item"
+          :itemLayout="formLayout"
+        >
+        </component>
+      </template>
+    <!-- </a-form> -->
+  </div>
+</template>
+
+<script>
+import { Form } from 'ant-design-vue';
+//  多个组件导入
+const path = require('path');
+const files = require.context('@/person-shaoxing/views/assessment/compileAssist/components/inputItem', false, /\.vue$/);
+const modules = {};
+files.keys().forEach(key => {
+  const name = path.basename(key, '.vue');
+  modules[name] = files(key).default || files(key)
+})
+
+export default {
+  props: {
+    formConfig: {
+      type: Array
+    },
+    formLayout: {
+      type: Object,
+      default: {
+        labelCol: { span: 6 },
+        wrapperCol: { span: 12 }
+      }
+    },
+    props: {
+      type: Array
+    }
+  },
+  components: { 
+    AForm: Form,
+    ...modules
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {},
+  beforeCreate() {
+    this.form = this.$form.createForm(this);
+  },
+  created() {},
+  mounted() {},
+  methods: {
+    validateFields(obj){
+      return Promise.all((this.$refs.inputBox || []).map(ele => {
+        return ele.validateField(obj);
+      }))
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+</style>

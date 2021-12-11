@@ -1,0 +1,103 @@
+<template>
+  <div class="content">
+    <div class="header" v-if="title">
+      <div class="title">{{title}}</div>
+      <div class="switch" v-if="showBtn">
+        <a-radio-group :value="unittype" @change="handleSelect" size="small">
+          <a-radio-button :value="item.value" v-for="(item,index) in btnList" :key='index'>{{item.name}}</a-radio-button>
+        </a-radio-group>
+      </div>
+    </div>
+    <div class="body">
+      <slot name="chart" :unittype="unittype"></slot>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Radio } from "ant-design-vue";
+export default {
+  components: {
+    ARadioGroup: Radio.Group,
+    ARadioButton: Radio.Button
+  },
+  props: {
+    //是否显示按钮组
+    showBtn: {
+      type: Boolean,
+      required: false,
+      default: () => {
+        return false;
+      }
+    },
+    // 标题
+    title: {
+      type: String,
+      required: false,
+      default: ""
+    },
+    btnList: {
+      type: Array,
+      default: () => {
+        return [
+          {name:'行政',value:1},
+          {name:'事业',value:3}
+        ];
+      }
+    }
+  },
+  data() {
+    return {
+      unittype: this.btnList[0]['value']
+    };
+  },
+  methods: {
+    handleSelect(e) {
+      this.unittype = e.target.value;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.content {
+  width: 100%;
+  height: 100%;
+  padding: @layout-space-base;
+  background: @white;
+  display: flex;
+  flex-direction: column;
+  .header {
+    display: flex;
+    line-height: 32px;
+    flex: none;
+    .title {
+      flex: 1;
+      height: 100%;
+      line-height: 25px;
+      font-size: 16px;
+      color: @text-color;
+      font-weight: bold;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .switch {
+      .ant-radio-button-wrapper-checked {
+        color: @white;
+        background-color: @primary-color;
+        border-color: @primary-color;
+        text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.12);
+        box-shadow: 0 2px 0 rgba(0, 0, 0, 0.045);
+        &:active {
+          background-color: lighten(@primary-color, 5%);
+          border-color: lighten(@primary-color, 5%);
+        }
+      }
+    }
+  }
+  .body {
+    flex: 1;
+    min-height: 1px;
+  }
+}
+</style>

@@ -1,0 +1,245 @@
+<template>
+  <div class="wrap">
+    <p class="title">近五年预计退休人数</p>  
+    <div class="chart">
+    <loading v-if="loading"/>
+    <div v-else :id="id">
+    </div>
+    </div>
+    <div class="retired">
+      <span class="text">未按时退休人数</span>
+      <span class="num" @click="showNotRetireList">{{ notRetireNum }}</span>
+    </div>
+    <org-list v-model="orgList.show"
+      :title="orgList.title" 
+      :systype="true"
+      :group="true"
+      :loadPage="orgList.loader"  
+      @click="showRetireList" 
+    />
+    <!-- 退休详情列表 -->
+    <dialog-box v-model="retireDetailList.show" :title="retireDetailList.title" :destroyOnClose="true">
+      <retire-detail  :orgid="retireDetailList.orgid" />
+    </dialog-box>
+    <!-- 未按时退休详情 -->
+    <dialog-box v-model="notRetireList.show" :title="notRetireList.title" :destroyOnClose="true">
+      <quick-retire :district="notRetireList.district" :orgid="notRetireList.orgid" :lcdTitle="'未按时退休人数'" :isRetire="false"/>
+    </dialog-box>
+  </div>
+</template>
+
+<script>
+import { Chart } from "@antv/g2";
+import { mixins } from "../components/minxin";
+import { orgQuery } from "@/person-shaoxing/api/orgStaffReport";
+import { orgRetireReport, retireError } from "@/person-shaoxing/api/orgStaffReport";
+import { showError, dateFormat } from "@/framework/utils/index";
+import OrgList from "../components/OrgList"; 
+import RetireList from "../components/RetireList.vue";
+import RetireDetail from "../components/RetireDetail.vue";
+import QuickRetire from "../components/QuickRetire";
+import DialogBox from "../components/DialogBox";
+import Loading from "../components/Loading";
+export default {
+  components: {
+    RetireList,
+    OrgList,
+    RetireDetail,
+    DialogBox,
+    QuickRetire,
+    Loading
+  },
+  data() {
+    return {
+      id: Math.random().toString(32).substr(2),
+      list: [],
+      notRetireNum: 0,
+      plot: undefined,
+      loading:true,
+      retireDetailList: {
+        show: false,
+        title: "",
+        orgid: null
+      },
+      notRetireList: {
+        show: false,
+        title: "",
+        orgid: null
+      },
+      orgList: {
+        show: false,
+        title: "",
+        params: {}
+      }
+    };
+  },
+  mixins: [mixins],
+  watch: {
+    dictId(v) {
+      this.loading = true;
+      this.getRetire(v);
+      this.notRetire(v);
+    },
+  },
+  mounted() {
+    this.getRetire(this.dictId);
+    this.notRetire(this.dictId);
+  },
+  methods: {
+    getRetire(dictId) {
+      orgRetireReport(dictId)
+        .then((res) => {
+          let { keyCols, rows, valueCols } = res.result;
+          this.list = rows.map((item) => {
+            return {
+              item: item[keyCols[0]["column"]],
+              value: item[valueCols[0]["column"]],
+            };
+          });
+          this.loading = false;
+          if(!this.loading){
+            this.$nextTick(() => {           
+              this.draw();
+            })
+          }
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    notRetire(dictId) {
+      let pagenation = {
+        needtotal: true,
+        pagesize:1
+      }
+      retireError(dictId,null,pagenation)
+        .then((res) => {
+          this.notRetireNum = res.result.total;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    showOrgList(title) {
+      this.orgList = {
+        show: true,
+        title: (this.districtName || "") + title,
+        loader: (page) => {
+          let filters = [];
+          if(page.searchkey){
+            filters.push({ field: "name", op: "regex", value: page.searchkey })
+          }
+          if(page.systype){
+            filters.push({ field: "systype", op: "eq", value: page.systype })
+          }
+          return orgQuery({
+            district: this.dictId, 
+            unittypes: [1, 5, 7, 2, 3, 11],
+            filters,
+            fields: [
+              { key: 'suporg', showname: '主管单位' },
+            ],
+            ...page,
+          })
+        }
+      };
+    },
+    showRetireList(org) {
+      this.retireDetailList = {
+        show: true,
+        title: "机构退休人数详情",
+        orgid: org._id,
+      }
+    },
+    showNotRetireList() {
+      this.notRetireList = {
+        show: true,
+        title: "机构未按时退休人员详情",
+        district: this.dictId, 
+      }
+    },
+    draw() {
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      const chart = new Chart({
+        container: this.id,
+        autoFit: true,
+        height: 220,
+      });
+      chart.data(this.list);
+      chart.scale("item", {
+        tickCount: 5,
+        // type: "timeCat",
+        // formatter: (time) => {
+        //   return dateFormat(time, 'yyyy-MM');
+        // }
+      });
+      chart.scale("value", {
+        nice: true,
+        alias:"人数"
+      });
+      chart.tooltip({
+        showCrosshairs: true,
+      });
+      chart.option("slider", {});
+      chart.line().position("item*value");
+      chart.area().position("item*value");
+      chart.on('plot:click',(ev)=>{
+        this.showOrgList('机构退休人数详情');
+      })
+      chart.render();
+      this.plot = chart;
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  margin: 10px 0;
+  .title {
+    height: 26px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    font-weight: bold;
+    line-height: 26px;
+    color: #FFF;
+    opacity: 0.8;
+    margin: 0px;
+  }
+  .chart {
+    margin-top: 20px;
+    height: 220px;
+    position: relative;
+  }
+  .retired {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 37px;
+    border-radius: 4px;
+    padding: 0px 24px;
+    background: url("../img/retire.png") repeat-x;
+    .text {
+      height: 21px;
+      font-size: 16px;
+      font-family: Microsoft YaHei;
+      font-weight: 400;
+      line-height: 21px;
+      color: #FFF;
+      opacity: 0.8;
+    }
+    .num {
+      height: 22px;
+      font-size: 20px;
+      font-family: Arial;
+      font-weight: bold;
+      line-height: 23px;
+      color: #fb2626;
+      opacity: 1;
+      cursor: pointer;
+    }
+  }
+}
+</style>

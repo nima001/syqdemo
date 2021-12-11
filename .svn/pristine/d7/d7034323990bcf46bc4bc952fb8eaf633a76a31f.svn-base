@@ -1,0 +1,15 @@
+
+/**
+ * 根据字段编码查找表单中的组件
+ * @param {VueComponent} context 
+ * @param {String} code 
+ */
+export function findComponentByCode(context, code){
+  return context.$children.reduce((components, child) => {
+    if (child._formComponentType && child.schema.name == code) {
+      components.push(child);
+    }
+    const foundChilds = findComponentByCode(child, code);
+    return components.concat(foundChilds);
+  }, []);
+}

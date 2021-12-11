@@ -1,0 +1,317 @@
+<template>
+  <div class="layout">
+    <div class="btnWrap" v-if="allow && hasPermit('/dev/manage/app/update')">
+      <a-button type="primary" @click="editForm" >{{ edit?'编辑':'保存' }}</a-button>
+      <a-button  v-if='!edit' type="primary" @click="()=>edit = true">取消</a-button>
+    </div>
+    <a-form :form="form" >
+      <a-row :gutter="24">
+        <a-col :span="24">
+          <div class="titleBar">接入信息</div>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="接入码">
+            <a-input :disabled="edit" v-decorator="['accessCode',{rules: [{ required: true, message: '请输入接入码' }],initialValue: formData.accessCode}]"></a-input>
+          </a-form-item>
+        </a-col>
+        <a-col :span='8'>
+          <a-form-item label="接入密钥">
+            <a-input
+              :disabled="edit"
+              v-decorator="['accessKey',{rules: [{ required: true, message: '请输入接入密钥' }],initialValue: formData.accessKey}]">
+              <a-icon slot="suffix" v-if="!edit" type="plus" @click="randomKey"/>
+            </a-input>
+          </a-form-item>
+        </a-col>
+      </a-row>
+      <a-row :gutter="24">
+        <a-col :span="24">
+          <div class="titleBar">基本信息</div>
+        </a-col>
+        <a-col :span="16">
+          <a-row :gutter="24">
+            <a-col :span="12">
+              <a-form-item label="应用名称">
+                <a-input
+                 :disabled="edit"
+                  v-decorator="['name',{rules: [{ required: true, message: '请输入应用名称' }],initialValue: formData.name}]"
+                ></a-input>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="Host地址">
+                <a-input :disabled="edit" v-decorator="['hostAddress',{initialValue: formData.hostAddress}]"></a-input>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="PC端应用地址">
+                <a-input :disabled="edit" v-decorator="['pcAddress',{initialValue: formData.pcAddress}]"></a-input>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="移动端应用地址">
+                <a-input :disabled="edit" v-decorator="['mobileAddress',{initialValue: formData.mobileAddress}]"></a-input>
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="应用图标">
+            <a-upload
+              :disabled="edit"
+              v-decorator="['icon',{rules: [{ required: true, message: '请上传图标' }]}]"
+              list-type="picture-card"  
+              :show-upload-list="false"
+              :before-upload="beforeUpload"
+              :customRequest = 'customRequest'
+            >
+              <div class="iconCell"><img :src="url" v-if="iconid"><a-icon v-else :type="loading ? 'loading' : 'plus'" /></div>
+            </a-upload>
+          </a-form-item>
+        </a-col>
+        <a-col :span="24">
+          <a-form-item label="应用简介">
+            <a-textarea :disabled="edit" :rows="4" :autoSize="false" v-decorator="['desc',{rules: [{ required: true, message: '请输入应用简介' }],initialValue: formData.desc}]"></a-textarea>
+          </a-form-item>
+        </a-col>
+      </a-row>
+      <a-row :gutter="24">
+        <a-col :span="24">
+          <div class="titleBar">联系信息</div>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="接入单位">
+            <a-input :disabled="edit" v-decorator="['unit',{rules: [{ required: true, message: '请输入接入单位' }],initialValue: formData.unit}]"></a-input>
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="接入单位联系人">
+            <a-input
+              :disabled="edit"
+              v-decorator="['unitContact',{rules: [{ required: true, message: '请输入单位联系人' }],initialValue: formData.unitContact}]"
+            ></a-input>
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="接入单位联系方式">
+            <a-input
+              :disabled="edit"
+              v-decorator="['unitPhone',{rules: [{ required: true, message: '请输入正确的联系方式' }],initialValue: formData.unitPhone}]"
+            ></a-input>
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="开发公司">
+            <a-input
+              :disabled="edit"
+              v-decorator="['devCompany',{rules: [{ required: true, message: '请输入开发公司' }],initialValue: formData.devCompany}]">
+            </a-input>
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="开发公司联系人">
+            <a-input
+              :disabled="edit"
+              v-decorator="['devCompanyContact',{rules: [{ required: true, message: '请输入开发公司联系人' }],initialValue: formData.devCompanyContact}]"
+            ></a-input>
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="开发公司联系方式">
+            <a-input
+              :disabled="edit"
+              v-decorator="['devCompanyPhone',{rules: [{ required: true, message: '请输入正确的联系方式' }],initialValue: formData.devCompanyPhone}]"
+            ></a-input>
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="运维联系人">
+            <a-input
+              :disabled="edit"
+              v-decorator="['operationContact',{rules: [{ required: true, message: '请输入运维联系人' }],initialValue: formData.operationContact}]"
+            ></a-input>
+          </a-form-item>
+        </a-col>
+        <a-col :span="8">
+          <a-form-item label="运维联系方式">
+            <a-input
+              :disabled="edit"
+              v-decorator="['operationPhone',{rules: [{ required: true, message: '请输入正确的联系方式' }],initialValue: formData.operationPhone}]"
+            ></a-input>
+          </a-form-item>
+        </a-col>
+      </a-row>
+    </a-form>
+  </div>
+</template>
+<script>
+import {Form,Button,Icon,Input,notification,Upload,Row,Col} from "ant-design-vue";
+import { appdetail, appcodeIsExist, appupdate, generate } from "@/dev/api/app";
+import { uploadV2,downloadV2 } from "@/framework/api/file";
+import { showError } from "@/framework/utils";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+export default {
+  components: {
+    AButton: Button,
+    AInput: Input,
+    AIcon: Icon,
+    AForm: Form,
+    AFormItem: Form.Item,
+    notification,
+    ATextarea: Input.TextArea,
+    AUpload: Upload,
+    ARow:Row,
+    ACol:Col
+  },
+  data() {
+    return {
+     // 上传图片 进度
+      loading : false,
+      form: this.$form.createForm(this),
+      edit:true,
+      formData:{},
+      iconid: undefined
+    };
+  },
+  computed: {
+    //当应用状态不为在用状态时禁止修改
+    allow() {
+      return this.$store.getters.appInfo.state == 0 ? true : false;
+    },
+    url(){
+      return downloadV2(this.iconid)
+    }
+  },
+  created() {
+    let appid = this.$store.getters.appInfo.id;
+    if (appid !== undefined) {
+      this.refresh(appid);
+    }
+  },
+  methods: {
+    // 生成密钥
+    randomKey(e) {
+      generate()
+        .then(res => {
+          this.$set(this.formData, "accessKey", res.result);
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    // 判断接入码是否唯一
+    validExist(e, callback) {
+      appcodeIsExist(e)
+        .then(res => {
+          callback && callback();
+        })
+        .catch(err => {
+          showError(err);
+          let a = eval("(" + err.desc + ")");
+          const value = Object.values(a);
+          callback(value[0]);
+        });
+    },
+    // 修改应用基本信息
+    editForm() {
+      this.edit = !this.edit;
+      if(this.edit){
+        this.form.validateFields((err, values) => {
+          if (!err) {
+            appupdate({id:this.formData.id,...values})
+              .then(res => {
+                notification.success({
+                  message: "提示",
+                  description: "修改成功",
+                  duration: 1.5
+                });
+                this.$store.commit("appInfo_change", {id:this.formData.id,...values});
+              })
+              .catch(err => {
+                showError(err)
+              });
+          }
+        });
+      }
+    },
+    // 查询应用基本信息
+    refresh(id) {
+      appdetail(id)
+        .then(res => {
+          this.formData = res.result;
+          this.iconid = this.formData.icon;
+          this.form.setFieldsValue({ icon: this.formData.icon });
+          if (this.$store.getters.appInfo.state === undefined) {
+            this.$store.commit("appInfo_change", this.formData);
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //上传图片之前校验
+    beforeUpload(file) {
+      const isJpgOrPng =
+        file.type === "image/jpeg" || file.type === "image/png";
+      if (!isJpgOrPng) {
+        this.$message.error("只能上传图片!");
+      }
+      const isLt300K = file.size / 1024 < 300;
+      if (!isLt300K) {
+        this.$message.error("图片大小不能超过300KB!");
+      }
+      return isJpgOrPng && isLt300K;
+    },
+    //上传图片
+    customRequest(options){
+      this.loading = true;
+      const { onSuccess, onError, file, onProgress } = options;
+        uploadV2(file)
+        .then(res => {
+          this.iconid = res.data.result.uploadid;
+          this.form.setFieldsValue({ icon: this.iconid });
+          this.$message.success('上传成功!');
+        })
+        .catch(error => {
+          showError(error);
+        }).finally(()=>{
+          this.loading = false;
+        })
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.layout {
+  .btnWrap{
+    text-align: right;
+    Button{
+      &:last-child{
+        margin-left: @layout-space-base;
+      }
+    }
+  }
+  .titleBar{
+    margin: @layout-space-base 0;
+    line-height: 1em;
+    border-left: 5px solid @primary-color;
+    font-size: 18px;
+    text-indent: 5px;
+    color: @primary-color;
+  }
+  /deep/ .iconCell{
+    width: 100%;
+    height: 100%;
+    position: relative;
+    i{
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%,-50%)
+    }
+    img{
+      max-width: 100%;
+    }
+  }
+}
+</style>

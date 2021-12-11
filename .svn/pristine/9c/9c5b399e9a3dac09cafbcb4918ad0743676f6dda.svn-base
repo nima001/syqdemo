@@ -1,0 +1,94 @@
+<template>
+  <div class="person-account">
+    <div class="container">
+      <div class="warp">
+        <div class="top">
+          <div class="top_step">
+            <a-steps :current="current" size="small">
+              <a-step v-for="(step, index) in stepList" :key="index" :title="step.title" />
+            </a-steps>
+          </div>
+        </div>
+        <div class="center">
+          <keep-alive>
+            <component 
+              @next-step="next" 
+              @set-info="setInfo" 
+              :is="componentList[current]" 
+              :info="info"
+            />
+          </keep-alive>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+</template>
+
+<script>
+import { Steps } from "ant-design-vue";
+import BasicInfo from "./BasicInfo";
+import AppImpower from "./AppImpower";
+import Inform from "./Inform";
+
+export default {
+  props: {},
+  components: {
+    ASteps: Steps,
+    AStep: Steps.Step,
+    BasicInfo,
+    AppImpower,
+    Inform
+  },
+  data() {
+    return {
+      current: 0,
+      stepList: [
+        { title: '填写基本信息' },
+        { title: '应用授权' },
+        { title: '开户通知' },
+      ],
+      componentList: ['basicInfo', 'appImpower', 'inform'],
+      info: {}
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {},
+  mounted() {},
+  methods: {
+    next(status) {
+      if (status === 'next') {
+        this.current ++;
+      } else {
+        this.current --;
+      }
+    },
+    setInfo(info) {
+      console.log(info)
+      this.info = info;
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.person-account{
+  min-height: 100%;
+  .container{
+    min-height: 100%;
+    margin: 0 10px;
+    background-color: @white;
+    .warp{
+      width: 1000px;
+      margin: 0 auto;
+      .top{
+        overflow: hidden;
+        .top_step{
+          width: 600px;
+          margin: 20px auto;
+        }
+      }
+    }
+  }
+}
+</style>

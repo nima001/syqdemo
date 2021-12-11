@@ -1,0 +1,137 @@
+<template>
+  <a-modal v-model="visible" title="添加常用业务">
+    <template slot="footer">
+      <a-button key="back" @click="handleCancel"> 取消 </a-button>
+      <a-button
+        key="submit"
+        type="primary"
+        @click="handleOk"
+      >
+        确定
+      </a-button>
+    </template>
+    <div class="menu-tree">
+      <a-tree
+        checkable
+        showIcon
+        :tree-data="menutree"
+        :default-expanded-keys="expandedKeys()"
+        v-model="checkedId"
+        :selectable="false"
+        :check-strictly="false"
+        :style="{ height: '380px', overflow: 'auto' }"
+        @check="oncheck"
+      >
+        <template slot="icon" slot-scope="data">
+          <img
+            class="icon"
+            v-if="data.icon"
+            :src="downloadUrl(data.icon)"
+            :onerror="`this.src='${defaultIcon}'`"
+          />
+          <img v-else :src="defaultIcon" class="icon" />
+        </template>
+      </a-tree>
+    </div>
+  </a-modal>
+</template>
+<script>
+import { Button, Modal, Tree } from "ant-design-vue";
+
+import { downloadUrl } from "../../api/file";
+export default {
+  name: "AddBusiness",
+  props: {
+    checkedId: Array,
+    show: Boolean,
+  },
+  components: {
+    AButton: Button,
+    AModal: Modal,
+    ATree: Tree,
+  },
+  data() {
+    return {
+      defaultIcon: require("@/framework/assets/img/icon-menu-default.png"),
+    };
+  },
+  computed: {
+    menutree() {
+      return this.replaceFields(this.$store.getters.menuList);
+    },
+    visible: {
+      get() {
+        return this.show;
+      },
+      set(val) {
+        this.$emit("update:show", val);
+      },
+    },
+  },
+  methods: {
+    downloadUrl,
+    replaceFields(list) {
+      return (list || []).map((item) => {
+        return {
+          children: this.replaceFields(item.children),
+          title: item.name,
+          key: item.id,
+          refData: list,
+          scopedSlots: {
+            icon: "icon",
+          },
+        };
+      });
+    },
+    expandedKeys() {
+      let firstTree = [];
+      function fatherNode(obj) {
+        for (const key in obj) {
+          if (obj[key].children.length != 0) {
+            firstTree.push(obj[key].id);
+          }
+        }
+      }
+      fatherNode(this.menutree[0].refData);
+      return firstTree;
+    },
+    handleOk(e) {
+      this.$emit("checkedList", this.checkedId);
+      this.visible = false;
+    },
+    handleCancel() {
+      this.visible = false;
+    },
+    oncheck(checkedKeys) {
+      let fatherNodeId = [];
+      function fatherNode(obj) {
+        for (const key in obj) {
+          if (obj[key].children.length != 0) {
+            fatherNodeId.push(obj[key].id);
+            fatherNode(obj[key].children);
+          }
+        }
+      }
+      fatherNode(this.menutree[0].refData);
+      fatherNodeId.forEach((item) => {
+        if (this.checkedId.indexOf(item) != -1) {
+          checkedKeys.splice(this.checkedId.indexOf(item), 1);
+        }
+      });
+      this.checkedId = checkedKeys;
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+.icon {
+  height: 24px;
+  width: 24px;
+}
+/deep/.ant-modal-body {
+  padding: 0px;
+  .menu-tree {
+    padding: @content-padding-v @content-padding-h;
+  }
+}
+</style>

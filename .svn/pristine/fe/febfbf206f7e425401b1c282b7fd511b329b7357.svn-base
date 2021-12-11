@@ -1,0 +1,126 @@
+<template>
+  <swiper :options="swiperOption" ref="mySwiper">
+    <swiper-slide v-for="(item,index) in size" :key="index" :style="slideSyle">
+      <div class="slideItem">
+        <slot :name="'swiper'+`${index}`"></slot>
+      </div>
+    </swiper-slide>
+    <div class="swiper-pagination" slot="pagination"></div>
+    <div class="swiper-button-prev" slot="button-prev"></div>
+    <div class="swiper-button-next" slot="button-next"></div>
+  </swiper>
+</template>
+<script>
+// 引入插件
+import { Swiper, SwiperSlide, directive } from 'vue-awesome-swiper'
+import 'swiper/swiper-bundle.css'
+export default {
+  props: {
+    size: {
+      type: Number,
+      required: true
+    },
+    slideSyle: {
+      type: Object,
+      default: () => {
+        return {};
+      }
+    }
+  },
+  components: {
+    Swiper,
+    SwiperSlide
+  },
+  data() {
+    return {
+      // fade  flip
+      swiperOption: {
+        loop: true,
+        // autoplay: {
+        //   delay: 2000,
+        //   stopOnLastSlide: false,
+        //   disableOnInteraction: false
+        // },
+        autoplay:false,
+        // 显示分页
+        pagination: {
+          el: ".swiper-pagination",
+          clickable: true //允许分页点击跳转
+        },
+        // 设置点击箭头
+        navigation: {
+          nextEl: ".swiper-button-next",
+          prevEl: ".swiper-button-prev"
+        }
+      }
+    };
+  },
+  computed: {
+    swiper() {
+      return this.$refs.mySwiper.swiper;
+    }
+  },
+  mounted() {
+    // current swiper instance
+    // 然后你就可以使用当前上下文内的swiper对象去做你想做的事了
+    // this.swiper.slideTo(3, 1000, false);
+  }
+};
+</script>
+<style scoped lang='less' >
+.swiper-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding-bottom: 36px;
+  .swiper-wrapper {
+    .swiper-slide {
+      width: 100%;
+      line-height: 200px;
+      color: #000;
+      font-size: 16px;
+      text-align: center;
+      padding: 0px 40px;
+      /deep/.slideItem {
+        width: 100%;
+        height: 100%;
+      }
+    }
+  }
+  .swiper-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    bottom: 0px;
+    /deep/.swiper-pagination-bullet {
+      width: 12px;
+      height: 12px;
+      background: #8fc7ff;
+      border-radius: 50%;
+      opacity: 0.4;
+      margin-right: 15px;
+      cursor: pointer;
+      &.swiper-pagination-bullet-active {
+        width: 36px;
+        height: 36px;
+        background: url("../img/spot.png");
+        margin-right: 10px;
+      }
+    }
+  }
+  .swiper-button-prev {
+    width: 40px;
+    height: 40px;
+    left: 0px;
+    background: url("../img/pre.png") center center no-repeat;
+    transform: translateY(-50%);
+  }
+  .swiper-button-next {
+    width: 40px;
+    height: 40px;
+    right: 0px;
+    background: url("../img/next.png") center center no-repeat;
+    transform: translateY(-50%);
+  }
+}
+</style>

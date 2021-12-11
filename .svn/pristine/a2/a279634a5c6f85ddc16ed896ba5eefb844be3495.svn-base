@@ -1,0 +1,389 @@
+<template>
+  <div class="user-info" v-if="user">
+    <div class="person-head">
+      <div class="person-info">
+        <div class="p-left" @click="trigger">
+          <img v-if="avaterPhoto"
+            :src="uiConfigs['api.url'] + '/file/v2/file/download?uri=' + avaterPhoto" 
+            :onerror="`this.src='${defaultPhoto}'`"
+          />
+          <img v-else :src="defaultPhoto" />
+          <input
+            type="file"
+            ref="fileBtn"
+            class="fileBtn"
+            @change="getFile($event)"
+            multiple="multiple"
+          />
+        </div>
+        <div class="p-right">
+          <div class="welcome">
+            <div>
+              <p class="name">{{user.username}}</p>
+              <p v-if="user.usertype == 4">{{userdesc}}</p>
+              <p v-else>{{identitytype}}&nbsp;&nbsp;{{politicsface}}</p>
+            </div>
+            <ul class="info-item">
+              <li>
+                <span v-if="user.usertype == 4">{{politicsface || '暂无数据'}}</span>
+                <span v-else :title="user.position">{{user.position || '暂无数据'}}</span>
+              </li>
+              <li >
+                <span>{{(user.usertype == 4 ? postlevel : postkind) || '暂无数据'}}</span>
+              </li>
+              <li v-if="user.usertype !== 4">
+                <span>{{positionlevel || '暂无数据'}}</span>
+              </li>
+              <li>
+                <span>{{user.mobilephone || '暂无数据'}}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="p-btn">
+          <a-button type="primary" class="check-btn" @click="visible=true">信息核验</a-button>
+        </div>
+      </div>
+    </div>
+    <div class="person-content">
+      <a-tabs defaultActiveKey="base" tabPosition="top" :animated="false" :tabBarStyle="{padding: '0 24px', color: '#000'}">
+        <a-tab-pane tab="基本信息" key="base">
+          <user-base-tab :user="user" :unittype="unittype" v-if="user._id" />
+        </a-tab-pane>
+        <a-tab-pane tab="岗位信息" key="job" v-if="user && user.usertype == 1"><!-- 编制显示岗位信息 -->
+          <user-job-tab :user="user"/>
+        </a-tab-pane>
+        <a-tab-pane tab="工资信息" key="wage" v-if="unittype == 3"><!-- 事业显示工资信息 -->
+          <UserWageTab :user="user"/>
+        </a-tab-pane>
+        <a-tab-pane tab="工资信息" key="salary" v-if="user && user.usertype == 4"><!-- 社工显示工资信息 -->
+          <user-salary-tab :user="user"/>
+        </a-tab-pane>
+        <a-tab-pane tab="个人简历" key="resume" >
+          <user-resume-tab :user="user"/>
+        </a-tab-pane>
+        <a-tab-pane tab="奖惩信息" key="rewards" >
+          <UserRewardsTab :user="user"/>
+        </a-tab-pane>
+        <a-tab-pane tab="历史考核记录" key="examine" >
+          <user-examine-record :user="user"/>
+        </a-tab-pane>
+        <a-tab-pane tab="工资变动卡" key="card" v-if="user && user.usertype == 4">
+           <user-card-tab :user="user"/>
+        </a-tab-pane>
+      </a-tabs>
+    </div>
+    <a-modal
+      v-model="visible"
+      title="信息校验"
+      width="800px"
+      :bodyStyle="{ height: '520px', overflow: 'auto', padding: '0'}"
+      :centered="true"
+      :footer="null"
+    >
+      <inform-check :user="user"></inform-check>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { organization } from "@/person/api/org";
+import { getUser, updateUser } from "@/person/api/user";
+import UserBaseTab from "./components/infodetail/UserBaseTab";
+import UserSalaryTab from "./components/infodetail/UserSalaryTab";
+import UserResumeTab from "./components/infodetail/UserResumeTab";
+import UserRewardsTab from "./components/infodetail/UserRewardsTab";
+import UserJobTab from "./components/infodetail/UserJobTab";
+import UserWageTab from "./components/infodetail/UserWageTab";
+import InformCheck from "./components/infodetail/InformCheck";
+import UserExamineRecord from "./components/infodetail/UserExamineRecord";
+import UserCardTab from "./components/infodetail/UserCardTab";
+import { Button, Tabs, TabPane, Modal } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { uploadV2 } from "@/framework/api/file";
+
+export default {
+  name: "UserInfo",
+  components: {
+    AButton: Button,
+    ATabs: Tabs,
+    AModal: Modal,
+    ATabPane: Tabs.TabPane,
+    UserBaseTab,
+    InformCheck,
+    UserResumeTab,
+    UserRewardsTab,
+    UserSalaryTab,
+    UserJobTab,
+    UserWageTab,
+    UserExamineRecord,
+    UserCardTab
+  },
+  props: ["loadData"],
+  data() {
+    return {
+      defaultPhoto: require('@/framework/assets/img/head-default-70x98.png'),
+      uiConfigs: uiConfigsCookies(),
+      visible: false,
+      unittype: null,
+      loading: false,
+      user: {},
+      avaterPhoto: null
+    };
+  },
+  created() {
+    let userid = this.$route.query.userid;
+    if(userid){
+      this.getUserDetail(userid);
+    }
+  },
+  computed: {
+    org() {
+      return this.loadData && this.loadData.node.data;
+    },
+    userdesc() {
+      let t = '';
+      if(this.partypost){
+        t += `、${this.partypost}`;
+      }
+      if(this.committeepost){
+        t += `、${this.committeepost}`;
+      }
+      if(this.cooperationpost){
+        t += `、${this.cooperationpost}`;
+      }
+      return t && t.substr(1);
+    },
+    identitytype(){//本人身份
+      if(this.user){
+        let d = this.$store.getters.dictKey("usermanage.user.identitytype", this.user.identitytype);
+        return d && d.text;
+      }
+    },
+    positionlevel() {//职务级别
+      if(this.user){
+        let d = this.$store.getters.dictKey("usermanage.user.positionlevel", this.user.positionlevel);
+        return d && d.text;
+      }
+    },
+    politicsface() {//政治面貌
+      if(this.user){
+        let d = this.$store.getters.dictKey("usermanage.user.politicsface", this.user.politicsface);
+        return d && d.text;
+      }
+    },
+    postkind() {//人员分类
+      if(this.user){
+        let d = this.$store.getters.dictKey("usermanage.user.postkind", this.user.postkind);
+        return d && d.text;
+      }
+    },
+    postlevel() {
+      if(this.user){
+        let d = this.$store.getters.dictKey("usermanage.user.postlevel", this.user.postlevel);
+        return d && d.text;
+      }
+    },
+    partypost() {// 党组织职务
+      if(this.user && this.user.party && this.user.party.length){
+        let d = this.$store.getters.dictKey("usermanage.user.partposition", this.user.party[0].partypost);
+        return d && d.text;
+      }
+    },
+    committeepost() {// 居委会职务
+      if(this.user && this.user.committee && this.user.committee.length){
+        let d = this.$store.getters.dictKey("usermanage.user.commposition", this.user.committee[0].committeepost);
+        return d && d.text;
+      }
+    },
+    cooperationpost() {// 股份委员会
+      if(this.user && this.user.cooperation && this.user.cooperation.length){
+        let d = this.$store.getters.dictKey("usermanage.user.gdjjhzspost", this.user.cooperation[0].cooperationpost);
+        return d && d.text;
+      }
+    },
+  },
+  methods: {
+    getUserDetail(id) {
+      getUser(id).then(({result: user}) => {
+        this.user = user;
+        this.avaterPhoto = user.profilephoto;
+        if (this.org && this.org._id == user.org._id) {
+          this.unittype = this.org.unittype; //从缓存中获取用户编制单位的单位类型
+          if(user.usertype == 4){//FIXME sunwen 社工用户信息需要显示所在单位的主管单位
+            this.user.org.suporg = this.org.suporg;
+          }
+        } else {
+          organization(user.org._id).then(({result: org}) => {
+            this.unittype = org.unittype;
+            if(user.usertype == 4){//FIXME sunwen 社工用户信息需要显示所在单位的主管单位
+              this.user.org.suporg = org.suporg;
+            }
+          });
+        }
+        if(user.usertype == 4){//FIXME sunwen 社工用户信息需要显示单位的主管单位
+          if (this.user.work && this.user.work.length != 0) {
+            this.user.work.forEach((item, index) => {
+              organization(item.workorg._id).then(({result: org}) => {
+                item.workorg.suporg = org.suporg;
+                this.$set(this.user.work, index, item);
+              });
+            })
+          }
+        }
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    trigger() {
+      this.$refs.fileBtn.dispatchEvent(new MouseEvent("click"));
+    },
+    getFile(event) {
+      let file = event.target.files[0];
+      const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png';
+      const isLt1M = file.size / 1024 / 1024 < 1;
+      if (!isJpgOrPng) {
+        this.$message.error('只能上传图片!');
+      }
+      if (!isLt1M) {
+        this.$message.error('图片大小不能超过1MB!');
+      }
+      if(isJpgOrPng && isLt1M) {
+        uploadV2(file)
+        .then(res => {
+          this.$message.success('头像上传成功!');
+          let url = res.data.result.uploadid;
+          return url;
+        })
+        .then(url => {
+          let userid = this.$route.query.userid;
+          let data = {};
+          data.profilephoto = url;
+          updateUser(userid, data)
+          .then(res => {
+            this.avaterPhoto = url;
+          })
+        }) 
+        .catch(err => {
+          showError(err);
+        })
+      }
+    }
+  }
+};
+</script>
+<style lang="less">
+.user-info {
+  position: relative;
+  height: 100%;
+  border-radius: @border-radius-base;
+  background: @white;
+  overflow: hidden;
+  .person-head {
+    position: relative;
+    height: 140px;
+    width: 100%;
+    background-image: url(../../assets/img/person-background.jpg);
+    background-repeat: round;
+    .person-info {
+      display: flex;
+      padding: 10px @content-padding-h;
+      .p-left {
+        height: 84px;
+        width: 60px;
+        margin-right: @content-padding-h;
+        overflow: hidden;
+        cursor: pointer;
+        .fileBtn{
+          width: 0;
+          height: 0;
+        }
+        img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      }
+      .p-right {
+        flex: 1;
+        width: auto;
+        height: 80px;
+        .welcome {
+          height: 80px;
+          p {
+            margin: 0;
+            &.name {
+              line-height: 30px;
+              font-size: 18px;
+              font-weight: bold;
+            }
+          }
+          .info-item {
+            margin: 0;
+            line-height: 28px;
+            overflow: hidden;
+            & > li{
+              float: left;
+              box-sizing: content-box;
+              max-width: 20em;
+              line-height: 1.1em;
+              border-left: 4px solid @accent-color;
+              text-indent: 5px;
+              margin: 5px 10px 5px 0;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+            }
+          }
+        }
+      }
+      .p-btn {
+        line-height: 80px;
+        .check-btn {
+          width: 88px;
+          height: 34px;
+        }
+      }
+    }
+  }
+  .person-content {
+    position: absolute;
+    top: 100px;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    .ant-tabs {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      .ant-tabs-bar {
+        flex: 0 0 auto;
+        padding: 0 16px;
+        margin: 0;
+        background-color: fade(#d3d3d3, 20%);
+        .ant-tabs-tab-active {
+          color: @primary-color;
+        }
+        .ant-tabs-tab:hover {
+          color: @primary-5;
+        }
+        .ant-tabs-ink-bar {
+          background-color: @primary-color;
+        }
+        .ant-tabs-nav .ant-tabs-tab {
+          font-size: 16px;
+          padding: 8px 16px;
+        }
+      }
+      .ant-tabs-content {
+        min-height: 0;
+        flex: auto;
+        height: 100%;
+        & .ant-tabs-tabpane {
+          height: 100%;
+        }
+      }
+    }
+  }
+}
+</style>

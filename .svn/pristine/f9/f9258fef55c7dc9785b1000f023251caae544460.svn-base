@@ -1,0 +1,77 @@
+// 应用相关API
+import request from '@/framework/utils/request'
+
+// 分页条件查询应用列表
+export function applist(data) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/app/list`,
+        method: 'post',
+        data
+    })
+}
+
+// 创建应用
+export function appadd(data) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/app/add`,
+        method: 'post',
+        data
+    })
+}
+
+// 判断接入码是否唯一
+export function appcodeIsExist(id,code) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/app/accesskey/${id}/${code}`,
+        method: 'get'
+    })
+}
+
+// 查询应用基本信息
+export function appdetail(i) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/app/detail/`+i,
+        method: 'get'
+    })
+}
+
+// 删除应用
+export function appdel(data) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/app/del`,
+        method: 'delete',
+        data
+    })
+}
+
+// 修改应用基本信息
+export function appupdate(data) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/app/update`,
+        method: 'put',
+        data
+    })
+}
+// 随机生成密钥
+export function generate(data) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/app/accesskey/generate`,
+        method: 'get',
+        data
+    })
+}
+// 生成转让码
+export function generateTransfercode() {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/app/transfercode/generate`,
+        method: 'get',
+    })
+}
+// 转让应用
+export function transfer(data) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/app/transfer`,
+        method: 'post',
+        data
+    })
+}

@@ -1,0 +1,157 @@
+<template>
+  <div class="detail-info">
+    <div class="body">
+      <ul class="bar-chart">
+        <li v-for="item in data.rows" :key="item.k0">
+          <div class="num">{{Math.max(item.v || 0, 0)}}</div>
+          <div class="bar" @click="showOrgList(item)">
+            <div :style="{
+              height: getBarPercent(item.v)
+            }"></div>
+          </div>
+          <div class="label">{{item.k0}}</div>
+        </li>
+      </ul>
+    </div>
+    <dialog-box v-model="showOrgs">
+      <OrgList :query="query"/>
+    </dialog-box>
+  </div>
+</template>
+<script>
+import DialogBox from '../components/DialogBox'
+import LcdFont from "../components/LcdFont";
+import OrgList from '../components/OrgList';
+import { orgQuery } from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  components: {
+    DialogBox, LcdFont, OrgList
+  },
+  props: {
+    districtCode: String,
+    data: {
+      type: Object,
+      default: ()=>{
+        return {};
+      }
+    }
+  },
+  data(){
+    return {
+      showOrgs: false,
+      query: {
+        target: { id: 1, title: "组织" },
+        fields: [
+          { key: "name", showname: "机构名称" },
+          { key: "orgcode", showname: "组织编码" },
+        ],
+        filter: { 
+          op: 'and',
+          criteria:[
+            {
+              field: { key: "systype", showname: "系统类别" },
+              op: "eq",
+              value: undefined,
+            },
+          ],
+        },
+        nodename: undefined,
+      }
+    }
+  },
+  computed: {
+    num(){
+      if(this.total >= 0 && this.used >= 0){
+        return this.total - this.used;
+      }
+      return 0;
+    },
+    maxNum(){
+      let num = 0;
+      if(this.data.rows){
+        this.data.rows.forEach((item) => {
+          if(item.v > 0 && num < item.v){
+            num = item.v;
+          }
+        });
+      }
+      return num
+    },
+    systype() {
+      let v = this.$store.getters.dict('usermanage.org.systype');
+      return v;
+    }
+  },
+  created(){
+    // let v = this.$store.getters.dictKey('usermanage.org.district', this.districtCode);
+    // this.query.nodename = v.text;
+  },
+  methods: {
+    getBarPercent(num){
+      if(this.maxNum > 0){
+        num = Math.max(num || 0, 0);
+        return `${100 - (num * 100/this.maxNum).toFixed(2)}%`
+      }
+      return "100%"
+    },
+    showOrgList(item) {
+      let values = this.systype.filter((type)=>type.text==item.k0);
+      this.query.filter.criteria[0].value = values[0].value;
+      this.showOrgs = true;
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.detail-info{
+  height: 90%;
+  & > .body{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    .bar-chart{
+      display: flex;
+      justify-content: center;
+      li{
+        min-width: 74px;
+        padding: 4px;
+        text-align: center;
+        .num{
+          margin-bottom: @padding-md;
+          color: #01E3FC;
+          font-size: 25px;
+          font-weight: bold;
+        }
+        .bar{
+          width: 18px;
+          height: 250px;
+          background: linear-gradient(to top, #373FCB, #8672DD);
+          margin: auto;
+          position: relative;
+          cursor: pointer;
+          & > div{
+            background-color: #343434;
+          }
+          &::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -20px;
+            right: -20px;
+            bottom: 0;
+            background: linear-gradient(to top, fade(#383FCC, 20%), fade(#8773DD, 20%));
+          }
+        }
+        .label{
+          margin-top: 10px;
+          color: fade(#fff, 80%);
+          font-size: 16px;
+        }
+      }
+    }
+  }
+}
+</style>

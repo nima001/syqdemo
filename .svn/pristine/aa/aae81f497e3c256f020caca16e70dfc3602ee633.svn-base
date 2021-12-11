@@ -1,0 +1,45 @@
+import { getComponentProp, setComponentProp } from "@/formdesign/utils/schema";
+import { reactive } from '@vue/composition-api'
+
+/**
+ * Schema配置公共业务
+ */
+export default {
+  props: {
+    property: {},
+    schema: {},
+  },
+  inject: ['refreshSchema'],
+  computed: {
+    contentExpand: {
+      get(){
+        return this.property._expanded;
+      },
+      set(value){
+        this.property._expanded = !!value;
+      }
+    },
+    propValue:{
+      get(){
+        const { name, getter } = this.property;
+        const val = (getter || getComponentProp)(this.schema, name);
+        // console.log('gettter', this.schema, name, val);
+        // if(val !== null && typeof val === 'object'){
+        //   return reactive(val);
+        // }
+        return val;
+      },
+      set(value){
+        const { name, setter } = this.property;
+        // console.log('setter', this.schema, name, value);
+        const created = (setter || setComponentProp)(this.schema, name, value);
+        if(created){
+          this.refreshSchema();
+        }
+      },
+    }
+  },
+  methods: {
+
+  }
+}

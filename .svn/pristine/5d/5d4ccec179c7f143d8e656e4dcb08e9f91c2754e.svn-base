@@ -1,0 +1,188 @@
+<!--人员信息统计-->
+<template>
+  <div class="personCount">
+    <ul class="tabList">
+      <li
+        class="tanItem"
+        @click="changeTab(item)"
+        v-for="(item,index) in tabList"
+        :key="index"
+        :class="{active:query.type == item.type}"
+      >{{item.name}}</li>
+    </ul>
+    <div class="content">
+      <div class="top">
+        <a-date-picker :style="{width:'220px'}" placeholder="请选择日期" v-model="query.date"></a-date-picker>
+        <a-input-search
+          :style="{width:'250px'}"
+          allowClear
+          placeholder="请输入人员姓名"
+          enter-button
+          v-model="query.searchkey"
+          @search="onSearch"
+        ></a-input-search>
+      </div>
+      <div class="middle">
+        <a-table
+          :columns="columns"
+          :data-source="dataSource"
+          :pagination="false"
+          :scroll="{ y: 240 }"
+        />
+      </div>
+      <div class="bottom">
+        <a-pagination
+          show-size-changer
+          :total="pagination.total"
+          :page-size="pagination.pagesize"
+          :default-current="pagination.pagenum"
+          :show-total="(total) => `共 ${total} 条`"
+          @change="onChange"
+          @showSizeChange="onShowSizeChange"
+        ></a-pagination>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { DatePicker, Input, Table, Pagination } from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+import { transferList } from "@/hall/api/usermanage";
+import { mixins } from "@/hall/mixin/index";
+import { showError } from "@/framework/utils/index";
+const columns = [
+  {
+    title: "Name",
+    dataIndex: "name",
+    width: 150
+  },
+  {
+    title: "Age",
+    dataIndex: "age",
+    width: 150
+  },
+  {
+    title: "Address",
+    dataIndex: "address"
+  }
+];
+export default {
+  data() {
+    return {
+      activeType: 0,
+      tabList: [
+        { name: "调入人员", type: 1 },
+        { name: "调出人员", type: 2 }
+      ],
+      columns,
+      dataSource: [],
+      query: {
+        starttime: undefined,
+        endtime: undefined,
+        type: 1,
+        searchkey: undefined
+      },
+      pagination: {
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+        needtotal: true
+      }
+    };
+  },
+  components: {
+    AInputSearch: Input.Search,
+    ADatePicker: DatePicker,
+    ATable: Table,
+    APagination: Pagination
+  },
+  mixins: [mixins],
+  mounted() {
+    this.getData(this.nodeData);
+  },
+  methods: {
+    getData(nodeData) {
+      if (nodeData && nodeData.id) {
+        transferList({ nodeid: nodeData.id, ...this.pagination, ...this.query })
+          .then(res => {})
+          .catch(err => {
+            showError(err);
+          });
+      }
+    },
+    changeTab(item) {
+      this.query.type = item.type;
+      this.getData(this.nodeData);
+    },
+    onSearch(value) {
+    },
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagenum: 1, pagesize });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.personCount {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .tabList {
+    background: @white;
+    padding: @content-padding-v @content-padding-h;
+    margin: 0px;
+    display: flex;
+    .tanItem {
+      cursor: pointer;
+      padding: 0px @padding-sm;
+      color: @primary-color;
+      transition: color 0.3s;
+      border-radius: @border-radius-base;
+      height: 26px;
+      line-height: 26px;
+      margin-left: @padding-xs;
+      &:first-child {
+        margin-left: 0px;
+      }
+      &:hover {
+        background: @primary-1;
+      }
+      &.active {
+        color: @white;
+        background: @primary-color;
+      }
+    }
+  }
+  .content {
+    flex: 1;
+    padding: @content-padding-v @content-padding-h;
+    margin-top: @layout-space-base;
+    overflow-y: auto;
+    min-height: 0px;
+    background: @white;
+    display: flex;
+    flex-direction: column;
+    border-radius: @border-radius-base;
+    .top {
+      display: flex;
+      justify-content: flex-end;
+      padding: @content-padding-v 0px;
+      .ant-input-search {
+        margin-left: @layout-space-base;
+      }
+    }
+    .middle {
+      flex-shrink: 1;
+      padding: @content-padding-v 0px;
+    }
+    .bottom {
+      text-align: right;
+      padding: @content-padding-v 0px;
+    }
+  }
+}
+</style>

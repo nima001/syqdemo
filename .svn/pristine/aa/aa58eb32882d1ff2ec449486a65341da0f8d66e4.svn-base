@@ -1,0 +1,92 @@
+<template>
+  <div class="chart" ref="chart" :class="{'cursor':over }"></div>
+</template>
+<script>
+import { Liquid } from "@antv/g2plot";
+import BaseMixin from "./BaseMixin";
+
+export default {
+  title: "水波图",
+  name: "Chart",
+  mixins: [BaseMixin],
+  data() {
+    return {
+      chart: undefined
+    };
+  },
+  watch: {
+    settings: {
+      deep:true,
+      handler(val) {
+        this.draw();
+      }
+    },
+  },
+  mounted() {
+    this.draw();
+  },
+  computed:{
+    over(){
+      return this.persent > 1
+    }
+  },
+  methods: {
+    draw() {
+      if(this.chart){
+        this.chart.destroy();
+      }
+      let dom = this.$refs.chart;
+      if(!dom){
+        return;
+      }
+      const liquidPlot = new Liquid(dom, {
+        percent: this.settings.Liquid.persent,
+        outline: {
+          border: this.settings.Liquid.border||2,
+          distance: this.settings.Liquid.distance||0,
+          style: {
+            stroke: this.settings.Liquid.liquidColor,
+          }
+        },
+        // 外圈的颜色
+        liquidStyle: {
+          // 水波的颜色
+          fill: this.over ? "#C52422": this.settings.Liquid.liquidColor || "#7DC8A3FF",
+          opacity:0.6,
+          cursor: 'pointer',
+        },
+        wave: {
+          length: 48
+        },
+        statistic: {
+          title: {
+            offsetX: this.settings.Liquid.title.style.offsetX,
+            offsetY: this.settings.Liquid.title.style.offsetY,
+            formatter: () => this.settings.Liquid.title.text,
+            style: () => (this.settings.Liquid.title.style),
+          },
+          content: {
+            style: this.settings.Liquid.content.style,
+            offsetX: this.settings.Liquid.content.style.offsetX,
+            offsetY: this.settings.Liquid.content.style.offsetY,
+            formatter: obj => {
+              return (obj.percent * 100) + "%";
+            }
+          }
+        }
+      });
+      liquidPlot.render();
+      this.chart = liquidPlot;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.chart {
+  width: 120px;
+  height: 120px;
+  &.cursor{
+    cursor: pointer;
+  }
+}
+</style>

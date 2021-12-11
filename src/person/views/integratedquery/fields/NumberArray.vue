@@ -1,0 +1,113 @@
+<template>
+  <div class="container">
+    <a-input-group compact>
+      <a-select v-model="input.type" :showArrow="false">
+        <a-select-option value="">值</a-select-option>
+        <a-select-option value="$"><custom-icon type="fx"/></a-select-option>
+        <a-select-option value="#"><custom-icon color="#f39c2b" type="fx"/></a-select-option>
+      </a-select>
+      <template v-if="input.type">
+        <a-input :value="_value"
+          read-only
+          @click="showExprEditor = true"
+        />
+      </template>
+      <MultiInput v-else class="input-value"
+        v-model="input.value"
+        :validate="validateNumber"
+        placeholder="多个值“,”隔开"
+      />
+    </a-input-group>
+    <equation-editor v-if="showExprEditor" :selfFields='contextFields' :fnData="input.value" namespace="query"  @finish="onFinish"/>    
+  </div>
+</template>
+<script>
+import { debounce } from "@/framework/utils/index";
+import { Input,Select } from "ant-design-vue";
+import CustomIcon from "@/framework/components/CustomIcon";
+import MultiInput from "@/framework/components/MultiInput";
+
+//  数字数组(in/nin)
+export default {
+  name:"NumberArray",
+  components: {
+    AInput: Input,
+    AInputGroup: Input.Group,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    CustomIcon, MultiInput,
+    EquationEditor:() => import('@person/components/EquationEditor/index')    
+  },
+  inject:['contextFields'],
+  props: {
+    value: {
+      // type: Object,
+    },
+  },
+  data() {
+    return {
+      input: this.initInput(this.value),
+      oldValue: undefined,
+      showExprEditor: false
+    };
+  },
+  computed:{
+    _value(){
+      let {type, value} = this.input;
+      if(type && value){
+        return type + '{' + value + '}';
+      }else{
+        return value;
+      }
+    }
+  },
+   watch: {
+    'input.type'(vt, ovt){
+      if(!ovt != !vt){
+        let v = this.oldValue;
+        this.oldValue = this.input.value;
+        this.input.value = v;
+      }
+    },
+    _value(value){
+      this.$emit('input', value);
+    }
+  },  
+  methods: {
+    initInput(v){
+      if(typeof(v) == 'string'){
+        if(v.startsWith('${') && v.endsWith('}')){
+          return { type: '$', value: v.substring(2, v.length-1) };
+        }else if(v.startsWith('#{') && v.endsWith('}')){
+          return { type: '#', value: v.substring(2, v.length-1) };
+        }
+      }
+      return { type: '', value: v};
+    },
+    validateNumber(v){
+      let n = Number(v);
+      if(n || n == 0){
+        return n;
+      }
+    },
+    onFinish(type, data) {
+      this.showExprEditor = false;
+      if (type == "ok") {
+        this.input.value = data;
+      }
+    }    
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  min-width: 300px;
+  .ant-input-group-compact{
+    display: flex;
+    .input-value{
+      flex: auto;
+      min-width: 1px;
+    }
+  }
+}
+</style>

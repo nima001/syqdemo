@@ -1,0 +1,41 @@
+<template>
+  <div class="container">
+    <a-input disabled placeholder="请输入" v-model="defaultData.value" type="number" @change="handleChange" />
+  </div>
+</template>
+<script>
+import { debounce } from "@/framework/utils/index";
+import {Input} from 'ant-design-vue';
+export default {
+  name: "TypeFour",
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  components:{
+    AInput:Input
+  },
+  methods: {
+    handleChange: debounce(function(e) {
+      let value = parseInt(e.target.value);
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value
+      });
+    }, 300)
+  }
+};
+</script>
+
+<style lang="less" scoped>
+.container {
+  flex: 1;
+}
+</style>

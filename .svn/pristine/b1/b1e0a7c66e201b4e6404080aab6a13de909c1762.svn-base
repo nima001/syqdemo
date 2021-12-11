@@ -1,0 +1,25 @@
+import request from '@/framework/utils/request'
+
+export function mergeOrg(data){
+  return request({
+      url:'/idm/v2/org/mergeorg',
+      method:'post',
+      data
+  })
+}
+
+export function improveOrginfo(data){
+  return request({
+      url:'/idm/v2/org/improveOrginfo',
+      method:'post',
+      data
+  })
+}
+
+export function getOrg(data){
+  return request({
+      url:'/idm/v2/org/getorgbyoid',
+      method:'post',
+      data
+  })
+}

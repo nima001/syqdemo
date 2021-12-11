@@ -1,0 +1,208 @@
+<template>
+  <div class="data-table">
+    <h2 v-if="mainTitle.visible!==false" :style="{ textAlign: position||'center' }" v-html="mainTitle.value"/>
+    <h3 v-if="subTitle.visible!==false" :style="{ margin: 0, textAlign: position||'center' }" v-html="subTitle.value"/>
+    <a-table
+      :columns="columns"
+      :rowKey="(row)=>row.k0"
+      :bordered="settings.table.bordered"
+      :dataSource="dataSource"
+      :pagination="dataSource.length<20?false:true"
+    />
+  </div>
+</template>
+<script>
+import { Table } from 'ant-design-vue'
+import { cloneDeep, has } from 'lodash';
+import BaseMixin from "@person/components/chart/BaseMixin"
+
+/**
+ * 统计数据表
+ */
+export default {
+  icon: 'table',
+  props: {
+    // position: {//1:顶部，0-底部
+    //   type: Number,
+    //   default: 0,
+    // },
+    // settings: {// 配置
+    //   type: Object,
+    //   default: () => ({})
+    // },
+  },
+  components: {
+    ATable: Table,
+  },
+  mixins: [BaseMixin],
+  watch: {
+    'settings.table.sumPosition': {
+      deep: true,
+      handler(val,old) {
+        return val;
+      }
+    }
+  },
+  computed: {
+    position() {
+      if(this.settings.title&&this.settings.title.position) {
+        let { position } = this.settings.title;
+        return position;
+      }else{
+        return undefined
+      }
+    },
+    mainTitle() {
+      if(this.settings.title&&this.settings.title.main) {
+        let { main } = this.settings.title;
+        if(!main) {
+          return  {
+            visible: true,
+            value: undefined,
+          }
+        }
+        if(!has(main,'visible')) {
+          main.visible = true;
+        }
+        return main;
+      }else{
+        return {
+          main: {
+            visible: true,
+            value: undefined,
+          }
+        }
+      }
+    },
+    subTitle() {
+      if(this.settings.title&&this.settings.title.sub) {
+        let { sub } = this.settings.title;
+        if(!sub) {
+          return  {
+            visible: true,
+            value: undefined,
+          }
+        }
+        if(!has(sub,'visible')) {
+          sub.visible = true;
+        }
+        return sub;
+      }else{
+        return {
+          sub: {
+            visible: true,
+            value: undefined,
+          }
+        }
+      }
+    },
+    columns(){
+      if(!this.data){
+        return [];
+      }
+      let that = this;
+      function convert(cols){
+        if(cols){
+          return cols.map(item => ({
+            title: item.showname, 
+            align: 'center', 
+            dataIndex: item.column,
+            customCell: that.customCell,
+            filters: [
+              {
+                text: '只显示有值行',
+                value: 0
+              }
+            ],
+            sorter: (a, b) => {
+              if(a.k0!='合计'&&b.k0!='合计') {
+               return a.v0 - b.v0
+              }
+            },
+            onFilter: (value, record) => {
+              return record.v0!==0;
+            },
+            // onFilter: (value, record) => record.address.indexOf(value) === 0,
+            customHeaderCell: that.customHeaderCell,
+            children: convert(item.columns),
+          }))
+        }
+      }
+      let {keyCols = [], valueCols = []} = this.data;
+      return [
+         ... keyCols.map(item => ({
+          title: item.showname, 
+          dataIndex: item.column,
+          customCell: this.customCell,
+          customHeaderCell: this.customHeaderCell,
+        })),
+        ... convert(valueCols)
+      ]
+    },
+    dataSource(){
+      let dataSource = cloneDeep(this.data);
+      if(dataSource&&dataSource.rows) {
+        let sum = 0
+        dataSource.rows.forEach((item, index)=>{
+          if(!item.v0) {
+            dataSource.rows[index].v0 = 0;
+          }else{
+            sum+=item.v0;
+          }
+        });
+        let length = dataSource.rows.length;
+        let row = dataSource.rows[length-1];
+        if(this.settings.table.sumPosition===1) {
+          if(row.k0=='合计') {
+            dataSource.rows.splice(length-1,1);
+          }
+          if(dataSource.rows[0].k0!='合计') {
+            dataSource.rows.unshift({k0: '合计', v0: sum});
+          }
+        }else if(this.settings.table.sumPosition===0){
+          if(dataSource.rows[0].k0=='合计') {
+            dataSource.rows.splice(0,1);
+          }
+          if(row.k0!='合计') {
+            dataSource.rows.push({k0: '合计', v0: sum});
+          }
+        }
+        return dataSource && dataSource.rows;
+      }
+    }
+  },
+  methods: {
+    customCell(record, index) {
+      return {
+        style: {
+          'background-color': this.settings.table.bodyBackgroundColor,
+          'padding': `${this.settings.table.lineHeight}px`,
+          'color': this.settings.table.bodyColor,
+        },
+      }
+    },
+    customHeaderCell(record, index) {
+      return {
+        style: {
+          'background-color': this.settings.table.headBackgroundColor,
+          'padding': `${this.settings.table.lineHeight}px`,
+          'color': this.settings.table.headColor,
+        },
+      }
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+/deep/.ant-table-thead {
+  tr:not(:last-child)>th {
+    border-bottom: 1px solid #e8e8e8;
+  }
+  th {
+    border-right: 1px solid #e8e8e8;
+    &:last-child {
+      // border-right: none;
+    }
+  }
+}
+</style>

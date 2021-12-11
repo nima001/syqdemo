@@ -1,0 +1,128 @@
+<template>
+  <div class="report-detail">
+    <div class="main">
+      <div class="main-top">
+        <a-button>一键导出</a-button> 
+      </div>
+      <div class="main-content">
+        <div class="item" v-for="(item, index) in detailData" :key="index">
+          <div class="item-title">
+            <span>{{item.name}}</span>
+          </div>
+          <!-- 基本信息 -->
+          <div class="item-info" v-if="item.name == '基本信息'">
+            <ul>
+              <li>
+                <span>机构名称：{{item.jgmc}}</span>
+                <span>主管部门：{{item.zgbm}}</span>
+              </li>
+              <li>
+                <span>机构规格：{{item.jggg}}</span>
+                <span>是否为参公事业单位：{{item.cgsydw}}</span>
+              </li>
+              <li>
+                <span>事业单位分类：{{item.sydwfl}}</span>
+                <span>经费形式：{{item.jfxs}}</span>
+              </li>
+            </ul>
+          </div>
+          <!-- 编制情况 -->
+          <div class="item-info" v-if="item.name == '编制情况'">
+            <ul>
+              <li>
+                <span>现核定编制：{{item.hdbzs}}</span>
+                <span>实有人员：{{item.syry}}</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Button } from "ant-design-vue";
+import { reportDetail } from "@/person-shaoxing/api/assessment";
+import { showError } from "@/framework/utils/index";
+export default {
+  components: {
+    AButton: Button
+  },
+  data() {
+    return {
+      detailData: []
+    }
+  },
+  created() {
+    if(this.$route.query.id) {
+      this.getData();
+    }
+  },
+  methods: {
+    getData() {
+      reportDetail(this.$route.query.id)
+      .then(({result}) => {
+        this.detailData = result.items;
+      })  
+      .catch(err => {
+        showError(err);
+      })
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.report-detail{
+  padding: 10px;
+  height: 100%;
+  .main{
+    height: 100%;
+    background: @white;
+    .main-top{
+      padding: 18px @content-padding-h 8px;
+    }
+    .main-content{
+      padding: 0 @content-padding-h;
+      .item{
+        .item-title{
+          width: 300px;
+          border-top: 1px solid @primary-color;
+          margin: @content-padding-v 0;
+          span{
+            display: inline-block;
+            position: relative;
+            background: @primary-color;
+            line-height: 25px;
+            color: @white;
+            font-weight: bolder;;
+            padding: 0 5px;
+            &:before{
+              content: '';
+              position: absolute;
+              right: -25px;
+              top: 0;
+              width: 0;
+              height: 0;
+              border-color: transparent @primary-color;
+              border-width: 0 0 25px 25px;
+              border-style: solid;
+            }
+          }
+        }
+        .item-info{
+          ul{
+            li{
+              padding: @content-padding-v 0;
+              span{
+                display: inline-block;
+                width: 33%;
+                font-weight: bolder;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</style>

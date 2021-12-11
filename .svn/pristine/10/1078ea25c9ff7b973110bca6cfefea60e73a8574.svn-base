@@ -1,0 +1,84 @@
+<template>
+  <div class="barChart">
+    <a-spin :spinning="loading" v-if="loading"></a-spin>
+    <div ref="chart" v-else></div>
+  </div>
+</template>
+<script>
+import { Chart } from "@antv/g2";
+import { Spin } from "ant-design-vue";
+import { rateTrend } from "@/hall/api/attendance";
+import { showError } from "@/framework/utils/index";
+export default {
+  components: {
+    ASpin: Spin
+  },
+  data() {
+    return {
+      loading: false
+    };
+  },
+  mounted() {
+    this.getData();
+  },
+  methods: {
+    getData() {
+      rateTrend()
+        .then(({ result: { rate, time } }) => {
+          let list = time.map((item, index) => {
+            return {
+              month: item,
+              rate: rate[index]
+            };
+          });
+          this.draw(list.reverse())
+        })
+        .catch(err => {
+          showError(err);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    },
+    draw(list) {
+      const chart = new Chart({
+        container: this.$refs.chart,
+        autoFit: true
+      });
+      chart.data(list);
+      chart.scale({
+        month: {
+          range: [0, 1]
+        },
+        rate: {
+          nice: true,
+          alias:'比率'
+        }
+      });
+
+      chart.tooltip({
+        showCrosshairs: true,
+        shared: true
+      });
+      chart
+        .line()
+        .position("month*rate")
+        .shape("smooth");
+      chart
+        .point()
+        .position("month*rate")
+        .shape("circle");
+      chart.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.barChart {
+  padding: @content-padding-v 0px;
+  height: 300px;
+  div {
+    height: 100%;
+  }
+}
+</style>

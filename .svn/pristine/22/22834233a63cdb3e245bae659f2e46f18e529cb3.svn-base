@@ -1,0 +1,240 @@
+<template>
+  <a-spin :spinning="loading" :id="spinid" class="line-chart">
+    <div :id="id">
+    </div>
+  </a-spin>
+</template>
+
+<script>
+import { Spin } from "ant-design-vue";
+import { registerShape } from '@antv/g2';
+import mixinChart from "@/zfw/utils/chart";
+export default {
+  mixins: [mixinChart],
+  props: {
+    loading: {
+      type: Boolean,
+      default: false
+    },
+    // 数据 => 必选
+    data: {
+      type: Array,
+      default: () => [
+      ]
+    },
+    showPercent: {
+      type: Boolean,
+      default: true
+    },
+    coordinateName: {
+      type: Array,
+      default: () => {
+        return [ 'name', 'num', 'percent' ]
+      }
+    }
+  },
+  components: { ASpin: Spin },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+    spinid() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    }
+  },
+  created() {},
+  mounted() {},
+  methods: {
+    setChartConfig(data) {
+      data.forEach(item => {
+        item.percent = parseFloat(item.percent);
+      }) 
+      // 可以通过调整这个数值控制分割空白处的间距，0-1 之间的数值
+      const sliceNumber = 0.01;
+
+      // 自定义 other 的图形，增加两条线
+      if (data.length > 1) {
+        registerShape('interval', 'slice-shape', {
+          draw(cfg, container) {
+            const points = cfg.points;
+            let path = [];
+            path.push(['M', points[0].x, points[0].y]);
+            path.push(['L', points[1].x, points[1].y - sliceNumber]);
+            path.push(['L', points[2].x, points[2].y - sliceNumber]);
+            path.push(['L', points[3].x, points[3].y]);
+            path.push('Z');
+            path = this.parsePath(path);
+            return container.addShape('path', {
+              attrs: {
+                fill: cfg.color,
+                path,
+              },
+            });
+          },
+        });
+      }
+
+      this.chart.coordinate('theta', {
+        radius: 0.85,
+        innerRadius: 0.6,
+      });
+
+      this.chart.data(data);
+
+      if ( this.showPercent ) {
+        this.chart.scale('percent', {
+          formatter: val => {
+            val = val * 100 + '%';
+            return val;
+          },
+        });
+
+        this.chart.tooltip({
+          showTitle: false,
+          showMarkers: false,
+        });
+
+        // 声明需要进行自定义图例字段： 'name'
+        this.chart.legend('name', {
+          position: 'right',                                  // 配置图例显示位置
+          offsetX: -50,
+          custom: true,                                       // 关键字段，告诉 G2，要使用自定义的图例
+          items: data.map((obj, index) => {
+            return {
+              name: obj.name,                                 // 对应 itemName
+              value: obj.percent,                             // 对应 itemValue
+              marker: {
+                symbol: 'circle',                             // marker 的形状
+                style: {
+                  r: 5,                                       // marker 图形半径
+                  fill: this.chart.getTheme().colors10[index],     // marker 颜色，使用默认颜色，同图形对应
+                },
+              },                                              // marker 配置
+            };
+          }),
+          itemValue: {
+            style: {
+              fill: '#999',
+            },                                               // 配置 itemValue 样式
+            formatter: val => `${val * 100}%`                // 格式化 itemValue 内容
+          },
+        });
+
+        this.chart                        
+          .interval()                   //  用于绘制柱状图、直方图、南丁格尔玫瑰图、饼图、条形环图（玉缺图）、漏斗图等。
+          .adjust('stack')              //  层叠，将同一个分类的数据值累加起来
+          .position('percent')          
+          .color('name')
+          .style({
+            fillOpacity: 1,
+          })
+          .shape('slice-shape')
+          .state({
+            active: {
+              style: element => {
+                const shape = element.shape;
+                return {
+                  lineWidth: 10,
+                  stroke: shape.attr('fill'),
+                  strokeOpacity: shape.attr('fillOpacity'),
+                };
+              },
+            },
+          });
+
+        // 移除图例点击过滤交互
+        this.chart.removeInteraction('legend-filter');
+        this.chart.interaction('element-active');
+
+        this.chart.render();
+
+        // 监听 element 上状态的变化来动态更新 Annotation 信息
+        this.chart.on('element:statechange', (ev) => {
+          const { state, stateStatus, element } = ev.gEvent.originalEvent;
+
+          // 本示例只需要监听 active 的状态变化
+          if (state === 'active') {
+            const data = element.getData();
+            if (stateStatus) {
+              // 更新 Annotation
+              updateAnnotation(data);
+            } else {
+              // 隐藏 Annotation
+              clearAnnotation();
+            }
+          }
+        });
+
+        // 绘制 annotation
+        let lastItem;
+        function updateAnnotation(data) {
+          if (data.name !== lastItem) {
+            this.chart.annotation().clear(true);
+            this.chart
+              .annotation()
+              .text({
+                position: ['50%', '50%'],
+                content: data.name,
+                style: {
+                  fontSize: 20,
+                  fill: '#8c8c8c',
+                  textAlign: 'center',
+                },
+                offsetY: -20,
+              })
+              .text({
+                position: ['50%', '50%'],
+                content: data.num,
+                style: {
+                  fontSize: 28,
+                  fill: '#8c8c8c',
+                  textAlign: 'center',
+                },
+                offsetX: -10,
+                offsetY: 20,
+              })
+              .text({
+                position: ['50%', '50%'],
+                content: '台',
+                style: {
+                  fontSize: 20,
+                  fill: '#8c8c8c',
+                  textAlign: 'center',
+                },
+                offsetY: 20,
+                offsetX: 20,
+              });
+            this.chart.render(true);
+            lastItem = data.name;
+          }
+        }
+
+        // 清空 annotation
+        function clearAnnotation() {
+          this.chart.annotation().clear(true);
+          this.chart.render(true);
+          lastItem = null;
+        }
+      } else {
+        this.chart.tooltip({
+          showTitle: false,
+          showMarkers: false,
+        });
+        this.chart
+          .interval()
+          .adjust('stack')
+          .position(this.coordinateName[1])
+          .color(this.coordinateName[0])
+          .shape('slice-shape');
+        
+        this.chart.render();
+      }
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.line_cahrt{}
+</style>

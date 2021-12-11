@@ -1,0 +1,353 @@
+<template>
+  <div class="wrap">
+    <a-row class="row" type="flex" justify="end">
+      <a-col :span="4" class="col">
+        <a-select placeholder="请选择人员分类" v-model="usertype" >
+          <a-select-option
+            :value="item.value"
+            v-for="(item,index) in peopleType"
+            :key="index"
+          >{{item.name}}</a-select-option>
+        </a-select>
+      </a-col>
+      <a-col :span="4" class="col">
+        <a-input placeholder="请输入姓名" :allowClear="true" v-model="searchkey" />
+      </a-col>
+      <a-col class="col">
+        <a-button type="primary" @click="search">搜索</a-button>
+      </a-col>
+    </a-row>
+      <a-table
+       class="table"
+        rowKey="_id"
+        ::loading="loading"
+        :columns="columns"
+        :dataSource="dataSource"
+        :rowClassName="(row) => pagination.selected && pagination.selected._id == row._id ? 'selected': ''"
+        :customRow="customRow"
+        :pagination="false"
+        :loading="loading"
+      >
+      <div class="table-tr" slot="username" slot-scope="record">
+        <span v-if="showWorkStatus" style="padding-right:3px">
+          <img
+            v-if="record._work && record._work.workstatus==5"
+            class="worstatus"
+            src="@person/assets/img/icon-workstatus-jd.png"
+          />
+          <img
+            v-else-if="record._work && record._work.workstatus==3"
+            class="worstatus"
+            src="@person/assets/img/icon-workstatus-dg.png"
+          />
+          <img
+            v-else-if="record._work && record._work.workstatus==2"
+            class="worstatus"
+            src="@person/assets/img/icon-workstatus-jz.png"
+          />
+          <img
+            v-else-if="record._work && record._work.workstatus==4"
+            class="worstatus"
+            src="@person/assets/img/icon-workstatus-gz.png"
+          />
+          <span class="worstatus" v-else />
+        </span>
+        <user-icon :user="record" />
+        {{record.username}}
+      </div>
+    </a-table>     
+
+    <div class="footer">
+      <a-pagination
+        v-if="pagination.rows && pagination.rows.length"
+        showSizeChanger
+        :showTotal="total => `总共：${total}人`"
+        @showSizeChange="onShowSizeChange"
+        :total="pagination.total"
+        :pageSize="pagination.pagesize"
+        v-model="pagination.pagenum"
+        @change="onPageChange"
+      /> 
+    </div>
+  </div>
+</template>
+
+<script>
+import { Select, Row, Col, Input, Button, Table ,Pagination} from "ant-design-vue";
+import UserIcon from "@framework/components/UserIcon";
+import {userquery} from '@person/api/user';
+import { showError } from '@framework/utils';
+import moment from "moment";
+import assign from 'lodash/assign';
+export default {
+  components: {
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    AButton: Button,
+    ATable: Table,
+    UserIcon,
+    APagination:Pagination
+  },
+  props:{
+    org:{
+      required:true
+    },
+    nodeid:{
+      required:true
+    }
+  },
+  data() {
+    return {
+      peopleType: [
+        { name: "实有人员", value: 1 },
+        { name: "编外人员", value: 2 }
+      ],
+      columns1: [
+        {
+          title: "姓名",
+          width: "100px",
+          scopedSlots: { customRender: "username" }
+        },
+        {
+          title: "性别",
+          dataIndex: "sex",
+          width: "60px",
+          customRender: this.dictRender("usermanage.user.sex")
+        },
+        {
+          title: "出生年月",
+          dataIndex: "birthday",
+          width:"100px",
+          customRender: text => moment(text).format("YYYY-MM-DD")
+        },
+        {
+          title: "所在处室",
+          dataIndex: "dept"
+        },
+        {
+          title: "职务名称",
+          dataIndex: "resumeposition"
+        },
+        {
+          title: "职务级别",
+          dataIndex: "leaderpostlevel",
+          customRender: this.dictRender("usermanage.user.leaderpostlevel")
+        },
+        {
+          title: "职务类别",
+          width:"16%",
+          dataIndex: "postkind",
+          customRender: this.dictRender("usermanage.user.postkind")
+        },
+        {
+          title: "人员身份",
+          dataIndex: "identitytype",
+          customRender: this.dictRender("usermanage.user.identitytype")
+        },
+        {
+          title: "编制类型",
+          width:"16%",
+          dataIndex: "complietype",
+          customRender: this.dictRender("usermanage.user.complietype")
+        }
+      ],
+      columns2:[
+        {
+          title: "姓名",
+          width: "100px",
+          scopedSlots: { customRender: "username" }
+        },
+        {
+          title: "性别",
+          dataIndex: "sex",
+          width: "60px",
+          customRender: this.dictRender("usermanage.user.sex")
+        },
+        {
+          title: "出生年月",
+          dataIndex: "birthday",
+          width:"100px",
+          customRender: text => moment(text).format("YYYY-MM-DD")
+        },
+        {
+          title: "所在处室",
+          dataIndex: "dept"
+        },
+        {
+          title: "岗位分类",
+          dataIndex: "jobsort",
+          customRender: this.dictRender("usermanage.user.jobsort")
+        },
+        {
+          title:"具体工作岗位",
+          width:"16%",
+          dataIndex:"jobdesc"
+        },
+        {
+          title:"用工方式",
+          width:"16%",
+          dataIndex:"yonggong_xs",
+          customRender:this.dictRender("usermanage.user.yonggong_xs")
+        },
+        {
+          title:"进入本单位时间",
+          dataIndex:"firstemploytime",
+          customRender: text => moment(text).format("YYYY-MM-DD")
+        },
+        {
+          title:"合同期止",
+          dataIndex:"hetong_end",
+          customRender: text => moment(text).format("YYYY-MM-DD")
+        }
+      ],
+      loading:false,
+      dataSource:[],
+      showWorkStatus: false,
+      loading: false,
+      pagination: {
+        selected: undefined,
+        pagesize: 20,
+        pagenum: 1,
+        total: 0
+      },
+      usertype :1,
+      searchkey : undefined
+    };
+  },
+  computed:{
+    columns(){
+      if(this.usertype == 1){
+        return this.columns1;
+      }else{
+        return this.columns2;
+      }
+    }
+  },
+  watch:{
+    org(){
+      this.queryUser(this.pagination);
+    }
+  },
+  created(){
+    this.queryUser(this.pagination);
+  },
+  methods: {
+    search(){
+      this.queryUser(this.pagination);
+    },
+    queryUser(pagination){
+      let params = {
+        needtotal:true,
+        nodeid : this.nodeid,
+        orgid : this.org._id,
+        usertype : this.usertype,
+        scope : "ORG",
+        searchkey:this.searchkey,
+        properties:{}
+      }
+      this.loading = true;
+      userquery({...params,...pagination}).then(res=>{
+        let result = res.result;
+        this.dataSource = result.rows;
+        assign(this.pagination,result);
+      }).catch(err=>{
+        showError(err);
+      }).finally(()=>{
+        this.loading = false;
+      });
+    },
+    onPageChange(pagenum, pagesize) {
+      assign(this.pagination,{pagesize,pagenum})
+      this.queryUser(this.pagination)
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination,{pagesize,pagenum:1})
+      this.queryUser(this.pagination)
+    },
+    dictRender(key) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key, text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    customRow(row) {
+      return {
+        on: {
+          click: () => {
+            this.$set(this.pagination, "selected", row);
+          },
+          dblclick: event => {
+            this.$router.push({
+              path: "userinfo",
+              query: { userid: row._id }
+            });
+          }
+        }
+      };
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+
+.wrap{
+  flex: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .row {
+    padding: @content-padding-v @content-padding-h;
+    /deep/.col {
+      margin-left: @padding-xs;
+      .ant-select{
+        width: 100%;
+      }
+    }
+  }
+  .table {
+      flex-shrink: 1;
+      min-height: 0;
+      padding: 0 @content-padding-h;
+      overflow-y: auto;
+      /deep/table {
+        table-layout: fixed;
+        td,th {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        td{
+           padding: 2px 2px;
+        }
+        tr.selected{
+          background: @primary-2;
+        }
+      } 
+      .table-tr {
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        .worstatus {
+          width: 16px;
+          height: 16px;
+          display: inline-block;
+        }
+      }    
+  }
+  .footer {
+    padding: @content-padding-v @content-padding-h;
+    .ant-pagination {
+      float: right;
+      margin-bottom: 10px;
+    }
+  }
+}
+
+
+</style>

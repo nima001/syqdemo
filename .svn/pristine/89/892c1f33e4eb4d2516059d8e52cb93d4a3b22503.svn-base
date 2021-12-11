@@ -1,0 +1,435 @@
+<template>
+  <div>
+      <div class="detail-info">
+        <div class="header">
+          <p class="title">职务层次平均年龄</p>
+          <div class="orgs">
+            <ul>
+              <li>
+                <div class="name">厅局级</div>
+                <div class="content">
+                    <div class="principal">
+                        <span>正职</span>
+                        <span v-if="data.xzbztjjzzpjnl||data.sybztjjzzpjnl">{{`${(data.xzbztjjzzpjnl||data.sybztjjzzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                    <div class="vice">
+                        <span>副职</span>
+                        <span v-if="data.xzbztjjfzpjnl||data.sybztjjfzpjnl">{{`${(data.xzbztjjfzpjnl||data.sybztjjfzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                </div>
+              </li>
+              <li>
+                <div class="name">县处级</div>
+                <div class="content">
+                    <div class="principal">
+                        <span>正职</span>
+                        <span v-if="data.xzbzxcjzzpjnl||data.sybzxcjzzpjnl">{{`${(data.xzbzxcjzzpjnl||data.sybzxcjzzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                    <div class="vice">
+                        <span>副职</span>
+                        <span v-if="data.xzbzxcjfzpjnl||data.sybzxcjfzpjnl">{{`${(data.xzbzxcjfzpjnl||data.sybzxcjfzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                </div>
+              </li>
+              <li>
+                <div class="name">乡科级</div>
+                <div class="content">
+                    <div class="principal">
+                        <span>正职</span>
+                        <span v-if="data.xzbzxkjzzpjnl||data.sybzxkjzzpjnl">{{`${(data.xzbzxkjzzpjnl||data.sybzxkjzzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                    <div class="vice">
+                        <span>副职</span>
+                        <span v-if="data.xzbzxkjfzpjnl||data.sybzxkjfzpjnl">{{`${(data.xzbzxkjfzpjnl||data.sybzxkjfzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                </div>
+              </li>
+              <li>
+                <div class="name">股级</div>
+                <div class="content">
+                    <div class="principal">
+                        <span>正职</span>
+                        <span v-if="data.xzbzgjzzpjnl||data.sybzgjzzpjnl">{{`${(data.xzbzgjzzpjnl||data.sybzgjzzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                    <div class="vice">
+                        <span>副职</span>
+                        <span v-if="data.xzbzgjfzpjnl||data.sybzgjfzpjnl">{{`${(data.xzbzgjfzpjnl||data.sybzgjfzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="body">
+          <div class="left">
+            <div>
+              <p>{{title}}排行</p>
+              <div class="all-list" @click="showAges">
+                全部列表
+              </div>
+            </div>
+            <div>
+              <ul v-if="dataList.length">
+                <li v-for="(item,index) in dataList.filter((item,itemIndex)=>itemIndex+1<6)">
+                  <span class="index">{{index+1}}</span>
+                  <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>{{item.name}}</span>
+                    </template>
+                    <span class="name">{{item.name}}</span>
+                  </a-tooltip>
+                  <span class="num">{{`${(item['_join0.jgpjnl']).toFixed(2)}`}}</span>
+                </li>
+              </ul>
+              <ul v-if="dataList.length>5">
+                <li v-for="(item, index) in dataList.filter((item,itemIndex)=>itemIndex+1>5)">
+                  <span class="index">{{index}}</span>
+                  <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>{{item.name}}</span>
+                    </template>
+                    <span class="name">{{item.name}}</span>
+                  </a-tooltip>
+                  <span class="num">{{`${(item['_join0.jgpjnl']).toFixed(2)}`}}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <!-- <div class="right">
+            <p>{{title}}机构排行(后十)</p>
+            <div>
+              <ul v-if="data.xzpjnlhsgdw||data.sypjnlhsgdw">
+                <li v-for="item in JSON.parse(data.xzpjnlhsgdw||data.sypjnlhsgdw).filter((item)=>item.index<6)">
+                  <span class="index">{{item.index}}</span>
+                  <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>{{item.orgname}}</span>
+                    </template>
+                    <span class="name">{{item.orgname}}</span>
+                  </a-tooltip>
+                  <span class="num">{{`${(item.avgage).toFixed(2)}`}}</span>
+                </li>
+              </ul>
+              <ul v-if="data.xzpjnlhsgdw||data.sypjnlhsgdw">
+                <li v-for="item in JSON.parse(data.xzpjnlhsgdw||data.sypjnlhsgdw).filter((item)=>item.index>5)">
+                  <span class="index">{{item.index}}</span>
+                  <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>{{item.orgname}}</span>
+                    </template>
+                    <span class="name">{{item.orgname}}</span>
+                  </a-tooltip>
+                  <span class="num">{{`${(item.avgage).toFixed(2)}`}}</span>
+                </li>
+              </ul>
+            </div>
+          </div> -->
+        </div>
+      </div>
+    <dialog-box v-model="showOrgs">
+      <OrgList :query="query"/>
+    </dialog-box>
+  </div>
+</template>
+<script>
+import { Tooltip } from 'ant-design-vue';
+import OrgList  from '../components/OrgList';
+import DialogBox from "../components/DialogBox";
+import LcdFont from "../components/LcdFont";
+import { includes } from 'lodash';
+import { query } from "@/person/api/integratedquery";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  components: {
+    DialogBox,
+    LcdFont,
+    OrgList,
+    ATooltip: Tooltip,
+  },
+  props: {
+    districtCode: String,
+    showAge: Boolean,
+    title: String,
+    data: {
+      type: Object,
+      default: ()=> {
+        return {}
+      }
+    },
+    type: String,
+  },
+  data() {
+    return {
+      ageList: false,
+      show: this.value,
+      showOrgs: false,
+      dataList: [],
+      query: {
+        target: { id: 1, title: "组织", catalogid: 57 },
+        fields: [
+          {
+            datasource: "",
+            datatype: 4,
+            icon: "string",
+            inputtype: 0,
+            key: "name",
+            name: "机构名称",
+            required: false,
+            showname: "机构名称",
+            sort: "机构基本信息",
+          },
+          {
+            datatype: 4,
+            icon: "string",
+            inputtype: 0,
+            joinable: false,
+            key: "orgcode",
+            name: "机构编码",
+            required: false,
+            showname: "机构编码",
+            sort: "机构基本信息",
+            title: "机构<span class=\"key\">编码</span>",
+          },
+          {
+            datatype: 4,
+            icon: "float",
+            inputtype: 2,
+            key: "_id@organization.statistic.jgpjnl",
+            name: "机构平均年龄",
+            required: false,
+            showname: "机构平均年龄",
+            sort: "平均年龄",
+            title: "<span class=\"key\">机构平均年龄</span>",
+          },
+        ],
+        filter: {
+          op: 'and',
+          criteria: [{
+            field: {
+              datasource: "usermanage.org.unittype",
+              datatype: 2,
+              icon: "dict",
+              inputtype: 0,
+              joinable: false,
+              key: "unittypes",
+              name: "单位类型",
+              required: false,
+              showname: "单位类型",
+              sort: "机构基本信息",
+              title: "<span class=\"key\">单位</span>类型",
+            },
+            id: "roehi",
+            op: "eq",
+            value: undefined,
+            opList: [
+              {text: "等于", value: "eq"},
+              {text: "不等于", value: "ne"},
+              {text: "在列表中", value: "in"},
+              {text: "不在列表中", value: "nin"},
+            ]
+          }],
+        },
+        nodename: undefined,
+      },
+    };
+  },
+  watch: {
+    showAge(value) {
+      this.show = value;
+    },
+    show(show) {
+      if(!show) {
+        this.$emit('update:showAge', show);
+      }
+    },
+    type(val) {
+      if(val) {
+        this.loadData();
+      }
+    }
+  },
+  computed: {
+    unittype() {
+      let v = this.$store.getters.dict('usermanage.org.unittype');
+      return v;
+    }
+  },
+  mounted() {
+    this.ageList = false;
+    if(this.type) {
+      this.loadData();
+    }
+  },
+  methods: {
+    showAges() {
+      this.showOrgs = true;
+    },
+    loadData() {
+      let v = this.$store.getters.dictKey('usermanage.org.district', this.districtCode);
+      this.query.nodename = v.text;
+      let values = this.unittype.filter((item)=>includes(item.text,this.type));
+      this.$set(this.query.filter.criteria[0],'value',values[0].value);
+      query({...this.query,pagesize: 10, pagenum: 1}).then(({result})=>{
+        this.dataList = result.rows;
+      }).catch((err)=>{
+        showError(err);
+      })
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.detail-info {
+  height: 90%;
+  & > .header {
+    text-align: center;
+    margin-top: 75px;
+    height: 145px;
+    p.title {
+      color: fade(#fff, 80%);
+      font-size: 1.3em;
+      font-weight: bold;
+    }
+    .orgs {
+      ul {
+        display: flex;
+        justify-content: space-evenly;
+        color: fade(#fff, 80%);
+        li {
+          display: flex;
+          align-items: center;
+          .name {
+              margin-right: 30px;
+          }
+          .content {
+            position: relative;
+            &::before {
+              content: '';
+              position: absolute;
+              left: -32px;
+              height: 75px;
+              width: 30px;
+              background: url('../../../assets/img/screen/org-background.png') no-repeat;
+              background-position: 100% 50%;
+            }
+            .principal, .vice {
+              width: 140px;
+              height: 32px;
+              border-radius: @border-radius-base;
+              padding: 0 @padding-xs;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              background: #17324E;
+              span:last-child {
+                color: #02e7ef;
+              }
+            }
+            .principal {
+              margin-bottom: 10px;
+            }
+          }
+        }
+      }
+    }
+  }
+  & .body {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    .left, .right {
+      // width: 48%;
+      text-align: center;
+      & > div {
+        width: 612px;
+        display: flex;
+        justify-content: center;
+        position: relative;
+        p {
+          color: fade(#fff, 80%);
+          font-size: 1.4em;
+          font-weight: bold;
+        }
+        .all-list {
+          text-align: right;
+          float: right;
+          color: fade(#fff, 60%);
+          letter-spacing:8px;
+          font-weight: 700;
+          font-size: 15px;
+          position: absolute;
+          top: 8px;
+          right: -8px;
+          cursor: pointer;
+          &:hover{
+            color: #fff;
+            user-select: none;
+          }
+        }
+      }
+      ul {
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        padding-left: @padding-sm;
+        &:last-child {
+          margin-left: 50px;
+        }
+        li {
+          width: 100%;
+          margin: 10px 0;
+          display: flex;
+          justify-content: flex-end;
+          span {
+            padding: 0 @padding-xs;
+            display: inline-block;
+            height: 32px;
+          }
+          span.index {
+            width: 32px;
+            padding: 0;
+            line-height: 32px;
+            margin-right: 2px;
+            border-radius: @border-radius-base;
+            text-align: center;
+            font-weight: bold;
+            color: #313B72;
+            background: #978FFF;
+          }
+          span.name{
+            overflow-x: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: left;
+            width: 185px;
+            line-height: 32px;
+            color: fade(#fff, 80%);
+            background: #3A404F;
+          }
+          span.num {
+            width: 50px;
+            padding: 0;
+            text-align: center;
+            line-height: 32px;
+            color: #02E7EF;
+            background: #232B42;
+            white-space: nowrap;
+          }
+        }
+      }
+    }
+    .right ul li span.index {
+      background: #FE7A2E;
+    }
+  }
+}
+</style>

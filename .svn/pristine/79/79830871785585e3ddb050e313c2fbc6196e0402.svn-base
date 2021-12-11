@@ -1,0 +1,559 @@
+<template>
+  <a-layout class="processwrap processInterfaceManagement">
+    <a-layout-content class="body">
+      <div class="content">
+        <div class="btngroup">
+          <a-button @click="openInterface" type="primary">新增接口</a-button>
+          <a-input-search
+            placeholder="请输入要搜索的接口名称"
+            v-model="searchkey"
+            @search="searchList"
+            enterButton
+          />
+        </div>
+        <a-table
+          :columns="columns"
+          :dataSource="data"
+          size="middle"
+          :rowKey="record=>record.id"
+          :pagination="pagination"
+          @change="handleTableChange"
+        >
+          <template
+            slot="sort"
+            slot-scope="text, record"
+          >{{record.sort==1?'用户':record.sort==2?'机构':record.sort==3?'其他':''}}</template>
+          <template
+            slot="type"
+            slot-scope="text, record"
+          >{{record.type==1?'获取数据':record.type==2?'写入数据':''}}</template>
+          <template slot="operation" slot-scope="text, record">
+            <a href="javascript:;" @click="edit(record.id)" style="color:blue;">编辑</a>
+            <a
+              v-if="record.editable==1"
+              href="javascript:;"
+              style="color:red;margin-left:30px;"
+              @click="getDelInfo(record)"
+            >删除</a>
+          </template>
+        </a-table>
+      </div>
+    </a-layout-content>
+
+    <!-- 接口弹框 -->
+    <a-modal
+      :title="type?'新增接口':'编辑'"
+      :visible="visible"
+      @ok="handleOk"
+      @cancel="handleCancel"
+      width="750px"
+    >
+      <a-form :form="form">
+        <a-form-item label="接口名称" :label-col="{ span: 7}" :wrapper-col="{ span: 14 }">
+          <a-input
+            :disabled="editable?false:true"
+            :maxlength="30"
+            placeholder="最多填30个字符!"
+            v-decorator="[
+           `name`,
+          {rules: [{ required: true, message:  `请填写接口名称!` }],
+          initialValue: formData.name}
+        ]"
+          ></a-input>
+        </a-form-item>
+        <a-form-item label="用途" :label-col="{ span: 7}" :wrapper-col="{ span: 14 }">
+          <a-select
+            :disabled="editable?false:true"
+            @change="changeType"
+            placeholder="--请选择用途--"
+            v-decorator="[
+           `type`,
+          {rules: [{ required: true, message:  `请选择用途!` }],
+          initialValue: formData.type}
+        ]"
+          >
+            <a-select-option
+              :disabled="editable?false:true"
+              v-for="item in typeList"
+              :key="item.value"
+              :value="item.value"
+            >{{item.text}}</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="分类" :label-col="{ span: 7 }" :wrapper-col="{ span: 14}">
+          <a-select
+            :disabled="editable?false:true"
+            placeholder="--请选择分类--"
+            v-decorator="[
+           `sort`,
+          {rules: [{ required: true, message:  `请选择分类!` }],
+          initialValue: formData.sort}
+        ]"
+          >
+            <a-select-option
+              v-for="item in sortList"
+              :key="item.value"
+              :value="item.value"
+            >{{item.text}}</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="认证策略" :label-col="{ span: 7 }" :wrapper-col="{ span: 14}">
+          <a-select
+            :disabled="editable?false:true"
+            placeholder="--请选择接口认证策略--"
+            v-decorator="[`authstrategyid`,{rules: [{ required: false}],initialValue: formData.authstrategyid}]"
+          >
+            <a-select-option
+              v-for="item in authStrategyList"
+              :key="item.value"
+              :value="item.value"
+            >{{item.text}}</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item
+          v-if="typeFlag==1"
+          label="传入参数"
+          :label-col="{ span: 7 }"
+          :wrapper-col="{ span: 14 }"
+        >
+          <a-textarea
+            :disabled="editable?false:true"
+            :rows="4"
+            :maxlength="200"
+            placeholder="最多填200个字符!"
+            v-decorator="[
+           `params`,
+          {rules: [{ required: false}],initialValue: formData.params}
+        ]"
+          ></a-textarea>
+        </a-form-item>
+        <a-form-item label="字段获取接口URL" :label-col="{ span: 7}" :wrapper-col="{ span: 14 }">
+          <a-input
+            :disabled="editable?false:true"
+            placeholder="请填写字段获取接口URL"
+            v-decorator="[
+           `fieldsinterface`,
+          {rules: [{ required: true, message:  `请填写字段获取接口URL!`}],
+          initialValue: formData.fieldsinterface}
+        ]"
+          />
+        </a-form-item>
+        <a-form-item
+          v-if="typeFlag==1"
+          label="数据获取接口URL"
+          :label-col="{ span: 7 }"
+          :wrapper-col="{ span: 14 }"
+        >
+          <a-input
+            :disabled="editable?false:true"
+            placeholder="请填写数据获取接口URL"
+            v-decorator="[
+           `fromdatainterface`,
+          {rules: [{ required: true, message:  `请填写数据获取接口URL!`}],
+          initialValue: formData.fromdatainterface}
+        ]"
+          />
+        </a-form-item>
+        <a-form-item
+          v-if="typeFlag==2"
+          label="数据写入接口URL"
+          :label-col="{ span: 7 }"
+          :wrapper-col="{ span: 14 }"
+        >
+          <a-input
+            :disabled="editable?false:true"
+            placeholder="请填写数据写入接口URL"
+            v-decorator="[
+           `todatainterface`,
+          {rules: [{ required: true, message:  `请填写数据写入接口URL!`}],
+          initialValue: formData.todatainterface}
+        ]"
+          />
+        </a-form-item>
+        <a-form-item label="预设字段" :label-col="{ span: 7 }" :wrapper-col="{ span: 14 }">
+          <a-textarea
+            :disabled="editable?false:true"
+            :rows="4"
+            placeholder="json格式字段合集"
+            v-decorator="[
+           `extendfield`,
+          {rules: [{ required: false}],
+          initialValue: formData.extendfield}
+        ]"
+          ></a-textarea>
+        </a-form-item>
+        <a-form-item label="描述" :label-col="{ span: 7 }" :wrapper-col="{ span: 14 }">
+          <a-textarea
+            :disabled="editable?false:true"
+            :rows="4"
+            :maxlength="200"
+            placeholder="最多填200个字符!"
+            v-decorator="[
+           `describe`,
+          {rules: [{ required: false}],
+          initialValue: formData.describe}
+        ]"
+          ></a-textarea>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+    <!-- 是否删除弹框 -->
+    <a-modal
+      title="提醒"
+      :visible="delvisible"
+      @ok="del"
+      @cancel="delvisible=false"
+      width="500px"
+      class="delInfo"
+    >
+      <div class="show-del-info">
+        <template v-if="noticeArr.length">
+          该接口关联了以下流程：
+          <ul>
+            <li v-for="(item,index) in noticeArr" :key="index">{{index+1}}.{{item}}</li>
+          </ul>
+        </template>
+        是否继续删除该接口？
+      </div>
+    </a-modal>
+  </a-layout>
+</template>
+
+<script>
+import {
+  addWorkflowApi,
+  delWorkflowApi,
+  getSingleWorkflowApi,
+  getWorkflowApiList,
+  updateWorkflowApi,
+  workflowApiDeltips,
+  getListconstantbydictkey,
+  listApiAuthStrategy
+} from "@/workflow/api/workflow";
+import "@/workflow/style/process.css";
+const columns = [
+  {
+    title: "接口名称",
+    dataIndex: "name"
+  },
+  {
+    title: "分类",
+    dataIndex: "sort",
+    scopedSlots: { customRender: "sort" }
+  },
+  {
+    title: "用途",
+    dataIndex: "type",
+    scopedSlots: { customRender: "type" }
+  },
+  {
+    title: "操作",
+    dataIndex: "operation",
+    width: "20%",
+    scopedSlots: { customRender: "operation" }
+  }
+];
+import {
+  Layout,
+  Form,
+  Row,
+  Col,
+  Modal,
+  Input,
+  Button,
+  Select,
+  Breadcrumb,
+  Table
+} from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: "ProcessInterfaceManagement",
+  components: {
+    ALayout: Layout,
+    ALayoutHeader: Layout.Header,
+    ALayoutContent: Layout.Content,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ARow: Row,
+    ACol: Col,
+    AModal: Modal,
+    ATable: Table,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    AInputSearch: Input.Search,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item
+  },
+  data() {
+    return {
+      columns,
+      data: [],
+      visible: false,
+      type: true,
+      form: this.$form.createForm(this),
+      formData: {
+        name: "",
+        type: undefined,
+        sort: undefined,
+        authstrategyid: undefined,
+        fieldsinterface: "",
+        todatainterface: "",
+        fromdatainterface: "",
+        extendfield: "",
+        describe: "",
+        params: ""
+      },
+      typeList: [],
+      sortList: [
+        { value: 1, text: "用户" },
+        { value: 2, text: "机构" },
+        { value: 3, text: "其他" }
+      ],
+      authStrategyList: [],
+      typeFlag: 0,
+      editable: 1, //1可删除可编辑，0不可删除不可编辑
+      nowid: null,
+      pagination: {
+        current: 1,
+        pagesize: 10,
+        total: 0,
+        showTotal: function(total) {
+          return `总共： ${total} 条`;
+        }
+      },
+      searchkey: undefined,
+      delvisible: false,
+      noticeArr: []
+    };
+  },
+  created() {
+    this.getList();
+    this.getAuthStrategyList();
+  },
+  methods: {
+    //获取所有消息列表
+    getList(searchkey) {
+      let page = {};
+      page.pagenum = this.pagination.current;
+      page.pagesize = this.pagination.pagesize;
+      page.needtotal = true;
+      page.searchkey = searchkey;
+      getWorkflowApiList(page)
+        .then(res => {
+          if (res.code == "success") {
+            this.data = res.result.rows;
+            this.pagination.total = res.result.total ? res.result.total : 0;
+            this.pagination.current = res.result.pagenum
+              ? res.result.pagenum
+              : 1;
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //打开
+    openInterface() {
+      this.visible = true;
+      this.type = true;
+      this.getInterType();
+    },
+    //获取接口类型
+    getInterType() {
+      getListconstantbydictkey("workflow.interfacetype")
+        .then(res => {
+          if (res.code == "success") {
+            this.typeList = res.result;
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    getAuthStrategyList(){
+      listApiAuthStrategy().then(
+        res => {
+         if (res.code == "success") {
+            this.authStrategyList = res.result;
+          }
+        }
+      ).catch(err => { showError(err); });
+    },
+    //搜索
+    searchList(val) {
+      this.getList(val);
+    },
+    //列表分页切换
+    handleTableChange(pagination) {
+      const pager = { ...this.pagination };
+      pager.current = pagination.current;
+      this.pagination = pager;
+      this.getList(this.searchkey);
+    },
+    //用途切换
+    changeType(val) {
+      this.typeFlag = val;
+    },
+    handleOk() {
+      if (this.editable == 1) {
+        this.form.validateFields((err, values) => {
+          if (!err) {
+            if (this.type) {
+              addWorkflowApi(values)
+                .then(res => {
+                  if (res.code == "success") {
+                    this.$message.success("消息模板组新增成功！");
+                    this.getList();
+                    this.visible = false;
+                    this.reset();
+                  }
+                })
+                .catch(err => {
+                 showError(err);
+                });
+            } else {
+              values.id = this.nowid;
+              updateWorkflowApi(values)
+                .then(res => {
+                  if (res.code == "success") {
+                    this.$message.success("消息模板组更新成功！");
+                    this.getList();
+                    this.visible = false;
+                    this.reset();
+                  }
+                })
+                .catch(err => {
+                  showError(err);
+                });
+            }
+          }
+        });
+      } else {
+        this.visible = false;
+        this.reset();
+      }
+    },
+    handleCancel() {
+      this.visible = false;
+      this.reset();
+    },
+    //重置表单
+    reset() {
+      this.form.resetFields();
+      this.formData = {
+        name: "",
+        type: undefined,
+        sort: undefined,
+        authstrategyid: undefined,
+        fieldsinterface: "",
+        todatainterface: "",
+        fromdatainterface: "",
+        extendfield: "",
+        describe: "",
+        params: ""
+      };
+      this.editable = 1;
+      this.typeFlag = 0;
+    },
+    edit(id) {
+      this.nowid = id;
+      this.getInterType();
+      getSingleWorkflowApi(id)
+        .then(res => {
+          if (res.code == "success") {
+            this.formData = {
+              name: res.result.name,
+              type: res.result.type,
+              sort: res.result.sort,
+              authstrategyid: res.result.authstrategyid,
+              fieldsinterface: res.result.fieldsinterface,
+              todatainterface: res.result.todatainterface,
+              fromdatainterface: res.result.fromdatainterface,
+              extendfield: res.result.extendfield,
+              describe: res.result.describe,
+              params: res.result.params
+            };
+            this.typeFlag = res.result.type;
+            this.editable = res.result.editable;
+            this.visible = true;
+            this.type = false;
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //获取有误关联流程
+    getDelInfo(record) {
+      this.nowid = record.id;
+      this.noticeArr = [];
+      workflowApiDeltips(record.id)
+        .then(res => {
+          if (res.code == "success") {
+            if (res.result.length) {
+              this.noticeArr = res.result;
+            }
+            this.delvisible = true;
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    del() {
+      delWorkflowApi(this.nowid)
+        .then(res => {
+          if (res.code == "success") {
+            this.$message.success("已成功删除该接口！");
+            this.delvisible = false;
+            this.getList();
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+
+<style lang="less" scoped>
+.processInterfaceManagement {
+  .body {
+    padding: 24px;
+    background: #fff;
+    .content {
+      margin: 0 auto;
+      .btngroup {
+        display: flex;
+        margin-bottom: 20px;
+        max-width: 500px;
+        > button {
+          margin-right: 10px;
+        }
+      }
+    }
+  }
+}
+.delInfo {
+  .show-del-info {
+    font-size: 15px;
+    font-weight: bold;
+    ul {
+      padding-left: 20px;
+      li {
+        font-size: 14px;
+        line-height: 2;
+        font-weight: normal;
+        width: 400px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+}
+</style>

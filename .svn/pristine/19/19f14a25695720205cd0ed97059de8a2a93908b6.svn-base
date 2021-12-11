@@ -1,0 +1,250 @@
+<template>
+  <div>
+    <!-- 机构职责 -->
+    <div class="details-tree" v-if="dutieslist || childrenlist">
+      <h4 style="margin-bottom: 10px; font-weight: 700">{{ orgtitle }}</h4>
+      <ul v-for="(item, index) in dutieslist" :key="item.id" class="dutieslist tree-ul">
+        <!-- 第一层 -->
+        <span class="tree-ul-li" style="font-weight: 700">{{
+          item.type === 0 ? "三定" : "变更"
+        }}</span>
+        <li v-for="(i, inx) in item.result" :key="inx" class="tree-ul-s">
+          <!-- 第二层 -->
+          <span
+            class="tree-ul-li"
+            v-for="(t, tnx) in typearr"
+            :key="tnx"
+            v-show="i.type == t.value"
+            >{{ t.text }}</span
+          >
+          <ul class="tree-ul-a">
+            <!-- 第三层 -->
+            <span
+              class="tree-ul-span audiot_style"
+              v-html="brightenKeyword(i.content)"
+            ></span>
+          </ul>
+          <div class="ul-a-button">
+            <a-button @click="watchDetails(i)">查看详情</a-button>
+          </div>
+        </li>
+      </ul>
+      <ul v-for="(c, cnx) in childrenlist" :key="cnx" class="tree-ul">
+        <!-- 第一层 -->
+        <span style="font-weight: 700">{{ c.orgname }}</span>
+        <li
+          v-for="(s, snx) in c.duties"
+          :key="snx"
+          :class="['tree-ul',{'border':c.children}]"
+          style="margin: 10px 0 0 30px"
+        >
+          <!-- 第二层 -->
+          <span class="tree-ul-li">{{ s.type === 0 ? "三定" : "变更" }}</span>
+          <ul v-for="(a, anx) in s.result" :key="anx" class="tree-ul-s">
+            <!-- 第三层加图标 -->
+            <span
+              class="tree-ul-li"
+              v-for="(p, pnx) in typearr"
+              :key="pnx"
+              v-show="a.type == p.value"
+              >{{ p.text }}</span
+            >
+            <div class="ul-a-button" v-if="!a.children">
+              <a-button @click="watchDetails(a)">查看详情</a-button>
+            </div>
+            <li class="tree-ul-a">
+              <!-- 第四层 -->
+              <span
+                class="tree-li-span audiot_style"
+                v-html="brightenKeyword(a.content)"
+              ></span>
+            </li>
+            <div class="ul-a-button" v-if="a.children">
+              <a-button @click="watchDetails(a)">查看详情</a-button>
+            </div>
+          </ul>
+        </li>
+        <orgdetail
+          @watchDetails="watchDetails"
+          class="children"
+          :childrenlist="c.children"
+          :typearr="typearr"
+          :inputvalue="inputvalue"
+        />
+      </ul>
+    </div>
+  </div>
+</template>
+
+<script>
+import { getorgfuncdesc } from "@/person-shaoxing/api/analysis";
+import { Button } from "ant-design-vue";
+export default {
+  name: "orgdetail",
+  props: ["dutieslist", "childrenlist", "typearr", "orgtitle", "inputvalue"],
+  components:{
+    AButton: Button,
+  },
+  data() {
+    return {};
+  },
+  methods: {
+    //判断搜索记录是否包含某个关键字
+    brightenKeyword(content) {
+      // inputvalue为搜索框中的value
+      let inputvalue = this.inputvalue;
+      let index = content.indexOf(inputvalue);
+      if (content.length < 200) {
+        const Reg = new RegExp(inputvalue, "g");
+        let res = "";
+        res = content.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+        return res;
+      } else if (index < 20) {
+        let newtext = content.slice(index, index + 200);
+        let newcontent = `......${newtext}......`;
+        const Reg = new RegExp(inputvalue, "g");
+        let res = "";
+        res = newcontent.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+        return res;
+      } else {
+        let newtext = content.slice(index - 15, index + 185);
+        let newcontent = `......${newtext}......`;
+        const Reg = new RegExp(inputvalue, "g");
+        let res = "";
+        res = newcontent.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+        return res;
+      }
+    },
+    watchDetails(item) {
+      // this.visible = true;
+      // getorgfuncdesc(item.id).then((res) => {
+      //   this.detailsData = res.result;
+      // });
+      this.$emit('watchDetails',item);
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.details-tree {
+  .dutieslist{
+    margin-left: 30px;
+  }
+  ul.tree-ul {
+    margin-bottom: 14px;
+    border-bottom: 1px dashed #E3E3E3;
+    // border-left: 1px dashed @primary-color;
+    & li.tree-ul{
+      border-left: 0;
+    }
+    .titlecolor {
+      color: @primary-color;
+    }
+    .tree-ul-s {
+      min-height: 32px;
+      width: 90%;
+      border-left: 1px dashed @primary-color;
+      margin: 10px 0px 10px 30px;
+      .tree-ul-a {
+        margin-left: @layout-space-base;
+        width: 85%;
+        display: inline-flex;
+        .audiot_style {
+          color: rgba(0, 0, 0, 0.5);
+        }
+      }
+      .ul-a-button {
+        float: right;
+        // margin: auto;
+      }
+    }
+    // 竖线
+    .tree-ul-li {
+      position: relative;
+      padding-left: 18px; // 缩进量
+      //   border-left: 1px dashed @primary-color;
+      .ul-a-button {
+        float: right;
+        // margin: auto;
+      }
+    }
+    .duty {
+      // width: 91%;
+      width: 87%;
+      margin-left: 60px;
+      color: rgba(0, 0, 0, 0.5);
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .quanliname {
+      cursor: pointer;
+      width: 92%;
+      color: rgba(0, 0, 0, 0.5);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    // 竖线
+    .tree-ul-li::before {
+      content: "";
+      height: 100%;
+      width: 1px;
+      position: absolute;
+      left: -1px;
+      top: -12px;
+      border-width: 1px;
+      border-left: 1px dashed @primary-color;
+    }
+    // 当前层最后一个节点的竖线高度固定
+    .tree-ul-li:last-child::before {
+      height: 38px; // 可以自己调节到合适数值
+    }
+    // 横线
+    .tree-ul-li::after {
+      content: "";
+      // width: 24px;
+      width: 16px;
+      height: 20px;
+      position: absolute;
+      left: 0px;
+      top: 10px;
+      border-width: 1px;
+      border-top: 1px dashed @primary-color;
+    }
+    //去掉最下面的虚线
+    &:last-child {
+      border-left: 1px dashed white;
+    }
+    .tree-ul-s {
+      &:last-child {
+        border-left: 1px dashed white;
+      }
+    }
+    .details-li {
+      height: 32px;
+      width: 91.7%;
+      display: flex;
+      justify-content: space-between;
+    }
+    @media screen and(max-width:1440px) {
+      .details-li {
+        width: 92.6%;
+      }
+    }
+  }
+  .border{
+    border-left: 1px dashed @primary-color !important;
+  }
+}
+</style>

@@ -1,0 +1,36 @@
+<template>
+  <accordion-layout nav-title="组织架构">
+    <org-tree slot="nav" @select="onOrgSelect" :nodeid="nodeid" :treeid="treeid"/>
+    <template slot="content">
+      <keep-alive include="orgMain">
+        <router-view :load-data="selected" />
+      </keep-alive>
+    </template>
+  </accordion-layout>
+</template>
+<script>
+import AccordionLayout from '@/framework/components/AccordionLayout'
+import OrgTree from "@/person/views/org/components/OrgTree";
+
+export default {
+  components: {
+    AccordionLayout,
+    OrgTree,
+  },
+  data() {
+    return {
+      nodeid: Number(this.$route.query.id) || undefined,
+      treeid: Number(this.$route.query.treeid) || undefined,
+      selected: null,
+    };
+  },
+  methods: {
+    onOrgSelect(node, dept, init) {
+      this.selected = { node, dept, treeid: this.treeid};
+      if(!init && this.$route.name == 'orgUserInfo'){//手动点击，如果是用户页面跳转到主页
+        this.$router.push({name: 'orgIndex', query: {id: node.id, treeid: this.treeid}});
+      }
+    },
+  }
+};
+</script>

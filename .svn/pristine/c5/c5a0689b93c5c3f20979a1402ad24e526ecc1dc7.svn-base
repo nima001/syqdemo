@@ -1,0 +1,320 @@
+<template>
+  <a-layout :style="{ height: '100%' }">
+    <a-layout-content class="layoutcontent">
+      <div class="contentbox">
+        <div class="topbox">
+          <ul>
+            <li>
+              <a-select :style="{ width:'160px' }" placeholder="请选择统计对象" v-model="searchdata.targetid" :allowClear="true">
+                <a-select-option v-for="(item,index) in targetlist" :key="index" :value="item.id">{{item.title}}</a-select-option>
+              </a-select>
+            </li>
+            <li>
+              <a-select :style="{ width:'160px' }" placeholder="请选择字段分类" v-model="searchdata.sort" :allowClear="true">
+                <a-select-option v-for="(item,index) in fieldList" :key="index" :value="item">{{item}}</a-select-option>
+              </a-select>
+            </li>
+            <li>
+              <a-input allow-clear placeholder="请输入字段名称或编码" :style="{ width:'200px' }" :allowClear="true" v-model="searchdata.searchKey"/>
+            </li>
+          </ul>
+          <ul>
+            <li>     
+              <a-button type="primary" @click="onSearch">搜索</a-button>
+              <a-button :style="{ marginLeft:'8px' }" @click="onreset">重置</a-button></li>
+          </ul>
+        </div>
+        <div class="tablecount">
+          <a-table rowKey="id"  :row-selection="{selectedRows:selectedRows,selectedRowKeys:selectedRowKeys,onChange: onSelectChange,type:'radio' }" :customRow="customRow" :loading="loading" :columns="columns" :dataSource="pagination.rows" :pagination="false"></a-table>
+        </div>
+        <div class="footer">
+          <a-pagination v-if="pagination.rows && pagination.rows.length" showSizeChanger :showTotal="(total) => `总共：${total}条`"
+            @showSizeChange="onShowSizeChange" :total="pagination.total" v-model="pagination.pagenum" @change="onPageChange"
+          />
+        </div>
+      </div>
+    </a-layout-content>
+  </a-layout>
+</template>
+<script>
+import { Layout, Pagination, Select, Table, Button, Input} from "ant-design-vue";
+import { fieldsearch, fieldtarget, deletefield, fieldmodel, getField } from "@/person/api/field";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  name: "StatisticsList",
+  components: {
+    ALayout: Layout,
+    ALayoutContent: Layout.Content,
+    APagination: Pagination,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    AButton: Button,
+    AInput: Input,
+  },
+  props: {
+    searchModel: {
+      type: String,
+    }
+  },
+  data() {
+    return {
+      visible: false,
+      record: {},
+      selectedRowKeys: [],
+      selectedRows:undefined,
+      searchdata: {
+        type: undefined,
+        targetid: undefined,
+        searchKey: null,
+        sort:undefined
+      },
+      showEditTemp: false,
+      columns: [
+        {
+          title: "序号",
+          width: "10%",
+          customRender: (text, record, index) => `${index + 1}`,
+        },
+        {
+          title: "字段名称",
+          dataIndex: "name",
+          width: "25%",
+        },
+        {
+          title: "字段编码",
+          dataIndex: "code",
+          width: "20%",
+        },
+        {
+          title: "统计模型",
+          dataIndex: "model",
+          width: "15%",
+          customRender: (target) => {
+            let t = this.modelList.find((item) => item.namespace == target);
+            return t && t.name;
+          },
+        },
+        {
+          title: "字段分类",
+          dataIndex: "sort",
+          width: "20%",
+        },
+      ],
+      loading: false,
+      pagination: {
+        rows: null,
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+      },
+      targetlist: [],
+      modelList: [],
+      fieldList:[]
+    };
+  },
+  created() {
+    this.getresh();
+    this.gettarget();
+    this.getModel();
+    this.getFieldList();
+  },
+  methods: {
+    onSelectChange(selectedRowKeys, selectedRows){
+      this.selectedRowKeys = selectedRowKeys;
+      this.selectedRows = selectedRows;
+      this.$emit("codeValue",this.selectedRows[0])
+    },
+    customRow(row,index){
+      return {
+        on: {
+          click: () => {
+            this.selectedRows = [row]
+            this.selectedRowKeys = [row.id];
+            this.$emit("codeValue",this.selectedRows[0])
+          }
+        }
+      };
+    },
+    //删除
+    fielddelete() {
+      let that = this;
+      if (this.selectedRowKeys.length > 0) {
+        let data = this.selectedRowKeys;
+        this.$confirm({
+          title: "确认删除该行数据?",
+          onOk() {
+            deletefield(data)
+              .then((res) => {
+                that.$notification.success({
+                  message: "提示",
+                  description: "删除成功!",
+                  duration: 3,
+                });
+                that.selectedRowKeys = [];
+                that.getresh();
+              })
+              .catch((err) => {
+                showError(err);
+              });
+          },
+        });
+      } else {
+        this.$notification.warning({
+          message: "提示",
+          description: "请选择要删除的内容!",
+          duration: 3,
+        });
+      }
+    },
+    edit(record) {
+      this.record = record;
+      this.visible = true;
+    },
+    //获取文件列表
+    getresh() {
+      let { pagenum, pagesize } = this.pagination;
+      this.loadData(pagenum, pagesize);
+    },
+    //带参查询
+    onSearch() {
+      this.loadData(1, this.pagination.pagesize);
+    },
+    onPageChange(page, pagesize) {
+      this.loadData(page, pagesize);
+    },
+    onShowSizeChange(current, size) {
+      this.loadData(1, size);
+    },
+    loadData(pagenum, pagesize) {
+      let params = {
+        ...this.searchdata,
+        model:this.searchModel,
+        needtotal: true,
+        pagenum,
+        pagesize,
+      };
+      this.loading = true;
+      fieldsearch(params)
+        .then((res) => {
+          this.loading = false;
+          this.pagination = res.result;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    getFieldList(){
+      getField().then(res=>{
+        this.fieldList = res.result
+      }).catch((err) => {
+          showError(err);
+      });
+    },
+    gettarget() {
+      fieldtarget().then((res) => {
+          this.targetlist = res.result;
+        }).catch((err) => {
+          showError(err);
+        });
+    },
+    getModel(){
+      fieldmodel().then(res=>{
+        this.modelList = res.result
+      }).catch((err) => {
+          showError(err);
+      });
+    },
+    newadd() {
+      this.record = {};
+      this.visible = true;
+    },
+    toTarget(){
+      this.$router.push({path: "/person/fields/targetlist"});
+    },
+    toRules(code){
+      if(code){
+        this.$router.push({name: "RulesList",params:{ code }});
+      }else{
+        this.$router.push({path: "/person/fields/ruleslist"});
+      }
+      
+    },
+    onreset() {
+      this.searchdata = { input: {} };
+      this.loadData(1, this.pagination.pagesize);
+    },
+    onEditFinish(data) {
+      this.visible = false;
+      this.getresh();
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.layoutcontent {
+  height: 100%;
+  .contentbox {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    width: 100%;
+    background-color: white;
+    padding-top: @layout-space-base;
+    .topbox {
+      padding: @content-padding-v 0px;
+      width: 100%;
+      height: auto;
+      display: flex;
+      justify-content: space-between;
+      ul {
+        margin: 0;
+        white-space: nowrap;
+      }
+      li {
+        display: inline-block;
+        margin-left: 8px;
+        white-space: nowrap;
+        &:first-child{
+          margin-left: 0px;
+        }
+        .name {
+          line-height: 32px;
+          padding-right: 5px;
+          vertical-align: middle;
+        }
+        .ant-input-group.ant-input-group-compact,
+        .ant-select,
+        .ant-input,
+        .ant-btn,
+        .ant-input-affix-wrapper {
+          display: inline-block;
+          vertical-align: middle;
+        }
+      }
+    }
+  }
+  .tablecount {
+    flex-shrink: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin-top: @layout-space-base;
+    /deep/.ant-table-body{
+      /deep/ tr{
+        cursor: pointer;
+      }
+    }
+  }
+  .footer {
+    padding: @content-padding-v 0px;
+    margin-top: 20px;
+    .ant-pagination {
+      float: left;
+    }
+  }
+}
+</style>

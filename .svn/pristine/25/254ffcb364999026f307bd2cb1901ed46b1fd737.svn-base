@@ -1,0 +1,278 @@
+import request from '@/framework/utils/request'
+import { aggregateQuery } from '@/person/api/chart'
+import { query } from "@/person/api/integratedquery";
+
+
+/**
+ * 区域统计数据
+ * @param {Number} district 区域编码
+ * @param {Array} field 字段数组
+ */
+export function areaStatistics (district, field) {
+  return request({
+    url: '/person/sx/orgstaffreport/district',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+    },
+    method: 'post',
+    data: {
+      district,
+      field
+    }
+  })
+}
+
+/**
+ * 超编超值机构监测
+ */
+export function orgCountErrortReport (district) {
+  return request({
+    url: '/person/sx/orgstaffreport/orgcount/error',
+    method: 'get',
+    params: {
+      district
+    }
+  })
+}
+
+/**
+ * 按系统类别统计
+ * @param {String} district 区域编码(为空统计所有地区)
+ * @param {Array} unittypes 要统计的单位类型 [1, 5, 7]
+ * @param {Array} fields 求和的统计字段 { code: 'ldzsck', name: '领导超空数' }
+ */
+export function chartBySystype(district, unittypes, fields){
+  let criteria = [
+    { field: { "key": "unittype" }, op: "in", value: unittypes }
+  ];
+  if(district){
+    criteria.push({ field: { "key": "district" }, op: "eq", value: district })
+  }
+  return aggregateQuery({
+    query: {
+      target: { id: 1 },
+      fields: [
+        { key: "name" },
+        { key: "systype" },
+        ...fields.map(item => {
+          return { key: "_id@organization.statistic." + item.code, showname: item.name }
+        })
+      ],
+      filter: { op: "and", criteria },
+    },
+    groupby: {
+      with: [
+        { type: "value", key: "systype", showname: "序列" }
+      ],
+      fields: fields.map(item => {
+        return { type: "sum", key: "_id@organization.statistic." + item.code, showname: item.name }
+      })
+    },
+  })
+}
+
+/**
+ * 查询机构
+ * @param {String} district 区域编码(为空统计所有地区)
+ * @param {Array} unittypes 要统计的单位类型 [1, 5, 7]
+ * @param {Array} filters 过滤条件 { field: '_id@organization.statistic.ldzsck', op: 'gt', value: 0}
+ * @param {Array} fields 查询的字段 { key: '_id@organization.statistic.ldzsck', showname: '领导超空数'}
+ */
+export function orgQuery({district, unittypes, filters, fields, pagenum, pagesize, needtotal}){
+  let criteria = [
+    { field: { key: "unittype" }, op: "in", value: unittypes },
+    ...(filters || []).map((item) => {
+      return { field: { key: item.field }, op: item.op, value: item.value }
+    })
+  ];
+  if(district){
+    criteria.push({ field: { key: "district" }, op: "eq", value: district });
+  }
+  let fs = [
+    { key: "name", showname: "机构名称" },
+    ...(fields || [])
+  ]
+  return query({
+    target: { id: 1 },
+    filter: { op: "and", criteria },
+    fields: fs,
+    orders: [{orderby: 'index', ordertype: 'ASC'}],
+    pagenum, pagesize, needtotal
+  })
+}
+
+
+
+/**
+ * 近5年退休人数
+ */
+export function orgRetireReport (district, orgid, dateformat) {
+  return request({
+    url: '/person/sx/orgstaffreport/retire/report',
+    method: 'post',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+    },
+    data: {
+      district, orgid, dateformat
+    }
+  })
+}
+
+/**
+ * 区域系统类别近5年退休人数统计
+ */
+ export function RetireSystypeReport (district) {
+  return request({
+    url: '/person/sx/orgstaffreport/retire/systype/report',
+    method: 'get',
+    params: {
+      district: district
+    }
+  })
+}
+
+/**
+ * 未按时退休人数
+ */
+export function orgRetireErrorReport (district) {
+  return request({
+    url: '/person/sx/orgstaffreport/retire/error',
+    method: 'post',
+    data: {
+      ...district
+    }
+  })
+}
+
+/**
+ * 查询配置信息
+ * @param {String} district 区域编码
+ * @param {Number} id  配置id
+ *   201 : 实有机构分布情况
+ *   202 : 按编制类型查看行政编制核定数
+ *   203 : 按行业领域查看事业编制核定数
+ */
+export function getChart (district, id) {
+  return request({
+    url: '/person/chart/aggregate/' + `${id}`,
+    method: 'post',
+    data: { district }
+  })
+}
+
+
+/**
+ * 告警信息
+ * @param {String} district 区域编码
+ */
+export function alarmMsg (district) {
+  return request({
+    url: '/person/sx/v1/alarmmsg/pagelist',
+    method: 'post',
+    data: { district }
+  })
+}
+
+/**
+ * 未按时退休
+ * @param {String} district 区域编码
+ */
+export function retireError (district, orgid, pagination) {
+  return request({
+    url: '/person/sx/orgstaffreport/retire/error',
+    method: 'post',
+    data: {district, orgid, ...pagination}
+  })
+}
+
+/**
+ * 机构近一个月预计退休人数及其人员信息
+ * @param {String} district 区域编码
+ * @param {String} orgid 机构id
+ */
+export function retireNearlyAMonth (district, orgid, pagination) {
+  return request({
+    url: '/person/sx/orgstaffreport/retire/nearlyamonth',
+    method: 'post',
+    data: {district, orgid, ...pagination}
+  })
+}
+
+/**
+ * 机构编制问题数
+ * @param {String} district 区域编码
+ */
+export function question (district) {
+  return request({
+    url: '/person/sx/problemmonitor/total',
+    method: 'get',
+    params: {
+      district
+    }
+  })
+}
+
+/**
+ * 业务通知
+ * @param {String} district 区域编码
+ */
+export function notice (district) {
+  return request({
+    url: '/person/sx/worktask/total',
+    method: 'get',
+    params: {
+      district
+    }
+  })
+}
+
+/**
+ * 权力事项
+ */
+export function powerChange () {
+  return request({
+    url: '/person/qlsx/district/change',
+    method: 'get'
+  })
+}
+
+/**
+ * 重点任务
+ * @param {String} district 区域编码
+ */
+export function keyTask (district, statusIn,pagination) {
+  return request({
+    url: '/person/sx/worktask/listtask',
+    method: 'post',
+    data: { district, statusIn, ...pagination }
+  })
+}
+
+/**
+ * 人员出入编趋势
+ * @param {String} district  区域编码
+ * @param {String} startTime 开始时间 2020-3
+ * @param {string} endTime 结束时间 2021-4
+ *
+ */
+export function facemonitor (district, startTime, endTime) {
+  return request({
+    url: '/person/sx/outorinquotaplan/total',
+    method: 'get',
+    params: { district, startTime, endTime }
+  })
+}
+
+/**
+ * 接口信息
+ * @param {String} district  区域编码
+ *
+ */
+export function interfaceInfo (district) {
+  return request({
+    url: '/person/sx/v1/outerinterfacemonitor/querycount',
+    method: 'get',
+    params: { district, categoryIn: '' }
+  })
+}

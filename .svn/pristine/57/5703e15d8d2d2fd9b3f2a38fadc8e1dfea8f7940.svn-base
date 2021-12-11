@@ -1,0 +1,102 @@
+<template>
+  <div class="barChart">
+    <a-spin :spinning="loading" v-if="loading"></a-spin>
+    <div ref="chart" v-else></div>
+  </div>
+</template>
+<script>
+import { Chart } from "@antv/g2";
+import { Spin } from "ant-design-vue";
+export default {
+  components: {
+    ASpin: Spin
+  },
+  data() {
+    return {
+      loading: false,
+      list: [
+        { type: "领导班子", value: 654, percent: 0.1 },
+        { type: "公积金窗口", value: 654, percent: 0.15 },
+        { type: "市场监管窗口", value: 4400, percent: 0.2 },
+        { type: "医保窗口", value: 654, percent: 0.05 },
+        { type: "农林窗口", value: 654, percent: 0.05 },
+        { type: "发改窗口", value: 4400, percent: 0.15 },
+        { type: "人社窗口", value: 654, percent: 0.2 },
+        { type: "民政窗口", value: 654, percent: 0.05 },
+        { type: "税务窗口", value: 4400, percent: 0.5 }
+      ]
+    };
+  },
+  mounted() {
+    this.draw();
+  },
+  methods: {
+    // 百分数转小数
+    toPoint(percent) {
+      var str = percent.replace("%", "");
+      str = str / 100;
+      return str;
+    },
+    getData() {
+      this.loading = true;
+      this.data()
+        .then(result => {
+          this.list = result;
+          this.loading = false;
+          this.$nextTick(() => {
+            this.draw(this.list);
+          });
+        })
+        .catch(err => {})
+        .finally(() => {
+          this.loading = false;
+        });
+    },
+    draw() {
+      const chart = new Chart({
+        container: this.$refs.chart,
+        autoFit: true,
+        padding: [50, 20, 50, 20]
+      });
+      chart.data(this.list);
+      chart.scale("value", {
+        alias: "比率"
+      });
+
+      chart.axis("type", {
+        tickLine: {
+          alignTick: false
+        }
+      });
+      chart.axis("value", false);
+
+      chart.tooltip({
+        showMarkers: false
+      });
+      chart.interval().position("type*value");
+      chart.interaction("element-active");
+
+      // 添加文本标注
+      this.list.forEach(item => {
+        chart.annotation().text({
+          position: [item.type, item.value],
+          content: (item.percent * 100).toFixed(0) + "%",
+          style: {
+            textAlign: "center"
+          },
+          offsetY: -12
+        });
+      });
+      chart.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.barChart {
+  height: 300px;
+  div {
+    height: 100%;
+  }
+}
+</style>

@@ -1,0 +1,96 @@
+<template>
+  <div class="layout-intelligent">
+    <div class="header">
+      <div class="tabs">
+        <span
+          v-for="item in tabs"
+          :key="item.id"
+          :class="{ active: active && active.id == item.id, disable: loading }"
+          @click="!loading ? (active = item) : false"
+          >{{ item.title }}</span
+        >
+      </div>
+    </div>
+    <div class="main">
+      <Documentlist v-if="active" :loading.sync="loading" :active="active" @init="init"/>
+    </div>
+  </div>
+</template>
+
+<script>
+import Documentlist from "./components/Documentlist";
+export default {
+  components: {
+    Documentlist,
+  },
+  data() {
+    return {
+      tabs: [],
+      loading: false,
+      active: undefined,
+    };
+  },
+  created() {
+    this.init();
+  },
+  methods: {
+    init() {
+      this.tabs = [
+        { id: 1, title: "未归档文件" },
+        { id: 2, title: "已删除文件" },
+      ];
+      this.active = this.tabs[0];
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+.layout-intelligent {
+  min-height: 100%;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  .header {
+    background: #ffffff;
+    box-shadow: 1px 1px 3px 1px @primary-1;
+    margin: 0px 10px 3px 10px;
+    padding: @layout-space-base @content-padding-h;
+    height: 70px;
+    align-items: center;
+    display: flex;
+    .tabs {
+      span {
+        cursor: pointer;
+        display: inline-block;
+        height: 40px;
+        line-height: 40px;
+        padding: 0 12px;
+        margin-left: 6px;
+        border-radius: @border-radius-base;
+        &:hover {
+          background: @primary-1;
+        }
+      }
+      span:first-child {
+        margin-left: 0;
+      }
+      span.active {
+        background-color: @primary-color;
+        color: white;
+        &:hover {
+          background: lighten(@primary-color, 5%);
+        }
+      }
+      span.disable {
+        cursor: not-allowed;
+      }
+    }
+  }
+  .main {
+    flex: 1;
+    padding: @layout-space-base @content-padding-h;
+    background: #ffffff;
+    margin: 0px 10px 10px 10px;
+  }
+}
+</style>

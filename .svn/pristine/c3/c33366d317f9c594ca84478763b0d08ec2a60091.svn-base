@@ -1,0 +1,292 @@
+<template>
+  <div class="wrap">
+    <h2 v-if="settings.titleVisible!==false" :style="{ textAlign: settings.titlePosition||'center' }">{{ title }}</h2>
+    <h3 v-if="settings.subtitleVisible!==false" :style="{ margin: 0, textAlign: settings.titlePosition||'center' }">{{subtitle}}</h3>
+    <div ref="chart" class="chart"></div>
+  </div>
+</template>
+<script>
+import * as G2 from "@antv/g2";
+import BaseMixin from "./BaseMixin";
+import { get, cloneDeep,map } from 'lodash';
+export default {
+  /**
+   * color: 主题色
+   * padding: 自定义边距 --Array
+   * legend: 是否显示图例 -- Boolean 默认不显示
+   */
+  name: "AreaChart",
+  mixins: [BaseMixin],
+  data() {
+    return {
+      // id: Math.random().toString(36).substr(2),
+      plot: undefined,
+    };
+  },
+  watch: {
+    data: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true,
+    },
+    settings: {
+      deep: true,
+      handler(val,old) {
+        if(val!=old) {
+          this.draw(this.data)
+        }
+      },
+    },
+    // colors: {
+    //   deep: true,
+    //   handler(val, old) {
+    //     if (val != old) {
+    //       this.draw(this.data);
+    //     }
+    //   },
+    // },
+  },
+  computed: {
+    colors(){
+      if (this.settings.color&&(this.settings.color.length||typeof this.settings.color==='string')) {
+        if(typeof this.settings.color==='string') {
+          return this.settings.color.split(',');
+        }
+        return this.settings.color;
+      } else {
+        let colors = this.$store.getters.getConfig("chart.colors");
+        if (colors) {
+          try {
+            colors = JSON.parse(colors);
+            if (colors && colors.length) {
+              return colors;
+            }
+          } catch (err) {}
+        }
+      }
+      return ["#D15456", "#5488D1", "#EDBA55", "#D48265", "#91C7AE", "#749F83", "#BDA29A", "#6E7074", "#585470", "#706254"];
+    },
+  },
+  mounted() {
+    window.addEventListener("resize",()=>{
+      // this.draw(this.data);
+    });
+    this.draw(this.data);
+  },
+  methods: {
+    createData(dataTable) {
+      if (!dataTable) {
+        return;
+      }
+      let { keyCols, valueCols, rows } = this.transform(dataTable);
+      return rows.map(item => {
+        let key, type;
+        if(keyCols.length > 1){
+          let keys = keyCols.map(k => item[k.column]);
+          type = keys.pop();
+          key = keys.join("-")
+        }else{
+          key = item[keyCols[0].column]
+        }
+        return {
+          key, type,
+          value: item[valueCols[0].column] || 0
+        };
+      });
+    },
+    //排序 截取
+    sortAndMerge(data) {
+      let sortData = cloneDeep(data);
+      if(!this.muitl){
+        let mergeData = [{ key: "其他", value: undefined }];
+        //截取合并之前需要先排序一次，保证截取的正确性
+        let type = get(this.settings,'sort.type');
+        let mergeOther = get(this.settings,'sort.mergeOther');
+        let afterintercept = get(this.settings, 'sort.afterintercept');
+        if (type && type !== "recover") {
+          //是否排序
+          sortData = orderBy(sortData, "value", type);
+        }
+        if (afterintercept) {
+          //是否截取
+          sortData = sortData.slice(
+            afterintercept[0] - 1,
+            afterintercept[1]
+          );
+        }
+        if (mergeOther) {
+          let xorData = map(xorBy(data, sortData, "key"), "value");
+          mergeData[0].value = reduce(xorData, (sum, n) => {
+            return sum + n;
+          });
+          sortData = concat(sortData, mergeData);
+        }
+        if (type && type !== "recover") {
+          //是否排序
+          sortData = orderBy(sortData, "value", type);
+        }
+      }
+      map(sortData,(item,index)=>{
+        var x = String(item.value).indexOf('.') + 1; //小数点的位置
+        if(x>0) {
+          item.value = (item.value).toFixed(2);
+        }
+      })
+      return sortData;
+    },
+    draw(dataTable) {
+      let data = this.createData(dataTable);
+      let sortData = this.sortAndMerge(data);
+      if (!data) {
+        return;
+      }
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      const chart = new G2.Chart({
+        container: this.$refs.chart,
+        autoFit: true,
+        forceFit: true,
+        appendPadding: this.settings.padding||[0, 0, 0, 0]
+      });
+
+      chart.data(sortData);
+      let xVisible = get(this.settings, 'xAxis.visible');
+      let yVisible = get(this.settings, 'yAxis.visible');
+      let xTitleVisible = get(this.settings, 'xAxis.title.visible');
+      let yTitleVisible = get(this.settings, 'yAxis.title.visible');
+      //配置X轴
+			if(xVisible!==false) {
+				chart.axis('key', {
+          title: { 
+            style: {
+              fill: '#AAAAAA'
+            }
+          },
+          label: {
+            autoRotate: true,
+          },
+          grid: this.settings.xAxis&&this.settings.xAxis.grid?true:null,
+          animate: false
+        });
+        if(xTitleVisible) {
+          chart.scale({
+            key: {
+              alias: this.settings.xAxis&&this.settings.xAxis.title.content||' '
+            },
+          });
+        }else{
+          chart.scale({
+            key: {
+              alias: ' '
+            },
+          });
+        }
+			}else{
+				chart.axis('key', false);
+			}
+      //配置y轴
+			if(yVisible!==false) {
+				chart.axis('value', {
+					title: { 
+						style: {
+							fill: '#AAAAAA'
+						}
+					},
+					label: {
+						autoRotate: true,
+					},
+					grid: this.settings.yAxis&&this.settings.yAxis.grid?true:null,
+					animate: false
+				});
+        if(yTitleVisible) {
+					chart.scale({
+						value: {
+							alias: this.settings.yAxis&&this.settings.yAxis.title.content||'记录数',
+							nice: true,
+						},
+					});
+				}else{
+					chart.scale({
+						value: {
+							alias: ' ',
+							nice: true,
+						},
+					});
+				}
+			}else{
+				chart.axis('value', false);
+			}
+     // 配置图例
+      chart.legend(false);
+      if (this.settings.legend) {
+        if (this.settings.legend.visible) {
+          chart.legend({
+            position: this.settings.legend.position,
+            flipPage: this.settings.legend.flipPage,
+            itemHeight: 15,
+            marker: {
+              symbol: this.settings.legend.marker,
+            },
+          });
+        }
+      }
+      //滑块
+      if(this.settings.slider&&this.settings.slider.visible) {
+        chart.option('slider', this.settings.slider.style||{});
+      }
+      //提示
+      chart.tooltip({
+        showTitle: false,
+        showMarkers: false,
+      });
+      if (this.settings.tooltip) {
+        if (!this.settings.tooltip.visible) {
+          chart.tooltip(false);
+        }
+      }
+      let gradientColor = [];
+      this.colors.forEach(item=>{
+        gradientColor.push(`l(100) 0:${item} 1:#ffffff`);
+      });
+      //添加代码--设置相应颜色
+      if(this.muitl) {
+        chart.area().position('key*value').color('type', gradientColor).tooltip(false);
+        chart.line().position('key*value').color('type',this.colors);
+        if(this.settings.point) {
+          chart.point().position('key*value').color('type',this.colors).shape('circle');
+        }
+      }else{
+        chart.area().position('key*value').color(gradientColor[0]).tooltip(false);
+        chart.line().position('key*value').color(this.colors[0]);
+        if(this.settings.point) {
+          chart.point().position('key*value').color(this.colors[0]).shape('circle');
+        }
+      }
+      chart.changeData(sortData);
+      this.plot = chart;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  /deep/.chart {
+    div {
+      display: flex;
+      justify-content: center;
+    }
+  }
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

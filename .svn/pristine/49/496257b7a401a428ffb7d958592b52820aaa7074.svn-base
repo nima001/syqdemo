@@ -1,0 +1,116 @@
+<template>
+  <a-layout>
+    <scopelist @sort="sort" @save="this.save" @search="search" @delete="this.delete" :data="data" />
+  </a-layout>
+</template>
+<script>
+import { Layout } from "ant-design-vue";
+import Scopelist from "./ScopeList";
+import {
+  analysisscopequery,
+  analysisscopesave,
+  analysisscopedel,
+  analysisscopeorderby,
+} from "@/person/api/statistics";
+import { showError } from "@/framework/utils/index";
+export default {
+  components: {
+    ALayout: Layout,
+    Scopelist,
+  },
+  data() {
+    return {
+      data: [],
+      id: 0,
+    };
+  },
+  mounted() {
+    this.id = this.$route.query.id;
+    this.getDatabyId(this.id);
+  },
+  methods: {
+    save(data) {
+      if (data.id > 0) {
+        //编辑
+        analysisscopesave({
+          analyzeid: Number(this.id),
+          id: data.id,
+          name: data.name,
+          code: data.code,
+          datatype: data.datatype,
+          inputtype: data.inputtype,
+        })
+          .then((res) => {
+            this.getDatabyId(this.id);
+          })
+          .catch((error) => {
+            showError(error);
+          });
+      } else {
+        //新增
+        analysisscopesave({
+          analyzeid: Number(this.id),
+          code: data.code,
+          name: data.name,
+          datatype: data.datatype,
+          inputtype: data.inputtype,
+          datasource: data.datasource,
+        })
+          .then((res) => {
+            this.getDatabyId(this.id);
+          })
+          .catch((error) => {
+            showError(error);
+          });
+      }
+    },
+    delete(id) {
+      analysisscopedel(id)
+        .then((res) => {
+          this.getDatabyId(this.id);
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    //查询
+    search(keyword) {
+      this.getData(keyword);
+    },
+    getData(keyword) {
+      analysisscopequery({ analyzeid: this.id, searchkey: keyword })
+        .then((res) => {
+          this.data = res.result;
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    getDatabyId(id) {
+      analysisscopequery({ analyzeid: id })
+        .then((res) => {
+          this.data = res.result;
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    sort(data) {
+      //调用排序方法
+      analysisscopeorderby(data)
+        .then((res) => {
+          this.getDatabyId(this.id);
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.ant-layout {
+  height: 100%;
+  padding: @layout-space-base;
+}
+</style>

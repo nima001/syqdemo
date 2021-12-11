@@ -1,0 +1,89 @@
+<template>
+  <a-modal
+    title="设置页边距"
+    :width="600"
+    :visible="true"
+    :destroyOnClose="true"
+    @ok="onOK"
+    @cancel="onCancel"
+  >
+    <a-row :gutter="12">
+      <a-col :span="12">
+        <span>上边距：</span> 
+        <a-input-number type="number" v-model.number="margins[0]" :min='0' :max='200'/>
+      </a-col>
+      <a-col :span="12">
+        <span>下边距：</span>
+        <a-input-number type="number" v-model.number="margins[2]" :min='0' :max='200' />
+      </a-col>
+    </a-row>
+    <a-row :gutter="12">
+      <a-col :span="12">
+        <span>左边距：</span>
+        <a-input-number type="number" v-model.number="margins[3]" :min='0' :max='200' />
+      </a-col>
+      <a-col :span="12">
+        <span>右边距：</span>
+        <a-input-number type="number" v-model.number="margins[1]" :min='0' :max='200' />
+      </a-col>
+    </a-row>
+  </a-modal>
+</template>
+<script>
+import { Modal, Row, Col, Input,InputNumber } from "ant-design-vue";
+import cloneDeep from "lodash/cloneDeep";
+export default {
+  components: {
+    AModal: Modal,
+    ARow: Row,
+    ACol: Col,
+    AInputNumber:InputNumber
+  },
+  props: {
+    value: {
+      type: Array,
+      required: true,
+      default() {
+        return [0, 0, 0, 0];
+      }
+    }
+  },
+  data() {
+    return {
+      margins: cloneDeep(this.value)
+    };
+  },
+  watch: {
+    value(v) {
+      this.margins = cloneDeep(v);
+    }
+  },
+  methods: {
+    onOK() {
+      this.$emit("input", this.margins);
+      this.$emit("finish", "ok", this.margins);
+    },
+    onCancel() {
+      this.$emit("finish", "cancel");
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.ant-row {
+  margin-top: 24px;
+  &:first-child {
+    margin: 0px;
+  }
+  .ant-col-12 {
+    display: flex;
+    align-items: center;
+    span {
+      width: 60px;
+    }
+    .ant-input-number{
+      flex: 1;
+    }
+  }
+}
+</style>

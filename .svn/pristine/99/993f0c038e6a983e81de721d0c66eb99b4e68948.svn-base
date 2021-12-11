@@ -1,0 +1,151 @@
+<template>
+  <div class="edit-template">
+    <a-form class="template-form" :form="form">
+      <a-form-item label="评估内容">
+        <a-input
+          v-decorator="['content', 
+            { rules: [{ required: true, message: '请输入评估内容'}],
+            initialValue: templateInfo ? templateInfo.content : undefined
+          }]"
+        />
+      </a-form-item>
+      <a-form-item label="分类">
+        <a-select
+          v-decorator="['type', 
+            { rules: [{ required: false, message: '请选择分类'}], 
+            initialValue: templateInfo ? templateInfo.type : undefined
+          }]"
+          >
+          <a-select-option value="机构设置">机构设置</a-select-option>
+          <a-select-option value="编制调整">编制调整</a-select-option>
+          <a-select-option value="职数调整">职数调整</a-select-option>
+          <a-select-option value="职责调整">职责调整</a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item label="评估项">
+        <a-select
+          mode="multiple"
+          style="width: 100%"
+          v-decorator="['items', 
+            { rules: [{ required: false, message: '请选择评估项'}],
+            initialValue: templateInfo ? templateInfo.items : undefined 
+          }]"
+        >
+          <a-select-option v-for="(i,index) in itemArr" :key="index" :value="i.value">
+            {{i.text}}
+          </a-select-option>
+        </a-select>
+      </a-form-item>
+      
+    </a-form>
+  </div>
+</template>
+<script>
+import { Input, Icon, Form, Select } from "ant-design-vue";
+import { findTem } from "@/person-shaoxing/api/manage";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: 'editTemlate',
+  props: ['id'],
+  components: {
+    AInput: Input,
+    AIcon: Icon,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+  },
+  data() {
+    return {
+      templateInfo: undefined,
+      itemArr: [
+        {value: 'baseInfo_new', text: "基本情况(新设)"},
+        {value: 'baseInfo_yet', text: "基本情况(已设)"},
+        {value: 'staffViolate_new', text: "A.是否存在机构编制违规问题情况(新设)"},
+        {value: 'staffViolate_yet', text: "A.是否存在机构编制违规问题情况(已设)"},
+        {value: 'staffBlacklist_new', text: "B.是否列入机构编制审批黑名单(新设)"},
+        {value: 'staffBlacklist_yet', text: "B.是否列入机构编制审批黑名单(已设)"},
+        {value: 'businessOrgreport_new', text: "C.事业单位运行评估结果(新设)"},
+        {value: 'businessOrgreport_yet', text: "C.事业单位运行评估结果(已设)"},
+        {value: 'orgLimit_newxz', text: "D.区域机构限额(新设行政)"},
+        {value: 'orgLimit_newsy', text: "D.区域机构限额(新设事业)"},
+        {value: 'orgCase_new', text: "E.内设机构情况(新设)"},
+        {value: 'orgCase_yet', text: "E.内设机构情况(已设)"},
+        {value: 'orgListednumber_new', text: "F.挂牌机构数量(新设)"},
+        {value: 'orgListednumber_yet', text: "F.挂牌机构数量(已设)"},
+        {value: 'orgNamenotation_new', text: "G.事业单位机构名称命名规范(新设)"},
+        {value: 'orgNamenotation_yet', text: "G.事业单位机构名称命名规范(已设)"},
+        {value: 'compileLimit_newxz', text: "H.区域内编制限额(新设行政)"},
+        {value: 'compileLimit_yetxz', text: "H.区域内编制限额(已设行政)"},
+        {value: 'compileLimit_newsy', text: "H.区域内编制限额(新设事业)"},
+        {value: 'compileLimit_yetsy', text: "H.区域内编制限额(已设事业)"},
+        {value: 'orgStaffcase_newxz', text: "I.同类机构编制比对情况(新设行政)"},
+        {value: 'orgStaffcase_yetxz', text: "I.同类机构编制比对情况(已设行政)"},
+        {value: 'orgStaffcase_newsy', text: "I.同类机构编制比对情况(新设事业)"},
+        {value: 'orgStaffcase_yetsy', text: "I.同类机构编制比对情况(已设事业)"},
+        {value: 'policyServercatalog', text: "J.新增职责和是否已纳入政府购买服务范围"},
+        {value: 'policyCompilereport', text: "K.行政周转编制使用分析评估情况"},
+        {value: 'businessCompilereport', text: "L.事业周转编制使用分析评估情况"},
+        {value: 'importantAreaCompile', text: "M.重点领域编制配置"},
+        {value: 'orgLeadernumber_new', text: "N.行政机构领导职数配置(新设)"},
+        {value: 'orgLeadernumber_yet', text: "N.行政机构领导职数配置(已设)"},
+        {value: 'businessLeadernumber_new', text: "O.事业机构领导职数配置(新设)"},
+        {value: 'businessLeadernumber_yet', text: "O.事业机构领导职数配置(已设)"},
+        {value: 'schoolLeaderRule_new', text: "P.高校领导职数配置规则(新设)"},
+        {value: 'schoolLeaderRule_yet', text: "P.高校领导职数配置规则(已设)"},
+        {value: 'hospitalLeaderRule_new', text: "Q.医院领导职数配置规则(新设)"},
+        {value: 'hospitalLeaderRule_yet', text: "Q.医院领导职数配置规则(已设)"},
+      ]
+    }
+  },
+  beforeCreate() {
+    this.form = this.$form.createForm(this);
+  },
+  created() {
+    if(this.id) {
+      this.getDetail();
+    }
+  },
+  methods: {
+    getDetail() {
+      findTem(this.id)
+      .then(({result}) => {
+        this.templateInfo = result;
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    getFormValue(){
+      return new Promise((resolve, reject) => {
+        this.form.validateFields((error, values) => {
+          if(error){
+            reject({code:'form_validate_fail', message: '表单验证失败'});
+          }else{
+            let items = values.items ? values.items.join(',') : undefined;
+            let value = {
+              content: values.content,
+              type: values.type,
+              items
+            };
+            resolve(value);
+          }
+        })
+      })
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.edit-template{
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .template-form{
+    flex: auto;
+    min-height: 0;
+    overflow: auto;
+    padding: @content-padding-v @content-padding-h;
+  }
+}
+</style>

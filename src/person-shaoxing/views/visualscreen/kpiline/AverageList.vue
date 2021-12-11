@@ -1,0 +1,243 @@
+<template>
+  <dialog-box 
+    v-model="show"
+    :title="title"
+  >
+    <div class="detail-info">
+      <ul class="list">
+        <li v-for="org in page.rows" :key="org._id">
+          <div>
+            <div class="adorn-corner left top"></div>
+            <div class="adorn-corner right top"></div>
+            <div class="adorn-corner right bottom"></div>
+            <div class="adorn-corner left bottom"></div>
+            <div class="border"></div>
+            <div class="content" :title="org.name" @click="onClick(org)">
+              <slot v-if="hasItemSlot" name="item" v-bind:org="org"/>
+              <template v-else>{{org[item || 'name']}}&nbsp;&nbsp;{{org.num}}</template>
+            </div>
+            <div class="border"></div>
+          </div>
+        </li>
+      </ul>
+      <div class="footer">
+        <div class="pagintion">
+          <a :class="{disabled: page.pagenum <= 1}" 
+            @click="loadData(page.pagenum-1)"
+          ><img src="../img/p-down.png"></a>
+          <span>{{page.pagenum}}/{{pageTotal}}</span>
+          <a :class="{disabled: page.pagenum >= pageTotal}" 
+            @click="loadData(page.pagenum+1)"
+          ><img src="../img/p-up.png"></a>
+        </div>
+      </div>
+    </div>
+
+    <dialog-box v-model="orgDetail.show" :title="orgDetail.title + '绩效评估详情'" :destroyOnClose="true">
+      <kpi-detail :id="orgDetail.orgid" :type="orgType" />
+    </dialog-box>
+  </dialog-box>
+</template>
+<script>
+import DialogBox from '../components/DialogBox'
+import { showError } from "@/framework/utils/index";
+import KpiDetail from "./KpiDetail";
+/**
+ * 机构列表
+ * 1.修改机构信息显示，见props的item参数
+ * 2.修改机构点击事件 提供click事件
+ */
+export default {
+  components: {
+    DialogBox,
+    KpiDetail
+  },
+  props: {
+    value: Boolean,
+    title: String,
+    loadPage: {
+      type: Function,
+    },
+    item: {//列表Item显示的字段或提供slot
+      type: String //or slot
+    },
+    orgType:{
+      type:String,
+      required:true
+    }
+  },
+  data(){
+    return {
+      show: this.value,
+      page: {
+        pagenum: 1,
+        pagesize: 10,
+        rows: [],
+        total: 0
+      },
+      orgDetail: {
+        show: false,
+        orgid: undefined,
+        title: undefined
+      }
+    }
+  },
+  computed: {
+    pageTotal(){
+      let { pagesize, total} = this.page;
+      if(total > 0){
+        return Math.ceil(total/pagesize);
+      }
+      return 1;
+    },
+    hasItemSlot(){
+      console.log(this.$scopedSlots.item)
+      return !!this.$scopedSlots.item;
+    }
+  },
+  watch: {
+    value(value){
+      this.show = value;
+    },
+    show(show){
+      this.$emit('input', show);
+    },
+    loadPage:{
+      immediate: true,
+      handler(p){
+        this.page = {
+          pagenum: 1,
+          pagesize: 10,
+          rows: [],
+          total: 0
+        }
+        this.loadData(1);
+      }
+    }
+  },
+  methods: {
+    formateData(result) {
+      let { rows, header } = result;
+      return rows.map((item, index) => {
+        return {
+          _id: item._id,
+          name: item[header[0]["column"]],
+          num: item[header[1]["column"]] || 0,
+          shortname: item[header[2]["column"]]
+        };
+      });
+    },
+    loadData(pagenum){
+      if(pagenum < 1 || pagenum > this.pageTotal || !this.loadPage){
+        return;
+      }
+      this.loadPage({
+        needtotal: true,
+        pagesize: 10,
+        pagenum
+      }).then(({result}) => {
+        this.page = result;
+        this.page.rows = this.formateData(result);
+      }).catch(error => {
+        showError(error)
+      })
+    },
+    onClick(item){
+      if(this.$listeners.click){
+        this.$emit('click', item);
+      }else{
+        this.orgDetail = { show: true, orgid: item._id, title: item.name,type:'xz' }
+      }
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.detail-info{
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 45px 65px 0 65px;
+  font-size: 16px;
+  & > .list{
+    flex: auto;
+    overflow: hidden;
+    li{
+      float: left;
+      width: 50%;
+      padding: 12px;
+      color: #FFF;
+      & > div{
+        position: relative;
+        .border{
+          height: 2px;
+          background: radial-gradient(circle, #4A92FF 0%, #1598AD 100%);
+          margin: 0 8px;
+        }
+        .adorn-corner{
+          width: 10px;
+          height: 10px;
+          position: absolute;
+          background-image: url('../img/list-item-adorn-corner.png');
+          &.right{
+            right: 0;
+            transform: rotate(180deg);
+          }
+          &.bottom{
+            bottom: 0;
+          }
+          &.right.top{
+            transform:scaleX(-1);
+          }
+          &.left.bottom{
+            transform:scaleY(-1);
+          }
+        }
+
+      }
+      
+      .content{
+        margin: 0 10px;
+        padding: 0 10px;
+        line-height: 66px;
+        text-align: center;
+        background-color: #101b2c;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: pointer;
+        &:hover{
+          background-color: #3a5472;
+        }
+      }
+    }
+  }
+  & > .footer{
+    flex: none;
+    padding: 20px;
+    .pagintion{
+      width: 140px;
+      height: 40px;
+      margin: auto;
+      padding: 5px;
+      line-height: 30px;
+      background-color: #101b2c;
+      border-radius: 4px;
+      color: white;
+      text-align: center;
+      span{
+        display: inline-block;
+        width: 3em;
+      }
+      a{
+        display: inline-block;
+        padding: 0 10px;
+        &.disabled{
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,131 @@
+<template>
+  <a-layout>
+    <a-spin :spinning="this.loading"/>
+    <scopelist
+      @sort="sort"
+      @save="this.save"
+      @search="search"
+      @delete="this.delete"
+      :data="data"
+    />
+  </a-layout>
+</template>
+<script>
+import { Layout, Spin } from "ant-design-vue";
+import Scopelist from "./components/ScopeList";
+import {
+  analysisscopequery,
+  analysisscopesave,
+  analysisscopedel,
+  analysisscopeorderby,
+} from "@/person/api/statistics";
+import { showError } from "@/framework/utils/index";
+export default {
+  components: {
+    ALayout: Layout,
+    ASpin: Spin,
+    Scopelist,
+  },
+  data() {
+    return {
+      data: [],
+      id: 0,
+      loading: false,
+    };
+  },
+  created() {
+    this.id = this.$route.query.id;
+    this.getDatabyId(this.id);
+  },
+  methods: {
+    save(data) {
+      if (data.id) {
+        //编辑
+        analysisscopesave(data).then((res) => {
+          this.getDatabyId(this.id);
+        }).catch((error) => {
+          showError(error);
+        });
+      } else {
+        //新增
+        analysisscopesave(data).then((res) => {
+          this.getDatabyId(this.id);
+        }).catch((error) => {
+          showError(error);
+        });
+      }
+    },
+    delete(id) {
+      analysisscopedel(id)
+        .then((res) => {
+          this.getDatabyId(this.id);
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    //查询
+    search(keyword) {
+      this.getData(keyword);
+    },
+    getData(keyword) {
+      this.loading = true;
+      analysisscopequery({ analyzeid: this.id, searchkey: keyword })
+        .then((res) => {
+          this.data = res.result;
+          this.loading = false;
+          if(!this.data.length) {
+            this.$notification.warning({
+              message:'提示',
+              description: '暂无数据！',
+              duration: 3,
+            })
+          }
+        })
+        .catch((error) => {
+          this.loading = false;
+          showError(error);
+        });
+    },
+    getDatabyId(id) {
+      this.loading = true;
+      analysisscopequery({ analyzeid: id }).then((res) => {
+        this.data = res.result;
+        this.loading = false;
+        if(!this.data.length) {
+          this.$notification.warning({
+            message: '提示',
+            description: '暂无数据！',
+            duration: 3,
+          })
+        }
+      }).catch((error) => {
+        this.loading = false;
+        showError(error);
+      });
+    },
+    sort(data) {
+      //调用排序方法
+      analysisscopeorderby(data)
+        .then((res) => {
+          this.getDatabyId(this.id);
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.ant-layout {
+  height: 100%;
+  padding: @layout-space-base;
+  .ant-spin {
+    position: absolute;
+    top: 40%;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+}
+</style>

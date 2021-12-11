@@ -1,0 +1,280 @@
+<template>
+  <div class="workflow">
+    <a-form-item class="user" :label="property.showName?property.name:''">
+      <a-input
+        :style="property.showName?'':'margin-top:29px;'"
+        class="hand"
+        @click="property.editable?visible=true:visible=false"
+        :placeholder="property.placehold"
+        :disabled="property.editable?false:true"
+        @blur="blur"
+        v-decorator="[
+          `${property.code}`,
+          {
+            rules: [{required: property.require, message: `请输入${property.name}!`}],
+            initialValue:$store.getters.formData[property.code]? $store.getters.formData[property.code].username: ''
+          }
+        ]"
+      >
+        <a-icon
+          slot="suffix"
+          type="user"
+          class="userIcon"
+          @click="property.editable?visible=true:visible=false"
+        />
+      </a-input>
+      <a-modal
+        title="人员选择"
+        :visible="visible"
+        @cancel="visible=false"
+        :bodyStyle="tstyle"
+        width="450px"
+        class="userModal hand"
+        :footer="null"
+      >
+        <new-user 
+          mode="user" 
+          @finish="deptOk" 
+          :showDept="true" 
+          :usePermit="property.usePermit" 
+          :userFilter="property.userFilter ? JSON.parse(property.userFilter) : {}"
+          >
+        </new-user>
+      </a-modal>
+    </a-form-item>
+    <stamp
+      :property="property"
+      @imgUrl="getStamp"
+      v-if="property.signcomponent.signcode && property.signcomponent.editable"
+    ></stamp>
+    <a-form-item class="stampNotice" v-if="!imgUrl && property.signcomponent.signcode">
+      <a-input
+        type="hidden"
+        v-decorator="[
+          `${property.signcomponent.code}`,
+          {
+            rules: [{required: property.signcomponent.require, message: `请选择签章!`}],
+            initialValue: stamp
+          }
+        ]"
+      ></a-input>
+    </a-form-item>
+    <div class="seal" v-if="imgUrl">
+      <img :src="imgUrl" />
+    </div>
+  </div>
+</template>
+<script>
+import { getUserInfo } from "@/workflow/api/workflow";
+import { getStampInfo } from "@/workflow/api/stamplist";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import Stamp from "./stampComponent/Stamp";
+// TODO 大厅项目使用hall @/person/components/OrgUserSelect
+import NewUser from "@/hall/components/OrgUserSelect";
+import "@/workflow/style/workflow.css";
+import { Form, Input, Modal, Icon } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: "User",
+  props: {
+    property: {
+      type: Object,
+      required: true
+    },
+    bindform: {
+      type: Object,
+      required: true
+    },
+    typecode: {
+      type: Object
+    },
+    relateControls: {
+      type: Array
+    },
+    resourceId: {
+      type: String
+    }
+  },
+  components: {
+    AFormItem: Form.Item,
+    AInput: Input,
+    AModal: Modal,
+    AIcon: Icon,
+    Stamp,
+    NewUser
+  },
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      code: this.property["code"],
+      formData: this.$store.getters.formData,
+      visible: false,
+      totalPage: 1,
+      data: [],
+      searchData: [],
+      imgUrl: null,
+      stamp: null,
+      tstyle: { padding: " 0  3px 5px 10px", height: "550px" }
+    };
+  },
+  created() {
+    if (!this.formData[this.code]) {
+      if (!this.property.require) {
+        this.$store.getters.formData[this.code] = null;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.$store.getters.formData
+        });
+      }
+    } else {
+      this.relateControl(this.formData[this.code]);
+    }
+    if (this.formData[this.property.signcomponent.code]) {
+      //获取签章图片
+      getStampInfo(this.formData[this.property.signcomponent.code])
+        .then(res => {
+          if (res.code == "success") {
+            this.imgUrl =
+              this.uiConfigs["api.url"] +
+              "/file/v1/download" +
+              "?uri=" +
+              encodeURIComponent(res.result.pictureurl);
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  },
+  methods: {
+    //确定人员
+    deptOk(type, list) {
+      if (type == "ok" && list.length > 0) {
+        let user = list[0];
+        let obj = {};
+        this.visible = false;
+        this.bindform.setFieldsValue({ [this.code]: user.username }); //给表单某字段赋值
+        obj.username = user.username;
+        obj._id = user._id;
+        this.$store.getters.formData[this.code] = obj;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.$store.getters.formData
+        });
+        this.relateControl(obj);
+      }else if(type == "cancel"){
+        this.visible=false;
+      }
+    },
+    //关联控件变化
+    relateControl(val) {
+      let formData = {};
+      let flag = false;
+      this.relateControls.forEach(item => {
+        if (item.relate == this.code) {
+          flag = true;
+          if (item.pcode) {
+            if (this.$store.getters.formData[item.pcode]) {
+              this.$set(
+                this.$store.getters.formData[item.pcode],
+                item.code,
+                val
+              );
+            } else {
+              let obj = {};
+              obj[item.code] = val;
+              this.$store.getters.formData[item.pcode] = obj;
+            }
+          } else {
+            this.$store.getters.formData[item.code] = val;
+          }
+        }
+      });
+      if (flag) {
+        this.bindform.resetFields();
+        formData = Object.assign({}, this.$store.getters.formData);
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: formData
+        });
+      }
+    },
+    //获取签章
+    getStamp(img) {
+      if (img) {
+        this.imgUrl = img;
+        this.stamp = img;
+      }
+    },
+    //失去焦点请求数据来源
+    blur() {
+      if (this.typecode) {
+        let flag = false;
+        for (var id in this.typecode) {
+          let orgUserVo = {};
+          this.typecode[id].forEach(code => {
+            if (code == this.property.code) {
+              flag = true;
+              orgUserVo.resourceid = this.resourceId; 
+              orgUserVo.formatCfgId = parseInt(id);
+              orgUserVo.modelinstanceid = parseInt(
+                this.$route.query.modelinstanceid
+              );
+              orgUserVo.objectMap = {};
+              this.typecode[id].forEach(code => {
+                if (this.$store.getters.formData[code]) {
+                  orgUserVo.objectMap[code] = this.$store.getters.formData[
+                    code
+                  ];
+                }
+              });
+            }
+          });
+          if (JSON.stringify(orgUserVo.objectMap) == "{}") flag = false;
+          if (flag) {
+            getUserInfo(orgUserVo)
+              .then(res => {
+                if (res.code == "success") {
+                  if (JSON.stringify(res.result) !== "{}") {
+                    this.bindform.resetFields();
+                    let obj = {};
+                    for (var a in res.result) {
+                      if (res.result[a] || res.result[a] == 0) {
+                        obj[a] = res.result[a];
+                      }
+                    }
+                    this.formData = Object.assign(
+                      {},
+                      this.$store.getters.formData,
+                      // obj
+                      // TOIDO 
+                      res.result
+                    );
+                    this.$store.commit({
+                      type: "SET_FORM_DATA",
+                      data: this.formData
+                    });
+                  }
+                }
+              })
+              .catch(err => {
+               showError(err);
+              });
+            flag = false;
+          }
+        }
+      }
+    }
+  }
+};
+</script>
+<style lang="less">
+.userIcon {
+  color: #bfbfbf;
+}
+.confirm {
+  position: absolute;
+  bottom: 10px;
+  right: 30px;
+}
+</style>

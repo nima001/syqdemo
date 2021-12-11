@@ -1,0 +1,12 @@
+
+import Vue from 'vue';
+import message from 'ant-design-vue/es/message';
+import 'ant-design-vue/lib/message/style';
+import notification from 'ant-design-vue/es/notification';
+import 'ant-design-vue/lib/notification/style';
+import Modal from 'ant-design-vue/es/modal';
+import confirm from 'ant-design-vue/es/modal/confirm';
+Vue.prototype.$message = message;
+Vue.prototype.$notification = notification;
+Vue.prototype.$Modal = Modal;
+Vue.prototype.$confirm = confirm;

@@ -1,0 +1,141 @@
+<template>
+  <div class="wrap">
+    <div class="bj"></div>
+    <ul class="city">
+      <li
+        class="cityItem"
+        :id="'city_'+`${index}`"
+        :ref="'loopDom'+`${index}`"
+        v-for="(item,index) in city"
+        :key="index"
+        @click="loop(index)"
+      >{{item}}</li>
+    </ul>
+    <div class="diamond" @click="play"></div>
+  </div>
+</template>
+<script>
+import cloneDeep from "lodash/cloneDeep";
+export default {
+  data() {
+    return {
+      city: [
+        "市本级", // id="330600"
+        "柯桥区", // id="330603"
+        "上虞区", // id="330604"
+        "越城区", //id="330602"
+        "新昌县", // id="330624"
+        "嵊州市", // id="330683"
+        "诸暨市" // id="330681"
+      ]
+    };
+  },
+  inject: ["dictCode"],
+  computed: {
+    dictId() {
+      return this.dictCode.dictId;
+    }
+  },
+  methods: {
+    switchCity(e) {
+      let target = e.target;
+      if (target.nodeName == "path") {
+        this.dictCode.dictId = target.id;
+      }
+    },
+    loop(index) {
+      let list = cloneDeep(this.city);
+      let item = list[index];
+      list.splice(index, 1);
+      this.city = [item, ...list];
+    },
+    play() {
+      // let dom0 = this.$refs.loopDom0[0];
+      // dom0.style.left ="52px"
+      // dom0.style.top="102px"
+
+      // let dom1 = this.$refs.loopDom1[0];
+      // dom1.style.left ="120px"
+      // dom1.style.top="170px"
+
+      // let dom2 = this.$refs.loopDom2[0];
+      // dom2.style.left ="294px"
+      // dom2.style.top="160px"
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  padding: 120px 0px 0px;
+  position: relative;
+  .bj {
+    width: 682px;
+    height: 170px;
+    background: url("../img/circle.png");
+    margin: 0 auto;
+  }
+  .diamond {
+    width: 72px;
+    height: 72px;
+    background: url("../img/diamond.png");
+    position: absolute;
+    top: 90px;
+    left: 310px;
+  }
+  .city {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0px;
+    left: 0px;
+    margin: 0px;
+    li {
+      width: 103px;
+      height: 41px;
+      background: url("../img/city-name.png");
+      font-size: 20px;
+      font-family: Microsoft YaHei;
+      font-weight: 400;
+      line-height: 26px;
+      color: #ffffff;
+      opacity: 1;
+      text-align: center;
+      line-height: 41px;
+      position: absolute;
+      opacity: 0.4;
+      cursor: pointer;
+      transition: left 0.3s ease 0s, top 0.3s ease 0s;
+      &#city_0 {
+        left: 294px;
+        top: 160px;
+        opacity: 1;
+      }
+      &#city_1 {
+        left: 460px;
+        top: 170px;
+      }
+      &#city_2 {
+        left: 540px;
+        top: 102px;
+      }
+      &#city_3 {
+        left: 380px;
+        top: 50px;
+      }
+      &#city_4 {
+        left: 200px;
+        top: 50px;
+      }
+      &#city_5 {
+        left: 52px;
+        top: 102px;
+      }
+      &#city_6 {
+        left: 120px;
+        top: 170px;
+      }
+    }
+  }
+}
+</style>

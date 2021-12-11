@@ -1,0 +1,22 @@
+import request from "../utils/request"
+
+export function getList(data) {
+  return request({
+      url: `/idmgzbm/loginReport/getAppData?keyword=${data.keyword}&resource=${data.resource}`,
+      method: 'post'
+  })
+}
+
+export function getRegsortTypes() {
+  return request({
+      url: `/idmgzbm/regdata/getRegsortTypes`,
+      method: 'get'
+  })
+}
+
+export function regReportDate(data) {
+  return request({
+      url: `/idmgzbm/regdata/regReportDate?startTime=${data.startTime}&endTime=${data.endTime}&resources=${data.resources}&appIds=${data.appIds}`,
+      method: 'post'
+  })
+}

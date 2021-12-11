@@ -1,0 +1,25 @@
+/** 
+ * 分析模块路由
+*/
+import Layout from '../../views/Layout'
+
+export const assessmentRoutes = {
+  path: '/person/assessment',
+  component: Layout,
+  children: [
+    {
+      path: '',
+      component: () => import('../../views/assessment/functionAlanalysis/index.vue'),
+      name: 'assessmentIndex',
+      redirect: 'functional',
+      children: [
+        {
+          path: 'functional',
+          component: () => import('../../views/assessment/functionAlanalysis/Functional.vue'),
+          name: 'functional',
+          meta: { path: [{ name: '机构职能配置分析', path: '/person/assessment/functional' }] }
+        },
+      ]
+    },
+  ]
+}

@@ -1,0 +1,165 @@
+<template>
+  <div class="layout">
+    <div class="content">
+      <div class="banner">
+        <div class="left">
+          <div class="head">
+            <span class="name">{{ query.name }}</span>
+            <span
+              class="state"
+              :style="colors(query.state)"
+            >{{ verifyAppState(query.state) }}</span>
+          </div>
+          <ul class="tabList">
+            <li
+              v-for="(item,index) in tabList"
+              :key="index"
+              :class="{active:item.cmpt == activeCmpt}"
+              @click="swiperTab(item)"
+            >{{item.name}}</li>
+          </ul>
+        </div>
+        <a :style="{float:'right'}" @click="goManagerCenter">返回</a>
+      </div>
+      <div class="scrollContent">
+        <component :is="activeCmpt"></component>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Tabs, Layout } from "ant-design-vue";
+import BasicInfo from "./components/BasicInfo";
+import ServiceManage from "./components/ServiceManage";
+import ServiceChangeLog from './components/ServiceChangeLog';
+import { appdetail } from "@/dev/api/app";
+export default {
+  components: {
+    BasicInfo,
+    ServiceChangeLog,
+    ServiceManage
+  },
+  data() {
+    return {
+      activeCmpt: "BasicInfo"
+    };
+  },
+  computed:{
+    query(){
+      return this.$route.query
+    },
+    tabList(){
+      let list = [
+        { name: "基本信息", cmpt: "BasicInfo" },
+        { name: "变更日志", cmpt: "ServiceChangeLog" }
+      ]
+      if(this.query.state != 2){
+        list.splice(1,0,{ name: "服务管理", cmpt: "ServiceManage" })
+      }
+      return list
+    }
+  },
+  methods: {
+    swiperTab(item) {
+      this.activeCmpt = item.cmpt;
+    },
+    colors(state) {
+      switch (state) {
+        case 0:
+          return "color:#0dbc79";
+        case 1:
+          return "color:#faad14";
+        case 2:
+          return "color:#f5222d";
+        default:
+          return;
+      }
+    },
+    verifyAppState(state) {
+      let str = "";
+      switch (state) {
+        case 0:
+          str += "在用";
+          break;
+        case 1:
+          str += "挂起(" + suspendDesc + ")";
+          break;
+        case 2:
+          str += "注销";
+          break;
+        case 3:
+          str += "待接收";
+          break;
+        case 4:
+          str += "转让待确认";
+          break;
+        default:
+      }
+      return str;
+    },
+    goManagerCenter() {
+      this.$router.history.go(-1)
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  padding: @layout-space-base;
+  .content {
+    width: 100%;
+    height: 100%;
+    background: @white;
+    display: flex;
+    flex-direction: column;
+    .banner {
+      box-shadow: 2px 10px 10px -12px #dad9d9;
+      padding: @content-padding-v @content-padding-h;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      .head {
+        background: @white;
+        .name {
+          font-size: 18px;
+          font-weight: bold;
+        }
+        .state {
+          margin-left: @layout-space-base;
+        }
+      }
+      .tabList {
+        display: flex;
+        margin: 0px;
+        padding: @content-padding-v 0px;
+        li {
+          padding: 0px @padding-sm;
+          color: @primary-color;
+          cursor: pointer;
+          height: 26px;
+          line-height: 26px;
+          border-radius: @border-radius-base;
+          margin-left: @padding-md;
+          &:hover {
+            background-color: @primary-1;
+          }
+          &:first-child {
+            margin-left: 0px;
+          }
+          &.active {
+            color: @white;
+            background-color: @primary-color;
+          }
+        }
+      }
+    }
+    .scrollContent {
+      padding: @content-padding-v 0px;
+      flex: 1;
+      overflow-y: auto;
+    }
+  }
+}
+</style>

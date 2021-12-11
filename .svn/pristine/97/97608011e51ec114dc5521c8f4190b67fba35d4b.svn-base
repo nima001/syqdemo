@@ -1,0 +1,134 @@
+import Vue from 'vue'
+import Router from 'vue-router'
+
+Vue.use(Router)
+import Layout from '../views/Layout';
+import {developDoc} from './modules/developdoc';
+import {manageCenter} from './modules/managecenter';
+import {auditCenter} from './modules/auditcenter';
+import {userCenter} from './modules/usercenter';
+export default new Router({
+  mode: 'history',
+  base: process.env.BASE_URL,
+  routes: [
+    {
+      path: '/dev',
+      component: Layout,
+      redirect: '/dev/index',
+      children: [
+        {
+          path: 'index',
+          component: () => import('@/dev/views/index'),
+          name: 'dev',
+        },
+        // {
+        //   path: 'manageapp',
+        //   component: () => import('@/dev/views/app/ManageApp'),
+        //   name: 'manageapp',
+        //   meta: {
+        //     path: [{ name: '应用中心', path: '/dev/managementcenter' },
+        //     { name: '应用管理', path: '/dev/manageapp' },], access: 'login'
+        //   },
+        // },
+        {
+          path: 'addbusiness',
+          component: () => import('@/dev/views/business/AddBusiness'),
+          name: 'addbusiness',
+          meta: { path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '创建业务', path: '/dev/addbusiness' }], access: 'login' },
+        },
+        {
+          path: 'authmanage',
+          component: () => import('@/dev/views/app/RolePermission'),
+          name: 'authmanage',
+          meta: {
+            path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+            { name: '权限管理', path: '/dev/authmanage' }
+            ], access: 'login'
+          },
+        },
+        {
+          path: 'addaccess',
+          component: () => import('@/dev/views/accesslibrary/AddAccess'),
+          name: 'addaccess',
+          meta: {
+            path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+            { name: '权限管理', path: '/dev/authmanage' }, { name: '权限新增', path: '/dev/addaccess' }
+            ], access: 'login'
+          },
+        },
+        {
+          path: 'addrole',
+          component: () => import('@/dev/views/accesslibrary/AddRole'),
+          name: 'addrole',
+          meta: {
+            path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+            { name: '角色新增', path: '/dev/addrole' }
+            ], access: 'login'
+          },
+        },
+        {
+          path: 'operationcontrol',
+          component: () => import('@/dev/views/business/OperationControl'),
+          name: 'operationcontrol',
+          meta: {
+            path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+            { name: '业务管理', path: '/dev/OperationControl' }
+            ], access: 'login'
+          },
+        },
+        {
+          path: 'serviceauthority',
+          component: () => import('@/dev/views/business/ServiceAuthority'),
+          name: 'serviceauthority',
+          meta: {
+            path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+            { name: '权限配置', path: '/dev/serviceauthority' }
+            ], access: 'login'
+          },
+        },
+        {
+          path: 'createsuccessful',
+          component: () => import('@/dev/views/createsuccessful/createSuccessful'),
+          name: 'createsuccessful',
+          meta: { path: [{ name: '应用中心', path: '/dev/createsuccessful' }], access: 'login' },
+        },
+        {
+          path: 'userservice',
+          component: () => import('@/dev/views/service/UserService'),
+          name: 'userservice',
+          meta: { path: [{ name: '应用管理', path: '/dev/manageapp' }, { name: '用户服务', path: '/dev/userservice' }], access: 'login' },
+        },
+        {
+          path: 'serviceOrg',
+          component: () => import('@/dev/views/service/ServiceOrg'),
+          name: 'serviceOrg',
+          meta: { path: [{ name: '应用管理', path: '/dev/manageapp' }, { name: '组织服务', path: '/dev/serviceOrg' }], access: 'login' },
+        },
+        {
+          path: 'message',
+          component: () => import('@/dev/views/message'),
+          name: 'message',
+        },
+        // {
+        //   path: 'serviceapplystep',
+        //   component: () => import('@/dev/views/service/ServiceApplyStep'),
+        //   name: 'serviceapplystep',
+        // },
+        // {
+        //   path: 'serviceActionApply',
+        //   component: () => import('@/dev/views/service/ServiceActionApply'),
+        //   name: 'serviceActionApply',
+        // },
+        // {
+        //   path: 'serviceAccessInfo',
+        //   component: () => import('@/dev/views/service/ServiceAccessInfo'),
+        //   name: 'serviceAccessInfo',
+        // },
+      ]
+    },
+    developDoc,
+    manageCenter,
+    auditCenter,
+    userCenter
+  ]
+});

@@ -1,0 +1,290 @@
+<template>
+  <div>
+    <Title title="机构资源分析" />
+    <div class="container" style="height: 140px">
+      <div class="count">
+        <div class="org">
+          <div class="org-content">
+            <div class="title">行政机构实有数</div>
+            <div class="num">
+              <div class="sum" @click="xzShow('行政机构实有数')">{{data.xzjgs||0}}</div>
+              <div class="type">
+                <div class="detail" @click="showOrg('正厅','行政')">正厅<span>{{data.ztjxzjgs||0}}</span></div>
+                <div class="detail" @click="showOrg('副厅','行政')">副厅<span>{{data.ftjxzjgs||0}}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="unit">
+          <div class="org-content">
+            <div class="title">事业机构实有数</div>
+            <div class="num">
+              <div class="sum" @click="syShow('事业机构实有数')">{{data.syjgs||0}}</div>
+              <div class="type">
+                <div class="detail" @click="showOrg('正厅','事业')">正厅<span>{{data.ztjsyjgs||0}}</span></div>
+                <div class="detail" @click="showOrg('副厅','事业')">副厅<span>{{data.ftjsyjgs||0}}</span></div>
+                <div class="detail" @click="showOrg('处级','事业')">处级<span>{{data.cjsydwzs||0}}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+     </div>
+     <dialog-box 
+      v-model="showXz"
+      :title="title"
+      >
+      <KongBianDetail :districtCode="districtCode" :districts="districts"/>
+     </dialog-box>
+     <dialog-box 
+      v-model="showSy"
+      :title="title"
+      >
+      <orgDetail :districtCode="districtCode" :data="dataSourceSy" :num="num"/>
+     </dialog-box>
+     <dialog-box v-model="showOrgs" :title="dialogTitle">
+      <DistrictDetail
+        :title="title"
+        :fields="fields"
+        :districtCode="districtCode"
+        :districts="districts"
+        :politicallevel="politicallevel"
+        :jgtypes="jgtypes"
+        @loadData="loadData"/>
+    </dialog-box>
+  </div>
+</template>
+
+<script>
+import Title from "./Title";
+import SwiperChart from "./SwiperChart";
+import KongBianDetail from './KongBianDetail';
+import orgDetail from './orgDetail';
+import DistrictDetail from './DistrictDetail';
+import { includes, map, endsWith, values } from 'lodash';
+import { areaStatistics } from '@/person-shaoxing/api/orgStaffReport'
+import { orgAnalyzeSy } from '../../../api/analyze';
+import { showError } from '../../../../framework/utils';
+import { query } from "@/person/api/integratedquery";
+import DialogBox from '../components/DialogBox'
+
+export default {
+  props: {
+    districtCode: {
+      type: String,
+    },
+  },
+  components: {
+    Title,
+    SwiperChart,
+    KongBianDetail,
+    orgDetail,
+    DialogBox,
+    DistrictDetail
+  },
+  data() {
+    return {
+      data: {},
+      num: {},
+      showOrgs: false,
+      dialogTitle: undefined,
+      politicallevel: undefined,
+      dataSourceXz: undefined,
+      dataSourceSy: undefined,
+      showXz: false,
+      showSy: false,
+      title: '',
+      jgtypes: [],
+      fields: undefined,
+    };
+  },
+  watch: {
+    districtCode(val) {
+      this.loadData(val);
+      return val;
+    },
+    showXz(val) {
+      if(!val) {
+        this.dataSourceXz = undefined;
+      }
+    },
+    showSy(val) {
+      if(!val) {
+        this.dataSourceSy = undefined;
+      }
+    },
+    politicallevels(val) {
+      return val;
+    }
+  },
+  computed: {
+    districts() {
+      let v = this.$store.getters.dict('usermanage.org.district');
+      return v;
+    },
+    politicallevels() {
+      let v = this.$store.getters.dict('usermanage.org.politicallevel');
+      return v;
+    }
+  },
+  mounted() {
+    this.showXz = false,
+    this.showSy = false;
+    if(this.districtCode) {
+      this.loadData(this.districtCode);
+    }
+  },
+  methods: {
+    xzShow(title) {
+      this.title = title;
+      // orgAnalyzeXz(this.districtCode).then(({result})=>{
+        this.showXz = true;
+        // this.dataSourceXz = result;
+      // }).catch(err=>{
+        // showError(err);
+      // })
+    },
+    syShow(title) {
+      this.title = title;
+      orgAnalyzeSy(this.districtCode).then(({result})=>{
+        this.dataSourceSy = result;
+      }).catch(err=>{
+        showError(err);
+      });
+      areaStatistics(this.districtCode, [
+        'cgsyjgs', 'fcgsyjgs',
+      ]).then(({result}) => {
+        this.num.text = result;
+        this.showSy = true;
+      }).catch(error => {
+        showError(error)
+      });
+    },
+    showOrg(type,jgtype) {
+      let v = this.politicallevels.filter((item)=> includes(item.text, type)&&endsWith(item.text, '级'));
+      this.politicallevel = map(v,'value');
+      this.creatFilelds(type,jgtype);
+      this.showOrgs = true;
+    },
+    creatFilelds(type,jgtype) {
+      if(type=='正厅'&&jgtype=='行政') {
+        this.fields = [
+          { key: "name", showname: "机构名称" },
+          { key: "_id@organization.statistic.ztjxzjgs", showname: "正厅级行政机构数" }
+        ];
+        this.jgtypes = [1,2];
+        this.dialogTitle = '正厅级行政机构数';
+        this.title = '正厅级行政机构列表';
+      }else if(type=='正厅'&&jgtype=='事业') {
+        this.fields = [
+          { key: "name", showname: "机构名称" },
+          { key: "_id@organization.statistic.ztjsyjgs", showname: "正厅级事业机构数" }
+        ];
+        this.jgtypes = [3];
+        this.dialogTitle = '正厅级事业机构数';
+        this.title = '正厅级事业机构列表';
+      }else if(type=='副厅'&&jgtype=='行政') {
+        this.fields = [
+          { key: "name", showname: "机构名称" },
+          { key: "_id@organization.statistic.ftjxzjgs", showname: "副厅级行政机构数" }
+        ];
+        this.jgtypes = [1,2];
+        this.dialogTitle = '副厅级行政机构数';
+        this.title = '副厅级行政机构列表';
+      }else if(type=='副厅'&&jgtype=='事业') {
+        this.fields = [
+          { key: "name", showname: "机构名称" },
+          { key: "_id@organization.statistic.ftjsyjgs", showname: "副厅级事业机构数" }
+        ];
+        this.jgtypes = [3];
+        this.dialogTitle = '副厅级事业机构数';
+        this.title = '副厅级事业机构列表';
+      }else if(type=='处级'&&jgtype=='事业') {
+        this.fields = [
+          { key: "name", showname: "机构名称" },
+          { key: "_id@organization.statistic.cjsydwzs", showname: "处级事业单位总数" }
+        ];
+        this.jgtypes = [3];
+        this.title = '处级事业单位总数';
+        this.title = '处级事业单位机构列表';
+      }
+    },
+    loadData(district){
+      areaStatistics(district, [
+        'xzjgs', 'ztjxzjgs',
+        'ftjxzjgs', 'syjgs',
+        'ztjsyjgs', 'ftjsyjgs',
+        'cjsydwzs'
+      ]).then(({result}) => {
+        this.data = result;
+      }).catch(error => {
+        showError(error)
+      });
+    },
+  }
+};
+</script>
+
+<style scoped lang="less">
+.container {
+  padding: 0 @layout-space-base;
+  display: flex;
+  flex-direction: column;
+  .count {
+    margin: 0 @layout-space-base;
+    background: fade(#000, 30%);
+    display: flex;
+    flex-wrap: wrap;
+    .org,
+    .unit {
+      margin: @layout-space-base;
+      width: 45%;
+      background: url("../../../assets/img/screen/top-adorn.png") no-repeat;
+      background-size: 100%;
+      .org-content {
+        position: relative;
+        .title {
+          padding: @padding-xs @padding-md;
+          background: linear-gradient(
+            132deg,
+            transparent,
+            fade(#A27AE4, 20%) 10%,
+            fade(#8e57be, 20%),
+            transparent,
+          );
+          font-size: 1.1em;
+          color: #fff;
+        }
+        .num {
+          height: 74px;
+          padding: 0 @padding-xs @padding-xs @padding-xs;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          .sum {
+            font-size: 1.6em;
+            font-weight: bold;
+            cursor: pointer;
+            color: fade(#1cb1ee, 80%);
+          }
+          .type {
+            font-size: 0.8em;
+            color: fade(#fff, 60%);
+            .detail {
+              margin: @layout-space-base / 2;
+              cursor: pointer;
+              span {
+                display: inline-block;
+                margin-left: @layout-space-base;
+              }
+            }
+          }
+        }
+      }
+    }
+    .unit .org-content .num .sum {
+      color: fade(#FEAB2E, 80%);
+    }
+  }
+}
+</style>

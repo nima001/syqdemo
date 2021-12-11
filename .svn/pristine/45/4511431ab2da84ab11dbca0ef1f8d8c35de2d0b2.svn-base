@@ -1,0 +1,131 @@
+<template>
+  <div class="color-array">
+    <a-space>
+      <div
+        class="color_list"
+        :key="item"
+        v-for="(item, index) in colors"
+      >
+        <div class="colorcontent">
+          <ColorPicker :index="index" :color.sync="colors">
+            <div class="del">
+              <a-icon type="close" @click="(e)=>del(e,index)"/>
+            </div>
+          </ColorPicker>
+        </div>
+      </div>
+      <a-button icon="plus" type="primary" ghost @click="add"/>
+    </a-space>
+  </div>
+</template>
+
+<script>
+import { Button, Icon, Space } from "ant-design-vue";
+import ColorPicker from "./ColorPicker";
+import { cloneDeep } from 'lodash';
+export default {
+  props: {
+    value: {
+      type: Array,
+      default: () => {
+        return [];
+      },
+    },
+  },
+  components: {
+    ColorPicker,
+    AIcon: Icon,
+    ASpace: Space,
+    AButton: Button,
+  },
+  data() {
+    return {
+      colors: cloneDeep(this.value),
+    };
+  },
+  watch: {
+    colors(val) {
+      if(val) {
+        this.$emit('input', val);
+      }
+    }
+  },
+  methods: {
+    add() {
+      this.colors.push("#000");
+    },
+    del(e,index) {
+      e.stopPropagation();
+      this.colors.splice(index, 1);
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.color-array {
+  padding-left: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  .ant-space {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .color_list {
+    margin-bottom: 10px;
+    .colorcontent {
+      /deep/.colorPicker {
+        .color_con {
+          width: 29px;
+          height: 29px;
+          margin-top: 0;
+          border-radius: @border-radius-base;
+          overflow: hidden;
+          position: relative;
+          .del {
+            color: #fff;
+            border-radius: 50%;
+            opacity: 0;
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.075, 0.82, 0.165, 1);
+            transform: translate(65%, -65%) rotate(-45deg);
+            border: solid 12px transparent;
+            border-left-color: fade(#000, 40%);
+            .anticon {
+              font-size: 10px;
+              position: absolute;
+              left: -7px;
+              top: 100%;
+              cursor: pointer;
+              transform: translate(-50%, -50%) rotate(45deg);
+              &:hover {
+                color: red;
+              }
+            }
+          }
+          &:hover::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            background: fade(#fff, 40%);
+          }
+        }
+        &:hover .color_con .del {
+          opacity: 1;
+          transform: translate(60%, -60%) rotate(-45deg) scale(1.3);
+          .anticon {
+            font-size: 7px;
+          }
+        }
+      }
+    }
+  }
+  .ant-btn {
+    width: 32px;
+    margin-bottom: 10px;
+    border-radius: @border-radius-base;
+  }
+}
+</style>

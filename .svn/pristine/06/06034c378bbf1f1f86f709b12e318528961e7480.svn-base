@@ -1,0 +1,250 @@
+<!-- 角色权限 -->
+<template>
+  <a-layout class="dev-layout">
+    <div class="body">
+      <div class="body_1">
+        <div style="display:flex;">
+          <a-select style="width:190px;margin:0 10px" defaultValue="权限标签">
+            <a-select-option value="lucy">权限标签</a-select-option>
+          </a-select>
+          <a-input-group compact>
+            <a-select v-model="searchVal" style="width:160px">
+              <a-select-option value="all">全部</a-select-option>
+              <a-select-option value="namelike">权限名称</a-select-option>
+              <a-select-option value="codelike">权限代码</a-select-option>
+              <!-- <a-select-option value="Option3">权限标签</a-select-option> -->
+            </a-select>
+            <a-input style="width: 160px;margin:0 10px" v-model="val" />
+          </a-input-group>
+        </div>
+        <a-button @click="search">搜索</a-button>
+        <a-button @click="reset">重置</a-button>
+      </div>
+
+      <div class="body_2">
+        <a-button icon="plus" @click="showDrawer">添加权限</a-button>
+        <a-tag
+          closable
+          v-for="(i, index) in data"
+          @close="deletes(i.id)"
+          :key="index"
+          >{{ i.name }}</a-tag
+        >
+      </div>
+    </div>
+    <a-drawer
+      title="权限库"
+      width="50%"
+      placement="right"
+      :closable="false"
+      @close="onClose"
+      :visible="visible"
+    >
+      <power @onchan="add" :check="check" :back="back"></power>
+    </a-drawer>
+  </a-layout>
+</template>
+
+<script>
+import {
+  Layout,
+  Select,
+  Table,
+  Button,
+  Input,
+  notification,
+  Drawer,
+  Tag,
+} from "ant-design-vue";
+import Power from "../accesslibrary/AccessList";
+import { relatelist, relatedeletes, relateadds } from "@/dev/api/role";
+export default {
+  data() {
+    return {
+      back: 0,
+      searchVal: "all",
+      codelike: null,
+      namelike: null,
+      data: [],
+      check: [],
+      val: "",
+      visible: false,
+    };
+  },
+
+  components: {
+    ALayout: Layout,
+    Power,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AButton: Button,
+    ADrawer: Drawer,
+    ATag: Tag,
+    notification,
+  },
+  methods: {
+    showDrawer() {
+      this.visible = true;
+    },
+    onClose() {
+      this.visible = false;
+    },
+    // 分页数据
+    refresh() {
+      var obj = {
+        roleid: this.$route.query.id,
+        limitQueryVo: {
+          codelike: this.codelike,
+          namelike: this.namelike,
+        },
+      };
+      relatelist(obj).then((res) => {
+        if (res.code == "success") {
+          this.data = res.result;
+          this.check = [];
+          res.result.forEach((i) => {
+            this.check.push(i.id);
+          });
+          console.log(this.check);
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.message,
+            duration: 1.5,
+          });
+        }
+      });
+    },
+    // 重置
+    reset() {
+      this.val = "";
+      this.codelike = null;
+      this.namelike = null;
+      this.refresh();
+    },
+    // 搜索
+    search() {
+      switch (this.searchVal) {
+        case "all":
+          this.codelike = this.val;
+          this.namelike = this.val;
+          break;
+        case "namelike":
+          this.namelike = this.val;
+          this.codelike = null;
+          break;
+        case "codelike":
+          this.namelike = null;
+          this.codelike = this.val;
+          break;
+      }
+      this.refresh();
+    },
+    add(arr) {
+      if (arr.length) {
+        let obj = {
+          limitids: arr,
+          roleid: this.$route.query.id,
+        };
+        relateadds(obj).then((res) => {
+          if (res.code == "success") {
+            this.refresh();
+            this.visible = false;
+          } else {
+            notification.error({
+              message: "提示",
+              description: res.desc,
+              duration: 1.5,
+            });
+          }
+        });
+      }
+    },
+    deletes(i) {
+      let arr = [i];
+      let obj = {
+        limitids: arr,
+        roleid: this.$route.query.id,
+      };
+      this.check.splice(
+        this.check.findIndex((item) => item === i),
+        1
+      );
+      this.back += 1;
+      console.log(this.check);
+      relatedeletes(obj).then((res) => {
+        if (res.code == "success") {
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.desc,
+            duration: 1.5,
+          });
+        }
+      });
+    },
+  },
+  created() {
+    this.refresh();
+    if (this.$route.query.state) {
+      this.showDrawer();
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.dev-layout {
+  height: 100%;
+  padding: 10px;
+  .body {
+    min-height: 250px;
+    width: 100%;
+    height: 100%;
+    padding-left: 30px;
+    background: #fff;
+    .body_1 {
+      display: flex;
+      margin-top: 40px;
+      .ant-btn {
+        width: 60px;
+        height: 32px;
+        margin-right: 13px;
+      }
+    }
+    .body {
+      width: 100%;
+    }
+    .body_1 {
+      .ant-btn {
+        color: @primary-color;
+        border: 1px solid @primary-color;
+        margin-right: 22px;
+      }
+    }
+    .body_2 {
+      margin-top: 40px;
+      // padding: 15px 0 0 15px;
+      // border: dashed 1px #e6e6e6;
+      .ant-btn {
+        color: @primary-color;
+        border: 1px solid @primary-color;
+        width: 120px;
+        height: 40px;
+        text-align: center;
+        line-height: 40px;
+        margin: 0 20px 20px 0;
+        font-size: 15px;
+      }
+      .ant-tag {
+        padding: 0 20px;
+        height: 40px;
+        line-height: 40px;
+        margin: 0 20px 20px 0;
+        font-size: 15px;
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,178 @@
+<template>
+  <div>
+    <!-- staff : 编制信息 post  : 职数信息 -->
+    <a-table v-if="category == 'staff'"
+      :columns="columns" 
+      :dataSource="dataSource" 
+      :expanded-row-keys="expandedRowKeys"
+      rowKey="id" 
+      :loading="loading" 
+      :pagination="false"
+      @expandedRowsChange="onExpanded"
+    ></a-table>
+    <a-table v-else-if="category == 'post'"
+      :columns="columns" 
+      :dataSource="dataSource" 
+      :expanded-row-keys="expandedRowKeys"
+      @expandedRowsChange="onExpanded"
+      rowKey ="id" 
+      :loading="loading" 
+      :pagination="false"
+    >
+      <span slot="name" slot-scope="text,record">
+        <a-icon type="team" :style="{color:'#d60002'}" v-if="record.level == 1" />
+        <a-icon type="team" :style="{color:'#1b5293'}" v-if="record.level == 2" />
+        {{record.name}}
+      </span>
+    </a-table>
+  </div>
+</template>
+<script>
+import { Table, Icon } from "ant-design-vue";
+import { showError } from "@framework/utils/index";
+import { listOrgDistrItem, getstatisinfo } from "@person/api/org";
+
+export default {
+  components: {
+    AIcon: Icon,
+    ATable: Table
+  },
+  props: {
+    category: String,
+  },
+  inject: ["formData"],
+  data() {
+    return {  
+      loading:false,
+      columns: [
+        {
+          title: "类别",
+          dataIndex: "name",
+          scopedSlots: { customRender: "name" },
+          width:"33.33%"
+        },
+        {
+          title: "核定数",
+          dataIndex: "checknum", 
+          align: "center",
+          width:"33.33%"
+        },
+        {
+          title: "实有数",
+          dataIndex: "usernum",
+          align: "center",
+          width:"33.33%"
+        }
+      ],
+      expandedRowKeys: [],
+      dataSource:[]
+    };
+  },
+  computed: {
+    params() {
+      return {
+        id: this.formData.data._id,
+        category: this.category
+      };
+    },
+  },
+  watch: {
+    params(params) {
+      this.loadDistr(params);
+    }
+  },
+  created() {
+    this.loadDistr(this.params);
+  },
+  methods: {
+    onExpanded(keys){
+      this.expandedRowKeys = keys;
+    },
+    formatData(arr){
+      let list = [];
+      for(let i = 0;i<arr.length;i++){
+        let cur = arr[i];
+        if(!cur.usernum){
+          cur.usernum = 0;
+        }
+        cur.checknum = cur.count + cur.change;
+        if(!cur.children){
+          // 如果核定数和实有数都为零时，那么对应的字段则不显示
+          if(cur.checknum != 0 || cur.usernum != 0 ){
+            list.push(cur)
+          }
+        }else{
+          let children = this.formatData(cur.children);
+          if(children){
+            cur.children = children;
+            list.push(cur);
+          }
+        }
+      }
+      if(list.length){
+        return list;
+      }
+    },
+    loadDistr({id, category}) {
+      this.loading = true;
+      listOrgDistrItem(id, category).then(({result}) => {
+        this.dataSource = this.formatData(result);
+        this.expandedRowKeys = this.getParentIds(this.dataSource);
+        // if(category == "staff" ){
+        //   if(this.dataSource.length >= 2){
+        //     this.dataSource.unshift(this.dataSource.reduce((total, value) => { 
+        //       if(value.checknum){
+        //         total.checknum += value.checknum;
+        //       }
+        //       if(value.usernum){
+        //         total.usernum += value.usernum;
+        //       }
+        //       return total;
+        //     }, {name:'总数', checknum: 0, usernum: 0 }));
+        //   }
+        // }else{
+        //   {
+        //     let {nsjgldhdnew: checknum = 0, spldzsnew: usernum = 0} = statisinfo.result;
+        //     if(checknum || usernum){
+        //       this.dataSource.push({ name: '中层领导正职(总计)', checknum, usernum })
+        //     }
+        //   }
+        //   {
+        //     let {nsjgldfzhdnew: checknum = 0, hdldzsnew: usernum = 0} = statisinfo.result;
+        //     if(checknum || usernum){
+        //       this.dataSource.push({ name: '中层领导副职(总计)', checknum, usernum })
+        //     }
+        //   }
+        // }
+      }).catch(err => {
+        showError(err);
+      }).finally(()=>{
+        this.loading = false;
+      });
+    },
+    getParentIds(list){
+      let ids = [];
+      (list || []).forEach(item => {
+        if(item.children){
+          ids.push(item.id);
+          let sub = this.getParentIds(item.children);
+          if(sub && sub.length){
+            ids = ids.concat(sub);
+          }
+        }
+      });
+      return ids;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.title-bar {
+  margin: 10px 0;
+  line-height: 1em;
+  border-left: 5px solid @primary-color;
+  font-size: 18px;
+  text-indent: 5px;
+  color: @primary-color;
+}
+</style>

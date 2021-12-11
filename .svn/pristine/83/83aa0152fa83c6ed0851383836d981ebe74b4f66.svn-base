@@ -1,0 +1,58 @@
+<template>
+  <div class>
+    <component v-if="chartType" :is="chartType" :dataTable="dataTable" />
+  </div>
+</template>
+
+<script>
+import { get, set } from "lodash";
+import { getChartById } from "@person/api/chart";
+import { showError } from "@/framework/utils/index";
+import { components } from "./components/component";
+export default {
+  components: { ...components },
+  props: {
+    code: {
+      type: String,
+      required: true
+    }
+  },
+  inject: ["formData"],
+  data() {
+    return {
+      chartType: undefined,
+      dataTable: undefined
+    };
+  },
+  computed: {
+    chartId() {
+      return get(this.formData.data, this.code);
+    }
+  },
+  mounted() {
+    getChartById(this.chartId)
+      .then(res => {
+        this.dataTable = res.result["data"];
+        this.chartType = this.switchCmpt(res["result"]['settings']['chartType']);
+      })
+      .catch(err => {
+        showError(err);
+      });
+  },
+  methods: {
+    switchCmpt(str) {
+      let cmptType = undefined;
+      switch (str) {
+        case "pie-chart":cmptType = "PieChart";break;
+        case "bar-chart" :cmptType = "BarChart";break;
+        case "line-chart" :cmptType = "LineChart";break;
+        default : cmptType="PieChart";break;
+      }
+      return cmptType;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+//@import url(); 引入公共css类
+</style>

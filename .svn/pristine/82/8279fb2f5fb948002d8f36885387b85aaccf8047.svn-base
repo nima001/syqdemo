@@ -1,0 +1,50 @@
+<template>
+  <div class="wrap">
+    <form-display :formConfig="formConfig" :formData="formData" :showAnchor="false">
+      <ant-chart slot="chart" slot-scope="props" v-bind="props"></ant-chart>
+    </form-display>
+  </div>
+</template>
+
+<script>
+import FormDisplay from "@formdesign/views/FormDisplay";
+import AntChart from "@person/views/statistics/chart/AntChart";
+import ShiYe from "../demo/ShiYe";
+export default {
+  components: {
+    FormDisplay,
+    AntChart,
+    ShiYe
+  },
+  data() {
+    return {
+      formData: { bar: 1 },
+      formConfig: [
+        { type: "titleBar", code: "orgInfo", name: "机构信息" },
+        {
+          type: "colLayout",
+          children: [
+            {
+              span: 24,
+              components: [
+                {
+                  type: "colLayout",
+                  children: [
+                    { span: 24, components: [{ type: "chart", code: "bar" }] }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+  },
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  padding: 0px @content-padding-h;
+}
+</style>

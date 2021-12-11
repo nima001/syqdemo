@@ -1,0 +1,117 @@
+<template>
+  <div class="main-form">
+    <user-form :data="data" :form="form" :edit="false"/>
+  </div>
+</template>
+<script>
+import Form from "../form/Form";
+import { salarysgdetail, salaryexchange } from "@/person/api/salaryManage";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  props: {
+    user: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
+  components: {
+    UserForm: Form,
+  },
+  data(){
+    return {
+      form: undefined,
+      data: undefined,
+    }
+  },
+  created(){
+    this.form = this.createForm();
+    if(this.user){
+      let userid = this.user._id;
+      Promise.all([
+        salarysgdetail(userid), 
+        salaryexchange(userid)
+      ]).then(([detail, exchange]) => {
+        let obj = detail.result || {};
+        let {after, before} = exchange.result || {};
+        if(after){
+          Object.keys(after).forEach(key => {
+            obj['ca_' + key] = after[key];
+          })
+        }
+        if(before){
+          Object.keys(before).forEach(key => {
+            obj['cb_' + key] = before[key];
+          })
+        }
+        this.data = obj;
+      }).catch(err => {
+        showError(err);
+      })
+    }
+  },
+  methods: {
+    createForm(){
+      return [
+        { id: 'cur', title: '目前工资', properties: [
+          { label: "套改岗位", code: "postlevel", type: 'dict', dict: "usermanage.user.postlevel", span: 1, disable: true },
+          { label: "套改等级", code: "exchangelevel", type: 'dict', dict: "usermanage.user.commlevel", span: 1, disable: true },
+          { label: "学历倾斜", code: "eduinclinelevel", type: 'dict', dict: "usermanage.user.commlevel", span: 1, disable: true },
+          { label: "职称倾斜", code: "postinclinelevel", type: 'dict', dict: "usermanage.user.commlevel", span: 1, disable: true },
+          { label: "倾斜等级", code: "totalincline", type: 'dict', dict: "usermanage.user.commlevel", span: 1, disable: true },
+          { label: "累计套改等级", code: "totalexclevel", type: 'dict', dict: "usermanage.user.commlevel", span: 1, disable: true },
+          { label: "基础工资系数", code: "basicsalaryxs", type: 'text', span: 1, disable: true },
+          { label: "全社会单位就业人员年平均工资", code: "unitaversalary", type: 'text', editable: true, span: 1, disable: true },
+          { label: "区级系数", code: "qujixs", type: 'text', span: 1, disable: true },
+          { label: "月基础工资", code: "JCGZ", type: 'text', span: 1, disable: true },
+          { label: "高温津贴发放月份", code: "hightempmonth", type: 'text', span: 1, disable: true },
+          { label: "高温津贴发放金额", code: "hightempsalary", type: 'text', span: 1, disable: true },
+          { label: "职称津贴等级", code: "shgzslevel", type: 'dict', dict: "usermanage.user.shgzslevel", span: 1, disable: true },
+          { label: "职称津贴金额", code: "ZCJT", type: 'text', span: 1, disable: true },
+          { label: "月均工资合计", code: "allsalary", type: 'text', span: 1, disable: true }
+        ]},
+        { id: 'after', title: '2018年套改后工资信息', properties: [
+          { label: "套改岗位", code: "ca_postlevel", type: 'text', span: 1, disable: true },
+          { label: "套改等级", code: "ca_exchangelevel", type: 'text', span: 1, disable: true },
+          { label: "学历倾斜", code: "ca_eduinclinelevel", type: 'text', span: 1, disable: true },
+          { label: "职称倾斜", code: "ca_postinclinelevel", type: 'text', span: 1, disable: true },
+          { label: "倾斜等级", code: "ca_totalincline", type: 'text', span: 1, disable: true },
+          { label: "累计套改等级", code: "ca_totalexclevel", type: 'text', span: 1, disable: true },
+          { label: "基础工资系数", code: "ca_basicoef", type: 'text', span: 1, disable: true },
+          { label: "全社会单位就业人员年平均工资", code: "ca_avgsalary", type: 'text', editable: true, span: 1, disable: true },
+          { label: "区级系数", code: "ca_qjcoef", type: 'text', span: 1, disable: true },
+          { label: "月基础工资", code: "ca_JCGZ", type: 'text', span: 1, disable: true },
+          { label: "高温津贴发放月份", code: "ca_hightempmonth", type: 'text', span: 1, disable: true },
+          { label: "高温津贴发放金额", code: "ca_GWBT", type: 'text', span: 1, disable: true },
+          { label: "职称津贴等级", code: "ca_shgzslevel", type: 'text', span: 1, disable: true },
+          { label: "职称津贴金额", code: "ca_ZCJT", type: 'text', span: 1, disable: true },
+          { label: "月均工资合计", code: "ca_aftersalary", type: 'text', span: 1, disable: true }
+        ]},
+        { id: 'before', title: '2018年套改前工资信息', properties: [
+          { label: "基础工资等级", code: "cb_basiclevel", type: 'text', span: 1, disable: true },
+          { label: "基础工资金额", code: "cb_basicsalary", type: 'text', span: 1, disable: true },
+          { label: "工龄补贴年限", code: "cb_workyear", type: 'text', span: 1, disable: true },
+          { label: "工龄补贴金额", code: "cb_workyearsalary", type: 'text', span: 1, disable: true },
+          { label: "月度绩效等级", code: "cb_mpferflevel", type: 'text', span: 1, disable: true },
+          { label: "月度绩效金额", code: "cb_mperfsalary", type: 'text', span: 1, disable: true },
+          { label: "岗位补贴等级", code: "cb_post", type: 'text', span: 1, disable: true },
+          { label: "岗位补贴金额", code: "cb_postsalary", type: 'text', span: 1, disable: true },
+          { label: "职称津贴等级", code: "cb_title", type: 'text', editable: true, span: 1, disable: true },
+          { label: "职称津贴金额", code: "cb_titlesalary", type: 'text', span: 1, disable: true },
+          { label: "长期服务社区津贴年限", code: "cb_servyear", type: 'text', span: 1, disable: true },
+          { label: "长期服务社区津贴金额", code: "cb_servyearsalary", type: 'text', span: 1, disable: true },
+          { label: "高温津贴发放月份", code: "cb_highmonth",  type: 'text', span: 1, disable: true },
+          { label: "高温津贴金额", code: "cb_highsalary", type: 'text', span: 1, disable: true },
+          { label: "月均工资合计", code: "cb_beforesalary", type: 'text', span: 1, disable: true }
+        ]}
+      ]
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.main-form {
+  height: 100%;
+  padding-top: 10px;
+}
+</style>

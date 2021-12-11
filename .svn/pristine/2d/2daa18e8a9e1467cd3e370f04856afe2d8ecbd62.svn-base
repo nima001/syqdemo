@@ -1,0 +1,53 @@
+<template>
+  <div class="form-panel">
+    <div class="form-body" ref="formBody">
+      <div style="height:800px"></div>
+    </div>
+  </div>
+</template>
+<script>
+import { Anchor } from "ant-design-vue";
+
+/**
+ * 编制数监测
+ */
+export default {
+  components: {
+    AAnchor: Anchor,
+    AAnchorLink: Anchor.Link,
+  },
+  data(){
+    return {
+      tables: [
+        { key: 'jg', name: '党政机构情况' },
+      ]
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  position: relative;
+  height: 100%;
+  .form-body {
+    height: 100%;
+    padding: 0 @content-padding-h;
+    overflow-y: auto;
+    padding-right: 200px + @content-padding-h;
+
+    .title-bar{
+      margin: 10px 0;
+      line-height: 1em;
+      font-size: 18px;
+      text-align: center;
+    }
+  }
+  /deep/.form-anchor {
+    position: absolute;
+    top: 50px;
+    right: @content-padding-h;
+    width: 180px;
+    padding-left: 5px;
+  }
+}
+</style>

@@ -1,0 +1,95 @@
+import request from '@/framework/utils/request'
+
+//search
+export function fieldsearch(data) {
+    return request({
+        url: '/person/statistic/search',
+        method: 'post',
+        data
+    })
+}
+//获取统计对象
+export function fieldtarget() {
+    return request({
+        url: '/person/statistic/target',
+        method: 'get',
+    })
+}
+//删除
+export function deletefield(data) {
+    return request({
+        url: '/person/statistic',
+        method: 'delete',
+        data
+    })
+}
+//新增
+export function newfield(data) {
+    return request({
+        url: '/person/statistic',
+        method: 'post',
+        data
+    })
+}
+//修改
+export function editupd(data) {
+    return request({
+        url: '/person/statistic/upd',
+        method: 'post',
+        data
+    })
+}
+//获取统计模型
+export function fieldmodel() {
+    return request({
+        url: '/person/statistic//list/model',
+        method: 'get',
+    })
+}
+//获取表达式
+export function getExpression(id) {
+    return request({
+        url: '/person/statistic/get/expression',
+        method: 'get',
+        params: {
+            id
+        }
+    })
+}
+//保存表达式
+export function saveExpression(data,id) {
+    return request({
+        url: '/person/statistic/save/expression?id=' +id,
+        method: 'post',
+        data
+    })
+}
+//删除表达式
+export function deleteExpression(expressionId,id) {
+    return request({
+        url: '/person/statistic/delete/expression',
+        method: 'delete',
+        params: {
+            expressionId,
+            id
+        }
+    })
+}
+//保存统计对象
+export function saveTarget(data) {
+    return request({
+        url: '/person/statistic/target',
+        method: 'post',
+        data
+    })
+}
+//删除统计对象
+export function deleteTarget(id) {
+    return request({
+        url: '/person/statistic/target',
+        method: 'delete',
+        params: {
+            id
+        }
+    })
+}

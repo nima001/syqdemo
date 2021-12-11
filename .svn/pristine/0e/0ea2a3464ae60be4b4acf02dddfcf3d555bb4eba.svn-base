@@ -1,0 +1,123 @@
+<template>
+  <div>
+    <a-form-item
+      label="内设机构情况"
+      :label-col="itemLayout.labelCol" 
+      :wrapper-col="itemLayout.wrapperCol"
+      :required="true"
+      >
+      <a-table 
+        :rowKey="generateRowKey"
+        :columns="columns" 
+        :dataSource="propValue" 
+        :pagination="false"
+        >
+        <template slot="operation" slot-scope="text,row,index">
+          <a style="margin-left: 10px;" @click="onRemoveItem(text,row,index)">删除</a>
+        </template>
+      </a-table>
+      <a-button @click="onAddItem" type="dashed" style="width: 100%;margin: 6px 0;">
+        <a-icon type="plus"/> 添加
+      </a-button>
+    </a-form-item>
+    <a-modal
+      title="内设机构情况"
+      v-model="visible"
+      :width="800"
+      @ok="onItemSubmit"
+      >
+      <a-form :form="itemForm">
+        <a-form-item 
+          label="内设机构名称"
+          :label-col="{ span: 6 }" 
+          :wrapper-col="{ span: 12 }"
+          >
+          <a-input
+            v-decorator="['name', 
+              { rules: [{ required: true, message: '请输入内设机构名称'}]
+            }]"
+          />
+        </a-form-item>
+        <a-form-item 
+          label="是否综合性"
+          :label-col="{ span: 6 }" 
+          :wrapper-col="{ span: 12 }"
+          >
+          <a-input
+            v-decorator="['synthesis', 
+              { rules: [{ required: true, message: '请输入是否综合性'}]
+            }]"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import { Form, Table, Button, Icon, Modal, Input } from "ant-design-vue";
+import set from 'lodash/set';
+import { showError } from "@/framework/utils/index";
+export default {
+  props: {
+    itemLayout: {
+      type: Object
+    }
+  },
+  components: {
+    ATable: Table,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AButton: Button,
+    AIcon: Icon,
+    AModal: Modal,
+    AInput: Input
+  },
+  data() {
+    return {
+      columns: [
+        { title: '序号', customRender: index => index, width: '10%' },
+        { title: '内设机构名称', dataIndex: 'name', width: '30%' },
+        { title: '是否综合性', dataIndex: 'synthesis', width: '30%' },
+        { title: '操作', scopedSlots: { customRender: "operation" }, width: '30%' }
+      ],
+      propValue: [],
+      visible: false
+    };
+  },
+  watch: {},
+  computed: {},
+  beforeCreate() {
+    this.itemForm = this.$form.createForm(this);
+  },
+  created() {},
+  mounted() {},
+  methods: {
+    validateField(obj) {
+      set(obj, "internalOrg", this.propValue || []);
+      return Promise.resolve();
+    },
+    generateRowKey() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    },
+    onAddItem() {
+      this.visible = true;
+    },
+    onRemoveItem(text, row, index) {
+      this.propValue.splice(index, 1);
+    },
+    onItemSubmit() {
+      this.itemForm.validateFields()
+      .then((res) => {
+        this.propValue.push(res);
+        this.visible = false;
+      })
+      .catch(err => {
+        showError({message: '表单验证失败，请检查表单数据'});
+      })
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+</style>

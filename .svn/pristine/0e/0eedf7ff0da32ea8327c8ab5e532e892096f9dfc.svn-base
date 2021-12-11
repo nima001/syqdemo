@@ -1,0 +1,128 @@
+<!-- 服务接入申请步骤条 -->
+<template>
+  <div class="layout">
+    <div class="content">
+      <div class="top">
+        <span class="name">{{$route.query.code}}</span>
+        <span class="back" @click="back">返回</span>
+      </div>
+      <div class="middle">
+        <a-steps :current="current" labelPlacement="vertical" type="navigation" size="small">
+          <a-step title="选择接口" description />
+          <a-step title="完成" description />
+        </a-steps>
+        <a-divider />
+      </div>
+      <div class="bottom">
+        <ServiceActionApply
+          v-show="current == 0"
+          ref="actioninfo"
+          :allow="true"
+          @changeCurrent="changeCurrent"
+        />
+        <serviceApplySuccess v-if="current == 1" />
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Steps, Divider, Icon } from "ant-design-vue";
+import ServiceActionApply from "./components/ServiceActionApply";
+import ServiceApplySuccess from "./components/ServiceApplySuccess";
+import { apiModify } from "@/dev/api/service";
+import { showError } from "@/framework/utils";
+export default {
+  data() {
+    return {
+      current: 0
+    };
+  },
+  components: {
+    ASteps: Steps,
+    AStep: Steps.Step,
+    ADivider: Divider,
+    AIcon: Icon,
+    ServiceActionApply,
+    ServiceApplySuccess,
+  },
+  methods: {
+    //改变步骤条
+    changeCurrent(value) {
+      if (!this.hasPermit("/dev/manage/service/modify")) {
+        this.$notification.success({
+          message: "提示",
+          description: "不具备修改应用接入权限",
+          duration: 1.5
+        });
+        return;
+      }
+      let data = {
+        apiIdList: this.$refs.actioninfo.selectedRowKeys,
+        appId: this.$route.query.appid,
+        serviceId: this.$route.query.serviceId,
+        desc: this.$refs.actioninfo.desc
+      };
+      apiModify(data)
+        .then(res => {
+          this.current += value;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    back() {
+      this.$router.history.go(-1);
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  padding: @layout-space-base;
+  .content {
+    width: 100%;
+    height: 100%;
+    background: @white;
+    display: flex;
+    flex-direction: column;
+    .top {
+      display: flex;
+      justify-content: space-between;
+      padding: @content-padding-v @content-padding-h;
+      .name {
+        font-size: 18px;
+        font-weight: bold;
+      }
+      .back {
+        color: @primary-color;
+        cursor: pointer;
+      }
+    }
+    .middle {
+      .ant-steps-navigation {
+        padding: 0px;
+      }
+    }
+    .bottom {
+      padding-bottom: @content-padding-v;
+      overflow-y: auto;
+    }
+  }
+}
+/deep/ .ant-steps-item-tail {
+  width: 0%;
+}
+.ant-steps-navigation .ant-steps-item.ant-steps-item-active::before {
+  left: 25%;
+  width: 50%;
+}
+.ant-divider-horizontal {
+  margin-top: 0;
+  margin-bottom: 25px;
+}
+.ant-steps-navigation {
+  padding-top: 15px;
+}
+</style>

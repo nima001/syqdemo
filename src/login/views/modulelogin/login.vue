@@ -1,0 +1,358 @@
+<template>
+  <div class="main">
+    <div class="bgc">
+      <img class="img" src="@/login/assets/img/login-new-bg.png" />
+    </div>
+    <div class="login-content">
+      <div class="login-header">
+        <div class="logo-end">
+          <div class="logo-big">
+            <img class="img" src="@/login/assets/img/login-new-logo.png" />
+          </div>
+          <span class="login-title">IDM用户账号管理系统</span>
+        </div>
+      </div>
+      <div class="login-wrap">
+        <div class="wrap-left">
+          <img class="img" src="@/login/assets/img/login-new-index.png" />
+        </div>
+        <div class="wrap-right">
+          <div class="wrap-title">账户登录</div>
+          <template>
+            <a-form layout="horizontal" :form="form" @submit="handleSubmit">
+              <a-form-item
+                :validate-status="userNameError() ? 'error' : ''"
+                :help="userNameError() || ''"
+              >
+                <a-input
+                  v-decorator="[
+                    'loginname',
+                    {rules: [{ required: true, message: '请输入用户名或手机号!' }]}
+                  ]"
+                  placeholder="用户名/手机号码"
+                ></a-input>
+              </a-form-item>
+              <a-form-item
+                :validate-status="passwordError() ? 'error' : ''"
+                :help="passwordError() || ''"
+              >
+                <a-input
+                    v-decorator="[
+                        'password',
+                        {rules: [{ required: true, message: '请输入密码!' }]}
+                    ]"
+                  type="password" placeholder="密码"
+                ></a-input>
+              </a-form-item>
+              <a-row :gutter='12' v-if="needCode">
+                  <a-col :span='18'>
+                    <a-form-item                 
+                        :validate-status="randcodeError() ? 'error' : ''"
+                        :help="randcodeError() || ''"
+                >
+                        <a-input
+                            v-decorator="[
+                                'randCode',
+                                {rules: [{ required: true, message: '请输入验证码!' }]}
+                            ]"
+                        placeholder="验证码"
+                        ></a-input>
+                    </a-form-item>
+                  </a-col>
+                  <a-col :span='6'>
+                      <a-form-item>
+                          <div class="code" @click="changeCode">
+                              <a>
+                                  <img :src="code">
+                              </a>
+                          </div>
+                      </a-form-item>
+                  </a-col>
+              </a-row>
+
+              <a-form-item>
+                <a-button type="primary" html-type="submit" :disabled="hasErrors(form.getFieldsError())" block class="login-btn">登录</a-button>
+              </a-form-item>
+              <div class="active">账户激活</div>
+              <div class="forget" @click="forgotPassword">忘记密码?</div>
+            </a-form>
+          </template>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Form, Input, Button,Row,Col } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+import JSEncrypt from 'jsencrypt';
+import {login,getPublicKey,getCode,isNeedCode} from "@/login/api/login";
+import { getCookie, setCookie} from '@/framework/utils/auth'
+import Bus from '@/framework/utils/EventBus'
+function hasErrors(fieldsError) {
+  return Object.keys(fieldsError).some(field => fieldsError[field]);
+}
+export default {
+  data() {
+    return {
+      hasErrors,
+      form: this.$form.createForm(this),
+      // RSA加密公钥
+      publicKey:undefined,
+      // 验证码
+      code : getCode(1) + Math.random(),
+      // 是否需要验证码
+      needCode : false
+    };
+  },
+  components: {
+    AInput: Input,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AButton: Button,
+    ARow:Row,
+    ACol:Col
+  },
+  computed: {
+    uiConfigs(){
+      return this.$store.getters.config;
+    },
+    homePage(){
+      return this.uiConfigs['home.page'] || 'idm/index';
+    }
+  },
+  mounted() {
+    this.inItFn()
+  },
+  methods: {
+    inItFn(){
+        this.$nextTick(() => {
+            this.form.validateFields();
+        });
+
+        getPublicKey().then(res=>{
+            this.publicKey = res.result;
+        }).catch(err=>{
+            showError(err);
+        });
+
+        isNeedCode().then(res=>{
+            this.needCode = res.result;
+        }).catch(err=>{
+            showError(err);
+        });
+    },
+    userNameError() {
+      const { getFieldError, isFieldTouched } = this.form;
+      return isFieldTouched("loginname") && getFieldError("loginname");
+    },
+    passwordError() {
+      const { getFieldError, isFieldTouched } = this.form;
+      return isFieldTouched("password") && getFieldError("password");
+    },
+    randcodeError(){
+      const { getFieldError, isFieldTouched } = this.form;
+      return isFieldTouched("randCode") && getFieldError("randCode");
+    },
+    changeCode(){
+        this.code = getCode(1) + Math.random()
+    },
+    onLoginSuccess({result}) {
+      Bus.$emit("afterLoginnew", result);
+      let redirect = new URLSearchParams(window.location.search).get('redirect');
+      if(redirect){
+        this.$router.push(redirect);
+      }else{
+        window.location.replace(process.env.BASE_URL + this.homePage);
+      }
+    },
+    handleSubmit(e) {
+        let that = this;
+        e.preventDefault();
+        this.form.validateFields((err, values) => {
+            if (!err) {
+                let enCrypt = new JSEncrypt();
+                enCrypt.setPublicKey(this.publicKey);
+                let params = Object.assign({},values,{password:enCrypt.encrypt(values.password)})
+                let verifyData = {
+                  verifyModel: 1,
+                  verifyUid : getCookie('uuid')
+                }
+                if(this.needCode){
+                  params = Object.assign({},params,verifyData)
+                }
+                login(params).then(res=>{
+                    this.onLoginSuccess(res);
+                }).catch(err=>{
+                  if(false == this.needCode){
+                    isNeedCode().then(res=>{
+                      this.needCode = res.result;
+                    }).catch(err=>{
+                      showError(err);
+                    });
+                  } else {
+                    this.changeCode();
+                  }
+                  showError(err);
+                });
+            }
+        });
+    },
+    forgotPassword() {
+      this.$router.push('/idm/resetpassword');
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.main {
+  width: 100%;
+  height: 100%;
+  .bgc {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      to bottom,
+      @primary-color 49%,
+      @login-bg-gradient
+    );
+    .img {
+      width: 100%;
+      height: 100%;
+    }
+  }
+  .login-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    text-align: center;
+    .login-header {
+      position: relative;
+      width: 100%;
+      height: 82px;
+      padding: 18px 80px;
+      .login-icon {
+        width: 35px;
+        height: 50px;
+        overflow: hidden;
+        float: left;
+        .img {
+          width: 100%;
+          height: 100%;
+        }
+      }
+      .logo-end {
+        position: absolute;
+        top: 40px;
+        left: 90px;
+        display: flex;
+        align-items: center;
+        .logo-big {
+          width: 60px;
+          height: 60px;
+          img {
+            max-width: 100%;
+            width: 100%;
+            height: 100%;
+          }
+        }
+        .login-title {
+          float: left;
+          height: 60px;
+          line-height: 60px;
+          font-size: 36px;
+          font-weight: bold;
+          color: @white;
+          margin-left: 15px;
+          /*text-shadow: 0px 0px 8px #000;*/
+        }
+      }
+    }
+
+    .login-wrap {
+      z-index: 5;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      align-items: center;
+      transform: translate(-50%, -50%);
+      width: 1000px;
+      height: 400px;
+      .wrap-left {
+        margin: 50px 0;
+        width: 350px;
+        height: 350px;
+        float: left;
+        .img {
+          width: 100%;
+          height: 100%;
+        }
+      }
+      .wrap-right {
+        width: 380px;
+        height: 400px;
+        padding: 45px 40px 0px;
+        background: @white;
+        float: right;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        .active {
+          color: #0e6ddb;
+          float: left;
+          font-size: 12px;
+          cursor: pointer;
+          line-height: 1.8em;
+        }
+        .forget {
+          color: #0e6ddb;
+          float: right;
+          font-size: 12px;
+          cursor: pointer;
+          line-height: 1.8em;
+        }
+        .wrap-title {
+          height: 30px;
+          text-align: center;
+          color: rgba(0, 0, 0, 0.85);
+          font-size: 18px;
+          letter-spacing: 2px;
+          line-height: 30px;
+          font-weight: 500;
+          margin-bottom: 15px;
+        }
+        /deep/ .ant-form-explain {
+          text-align: left;
+        }
+        .code{
+            cursor: pointer;
+            a{
+                img{
+                    width: 100%;
+                }
+            }
+        }
+        .login-btn {
+          background-color: #0e6ddb;
+          color: @white;
+          height: 35px;
+          border: 1px solid #0E6DDB;
+        }
+      }
+    }
+  }
+  .login-background {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    height: 240px;
+    background: @white;
+    .img-background {
+      width: 100%;
+      height: 100%;
+    }
+  }
+}
+</style>

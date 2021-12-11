@@ -1,0 +1,19 @@
+<template>
+  <a-select v-model="propValue" v-bind="property.attrs"/>
+</template>
+<script>
+import { Select } from 'ant-design-vue'
+import PropMixin from './PropMixin'
+
+export default {
+  components: {
+    ASelect: Select,
+  },
+  mixins: [PropMixin],
+}
+</script>
+<style lang="less" scoped>
+.ant-select{
+  width: 100%;
+}
+</style>

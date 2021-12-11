@@ -1,0 +1,50 @@
+<template>
+  <div class="common-business">
+    <div class="business">
+      <div class="business-item" v-for="(msg, index) in businessList" :key="index">
+        <div class="icon"></div>
+        <div class="name"></div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {},
+  components: {},
+  data() {
+    return {
+      businessList: [
+        { name: '人员花名册' },
+        { name: '人员花名册' },
+        { name: '人员花名册' },
+        { name: '人员花名册' },
+        { name: '人员花名册' },
+        { name: '人员花名册' },
+      ]
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.common-business{
+  .business{
+    padding: @padding-lg;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    .business-item{
+      width: 120px;
+      height: 120px;
+      background-color: rgb(243, 247, 250);
+      // background-color: @primary-1;
+    }
+  }
+}
+</style>

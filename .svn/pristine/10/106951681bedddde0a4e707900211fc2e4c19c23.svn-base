@@ -1,0 +1,62 @@
+<template>
+  <div class="container">
+    <a-input-number v-model="data1" @change="handleChange" style="width:50%;float:left;"/>
+    <div style="width:50%;padding-left:10px;float:left;">
+      <a-input-number v-model="data2" @change="handleChangeTwo" style="width:100%"/>
+    </div>
+  </div>
+</template>
+<script>
+import { InputNumber } from "ant-design-vue";
+export default {
+  name: "TypeThree",
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  data() {
+    return {
+      data1: undefined,
+      data2: undefined,
+    };
+  },
+  components:{
+    AInputNumber: InputNumber
+  },
+  created(){
+    if(Array.isArray(this.defaultData.value)){
+      this.data1 = this.defaultData.value[0];
+      this.data2 = this.defaultData.value[1];
+    }else{
+      this.date1 = this.defaultData.value;
+    }
+  },
+  methods: {
+    handleChange() {
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value: [this.data1, this.data2]
+      });
+    },
+    handleChangeTwo(e) {
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value: [this.data1, this.data2]
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  width: 320px;
+}
+</style>

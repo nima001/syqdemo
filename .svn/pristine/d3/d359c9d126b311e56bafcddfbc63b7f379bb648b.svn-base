@@ -1,0 +1,68 @@
+<template>
+  <div class="container">
+    <div class="body">
+      <!-- <div class="left">
+        <AssessList />
+      </div>
+      <div class="right">
+        <Statistics />
+      </div> -->
+      <div class="cover" @click="()=>$router.push('/person/screen/assessment/detail')">
+        
+      </div>
+      <div class="back" @click="()=>$router.go(-1)">
+        
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import AssessList from "./AssessList";
+import Statistics from "./Statistics";
+export default {
+  components: {
+    AssessList,
+    Statistics,
+  },
+  data() {
+    return {};
+  },
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .body {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    background: url('../../../assets/img/screen/assess-list.png') no-repeat;
+    background-size: 100% 100%;position: relative;
+    .left {
+      width: 50%;
+      margin-right: 20px;
+    }
+    .right {
+      width: 30%;
+      margin-left: 20px;
+    }
+    .cover {
+      position: absolute;
+      top: 15%;
+      left: 9%;
+      width: 785px;
+      height: 555px;
+    }
+    .back {
+      position: absolute;
+      bottom: 11px;
+      right: 36%;
+      width: 250px;
+      height: 50px;
+    }
+  }
+}
+</style>

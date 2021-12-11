@@ -1,0 +1,104 @@
+<template>
+  <div>
+    <ul>
+      <li
+        v-for="item in district"
+        :key="item.key"
+        @click="active(item)"
+        :class="{ active: checkActive(item), disabled: loading }"
+      >
+        {{ item.text }}
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+import { cloneDeep } from 'lodash';
+export default {
+  props: {
+    currValArrs: {
+      //地区选中数组
+      type: Array,
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    }
+  },
+  data() {
+    return {
+      currValArr: [],
+    };
+  },
+  computed: {
+    district() {
+      return this.$store.getters.dict("usermanage.org.district");
+    },
+  },
+  watch: {
+    currValArrs(val) {
+      this.currValArr = val;
+      return val;
+    }
+  },
+  methods: {
+    active(item) {
+      if(!this.loading) {
+        if (this.currValArr.indexOf(item) === -1) {
+          // 当前数组中没有该值则push到数组
+          this.currValArr.push(item);
+        } else {
+          //当前数组中有该值，找到该值下标并删除
+          this.currValArr.splice(this.currValArr.indexOf(item), 1);
+        }
+        this.$emit('update:currValArrs',this.currValArr);
+      }
+    },
+    checkActive(item) {
+      return this.currValArr.indexOf(item) !== -1;
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+ul {
+  max-height: 165px;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  li {
+    user-select:none;
+    transition: all .3s;
+    height: 25px !important;
+    line-height: 0.5;
+    cursor: pointer;
+    margin: 0 8px 8px 0;
+    border: 1px dashed rgb(221, 221, 221);
+    border-radius: @border-radius-base;
+    padding: @padding-xs;
+  }
+  li.active {
+    color: #ffffff;
+    background-color: @primary-color;
+    border: 1px solid @primary-color;
+  }
+  li.disabled{
+    color: rgba(0, 0, 0, 0.35);
+    background-color: #f5f5f5;
+    border-color: #d9d9d9;
+    cursor: not-allowed;
+  }
+}
+/deep/.ant-form {
+    height: 100%;
+    position: relative;
+    .ant-form-item:last-child {
+        position: absolute;
+        bottom: 0;
+        left: @padding-xs;
+        right: @padding-xs;
+    }
+}
+</style>

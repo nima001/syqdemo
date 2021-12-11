@@ -1,0 +1,109 @@
+<template>
+  <div class="container">
+    <a-input-group compact>
+      <a-select v-model="input.type" :showArrow="false">
+        <a-select-option value="">值</a-select-option>
+        <a-select-option value="$"><custom-icon type="fx"/></a-select-option>
+        <a-select-option value="#"><custom-icon color="#f39c2b" type="fx"/></a-select-option>
+      </a-select>
+        <a-input :value="_value" v-if="input.type" read-only @click="showExprEditor = true"/>
+      <dict-select v-else
+        v-model="input.value"
+        @change="onchange"
+        :dict="key" 
+        :multiple="true"
+        :allowClear="true"
+      />
+    </a-input-group>
+    <equation-editor v-if="showExprEditor" :selfFields='contextFields' :fnData="input.value" namespace="query" @finish="onEditExper"/>
+  </div>
+</template>
+<script>
+import DictSelect from "@/framework/components/DictSelect";
+import { Input, Select } from "ant-design-vue";
+import CustomIcon from "@/framework/components/CustomIcon";
+import cloneDeep from "lodash/cloneDeep";
+// 字段数组(in/nin)
+export default {
+  name:"DictArray",
+  components: {
+    DictSelect,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    CustomIcon,
+    EquationEditor:() => import('@person/components/EquationEditor/index')
+  },
+  inject:['contextFields'],
+  props: {
+    value: {
+      // type: Object,
+    },
+    criterion: {
+      type: Object,
+    }
+  },
+  data() {
+    return {
+      input: this.initInput(this.value),
+      oldValue: undefined,
+      showExprEditor: false,
+    };
+  },
+  computed: {
+    key() {
+      return this.criterion.field.datasource;
+    },
+    _value(){
+      let {type, value} = this.input;
+      if(type && value){
+        return type + '{' + value + '}';;
+      }else{
+        return value;
+      }
+    }
+  },
+  watch:{
+    'input.type'(vt, ovt){
+      if(!ovt != !vt){
+        let v = this.oldValue;
+        this.oldValue = this.input.value;
+        this.input.value = v;
+      }
+    },
+    _value(value){
+      this.$emit('input', value);
+    },
+  },
+  methods: {
+    onchange(v) {
+      this.$emit('input', cloneDeep(v));
+    },
+    initInput(v){
+      if(typeof(v) == 'string'){
+        if(v.startsWith('${') && v.endsWith('}')){
+          return { type: '$', value: v.substring(2, v.length-1) };
+        }else if(v.startsWith('#{') && v.endsWith('}')){
+          return { type: '#', value: v.substring(2, v.length-1) };
+        }
+      }
+      return { type: '', value: v};
+    },
+    onEditExper(type, data){
+      this.showExprEditor = false;
+      if (type == "ok") {
+        this.input.value = data;
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  min-width: 300px;
+  .ant-input-group-compact{
+    display: flex;
+  }
+}
+</style>

@@ -1,0 +1,24 @@
+
+/**
+ * 账号管理模块路由
+ */
+// import { component } from 'vue/types/umd'
+import Layout from '../../views/Layout'
+
+export const indexRoutes = {
+    path: '/idm',
+    component: Layout,
+    redirect: '/idm/index',
+    children: [
+        {
+            path: 'index',
+            component: () => import('../../views/home/index.vue'),
+            name: 'Index',
+        },
+        {
+            path: 'setorgmanager',
+            component: () => import('../../views/home/components/SetOrgManager'),
+            name: 'setOrgManager',     
+        }
+    ]
+}

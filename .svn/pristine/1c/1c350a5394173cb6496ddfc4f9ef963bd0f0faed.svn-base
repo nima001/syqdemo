@@ -1,0 +1,193 @@
+<template>
+  <a-spin :spinning="spin" class="spin">
+    <div class="add-report">
+      <a-form class="report-form" :form="form">
+        <a-form-item 
+          label="评估内容"
+          :required="true" 
+          :label-col="formLayout.labelCol" 
+          :wrapper-col="formLayout.wrapperCol"
+          :validateStatus="validateStatus"
+          >
+          <a-select
+            :value="content"
+            mode="multiple"
+            @change="onChangeOpt"
+            :open="open"
+            @focus="open = true"
+            @blur="open = false"
+            >
+            <div slot="dropdownRender" slot-scope="menu">
+              <v-nodes :vnodes="menu" />
+              <a-divider style="margin: 4px 0;" />
+              <div
+                style="padding: 4px 8px; cursor: pointer;display: flex;justify-content: flex-end;"
+                @mousedown="e => e.preventDefault()"
+              >
+                <a-button @click="getItems" style="margin-right: 10px;" type="primary">确定</a-button>
+              </div>
+            </div>
+            <a-select-opt-group v-for="(item, i) in configData" :key="i">
+              <span slot="label">{{item.title}}</span>
+              <a-select-option
+                v-for="(opt, j) in item.item"
+                :key="j"
+                :value="opt.id"
+                >
+                {{opt.content}}
+              </a-select-option>
+            </a-select-opt-group>
+          </a-select>
+        </a-form-item>
+        <form-group ref="formGroup" :formLayout="formLayout" :props="props" :itemParams="params">
+        </form-group>
+      </a-form>
+    </div>
+  </a-spin>
+</template>
+<script>
+import { Form, Select, Spin, Divider, Button } from "ant-design-vue";
+import FormGroup from './FormGroup';
+import { listConfig, reportInput } from "@/person-shaoxing/api/assessment";
+import { showError } from '../../../../../framework/utils';
+import { getPops, items, loadData } from './contentItems';
+let index = 0;
+export default {
+  name: 'addReport',
+  props: {
+    spin: Boolean
+  },
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ASelectOptGroup: Select.OptGroup,
+    ASpin: Spin,
+    FormGroup,
+    ADivider: Divider,
+    AButton: Button,
+    VNodes: {
+      functional: true,
+      render: (h, ctx) => ctx.props.vnodes,
+    }
+  },
+  data() {
+    return {
+      configData: [],
+      orgvisible: false,
+      content: [],
+      validateStatus: undefined,
+      formLayout: {
+        labelCol: { span: 6 },
+        wrapperCol: { span: 14 },
+      },
+      itemArr: [],
+      open: false,
+      itemParams: {}
+    }
+  },
+  computed: {
+    props: {
+      get() {
+        return getPops(this.itemArr)
+      },
+      set() {
+        return getPops(this.itemArr)
+      }
+    },
+    params: {
+      get() {
+        return this.itemParams
+      },
+      set() {
+        return this.itemParams
+      }
+    }
+  },
+  beforeCreate() {
+    this.form = this.$form.createForm(this);
+  },
+  created() {
+    this.getData();
+  },
+  methods: {
+    getData() {
+      listConfig()
+      .then(({result}) => {
+        this.configData = result;
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    onChangeOpt(value) {
+      this.content = value;
+    },
+    deleteContent() {
+      this.content = [];
+    },
+    getItems() {
+      if (this.content.length > 0) {
+        let ids = this.content.join(',');
+        reportInput(ids)
+        .then(({result}) => {
+          this.itemArr = result;
+          this.open = false;
+        })
+        .catch(err => {
+          showError(err);
+        })
+      } else {
+        this.$notification.warning({
+          message: "提示",
+          description: "请选择评估项",
+          duration: 3
+        });
+      }
+    },
+    getFormValue(){
+      return new Promise((resolve, reject) => {
+        if(this.content) {
+          let obj = {};
+          this.validateStatus = 'success';
+          this.$refs.formGroup.validateFields(obj)
+          .then(res => { 
+            resolve({
+              target: obj,
+              content: this.content,
+              itemArr: this.itemArr
+            });
+          })
+          .catch(err => {
+            resolve(false);
+            showError({code:'form_validate_fail', message: err})
+          });
+        }else{
+          this.validateStatus = 'error';
+          showError({code:'form_validate_fail', message: '请选择评估内容'});
+        }
+      })
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.spin{
+  height: 100%;
+  /deep/.ant-spin-container{
+    height: 100%;
+    .add-report{
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      .report-form{
+        flex: auto;
+        min-height: 0;
+        overflow: auto;
+        padding: @content-padding-v @content-padding-h;
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,25 @@
+/**
+ * 用户中心路由
+ */
+import Layout from '../../views/Layout'
+export const userCenter = {
+  path: '/dev/user',
+  component: Layout,
+  redirect: '/dev/user/index',
+  children: [
+    {
+      path: 'index',
+      component: () => import('@/dev/views/UserCenter'),
+      name:'user',
+      meta: { access: 'login' }
+    },
+    // {
+    //   path: 'create',
+    //   component: () => import('@/dev/views/app/AppAdd'),
+    //   meta: {
+    //     path: [{ name: '应用中心', path: '/dev/manage/index' },{ name: '创建应用', path: '/dev/manage/create' }],
+    //     access: 'auth'
+    //   }
+    // }
+  ]
+}

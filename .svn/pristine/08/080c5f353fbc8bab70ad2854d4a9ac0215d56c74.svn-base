@@ -1,0 +1,385 @@
+<template>
+  <div class="content">
+    <div class="addAndSearch">
+      <div>
+        <a-button type="primary" @click="add()">新增</a-button>
+      </div>
+      <div>
+        <a-input-search
+          placeholder="输入模板名称搜索"
+          enter-button="搜索"
+          @search="onSearch"
+        />
+      </div>
+    </div>
+    <div class="table">
+      <div class="tableBody">
+        <table width="100%">
+          <thead>
+            <tr>
+              <th width="3%"></th>
+              <th width="5%">序号</th>
+              <th width="25%">模板名称</th>
+              <th width="13%">分类</th>
+              <th width="13%">主题</th>
+              <th width="13%">范围类型</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <draggable
+            :force-fallback="false"
+            v-model="analyzeData"
+            :animation="200"
+            :delay="20"
+            handle=".icon"
+            element="tbody"
+            :move="getdata"
+            ghostClass="ghostClass"
+            @update="datadragEnd"
+          >
+            <tr v-for="(item,index) in analyzeData" :key="item.id">
+              <td>
+                <a-icon type="unordered-list" class="icon" v-show="showIcon"/>
+              </td>
+              <td>
+                <span>{{ item.index }}</span>
+              </td>
+              <td>{{ item.name }}</td>
+              <td>
+                <span>{{ text[index].datatypeText }}</span>
+              </td>
+              <td>{{ text[index].subjectText }}</td>
+              <td>{{ text[index].scopetypeText }}</td>
+              <td class="action">
+                <span>
+                  <a href="javascript:;" @click="edit(item)">编辑</a>
+                </span>
+                <span>
+                  <a href="javascript:;" @click="push(scopepath, item.id)"
+                    >分析范围管理</a
+                  >
+                </span>
+                <span>
+                  <a @click="push(contentpath, item.id)">分析内容管理</a>
+                </span>
+                <span @click="onDelete(item.id)">
+                  <a href="javascript:;">删除</a>
+                </span>
+              </td>
+            </tr>
+          </draggable>
+        </table>
+          <div class="empty" v-show="showEmpty">
+            <div class="emptyContent">
+              <Empty-data/>
+            </div>
+          </div>
+      </div>
+      <a-modal
+        :width="800"
+        :centered="true"
+        v-model="visible"
+        title="新增/编辑"
+        @ok="handleOk"
+      >
+        <a-form
+          :form="this.form"
+          :style="{ width: '752px', padding: '8px 24px' }"
+        >
+          <a-form-item label="模板名称">
+            <a-input
+              v-decorator="[
+                'name',
+                { rules: [{ required: true, message: '请输入模板名称!' }] },
+              ]"
+            />
+          </a-form-item>
+          <a-form-item label="分类">
+            <dictselect
+              v-decorator="[
+                'type',
+                { rules: [{ required: true, message: '请选择分类!' }] },
+              ]"
+              :dict="'analyze.report.analyzetype'"
+            />
+          </a-form-item>
+          <a-form-item label="主题">
+            <dictselect
+              v-decorator="[
+                'subject',
+                { rules: [{ required: true, message: '请选择主题!' }] },
+              ]"
+              :dict="'analyze.report.analyzesubject'"
+            />
+          </a-form-item>
+          <a-form-item label="类型">
+            <dictselect
+              v-decorator="[
+                'scopetype',
+                { rules: [{ required: true, message: '请选择类型!' }] },
+              ]"
+              :dict="'analyze.report.analyzescopetype'"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </div>
+  </div>
+</template>
+<script>
+import {
+  Button,
+  InputSearch,
+  Table,
+  Icon,
+  Modal,
+  Form,
+  Input,
+  Select,
+} from "ant-design-vue";
+import EmptyData from '@/framework/components/EmptyData'
+import dictselect from "@/framework/components/DictSelect";
+import draggable from "vuedraggable";
+export default {
+  components: {
+    AButton: Button,
+    ATable: Table,
+    AIcon: Icon,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    AInputSearch: Input.Search,
+    ASelect: Select,
+    dictselect,
+    draggable,
+    EmptyData,
+  },
+  props: {
+    data: {
+      type: Array,
+    },
+  },
+  data() {
+    return {
+      visible: false,
+      id: undefined,
+      beforeid: 0,
+      analyzeData: [],
+      scopepath: "scope",
+      contentpath: "content",
+      showIcon: true,
+      showEmpty: false,
+      form: this.$form.createForm(this, { name: "analyzeForm" }),
+    };
+  },
+  computed:{
+    text(){
+      if(this.analyzeData){
+        this.analyzeData.forEach((item) => {
+          let datatypes = this.$store.getters.dictKey("analyze.report.analyzetype", item.type);
+          if(datatypes){
+            item.datatypeText = datatypes.text;
+          }else{
+            item.datatypeText = "";
+          }
+          let subjects = this.$store.getters.dictKey("analyze.report.analyzesubject", item.subject);
+          if(subjects){
+            item.subjectText = subjects.text;
+          }else{
+            item.subjectText = "";
+          }
+          let scopetypes = this.$store.getters.dictKey("analyze.report.analyzescopetype", item.scopetype);
+          if(scopetypes){
+            item.scopetypeText = scopetypes.text;
+          }else{
+            item.scopetypeText = "";
+          }
+        });
+        return this.analyzeData;
+      }
+    }
+  },
+  watch: {
+    data(newVal, oldVal) {
+      this.analyzeData = newVal;
+      if(this.analyzeData == ''){
+        this.showEmpty=true;
+      }else{
+        this.showEmpty=false;
+      }
+    },
+  },
+  methods: {
+    //拖动中
+    getdata(event) {
+      this.beforeid = event.draggedContext.element.id; //获取源变更元素id
+    },
+    //排序拖动结束
+    datadragEnd(event) {
+      let where = 0;
+      let afterid = 0;
+      if (event.oldIndex < event.newIndex) {
+        //更新后索引增大，往下,newxIndex和oldIndex从0开始
+        where = -1; //代表移动到目标元素的下方
+        afterid = this.getidbyIndex(Number(event.newIndex - 1)); //寻找目标id
+        this.sort({ from: this.beforeid, to: afterid, where: where }); //调用排序方法
+      } else if (event.oldIndex > event.newIndex) {
+        //更新后索引变小，往上
+        where = 1; //代表移动到目标元素的上方
+        afterid = this.getidbyIndex(Number(event.newIndex + 1)); //寻找目标id
+        this.sort({ from: this.beforeid, to: afterid, where: where }); //调用排序方法
+      } else {
+        where = 0; //位置不变
+      }
+    },
+    getidbyIndex(index) {
+      return this.analyzeData[index].id;
+    },
+    sort(data) {
+      this.$emit("sort", data);
+    },
+    //新增按钮点击事件
+    add() {
+      this.id = 0;
+      this.showModal();
+      this.$nextTick(() => {
+        this.form.resetFields();
+      });
+    },
+    //删除,实际应该调用接口
+    onDelete(id) {
+      let that = this;
+      this.$confirm({
+        title: "删除该分析项?",
+        okText: "确定",
+        cancelText: "取消",
+        onOk() {
+          that.$emit("delete", id);
+        },
+        onCancel() {},
+      });
+    },
+    //查询
+    onSearch(value) {
+      if (value) {
+        this.showIcon = false;
+      } else {
+        this.showIcon = true;
+      }
+      this.$emit("search", value);
+    },
+    //编辑按钮点击事件
+    edit(item) {
+      this.id = item.id;
+      this.showModal();
+      this.$nextTick(() => {
+        this.form.setFieldsValue({
+          name: item.name,
+          type: item.type,
+          subject: item.subject,
+          scopetype: item.scopetype,
+        });
+      });
+    },
+    push(path, id) {
+      this.$router.push({ path: path, query: { id: id } });
+    },
+    showModal() {
+      this.visible = true;
+    },
+    //确定
+    handleOk(e) {
+      e.preventDefault();
+      //验证输入
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          //输入正确
+          this.$emit("save", {
+            name: values.name,
+            scopetype: values.scopetype,
+            subject: values.subject,
+            type: values.type,
+            id: this.id,
+          });
+          //重置所有组件
+          this.form.resetFields();
+          this.visible = false;
+        }
+      });
+    },
+  },
+};
+</script>
+
+<style lang="less" scoped>
+.content {
+  height: 100%;
+  padding: @content-padding-v 0;
+  background-color: @white;
+  .addAndSearch {
+    display: flex;
+    justify-content: space-between;
+    padding: @content-padding-v @content-padding-h;
+  }
+  .action {
+    & a:not(:nth-child(4)) {
+      margin-right: 15px;
+      color: @primary-color;
+    }
+  }
+  .table {
+    padding: @content-padding-v 0;
+    & .empty{
+      padding: @content-padding-v 0;
+      & .emptyContent{
+        padding: @padding-lg;
+        border-bottom: 1px solid #e8e8e8;
+      }
+    }
+    & table {
+      table-layout: fixed;
+      & thead {
+        background-color: rgb(250, 250, 250);
+        border-bottom: 1px solid #e8e8e8;
+      }
+      & tr {
+        border-bottom: 1px solid #e8e8e8;
+        transition: background-color 0.4s ease;
+        th:not(:last-child),
+        td:not(:last-child) {
+          padding: 6px 6px;
+        }
+        td,
+        th {
+          text-align: left;
+          word-break: keep-all; /* 不换行 */
+          white-space: nowrap; /* 不换行 */
+          overflow: hidden; /* 内容超出宽度时隐藏超出部分的内容 */
+          text-overflow: ellipsis; /* 当对象内文本溢出时显示省略标记(...) ；需与overflow:hidden;一起使用。*/
+        }
+      }
+      & tbody {
+        tr:hover {
+          background-color: @primary-1;
+        }
+        .icon {
+          margin-right: 2%;
+        }
+        .icon:hover {
+          cursor: move;
+          color: @primary-color;
+        }
+      }
+    }
+    .tableBody {
+      height: 500px;
+      overflow-y: auto;
+      padding: 0 @content-padding-h;
+    }
+  }
+  .ghostClass {
+    opacity: 0;
+  }
+}
+</style>

@@ -1,0 +1,138 @@
+<template>
+  <div>
+    <dialog-box 
+      v-model="show"
+      :title="'政法专项编制待分配编制数'"
+    >
+      <div class="table">
+        <div class="header">
+          <span>人员姓名</span>
+          <span>出生年月</span>
+          <span>所在单位</span>
+          <span>毕业院校</span>
+        </div>
+        <div class="body">
+          <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+            <li>4</li>
+          </ul>
+          <ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+            <li>4</li>
+          </ul><ul>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+            <li>4</li>
+          </ul>
+        </div>
+      </div>
+      <div class="pagination">
+        <div class="prev">
+            <img src="../../../assets/img/screen/page-prev.png">
+        </div>
+        <div>
+            <span class="current">1</span>
+            <span>/</span>
+            <span>1</span>
+        </div>
+        <div class="next">
+            <img src="../../../assets/img/screen/page-next.png">
+        </div>
+      </div>
+    </dialog-box>
+  </div>
+</template>
+<script>
+import DialogBox from '../components/DialogBox'
+
+export default {
+  components: {
+    DialogBox,
+  },
+  props: {
+    value: Boolean,
+  },
+  data(){
+    return {
+      show: this.value,
+    }
+  },
+  computed: {
+  },
+  watch: {
+    value(value){
+      this.show = value;
+    },
+    show(show){
+      this.$emit('input', show);
+    },
+  },
+  methods: {
+    
+  }
+}
+</script>
+<style lang="less" scoped>
+.table {
+  height: 100%;
+  padding: 40px 55px;
+  color: #fff;
+  .header {
+    padding: @layout-space-base;
+    margin-bottom: @layout-space-base;
+    display: flex;
+    justify-content: space-evenly;
+    // background: url('../../../assets/img/screen/top-adorn.png') no-repeat;
+    background-size: cover;
+    position: relative;
+    &::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      background: fade(#151326, 80%);
+      z-index: -1;
+    }
+  }
+  .body {
+    color: fade(#fff, 80%);
+    ul {
+      padding: @layout-space-base;
+      margin: 0;
+      display: flex;
+      justify-content: space-evenly;
+      &:nth-child(2n-1) {
+        background: #151E32;
+      }
+      li {
+        width: 60px;
+      }
+    }
+  }
+  .pagination {
+    width: 120px;
+    padding: @padding-xs @padding-lg;
+    margin: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: @border-radius-base;
+    color: fade(#fff, 80%);
+    background: fade(#000, 30%);
+    .current {
+        color: #fff;
+    }
+    .prev, .next {
+        margin: 0 16px;
+        cursor: pointer;
+    }
+  }
+}
+</style>

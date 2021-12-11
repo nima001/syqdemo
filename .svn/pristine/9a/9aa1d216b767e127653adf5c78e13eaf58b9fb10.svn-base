@@ -1,0 +1,216 @@
+<template>
+  <div class="form-panel">
+    <div class="top">
+      <div class="card" v-for="(item, index) in list" :key="index">
+        <Card :src="src[index]" :title="item['title']" :num="item['num']" ></Card>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="title">
+        <span>问题清单</span>
+        <a class="icon"><img src="../../../assets/img/icon_more.png" alt=""></a>
+      </div>
+      <div class="bottom_table">
+        <a-table
+          class="antd-table-con"
+          :rowKey="Math.random().toString(16).substring(2)"
+          :columns="columns"
+          :dataSource="dataSource"
+          :rowSelection="rowSelection"
+          :pagination="false"
+        >
+          <span class="operation" slot="operation">
+            <a> 加入黑名单 </a>
+            <a> 加入暂缓 </a>
+            <a><img src="../../../assets/img/icon_report_blue.png" alt="" /></a>
+          </span>
+          <span class="handlestatus" slot="handlestatus">
+            <img src="../../../assets/img/icon_suc.png" alt="" />
+          </span>
+        </a-table>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Table } from "ant-design-vue";
+import Card from "@/person-shaoxing/views/orgStaffReport/components/Card";
+
+/**
+ * 周转编制数监测
+ */
+export default {
+  components: {
+    ATable: Table,
+    Card,
+  },
+  props: {
+    district: {
+      type: String,
+    },
+  },
+  data() {
+    return {
+      list: [
+        { id: 0, title: "行政编制现存问题数", num: 123 },
+        { id: 1, title: "暂缓解决问题数量", num: 34 },
+        { id: 2, title: "已处理问题", num: 465 },
+        { id: 3, title: "未处理问题", num: 45 },
+        { id: 4, title: "黑名单机构数量", num: 78 },
+      ],
+      src: [
+        "icon_report_blue",
+        "icon_report_hourgalass",
+        "icon_report_smile",
+        "icon_report_info",
+        "icon_report_page",
+      ],
+      columns: [
+        { title: "类别", dataIndex: "businesstype", width: "10%" },
+        { title: "相关部门", dataIndex: "orgname", width: "15%" },
+        { title: "问题或异动情况描述", dataIndex: "description", width: "40%" },
+        { title: "发现时间", dataIndex: "discovertime", width: "7.5%" },
+        {
+          title: "状态",
+          scopedSlots: { customRender: "handlestatus" },
+          width: "7.5%",
+        },
+        {
+          title: "操作",
+          scopedSlots: { customRender: "operation" },
+          width: "20%",
+        },
+      ],
+      dataSource: [
+        {
+          key: "1",
+          businesstype: "登记管理类",
+          orgname: "新昌县文化中心",
+          description:
+            "存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，",
+          discovertime: "2020-12-15",
+        },
+        {
+          key: "1",
+          businesstype: "登记管理类",
+          orgname: "新昌县文化中心",
+          description:
+            "存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，",
+          discovertime: "2020-12-15",
+        },
+        {
+          key: "1",
+          businesstype: "登记管理类",
+          orgname: "新昌县文化中心",
+          description:
+            "存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，",
+          discovertime: "2020-12-15",
+        },
+        {
+          key: "1",
+          businesstype: "登记管理类",
+          orgname: "新昌县文化中心",
+          description:
+            "存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，",
+          discovertime: "2020-12-15",
+        },
+        {
+          key: "1",
+          businesstype: "登记管理类",
+          orgname: "新昌县文化中心",
+          description:
+            "存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，",
+          discovertime: "2020-12-15",
+        },
+        {
+          key: "1",
+          businesstype: "登记管理类",
+          orgname: "新昌县文化中心",
+          description:
+            "存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，",
+          discovertime: "2020-12-15",
+        },
+        {
+          key: "1",
+          businesstype: "登记管理类",
+          orgname: "新昌县文化中心",
+          description:
+            "存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，存在双人法人情况，",
+          discovertime: "2020-12-15",
+        },
+      ],
+      rowSelection: {
+        onChange: (selectedRowKeys, selectedRows) => {
+          this.selectedRows = selectedRows;
+          this.selectedRowKeys = selectedRowKeys;
+        },
+      },
+    };
+  },
+  computed: {},
+  watch: {},
+  created() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.form-panel {
+  padding: @content-padding-v @content-padding-h;
+  .top {
+    display: flex;
+    padding: 15px 0 24px 0;
+    justify-content: space-between;
+  }
+  .bottom {
+    padding: 24px 0 10px 0;
+    .title {
+      font-weight: bold;
+      line-height: 30px;
+      margin-bottom: 30px;
+      .icon{
+        float: right;
+      }
+    }
+    .antd-table-con {
+      /deep/table {
+        table-layout: fixed;
+        thead {
+          tr {
+            th {
+              color: @text-color-secondary;
+            }
+          }
+        }
+        td,
+        th {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          a {
+            color: @text-color;
+          }
+        }
+      }
+      .operation {
+        a {
+          margin-right: 15px;
+          img {
+            width: 22px;
+            height: 22px;
+          }
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
+      .handlestatus {
+        img {
+          margin-left: 5px;
+          width: 22px;
+          height: 22px;
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,190 @@
+<template>
+  <div style="padding: 16px 24px">
+    <div class="select">
+      <a-input-search
+      :style="{width:'250px'}"
+        enter-button
+        placeholder="请输入人员名称"
+        @search="searchKeyworlds"
+      />
+    </div>
+
+    <a-table
+      :rowSelection="rowSelection"
+      :columns="columns"
+      :dataSource="data"
+      :pagination="false"
+      :customRow="addTemplate"
+      :loading="loading"
+    ></a-table>
+
+    <div class="bottom">
+      <a-pagination
+        v-if="data.length > 0"
+        :total="total"
+        :showSizeChanger="true"
+        @showSizeChange="onShowSizeChange"
+        :page-size="pagesize"
+        v-model="pagenum"
+        @change="onPageChange"
+        :showTotal="(total) => `总共：${total}条`"
+      ></a-pagination>
+    </div>
+  </div>
+</template>
+<script>
+import { userquery } from "@/hall/api/usermanage";
+import { Table, Input, Pagination } from "ant-design-vue";
+import { showError } from "@framework/utils";
+import { mixins } from "@/hall/mixin/index";
+export default {
+  data() {
+    return {
+      total: 0,
+      pagesize: 10,
+      pagenum: 1,
+      columns: [
+        {
+          title: "姓名",
+          dataIndex: "username",
+        },
+        {
+          title: "所属组织",
+          dataIndex: "orgname",
+        },
+        {
+          title: "职位",
+          dataIndex: "windowposition",
+          customRender: this.dictRender("usermanage.user.windowposition")
+        },
+        {
+          title: "政治面貌",
+          dataIndex: "politicsface",
+          customRender: this.dictRender("usermanage.user.politicsface")
+        },
+        {
+          title: "是否考核",
+          dataIndex: "isneedassess",
+          customRender: this.dictRender("usermanage.user.yesorno")
+        },
+        {
+          title: "是否考勤",
+          dataIndex: "isneedcheck",
+          customRender: this.dictRender("usermanage.user.yesorno")
+        },
+        {
+          title: "电话",
+          dataIndex: "contactway",
+        },
+      ],
+      data: [],
+      searchkey: "",
+      loading: true,
+      selectedRowKeys: [],
+      searchkey: "",
+    };
+  },
+  components: {
+    ATable: Table,
+    AInputSearch: Input.Search,
+    APagination: Pagination,
+  },
+  mounted() {
+    this.getData(this.nodeData);
+  },
+  mixins: [mixins],
+  computed: {
+    rowSelection() {
+      const { selectedRowKeys } = this;
+      return {
+        onChange: (selectedRowKeys, selectedRows) => {
+          this.selectedRowKeys = selectedRowKeys;
+        },
+        selectedRowKeys: selectedRowKeys,
+      };
+    },
+  },
+  methods: {
+    dictRender(key, attr) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    addTemplate(record, index) {
+      return {
+        on: {
+          click: () => {
+            this.detail(record._id);
+          },
+        },
+      };
+    },
+    searchKeyworlds(searchkey) {
+      this.searchkey = searchkey;
+      this.pagenum = 1;
+      this.getData(this.nodeData);
+    },
+    getData(nodeData) {
+      this.loading = true;
+      const data = {
+        needtotal: true,
+        pagenum: this.pagenum,
+        pagesize: this.pagesize,
+        searchkey: this.searchkey,
+        nodeid: nodeData ? nodeData.id : "",
+      };
+      userquery(data)
+        .then((res) => {
+          this.loading = false;
+          if (res.code == "success") {
+            this.pagesize = res.result.pagesize;
+            this.total = res.result.total;
+            this.pagenum = res.result.pagenum;
+            let data = res.result.rows;
+            data.forEach(function (x, y) {
+              x.key = y;
+              x.orgname = x.org.name;
+            });
+            this.data = data;
+          }
+        })
+        .catch((error) => {
+          this.loading = false;
+          showError(error);
+        });
+    },
+    //pagenum切换
+    onPageChange(page, pageSize) {
+      this.getData(this.nodeData);
+    },
+    //pagesize切换
+    onShowSizeChange(current, size) {
+      (this.pagesize = size), (this.pagenum = 1);
+      this.getData(this.nodeData);
+    },
+    detail(id) {
+      this.$router.push({
+        path: "/hall/usermanage/userinfo",
+        query: { userid: id },
+      });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.select {
+  // float: right;
+  display: flex;
+  flex-direction: row-reverse;
+  margin-bottom: 12px;
+}
+.bottom {
+  padding: @content-padding-v @content-padding-h;
+  .ant-pagination {
+    margin-top: 10px;
+    text-align: right;
+  }
+}
+</style>

@@ -1,0 +1,155 @@
+<template>
+  <div class="distrist-map" ref="contaner">
+    <a class="location" @click="onBack">{{distrist.title}}</a>
+    <component v-if="mapStyle" 
+      :is="`Map${distrist.adcode}`" 
+      class="map"
+      :selected="selected"
+      @select="onAreaSelect" 
+      @enter="onAreaEnter"
+      :style="mapStyle"
+    />
+    <component v-if="overlay" 
+      :is="`Map${overlay.adcode}`" 
+      class="overlay" 
+      :style="overlay.style"
+    />
+  </div>
+</template>
+<script>
+import Map330000 from '../map/Map330000'
+import Map330100 from '../map/Map330100'
+import Map330200 from '../map/Map330200'
+import Map330300 from '../map/Map330300'
+import Map330400 from '../map/Map330400'
+import Map330500 from '../map/Map330500'
+import Map330600 from '../map/Map330600'
+import Map330700 from '../map/Map330700'
+import Map330800 from '../map/Map330800'
+import Map330900 from '../map/Map330900'
+import Map331000 from '../map/Map331000'
+import Map331100 from '../map/Map331100'
+
+export default {
+  components: {
+    Map330000,
+    Map330100,
+    Map330200,
+    Map330300,
+    Map330400,
+    Map330500,
+    Map330600,
+    Map330700,
+    Map330800,
+    Map330900,
+    Map331000,
+    Map331100,
+  },
+  data(){
+    return {
+      mapStyle: {},
+      path: [{ adcode : '330000', title: '浙江省'}],
+      selected: '330000',
+      overlay: undefined
+    }
+  },
+  created(){
+    //
+  },
+  computed: {
+    distrist(){
+      return this.path[this.path.length-1];
+    },
+  },
+  methods: {
+    onBack(){
+      this.selected = this.distrist.adcode;
+      this.$emit('select', this.distrist);
+      if(this.path.length > 1){
+        this.path.pop();
+      }
+    },
+    onAreaEnter({ adcode, title, elem, event }){
+      if(this.distrist.adcode == '330000'){//当前是浙江省可双击进入
+        const contaner = this.$refs.contaner;
+        const cRect = contaner.getBoundingClientRect();
+        const rect = elem.getBoundingClientRect();
+        const cScale = cRect.width / contaner.offsetWidth;
+        const offsetX = (cRect.x + cRect.width/2 - (rect.x + rect.width/2)) / cScale, 
+              offsetY = (cRect.y + cRect.height/2 - (rect.y + rect.height/2)) / cScale;
+        const scale = Math.min(cRect.width/rect.width, cRect.height/rect.height);
+        //过渡前的状态
+        //1.切换的区域缩放到指定位置
+        this.mapStyle = {
+          transform: `translate(${-offsetX}px, ${-offsetY}px) scale(${1/scale})`,
+        }
+        //2.设置切换前的地图为遮照图层
+        this.overlay = { 
+          adcode: this.distrist.adcode, 
+          style: {
+            //以选择的区域的中心点为原点进行变换
+            transformOrigin: `${(rect.x + rect.width/2 - cRect.x)/cScale}px ${(rect.y + rect.height/2 - cRect.y)/cScale}px`
+          }
+        };
+        //过渡样式
+        this.$nextTick(() => {
+          this.mapStyle = {};
+          this.overlay.style = {
+            transform: `scale(${scale}) translate(${offsetX}px, ${offsetY}px)`,
+            opacity: 0,
+          }
+        });
+        //800毫秒后过渡完成删除遮照图层
+        setTimeout(() => {
+          this.overlay = undefined;
+        }, 800)
+        this.path.push({ adcode, title });
+        this.selected = this.distrist.adcode;
+        this.$emit('select', this.distrist);
+      }
+    },
+    onAreaSelect({ adcode, title, elem, event }){
+      this.selected = adcode;
+      this.$emit('select', {adcode, title});
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+@keyframes areaBoundaryfadeIn{
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.distrist-map{
+  height: 450px;
+  position: relative;
+  overflow: hidden;
+  .location{
+    position: absolute;
+    top: 0;
+    padding: 40px 5px 5px;
+    background: url('../../../assets/img/screen/map-location.png') center top no-repeat;
+    color: rgba(255, 255, 255, .8);
+    font-size: 16px;
+    &:hover{
+      color: #fff;  
+    }
+  }
+  /deep/.map{
+    width: 100%;
+    height: 100%;
+    transition: all .8s cubic-bezier(.075,.82,.165,1);
+    & > g, & > text{
+      animation: areaBoundaryfadeIn .8s linear;// cubic-bezier(0.29, 0.10, 0.69, 0.26) 1,
+    }
+  }
+  .overlay{
+    position: absolute;
+    top: 0px;
+    left: 0px;
+    width: 100%;
+    height: 100%;
+    transition: all .8s cubic-bezier(.075,.82,.165,1), opacity .8s cubic-bezier(.06,.7,.23,1);
+  }
+}
+</style>

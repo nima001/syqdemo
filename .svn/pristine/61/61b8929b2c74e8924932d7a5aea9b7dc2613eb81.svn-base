@@ -1,0 +1,478 @@
+<template>
+  <div>
+    <Title title="职务层次分布"/>
+    <div class="container">
+      <SwiperChart :nextBtn="{zIndex: 999}">
+        <div slot="content">
+          <div class="header">
+            <div class="title">
+              <span></span>
+              <span>行政核定</span>
+            </div>
+            <div class="title">
+              <span></span>
+              <span>行政实有</span>
+            </div>
+          </div>
+          <div class="pro-content">
+            <div class="detail xz">
+              <span>厅级局正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.xzbmtjjzzhds,xzhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmtjjzzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.xzbmtjjzzsys,xzsysMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmtjjzzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail xz">
+              <span>县处级正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.xzbmxcjzzhds,xzhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmxcjzzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.xzbmxcjzzsys,xzsysMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmxcjzzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail xz">
+              <span>厅级局副职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.xzbmtjjfzhds,xzhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmtjjfzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.xzbmtjjfzsys,xzsysMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmtjjfzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail xz">
+              <span>县处级副职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.xzbmxcjfzhds,xzhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmxcjfzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.xzbmxcjfzsys,xzsysMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmxcjfzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail xz">
+              <span>乡科级正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.xzbmxkjzzhds,xzhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmxkjzzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.xzbmxkjzzsys,xzsysMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmxkjzzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail xz">
+              <span>股级正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.xzbmgjzzhds,xzhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmgjzzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.xzbmgjzzsys,xzsysMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmgjzzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail xz">
+              <span>乡科级副职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.xzbmxkjfzhds,xzhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmxkjfzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.xzbmxkjfzsys,xzsysMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmxkjfzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail xz">
+              <span>股级副职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.xzbmgjfzhds,xzhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmgjfzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.xzbmgjfzsys,xzsysMax)">
+                  <template #format="percent">
+                    <span>{{ data.xzbmgjfzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div slot="content">
+          <div class="header">
+            <div class="title">
+              <span></span>
+              <span>事业核定</span>
+            </div>
+            <div class="title">
+              <span></span>
+              <span>事业实有</span>
+            </div>
+          </div>
+          <div class="pro-content">
+            <div class="detail sy">
+              <span>厅级局正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.sydwtjjzzhds,syhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwtjjzzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.sydwtjjzzsys,sysysMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwtjjzzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail sy">
+              <span>县处级正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.sydwxcjzzhds,syhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwxcjzzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.sydwxcjzzsys,sysysMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwxcjzzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail sy">
+              <span>厅级局副职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.sydwtjjfzhds,syhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwtjjfzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.sydwtjjfzsys,sysysMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwtjjfzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail sy">
+              <span>县处级副职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.sydwxcjfzhds,syhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwxcjfzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.sydwxcjfzsys,sysysMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwxcjfzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail sy">
+              <span>乡科级正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.sydwxkjzzhds,syhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwxkjzzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.sydwxkjzzsys,sysysMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwxkjzzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail sy">
+              <span>股级正职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.sydwgjzzhds,syhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwgjzzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.sydwgjzzsys,sysysMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwgjzzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail sy">
+              <span>乡科级副职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.sydwxkjfzhds,syhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwxkjfzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.sydwxkjfzsys,sysysMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwxkjfzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+            <div class="detail sy">
+              <span>股级副职</span>
+              <div class="progress">
+                <a-progress :strokeColor="{'0%': '#9B28FF','100%': '#EF9EF8'}" :percent="getPercent(data.sydwgjfzhds,syhdsMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwgjfzhds }}</span>
+                  </template>
+                </a-progress>
+                <a-progress :strokeColor="{'0%': '#F98F60','100%': '#E34C2D'}" :percent="getPercent(data.sydwgjfzsys,sysysMax)">
+                  <template #format="percent">
+                    <span>{{ data.sydwgjfzsys }}</span>
+                  </template>
+                </a-progress>
+              </div>
+            </div>
+          </div>
+        </div>
+      </SwiperChart>
+    </div>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+import SwiperChart from './SwiperChart'
+import { Progress } from 'ant-design-vue';
+import { includes, forIn } from 'lodash';
+import { areaStatistics } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '../../../../framework/utils';
+
+export default {
+  props: {
+    districtCode: {
+      type: String
+    }
+  },
+  components: {
+    Title,
+    AProgress: Progress,
+    SwiperChart
+  },
+  data() {
+    return {
+      data: {},
+    }
+  },
+  watch: {
+    districtCode(val) {
+      this.loadData(val);
+      return val;
+    }
+  },
+  computed: {
+    //行政核定数最大值
+    xzhdsMax() {
+      let max = this.getMax(['xzbm', 'hds']);
+      return max;
+    },
+    //行政实有数最大值
+    xzsysMax() {
+      let max = this.getMax(['xzbm', 'sys']);
+      return max;
+    },
+    //事业核定数最大值
+    syhdsMax() {
+      let max = this.getMax(['sydw', 'hds']);
+      return max;
+    },
+    //事业实有数最大值
+    sysysMax() {
+      let max = this.getMax(['sydw', 'sys']);
+      return max;
+    }
+  },
+  mounted() {
+    if(this.districtCode) {
+      this.loadData(this.districtCode);
+    }
+  },
+  methods: {
+    getPercent(num,total) {
+      return (num/total)*100;
+    },
+    getMax(conditions) {
+      let max = 0;
+      forIn(this.data, (value, key)=>{
+        if(includes(key, conditions[0])&&includes(key, conditions[1])) {
+          if(value>max) {
+            max = value;
+          }
+        }
+      });
+      return max;
+    },
+    loadData(district){
+      areaStatistics(district, [
+        'xzbmtjjzzhds', 'xzbmtjjzzsys', 
+        'xzbmxcjzzhds', 'xzbmxcjzzsys',
+        'xzbmxkjzzhds', 'xzbmxkjzzsys',
+        'xzbmgjzzhds', 'xzbmgjzzsys',
+        'xzbmtjjfzhds', 'xzbmtjjfzsys',
+        'xzbmxcjfzhds', 'xzbmxcjfzsys',
+        'xzbmxkjfzhds', 'xzbmxkjfzsys',
+        'xzbmgjfzhds', 'xzbmgjfzsys',
+        'sydwtjjzzhds', 'sydwtjjzzsys',
+        'sydwxcjzzhds', 'sydwxcjzzsys',
+        'sydwxkjzzhds', 'sydwxkjzzsys',
+        'sydwgjzzhds', 'sydwgjzzsys',
+        'sydwtjjfzhds', 'sydwtjjfzsys',
+        'sydwxcjfzhds', 'sydwxcjfzsys',
+        'sydwxkjfzhds', 'sydwxkjfzsys',
+        'sydwgjfzhds', 'sydwgjfzsys',
+      ]).then(({result}) => {
+        this.data = result;
+      }).catch(error => {
+        showError(error)
+      });
+    },
+  }
+}
+</script>
+
+<style scoped lang="less">
+.container {
+  width: 500px;
+  height:259px;
+  /deep/.ant-carousel {
+    display: flex;
+    justify-content: center;
+    .slick-slider {
+      width: 476px;
+      padding: 0 @layout-space-base;
+      .slick-slide {
+        padding: @layout-space-base 0;
+        background: fade(#000, 30%);
+      }
+    }
+  }
+  z-index: 999;
+  .header {
+    // width: 456px;
+    // margin: auto;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    .title {
+      display: flex;
+      align-items: center;
+      color: #707070;
+      font-weight: bold;
+      &:nth-child(2) {
+        span:first-child {
+          background: #F88D5F;
+        }
+      }
+      span:first-child {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        margin-right: @padding-xs;
+        display: inline-block;
+        background: #ED9BF8;
+      }
+      span {
+        &:last-child {
+          margin-right: @padding-lg;
+        }
+      }
+    }
+  }
+  .pro-content {
+    // padding: @padding-xs @padding-md;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    .detail {
+      width: 40%;
+      // margin: 0 10px;
+      // margin-left: 10px;
+      // margin-bottom: @padding-xs/2;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      &:nth-child(2n-1) {
+        margin-right: @padding-lg;
+      }
+      span {
+        // flex: 1;
+        text-align: left;
+        // margin-right: @layout-space-base;
+        color: fade(#ffffff, 60%);
+      }
+      .progress {
+        width: 55%;
+        /deep/.ant-progress-outer {
+          .ant-progress-inner {
+            padding: 2.5px @padding-xs/2;  
+            // border-radius: @border-radius-base;
+            background: fade(#39486A, 94%);
+            & .ant-progress-bg {
+              height: 5px !important;
+              border-radius: 0 !important;
+            }
+          }
+        }
+      }
+      // &.xz {
+      //   /deep/.progress .ant-progress-outer .ant-progress-inner {
+      //     background: fade( #83EBFC, 20%);
+      //   }
+      // }
+      // &.sy {
+      //   /deep/.progress .ant-progress-outer .ant-progress-inner {
+      //     background: fade( #E34C2D, 20%);
+      //   }
+      // }
+    }
+  }
+}
+
+</style>

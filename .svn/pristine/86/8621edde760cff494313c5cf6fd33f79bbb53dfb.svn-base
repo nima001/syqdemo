@@ -1,0 +1,113 @@
+<template>
+  <svg class="icon" aria-hidden="true">
+    <use :xlink:href="`#${iconName}`" />
+  </svg>
+</template>
+<script>
+const req = require.context('../assets/icons', false, /\.svg$/);
+req.keys().map(req);
+
+/**
+ * 组织/用户等自定义SVG图标（可通过服务端配置,见前端配置custom.icon）
+ * 使用方式：将svg图标放入assets/icons文件夹下，type指定文件名即可（图标的映射关系可通过服务端配置修改）
+ */
+export default {
+  name: "CustomIcon",
+  props: {
+    type: {//图标类型
+      type: String,
+    },
+    object: {//匹配的对象（例如：type=user(用户) object为用户对象，根据用户信息在用户图标配置中匹配图标）
+      type: Object
+    },
+  },
+  data() {
+    return {
+      defaultConfig: {
+        user: {
+          usertype: {
+            '1': {
+              identitytype: {
+                '1': 'user-gong',
+                '2': 'user-qin',
+                '3': 'user-can',
+                '4': 'user-shi',
+                '11': 'user-yuan',
+                '13': 'user-guo'
+              }
+            },
+            '2': 'user-wai',
+            '3': 'user-gu',
+          },
+          _default: 'user'
+        },
+        org: {
+          orgtype: {
+            '3': 'org-yu'
+          },
+          unittype: {
+            '1': 'org-xing',
+            '2': 'org-can',
+            '3': 'org-shi',
+            '5': 'org-xing',
+            '9': 'org-nei',
+            '20': 'org-zhen',
+            '21': 'org-jie',
+            '22': 'org-she',
+            '23': 'org-cun',
+            '24': 'org-gang'
+          },
+          _default: 'org'
+        },
+      },
+    };
+  },
+  computed:{
+    config(){
+      let c = this.$store.getters.getConfig('custom.icon')
+      if(c){
+        try{
+          return JSON.parse(c);
+        }catch(e){
+          //ignore
+        }
+      }
+      return this.defaultConfig;
+    },
+    iconName(){ 
+      return this.getIcon(this.type, this.object, this.config) || this.type;
+    },
+  },
+  methods: {
+    getIcon(key, obj = {}, config){
+      let c = config[key + ''];
+      let icon;
+      if(typeof(c) == 'string'){
+        icon = c;
+      }else if(c){
+        for(let name in c){
+          if(name == '_default'){
+            icon = c[name];
+            continue;
+          }
+          let i = this.getIcon(obj[name], obj, c[name]);
+          if(i){//未找到继续找下一个
+            icon = i;
+            break
+          }
+        }
+      }
+      // return icon || config['_default'];//奇数层（属性值层）的_default不支持
+      return icon;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.icon {
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: -0.28em;
+  fill: currentColor;
+}
+</style>

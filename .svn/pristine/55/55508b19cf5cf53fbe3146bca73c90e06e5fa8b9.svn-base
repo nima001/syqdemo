@@ -1,0 +1,81 @@
+import DataSet from '@antv/data-set';
+import { foldValueCols } from './index'
+
+export default {
+	icon: 'chart-pie',
+  	props: {
+	  data: {// 数据
+      type: Object,
+    },
+    settings: {// 配置
+      type: Object,
+      default: () => ({})
+    },
+	},
+	data() {
+		return {
+			changeData: [],
+			plot: undefined,
+		}
+	},
+	computed: {
+		title(){
+			let { title, context = {}} = this.settings;
+			if(title){
+				for(let key in context){
+					title = title.replace(new RegExp('\\$\\{' + key + '\\}', 'g'), context[key]);
+				}
+			}
+			return title;
+		},
+		subtitle() {
+			let { subtitle, context = {}} = this.settings;
+			if(subtitle){
+				for(let key in context){
+					subtitle = subtitle.replace(new RegExp('\\$\\{' + key + '\\}', 'g'), context[key]);
+				}
+			}
+			return subtitle;
+		},
+		muitl(){
+			if(this.data){
+			  let { keyCols, valueCols, rows } = this.data;
+			  return valueCols.length > 1 || keyCols.length > 1;
+			}
+		}
+	},
+	methods: {
+		transform(table){
+			let { keyCols, valueCols, rows } = table;
+			let cs = foldValueCols(valueCols);
+			if(cs.length > 1){
+				let fields = [], map = {};
+				cs.forEach(item => {
+					fields.push(item.column);
+					map[item.column] = item.showname;
+				})
+				const dv = new DataSet.DataView().source(rows);
+				dv.transform({
+					type: 'fold',
+					fields,
+					key: 'col',
+					value: 'value',
+				});
+				dv.transform({
+					type: 'map',
+					callback: (row) => {
+						row.col = map[row.col];
+						return row;
+					},
+				});
+				rows = dv.rows;
+				keyCols = [...keyCols, { column: 'col' }],
+				valueCols = [{ column: 'value' }];
+				return {
+					keyCols, valueCols, rows
+				}
+			}
+			return table;
+		}
+	},
+}

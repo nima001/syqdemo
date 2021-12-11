@@ -1,0 +1,128 @@
+<template>
+  <div>
+    <a-modal 
+      :visible="value"
+      :footer="null"
+      :width="1200"
+      :centered="true"
+      :closable="false"
+      :destroyOnClose="destroyOnClose"
+      @cancel="onCancel"
+      :bodyStyle="{padding: 0}"
+    >
+      <div class="adorn-corner top-left"></div>
+      <div class="adorn-corner top-right"></div>
+      <div class="dialog-body">
+        <div class="adorn-border"></div>
+        <div class="title">{{title}}</div>
+        <slot/>
+        <div class="adorn-border"></div>
+      </div>
+      <div class="adorn-corner bottom-left"></div>
+      <div class="adorn-corner bottom-right"></div>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Modal, Button, Icon } from "ant-design-vue";
+
+//对话框
+export default {
+  components: {
+    AModal: Modal,
+    AButton: Button,
+    AIcon: Icon,
+  },
+  props: {
+    value: Boolean,
+    title: String,
+    destroyOnClose: {
+      type: Boolean,
+      default: true,
+    },
+  },
+  methods: {
+    onCancel(){
+      this.$emit('input', false);
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.adorn-corner{
+  width: 56px;
+  height: 36px;
+  position: absolute;
+  background: transparent;
+  z-index: 1;
+  &.top-left{
+    left: -1px;
+    background: url('../../../assets/img/screen/modal-top-left-adorn.png') no-repeat;
+  }
+  &.top-right{
+    right: -1px;
+    background: url('../../../assets/img/screen/modal-top-right-adorn.png') no-repeat;
+    background-position: 97% 0;
+  }
+  &.bottom-left{
+    left: -1px;
+    bottom: 0;
+    background: url('../../../assets/img/screen/modal-bottom-left-adorn.png') no-repeat;
+    background-position: 8% 102%;
+  }
+  &.bottom-right{
+    right: -1px;
+    bottom: 0;
+    background: url('../../../assets/img/screen/modal-bottom-right-adorn.png') no-repeat;
+    background-position: 109% 100%;
+  }
+}
+.adorn-border{
+  height: 12px;
+}
+.dialog-body{
+  clip-path: polygon(24px 0%, calc(~'100% - 24px') 0%, 100% 36px, 100% calc(~'100% - 36px'), calc(~'100% - 25px') 100%, 55px 104%, 0% calc(~'100% - 36px'), 0% 36px);
+  border: 1px solid #91A9FF;
+  background: linear-gradient(to bottom, #000, #1B2E61);
+  .title{
+    padding: 0 40px;
+    color: fade(white, 80%);
+    text-align: left;
+    font-weight: bold;
+    font-size: 1.4em;
+    letter-spacing: 4px;
+  }
+}
+  /deep/ .ant-modal-content{
+    height: 620px;
+    overflow: hidden;
+    // background: url('../../../assets/img/screen/modal-bg.png') no-repeat;
+    background: transparent;
+    background-size: 100%;
+    .dialog-body, .ant-modal-body {
+      height: 100%;
+      position: relative;
+      &:before {
+        content: '';
+        width: 98%;
+        height: 10%;
+        position: absolute;
+        top: 18px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: url('../../../assets/img/screen/modal-head-bg.png') no-repeat;
+        background-size: 100%;
+      }
+      &:after {
+        content: '';
+        width: 100%;
+        height: 10%;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        background: url('../../../assets/img/screen/modal-bottom-bg.png') no-repeat;
+        background-size: 97%;
+      }
+    }
+  }
+</style>

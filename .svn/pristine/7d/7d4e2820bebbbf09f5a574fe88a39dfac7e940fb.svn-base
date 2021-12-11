@@ -1,0 +1,79 @@
+<template>
+  <div class="circleChat">
+    <div ref="chart"></div>
+  </div>
+</template>
+
+<script>
+import { Chart } from "@antv/g2";
+export default {
+  data() {
+    return {
+      list: [
+        { item: "正常打卡比例", count: 40, percent: 0.4 },
+        { item: "未打卡人次比例", count: 21, percent: 0.21 },
+        { item: "早退人次比例", count: 17, percent: 0.17 },
+        { item: "迟到人次比例", count: 13, percent: 0.13 },
+        { item: "事例五", count: 9, percent: 0.09 }
+      ]
+    };
+  },
+  mounted() {
+    this.draw();
+  },
+  methods: {
+    draw() {
+      const chart = new Chart({
+        container: this.$refs.chart,
+        autoFit: true
+      });
+      chart.data(this.list);
+      chart.scale("percent", {
+        formatter: val => {
+          val = val * 100 + "%";
+          return val;
+        }
+      });
+      chart.coordinate("theta", {
+        radius: 0.75,
+        innerRadius: 0.6
+      });
+      chart.tooltip({
+        showTitle: false,
+        showMarkers: false,
+        itemTpl:
+          '<li class="g2-tooltip-list-item"><span style="background-color:{color};" class="g2-tooltip-marker"></span>{name}: {value}</li>'
+      });
+      chart
+        .interval()
+        .adjust("stack")
+        .position("percent")
+        .color("item")
+        .label("percent", percent => {
+          return {
+            content: data => {
+              return `${data.item}: ${percent * 100}%`;
+            }
+          };
+        })
+        .tooltip("item*percent", (item, percent) => {
+          percent = percent * 100 + "%";
+          return {
+            name: item,
+            value: percent
+          };
+        });
+      chart.legend({ position: "right" });
+      chart.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.circleChat {
+  height: 285px;
+  div {
+    height: 100%;
+  }
+}
+</style>

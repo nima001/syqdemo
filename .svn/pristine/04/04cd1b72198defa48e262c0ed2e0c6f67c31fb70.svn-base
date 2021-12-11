@@ -1,0 +1,25 @@
+<template>
+  <div class="screen-header">
+    <div class="title">湖州市党政机构编制运行质效评估系统</div>
+  </div>
+</template>
+<script>
+export default {
+
+}
+</script>
+<style lang="less" scoped>
+.screen-header{
+  height: 72px;
+  // background: linear-gradient(90deg, rgba(0, 0, 0, 0.3) 0%, rgba(84, 84, 84, 0) 100%);
+  background: fade(#fff, 20%);
+  .title{
+    margin-left: 40px;
+    font-size: 26px;
+    font-weight: bold;
+    line-height: 72px;
+    color: #FFFFFF;
+    letter-spacing: 6px;
+  }
+}
+</style>

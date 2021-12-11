@@ -1,0 +1,110 @@
+<template>
+  <div class="bar">
+    <a-spin :spinning="loading">
+      <div class="bar" ref="chart"></div>
+    </a-spin>
+  </div>
+</template>
+<script>
+import { Spin } from "ant-design-vue";
+import { mixins } from "../../minxin/index";
+import { Chart } from "@antv/g2";
+export default {
+  components: {
+    ASpin: Spin
+  },
+  props: {
+    loading: {
+      type: Boolean
+    },
+    list: {
+      type: Array,
+      required: true,
+      default: () => {
+        return [];
+      }
+    }
+  },
+  data() {
+    return {
+      plot: undefined
+    };
+  },
+  mixins: [mixins],
+  watch: {
+    list: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true
+    }
+  },
+  methods: {
+    draw(list) {
+      if (!this.$refs.chart) {
+        return false;
+      }
+      const chart = new Chart({
+        container: this.$refs.chart,
+        autoFit: true
+      });
+      chart.data(list);
+      chart.scale("value", {
+        alias: "人数(位)"
+      });
+      chart.axis("time", {
+        tickLine: null
+      });
+      chart.axis("value", {
+        label: {
+          formatter: text => {
+            return text.replace(/(\d)(?=(?:\d{3})+$)/g, "$1,");
+          }
+        },
+        title: {
+          offset: 80,
+          style: {
+            fill: "#aaaaaa"
+          }
+        }
+      });
+      chart.legend({
+        position: "top"
+      });
+
+      chart.tooltip({
+        shared: true,
+        showMarkers: false
+      });
+      chart.interaction("active-region");
+      chart
+        .interval()
+        .adjust("stack")
+        .position("time*value")
+        .color("type", this.chartColor);
+      chart.render();
+      this.plot = chart;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.bar {
+  height: 350px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /deep/ .ant-spin-nested-loading {
+    width: 100%;
+    height: 100%;
+    .ant-spin-container {
+      width: 100%;
+      height: 100%;
+      .bar {
+        width: 100%;
+        height: 100%;
+      }
+    }
+  }
+}
+</style>

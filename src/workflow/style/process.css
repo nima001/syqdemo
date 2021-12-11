@@ -1,0 +1,20 @@
+.processwrap {
+    height: 100%;
+}
+
+.processwrap .ant-layout-header {
+    height: auto;
+    padding: 0;
+    background-color: #fff;
+}
+
+.processwrap .ant-layout-header .ant-breadcrumb {
+    padding: 12px 24px;
+}
+
+.processwrap .body {
+    height: calc(100% - 28px);
+    overflow-y: auto;
+    margin: 12px;
+    background: #fff;
+}

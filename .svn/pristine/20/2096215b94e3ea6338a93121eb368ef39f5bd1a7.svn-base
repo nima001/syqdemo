@@ -1,0 +1,93 @@
+<template>
+  <div class="data-table">
+    <h2 v-if="settings.titleVisible" :style="{ textAlign: settings.titlePosition||'center' }">{{ title }}</h2>
+    <h3 v-if="settings.subtitleVisible" :style="{ margin: 0, textAlign: settings.titlePosition||'center' }">{{subtitle}}</h3>
+    <a-table
+      :columns="columns"
+      :bordered="settings.table.bordered"
+      :dataSource="dataSource"
+      :pagination="false"
+    />
+  </div>
+</template>
+<script>
+import { Table } from 'ant-design-vue'
+import BaseMixin from "@person/components/chart/BaseMixin"
+
+/**
+ * 统计数据表
+ */
+export default {
+  icon: 'table',
+  components: {
+    ATable: Table,
+  },
+  mixins: [BaseMixin],
+  computed: {
+    columns(){
+      if(!this.data){
+        return [];
+      }
+      let that = this;
+      function convert(cols){
+        if(cols){
+          return cols.map(item => ({
+            title: item.showname, 
+            align: 'center', 
+            dataIndex: item.column,
+            customCell: that.customCell,
+            customHeaderCell: that.customHeaderCell,
+            children: convert(item.columns),
+          }))
+        }
+      }
+      let {keyCols = [], valueCols = []} = this.data;
+      return [
+         ... keyCols.map(item => ({
+          title: item.showname, 
+          dataIndex: item.column,
+          customCell: this.customCell,
+          customHeaderCell: this.customHeaderCell,
+        })),
+        ... convert(valueCols)
+      ]
+    },
+    dataSource(){
+      return this.data && this.data.rows;
+    }
+  },
+  methods: {
+    customCell(record, index) {
+      return {
+        style: {
+          'background-color': this.settings.table.bodyBackgroundColor,
+          'padding': `${this.settings.table.lineHeight}px`,
+          'color': this.settings.table.bodyColor,
+        },
+      }
+    },
+    customHeaderCell(record, index) {
+      return {
+        style: {
+          'background-color': this.settings.table.headBackgroundColor,
+          'padding': `${this.settings.table.lineHeight}px`,
+          'color': this.settings.table.headColor,
+        },
+      }
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+/deep/.ant-table-thead {
+  tr:not(:last-child)>th {
+    border-bottom: 1px solid #e8e8e8;
+  }
+  th {
+    border-right: 1px solid #e8e8e8;
+    &:last-child {
+      // border-right: none;
+    }
+  }
+}
+</style>

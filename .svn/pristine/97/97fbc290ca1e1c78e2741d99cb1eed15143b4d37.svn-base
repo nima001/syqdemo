@@ -1,0 +1,25 @@
+<template>
+  <card title="绩效变化机构数">
+    <div class="kpi-variation">
+      
+    </div>
+  </card>
+</template>
+<script>
+import Card from './ScreenCard'
+
+/**
+ * 绩效变化机构数
+ */
+export default {
+  components: {
+    Card,
+  }
+}
+</script>
+<style lang="less" scoped>
+.kpi-variation{
+  background: fade(#000, 20%);
+  color: white;
+}
+</style>

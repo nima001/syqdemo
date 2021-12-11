@@ -1,0 +1,99 @@
+<template>
+  <div class="container">
+    <div class="problems">
+      <div class="total">
+        <span>
+          <img src="../../../assets/img/screen/icon-problem.png" />
+          总问题数
+        </span>
+        <span>98</span>
+      </div>
+      <div class="deal">
+        <span>
+          <img src="../../../assets/img/screen/icon-problem-resolve.png" />
+          已整改问题数
+        </span>
+        <span>87</span>
+      </div>
+    </div>
+    <div class="rate">
+      <CircleChart
+        class="liquid"
+        :settings="{
+          Liquid: {
+            persent: 0.88,
+            liquidColor: '#09F996',
+            color: 'transparent',
+            border: 2,
+            title: { text: '问题整改率', style: { fontSize: 10, fill: '#FFF', fontWeight: '100', offsetY: -15, opacity:1} },
+            content: { style: { fontSize: 30, fill: '#FFF', fontWeight: 'normal', offsetY: -10, opacity:1} },
+          },
+        }"
+      />
+    </div>
+  </div>
+</template>
+<script>
+import CircleChart from "@person/components/chart/CircleChart";
+
+export default {
+  components: {
+    CircleChart,
+  },
+};
+</script>
+<style lang="less" scoped>
+.container {
+  height: 100%;
+  padding: @padding-lg;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  .problems {
+    width: 240px;
+    .total,
+    .deal {
+      padding-right: @padding-xs;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(
+        to right,
+        transparent,
+        fade(#2877ff, 18%) 10%,
+        fade(#31c7f6, 18%),
+        fade(#9ef8df, 18%)
+      );
+      span:first-child {
+        font-size: 1em;
+        color: fade(#fff, 80%);
+        img {
+          margin-right: @layout-space-base;
+        }
+      }
+      span:last-child {
+        color: #fff;
+        font-weight: bold;
+        font-size: 1.8em;
+        font-family: Arial;
+      }
+      &.total {
+        margin-bottom: @layout-space-base;
+      }
+    }
+  }
+  .rate {
+    position: relative;
+    .liquid::before {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+      content: '';
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      box-shadow: 0 0 15px 15px fade(#09F996, 10%);
+    }
+  }
+}
+</style>

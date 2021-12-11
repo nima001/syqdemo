@@ -1,0 +1,15 @@
+/**
+ * 开发文档路由
+ */
+import Layout from '../../views/Layout'
+export const developDoc = {
+  path: '/dev',
+  component: Layout,
+  children: [
+    {
+      path: 'developdoc',
+      component: () => import('@/dev/views/developDoc'),
+      name:'developdoc'
+    }
+  ]
+}

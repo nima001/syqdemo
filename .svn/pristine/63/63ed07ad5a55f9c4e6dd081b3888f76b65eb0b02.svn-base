@@ -1,0 +1,356 @@
+<template>
+  <a-spin :spinning="loading" wrapperClassName="form-submit-spin" :delay="300">
+  <a-layout class="personnel-transference">
+    <div class="guidebar">
+      <div class="banber">
+        <div>{{params.flowname}}</div>
+      </div>
+    </div>
+    <a-layout-content>
+      <div class="top-btn">
+        <div class="left">
+          <a-button @click="addUser">批量添加人员</a-button>
+          <a-button @click="addOrg">批量划入单位</a-button>
+          <a-button @click="deleteUser">删除</a-button>
+        </div>
+      </div>
+      <div class="main-table">
+        <template v-if="formConfigs.nodeFormVos && formConfigs.nodeFormVos.length">
+          <form-template
+            ref="formtemplate"
+            :formConfigs="formConfigs.nodeFormVos[0]"
+            :typecode="formConfigs.typecode"
+            :orgvisible="orgvisible"
+            :uservisible="uservisible"
+            :addTableData="addTableData"
+            :selectedRows="selectedRows"
+            @selectorg="selectOrg"
+          />
+        </template>
+      </div>
+      <div class="footer" v-if="showOpts">
+        <div class="opts">
+          <a-button 
+            v-if="formConfigs.allowCommit == 1"
+            type="primary" @click="submit">提交</a-button>
+          <a-button 
+            v-if="formConfigs.status == 2 && formConfigs.claimStatus == 1"
+            type="primary" @click="claim(false)"
+          >签收</a-button>
+          <a-button 
+            v-if="formConfigs.status == 2 && formConfigs.claimStatus == 2"
+            @click="claim(true)" 
+          >取消签收</a-button>  
+        </div>
+      </div>
+      <!-- 人员选择列表 -->
+      <a-modal
+        :footer="null"
+        v-model="uservisible"
+        :width="800"
+        title="选择人员"
+        :bodyStyle="{ height: '600px', padding: '0'}"
+        >
+        <org-user-select 
+          mode="user" 
+          :maxSelect="1000" 
+          :selected="selectedArr"  
+          :default-root="params.orgId"
+          :disabledKeys="disabledKeysArr" 
+          :userFilter="userFilter"
+          @finish="userOk" />
+      </a-modal>
+      <!-- 机构选择列表 -->
+      <a-modal
+        :footer="null"
+        v-model="orgvisible"
+        :width="500"
+        title="选择单位"
+        :bodyStyle="{ height: '600px', padding: '0'}"
+        >
+        <org-user-select @finish="orgOk" mode="org" :usePermit="false"/>
+      </a-modal>
+      <a-modal
+        title="退回"
+        v-model="backreason.show"
+        :footer="null"
+      >
+        <a-textarea :read-only="true" :rows="4" :value="backreason.text"/>
+      </a-modal>
+    </a-layout-content>
+  </a-layout>
+  </a-spin>
+</template>
+<script>
+import { Layout ,Button, Table, Modal, Input, Icon, Upload, Col, Spin } from "ant-design-vue";
+import FormTemplate from "./PersonnelTransference/Form";
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+import { loopTaskResult } from "@/framework/api/asynctask";
+import { formcfg, completeAsync, getBackReason, claim, unclaim} from "@/workflow/api/workflow";
+import { showError } from "@/framework/utils/index";
+import { exportProgress } from "@/workflow/api/summarytable";
+
+export default {
+  name: 'personneltransference',
+  components: {
+    ALayout: Layout,
+    ALayoutContent: Layout.Content,
+    ASpin: Spin,
+    AUpload: Upload,
+    AButton: Button,
+    ATable: Table,
+    AModal: Modal,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    AIcon: Icon,
+    ACol: Col,
+    FormTemplate,
+    OrgUserSelect
+  },
+  data() {
+    return {
+      params: {},
+      orgvisible: false,
+      uservisible: false,
+      formConfigs: {
+        allowBack: undefined,
+        allowCommit: undefined,
+        allowTempsave: undefined,
+        claimStatus: undefined,
+        formatcfgs: undefined,
+        modelInstanceId: undefined,
+        nodeFormVos: [],
+        resourceid: undefined,
+        status: undefined,
+      },
+      addTableData: null,
+      selectedRows: [],
+      selectedArr: [],
+      disabledKeysArr: [],
+      userFilter: {
+        usertype: undefined,
+      },
+      loading: false,
+      setKeys: [],
+      backreason: {
+        show: false,
+        text: undefined,
+      },
+    }
+  },
+  computed: {
+    showOpts(){
+      return this.formConfigs.allowCommit != 0 || this.formConfigs.allowBack != 0 ||
+        this.formConfigs.allowTempsave != 0 || (this.formConfigs.claimStatus != 4 && this.formConfigs.claimStatus != 5)
+    }
+  },
+  created() {
+    let {modelinstanceid, orgId, flowname, usertype, businessinstanceid, taskid} = this.$route.query;
+    this.params = { flowname, orgId, modelInstanceId: modelinstanceid, taskId: taskid, businessInstanceId: businessinstanceid}
+    if(this.$route.name == 'personneltransference2'){
+      this.userFilter.usertype = 2;
+    }else{
+      this.userFilter.usertype = 1;
+    }
+    this.loadData(this.params);
+  },
+  methods: {
+    loadData(params) {
+      formcfg(params).then(({result}) => {
+        this.params.resourceId = result.resourceid;
+        this.formConfigs = result;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: result.taskData
+        });
+        getBackReason(
+          this.params.businessInstanceId, 
+          this.params.taskId
+        ).then(({result}) => {
+          if(result.backed){
+            this.backreason = {
+              show: true,
+              text: result.backreason
+            };
+          }
+        }).catch(error => {
+          showError(error);
+        })
+      }).catch(err => {
+        showError(err);
+      });
+    },
+    async submit(){
+      if(this.loading){
+        return;
+      }
+      this.loading = true;
+      try {
+        let data = await this.$refs.formtemplate.getFormValue();
+        let {result} = await completeAsync({
+          businessData: JSON.stringify(data),
+          businessInstanceId: this.params.businessinstanceId,
+          modelInstanceId: this.params.modelInstanceId,
+          taskId: this.params.taskId,
+          resourceid: this.formConfigs.resourceid,
+        })
+        let loopResult = await loopTaskResult(result)
+        let res = JSON.parse(loopResult);
+        if (res.code == "success") {
+            this.showCloseWindow();
+        }else{
+          showError(res);
+        }
+      } catch (error) {
+        showError(error);
+      }
+      this.loading = false;
+    },
+    claim(cancel){
+      this.loading = true;
+      let request = cancel ? unclaim : claim;
+      request({ 
+        taskId: this.params.taskId 
+      }).then(({result}) => {
+        this.loading = false;
+        this.formConfigs.claimStatus = result.claimStatus;
+        this.formConfigs.allowBack = result.allowBack;
+        this.formConfigs.allowCommit = result.allowCommit;
+        this.formConfigs.allowTempsave = result.allowTempsave;
+      }).catch(err => {
+        this.loading = false;
+        showError(err);
+      });
+    },
+    showCloseWindow(){
+      let secondsToGo = 3;
+      const modal = Modal.info({
+        title: '提示', 
+        content: `提交成功，窗口将在 ${secondsToGo} 后自动关闭`,
+        okText: '关闭窗口',
+        keyboard: false,
+        onOk: () => {
+          window.close();
+        }
+      })
+      const interval = setInterval(() => {
+        secondsToGo -= 1;
+        modal.update({
+          content: `提交成功，窗口将在 ${secondsToGo} 后自动关闭`,
+        });
+      }, 1000);
+      setTimeout(() => {
+        clearInterval(interval);
+        window.close();
+      }, secondsToGo * 1000);
+    },
+    addOrg() {
+      let ids = this.$refs.formtemplate.selectedRowKeys;
+      if(!ids.length){
+        this.$message.warning('请选择用户');
+        return;
+      }
+      this.setKeys = ids;
+      this.orgvisible = true;
+    },
+    addUser() {
+      this.uservisible = true;
+      this.selectedArr = [];
+      this.disabledKeysArr = this.$refs.formtemplate.tableData.map(item => item._id);
+    },
+    deleteUser() {
+      if(!this.$refs.formtemplate.selectedRowKeys.length > 0) return this.$message.warning('请选择用户');
+      this.$refs.formtemplate.removeSelected();
+    },
+    selectOrg(ids){
+      this.setKeys = ids;
+      this.orgvisible = true;
+    },
+    userOk(type, list) {
+      this.uservisible = false;
+      if (type == "ok" && list.length > 0) {
+        this.addTableData = list;
+      }
+    },
+    orgOk(type, list) {
+      this.orgvisible = false;
+      if (type == "ok" && list.length > 0) {
+        this.$refs.formtemplate.batchSetOrg(list[0], this.setKeys);
+      }
+    },
+  }
+}
+</script>
+<style lang='less' scoped>
+.form-submit-spin{
+  height: 100%;
+  /deep/.ant-spin-container{
+    height: 100%;
+    padding-bottom: 65px;
+  }  
+}
+.personnel-transference{
+  height: 100%;
+  background: @white;
+  overflow-y: auto;
+  .guidebar {
+    padding: 0 0 15px 0px;
+    background: #f2f2f2;
+    .banber {
+      padding: 0px 50px;
+      color: #333;
+      font-size: 16px;
+      font-weight: bold;
+      height: 45px;
+      line-height: 45px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      button {
+        margin-left: 25px;
+        &:nth-child(1) {
+          margin-left: 0;
+        }
+      }
+    }
+  }
+  /deep/.ant-layout-content{
+    width: 1200px;
+    margin: 0 auto;
+    .top-btn{
+      margin-top: 10px;
+      padding: @content-padding-v 0;
+      overflow: hidden;
+      .left{
+        float: left;
+        button{
+          color: @primary-color;
+          border-color: @primary-color;
+          margin-right: 16px;
+        }
+      }
+      .right{
+        float: right;
+      }
+    }
+    .footer {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      z-index: 100;
+      width: 100%;
+      height: 65px;
+      box-shadow: 0 -2px 5px fade(@black, 20%);
+      background-color: @white;
+      .opts{
+        width: 1200px;
+        margin: auto;
+        line-height: 65px;
+        button{
+          margin-right: 10px;
+        }
+      }
+    }
+  }
+}
+</style>

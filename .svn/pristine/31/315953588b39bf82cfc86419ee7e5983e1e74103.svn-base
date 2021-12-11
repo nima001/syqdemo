@@ -1,0 +1,49 @@
+<template>
+  <div class="staff-violate">
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">机构编制违规问题情况：{{result}}</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**是否存在机构编制违规问题情况
+*/
+import { Row, Col } from "ant-design-vue";
+export default {
+  props: {
+    data: Boolean,
+    str: String
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+    result() {
+      return this.data ? "存在" : "不存在"
+    }
+  },
+  created() {
+  },
+  mounted() {
+    this.$store.commit('setProcessedData', { key: this.str, data: `机构编制违规问题情况：${this.result}` }); 
+  },
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.staff-violate{  
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

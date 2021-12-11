@@ -1,0 +1,94 @@
+<template>
+  <div class="set">
+    <div class="top">
+      <a-button type="primary">编辑</a-button>
+    </div>
+    <div class="content">
+      <p class="title">考勤规则</p>
+      <div class="form">
+        <a-form :form="form" :layout="layout">
+          <a-row :gutter="24">
+            <a-col :span="24">
+              <a-form-item label="考勤对象">
+                <a-input></a-input>
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <a-row :gutter="24">
+            <a-col :span="12">
+              <a-form-item label="允许最早签到时间">
+                上班前
+                <a-input></a-input>分钟
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="允许最晚签退时间">
+                下班后
+                <a-input></a-input>分钟
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </a-form>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+import { Button, Form, Input, Row, Col } from "ant-design-vue";
+export default {
+  components: {
+    OrgUserSelect,
+    AButton: Button,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ARow: Row,
+    ACol: Col,
+    AInput: Input
+  },
+  data() {
+    return {
+      layout: "horizontal",
+      form: this.$form.createForm(this, { name: "schedueForm" })
+    };
+  },
+  created() {},
+  methods: {
+    finishSelect() {}
+  }
+};
+</script>
+<style lang='less' scoped>
+.set {
+  padding: @content-padding-v @content-padding-h;
+  height: 100%;
+  background: @white;
+  overflow-y: auto;
+  border-radius: @border-radius-base;
+  .top {
+    padding: @content-padding-v 0px;
+  }
+  .content {
+    .title {
+      margin: 0px;
+      color: #262626;
+      font-size: 16px;
+      font-weight: 400;
+    }
+    .form {
+      padding: 0px @content-padding-h;
+      /deep/ .ant-form-item-label {
+        color: #262626;
+      }
+      /deep/ .ant-form-item-children {
+        display: flex;
+        align-items: center;
+        .ant-input {
+          flex: 1;
+          margin: 0px 12px;
+        }
+      }
+    }
+  }
+}
+</style>

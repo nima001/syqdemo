@@ -1,0 +1,223 @@
+<template>
+  <a-modal :visible="value" :title="record.type == 'edit' ? '编辑规则' : '新增规则'" :width="800" :bodyStyle="{ overflow: 'auto', height: '550px', padding: '8px 24px' }"
+    destroyOnClose @ok="ok" @cancel="cancel"
+  >
+  <a-form :form="form">
+    <a-row :gutter="20">
+      <a-col :span="12">
+        <a-form-item label="字段">
+          <!-- 显示fieldname   提交code -->
+          <!--编辑-->
+          <a-input v-if="record.type == 'edit'" :disabled='true' v-decorator="['code',{initialValue: record.field.name}]" />
+          <!--新增-->
+          <a-input v-else :read-only="true"  @click="showField" 
+            v-decorator="['code',{
+              initialValue: record.field.name, 
+              rules: [{ required: true, message: '请选择字段' }] 
+            }]"
+          />
+        </a-form-item>
+      </a-col>
+      <a-col :span="12">
+        <a-form-item label="是否启用">
+          <a-switch checked-children="启用" un-checked-children="禁用" v-decorator="['enable', { valuePropName: 'checked', initialValue: record.enable }]"/>
+        </a-form-item>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="12">
+        <template v-if="record.type =='edit'">
+          <a-form-item label="统计对象">
+            <a-select v-decorator="['targetid', {initialValue:record.targetid || record.target.id, rules: [{ required: true, message: '请选择统计模型' }]}]">
+              <a-select-option v-for="item in targetlist.filter(item => namespace == item.namespace)" 
+                :key="item.id">{{item.title}}</a-select-option>
+            </a-select>
+          </a-form-item>
+        </template>
+        <template v-else>
+          <a-form-item label="统计对象">
+            <a-select v-decorator="['targetid', {initialValue:record.targetid || record.target.id, rules: [{ required: true, message: '请选择统计模型' }]}]">
+              <a-select-option v-for="item in targetlist.filter(item => !fields.model || fields.model == item.namespace)" 
+                :key="item.id">{{item.title}}</a-select-option>
+            </a-select>
+          </a-form-item>
+        </template>
+      </a-col>
+      <a-col :span="12">
+        <a-form-item label="排序">
+            <a-input allowClear v-decorator="['index', { initialValue: record.field.index, rules: [ { pattern: /^[1-9]\d*$/, message: '请输入数字' }]}]"/>
+          </a-form-item>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="24" >
+         <a-form-item label="计算公式">
+          <a-textarea :rows="10" @click="openbox" :read-only="true"
+            v-decorator="['expression', { initialValue: record.expression, rules: [{ required: true, message: '请选择公式' }]}]"
+          />
+        </a-form-item>
+      </a-col>
+    </a-row>
+  </a-form>
+  <equation-editor v-if="expr.show" v-model="datasets" @finish="finish" :fnData="expr.data" 
+    namespace="statisticfield" :contextParams="expr.params">
+  </equation-editor>
+  <search-list :visible="searchVisible" @finish="callBack"  />
+</a-modal>
+</template>
+<script>
+import EquationEditor from "@person/components/EquationEditor/index";
+import SearchList from "./SearchList";
+import { Modal, Row, Col, Select, Input, Form, Switch, InputNumber } from "ant-design-vue";
+import { newfield, editupd, saveExpression } from "@/person/api/field";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: "StatisticsChange",
+  components: {
+    ARow: Row,
+    ACol: Col,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInput: Input,
+    AInputNumber: InputNumber,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASwitch: Switch,
+    ATextarea: Input.TextArea,
+    AModal: Modal,
+    EquationEditor,
+    SearchList
+  },
+  props: {
+    value: {
+      type: Boolean,
+      default: false,
+    },
+    // 编辑的记录
+    record: {
+      type: Object,
+      default: () => ({})
+    },
+    targetlist: {
+      type: Array,
+      default: () => ([])
+    },
+    modelList: {
+      type: Array,
+      default: () => ([])
+    },
+  },
+  data() {
+    return {
+      // 新增的记录
+      fields:{code:this.record.field.code,name:this.record.field.name,model:this.record.field.model},
+      target:{},
+      form: this.$form.createForm(this, { name: "dynamic_rule" }),
+      searchVisible:false,
+      expr: {
+        show: false,
+        params: {},
+        data: ""
+      },
+      datasets:this.record.type == 'edit' ? this.record.datasets || [] :[]
+    };
+  },
+  computed:{
+    namespace(){
+     if(this.record.type == 'edit'){
+       return this.record.field.model
+     }else{
+       return this.record.target.namespace
+     }
+    }
+  },
+  watch:{
+    fields:{
+      handler(v){
+        this.form.setFieldsValue({expression:undefined})
+        let t = this.getTargetid(v.model)
+        let value = this.form.getFieldsValue(['targetid']);
+        if(value.targetid && value.targetid != t){
+          let err = new Error('统计对象和字段不匹配')
+          this.form.setFields({'targetid':{errors:[err]}})
+        }
+      },
+      deep:true
+    }
+  },
+  mounted(){
+    this.init()
+  },
+  methods: {
+    init(){
+      let model = this.record.field.model;
+      let targetid = this.record.target && this.record.target.id
+      if(this.record.type == 'add' && model && targetid){
+        let t = this.getTargetid(model)
+        if(t != targetid){
+          this.$nextTick(()=>{
+            let err = new Error('统计对象和字段不匹配')
+            this.form.setFields({'targetid':{errors:[err]}})
+          })
+        }
+      }
+    },
+    callBack(res){
+      if(res.type == 'ok'){
+        this.fields = res.data ;
+        this.form.setFieldsValue({'code': this.fields.name})
+      }
+      this.searchVisible = false;
+    },
+    showField(){
+      this.searchVisible = true;
+    },
+    getTargetid(namespace){
+      let t = this.targetlist.find(item => item.namespace == namespace);
+      return t && t.id;
+    },
+    cancel() {
+      this.$emit("input", false);
+    },
+    ok() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let obj = {
+            id: this.record.id,
+            targetid: values.targetid,
+            code:  this.fields.code,
+            enable: values.enable,
+            index: values.index,
+            expression: values.expression,
+            datasets: this.datasets
+          };
+          saveExpression(obj,this.record.field.id || this.fields.id).then(res=>{
+            this.$message.success( this.record.id ?"编辑成功" : "新增成功");
+            this.$emit("finish", obj);
+          }).catch(err => {
+              showError(err);
+          });
+        }
+      });
+    },
+    openbox() {
+      let value = this.form.getFieldsValue();
+      if(value.code){
+        this.expr.data = value.expression
+        this.expr.params = {target: this.fields.model};
+        this.expr.show = true;
+      }else{
+        this.$message.error("请先选择字段");
+      }
+    },
+    finish(type, expr) {
+      if (type == "ok") {
+        this.form.setFieldsValue({
+          expression: expr
+        });
+      } 
+      this.expr.show = false;
+    }
+  }
+};
+</script>

@@ -1,0 +1,124 @@
+<template>
+  <ScreenPane :width="1440" :height="900">
+    <div class="header" @click="onClick">
+      <div class="left"></div>
+      <div class="center">
+        <div class="title">浙江省机构编制数字化管理平台</div>
+      </div>
+      <div class="right"></div>
+    </div>
+    <div class="body">
+      <ul class="apps">
+        <li style="margin-top: 120px;" @click="hrefTo('http://59.202.42.184:8008/main.do?sys_id=1&userId=30583&serviceCode=6a8f43671eec59c11371212230151793')">
+          <img class="icon" src="../../assets/img/screen/icon-ywbl.png"/>
+          <div class="text">业务办理</div>
+        </li>
+        <li style="margin-top: -200px;" @click="() => { $router.push('/person/screen/problems') }">
+          <img class="icon" src="../../assets/img/screen/icon-zhjg.png"/>
+          <div class="text">智慧监管</div>
+        </li>
+        <li @click="() => { $router.push('/person/screen/staffing')}">
+          <img class="icon" src="../../assets/img/screen/icon-xbh.png"/>
+          <div class="text">浙编汇</div>
+        </li>
+        <li style="margin-top: -200px;" @click="hrefTo('http://59.202.42.184:8008/main.do?sys_id=22')">
+          <img class="icon" src="../../assets/img/screen/icon-gxxt.png"/>
+          <div class="text">共享协同</div>
+        </li>
+        <li style="margin-top: 120px;" @click="()=>{$router.push('/person/screen/assessment')}">
+          <img class="icon" src="../../assets/img/screen/icon-jxjg.png"/>
+          <div class="text">绩效评估</div>
+        </li>
+      </ul>
+    </div>
+  </ScreenPane>
+</template>
+<script>
+import ScreenPane from './components/ScreenPane'
+
+export default {
+  components: {
+    ScreenPane
+  },
+  methods: {
+    hrefTo(url) {
+      window.location.href=url;
+    },
+    onClick(){
+      console.log('click')
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.header{
+  height: 100px;
+  display: flex;
+  .left{
+    flex: auto;
+    background: url('../../assets/img/screen/index-head-bg.png') right top no-repeat;
+    background-size: 100% 97px;
+  }
+  .right{
+    flex: auto;
+    background: url('../../assets/img/screen/index-head-bg.png') right top no-repeat;
+    background-size: 100% 97px;
+    transform: scaleX(-1);
+  }
+  .center{
+    flex: none;
+    border-top: 97px solid transparent;
+    border-left: 280px solid transparent;
+    border-right: 280px solid transparent;
+    border-image: url('../../assets/img/screen/index-head-center.png') 97 280 stretch;
+    min-width: 596px;
+  }
+  .title{
+    min-width: 596px;
+    margin: 0 -230px;
+    margin-top: -97px;
+    text-align: center;
+    font-size: 32px;
+    font-weight: bold;
+    line-height: 72px;
+    color: #FFFFFF;
+    text-shadow: 0px 0px 16px rgba(28, 28, 30, 0.95);
+    letter-spacing: 6px;
+  }
+}
+.body{
+  height: 100%;
+  padding-top: 100px;
+  margin-top: -100px;
+  .apps{
+    margin: 0;
+    height: 100%;
+    display: flex;
+    justify-content: space-evenly;
+    align-items: center;
+    li{
+      flex: none;
+      width: 240px;
+      height: 488px;
+      background: url('../../assets/img/screen/app-bg.png') center bottom no-repeat;
+      cursor: pointer;
+      .icon{
+        width: 240px;
+        height: 260px;
+        object-fit: none;
+        background: url('../../assets/img/screen/icon-border.png') center center no-repeat;
+      }
+      .text{
+        font-size: 24px;
+        font-weight: bold;
+        margin-top: 55px;
+        padding: 20px;
+        line-height: 33px;
+        color: #FFFFFF;
+        text-shadow: 0px 0px 16px rgba(28, 28, 30, 0.95);
+        text-align: center;
+      }
+    }
+  }
+}
+</style>

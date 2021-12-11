@@ -1,0 +1,226 @@
+<template>
+    <div class="quest-list">
+      <div class="top">
+        <lcd-font :length="4" :realNumber="page.total"></lcd-font>
+      </div>
+      <div class="bottom">
+        <div class="left">
+          <ul class="list">
+            <li class="item header">
+              <span class="name">相关部门</span>
+              <span class="desc">问题描述</span>
+              <span class="time">发现时间</span>
+            </li>
+            <li
+              class="item"
+              v-for="(item,index) in page.rows"
+              :key="index"
+              @click="()=>{selectIndex = index}"
+            >
+              <span :title="item.orgname" class="name">{{item.orgname}}</span>
+              <span class="desc">{{item.description}}</span>
+              <span class="time">{{item.discovertime | formate}}</span>
+            </li>
+          </ul>
+          <div class="pagination">
+            <a class="pre" :class="{disabled: page.pagenum <= 1}" @click="getData(page.pagenum -1)"></a>
+            <span>{{page.pagenum}}/{{pageTotal}}</span>
+            <a class="next" :class="{disabled: page.pagenum >= pageTotal}" @click="getData(page.pagenum +1)"></a>
+          </div>
+        </div>
+        <div class="right">{{text}}</div>
+      </div>
+    </div>
+</template>
+<script>
+
+import LcdFont from "../components/LcdFont";
+import { showError } from "@/framework/utils/index";
+import { Listproblem, orgblackproblemspagequery } from "@/person-shaoxing/api/monitor";
+/**
+ * 机构列表
+ * 1.修改机构信息显示，见props的item参数
+ * 2.修改机构点击事件 提供click事件
+ */
+export default {
+  components: {
+    LcdFont
+  },
+  props: {
+    ajaxParams: Object,
+    isBlackOrgList: Boolean
+  },
+  data() {
+    return {
+      selectIndex: 0,
+      page: {
+        pagenum: 1,
+        pagesize: 10,
+        rows: [],
+        total: 0
+      }
+    };
+  },
+  computed: {
+    text() {
+      let obj = this.page.rows[this.selectIndex];
+      if (obj) {
+        return obj["description"];
+      }
+    },
+    pageTotal() {
+      let { pagesize, total } = this.page;
+      if (total > 0) {
+        return Math.ceil(total / pagesize);
+      }
+      return 1;
+    }
+  },
+  created(){
+    this.getData(1);
+  },
+  filters: {
+    formate(v) {
+      if (v) {
+        return v.split(" ")[0];
+      }
+    }
+  },
+  methods: {
+    getData(pagenum) {
+      if (pagenum < 1 || pagenum > this.pageTotal ) {
+        return;
+      }
+      this.selectIndex = 0;
+      let requestMethod;
+      if(this.isBlackOrgList){
+        requestMethod = orgblackproblemspagequery({ ...this.ajaxParams, ...this.page,pagenum});
+      }else{
+        requestMethod = Listproblem({ ...this.ajaxParams, ...this.page,pagenum});
+      }
+      requestMethod.then(res => {
+        this.page = res.result;
+      })
+      .catch(err => {
+        showError(err);
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.quest-list {
+  padding: 0 65px;
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  .top {
+    text-align: center;
+    padding: 45px 0px;
+  }
+  .bottom {
+    flex: auto;
+    display: flex;
+    flex-wrap: nowrap;
+    padding: 0 0 20px 0;
+    .left {
+      flex: 3;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      .list {
+        flex: auto;
+        margin: 0px;
+        .item {
+          display: flex;
+          padding: 0px 15px;
+          position: relative;
+          cursor: pointer;
+          &:nth-child(even) {
+            background: #111c31;
+          }
+          &.header {
+            background: linear-gradient(
+              90deg,
+              #417edc 0%,
+              rgba(23, 25, 26, 0) 100%
+            );
+            span {
+              font-size: 18px;
+            }
+            &::before {
+              width: 2px;
+              height: 37px;
+              content: "";
+              background: #0ffcfe;
+              opacity: 0.6;
+              position: absolute;
+              left: 0px;
+              top: 0px;
+            }
+          }
+          span {
+            height: 38px;
+            line-height: 38px;
+            color: #fff;
+            font-size: 16px;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            opacity: 0.8;
+            &.name {
+              width: 150px;
+            }
+            &.desc {
+              flex: 1;
+              margin: 0px 15px;
+            }
+            &.time {
+              width: 85px;
+            }
+          }
+        }
+      }
+      .pagination {
+        height: 40px;
+        margin: 20px auto 0px;
+        padding: 5px;
+        line-height: 30px;
+        background-color: #101b2c;
+        border-radius: 4px;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        span {
+          margin: 0px 12px;
+        }
+        a {
+          padding: 0 10px;
+          width: 14px;
+          height: 9px;
+          &.disabled {
+            cursor: not-allowed;
+          }
+          &.pre {
+            background: url("../img/p-down.png") no-repeat center center;
+          }
+          &.next {
+            background: url("../img/p-up.png") no-repeat center center;
+          }
+          &.disabled {
+            cursor: not-allowed;
+          }
+        }
+      }
+    }
+    .right {
+      flex: 1;
+      background: #081220;
+      padding: 24px;
+      color: #fff;
+      font-size: 16px;
+    }
+  }
+}
+</style>

@@ -1,0 +1,136 @@
+
+<template>
+  <div class="form-panel">
+    <div class="form-body" ref="formBody">
+      <template v-for="item in itemList">
+        <div class="item-group" v-if="typeof(item.key) == 'number'" :key="item.sort">
+          <span>{{item.sort}}</span>
+        </div>
+        <div class="title-bar" v-else-if="item.show && item.show == true" :key="item.title">{{item.title}}</div>
+        <component v-else :is="item.key" :key="item.key" :id="item.key" :data="content[item.key]" :str="item.key" />
+      </template>
+    </div>
+    <a-anchor v-if="titleList && titleList.length > 1" wrapperClass="form-anchor" :getContainer="() => $refs.formBody">
+      <a-anchor-link v-for="item in titleList" :href="`#${item.key}`" :title="item.title" :key="item.key"/>
+    </a-anchor>
+  </div>
+</template>
+<script>
+import { Anchor } from "ant-design-vue";
+import { getComponents, getItems, getPops, loadData } from './contentItems';
+
+//评估内容
+export default {
+  components: {
+    AAnchor: Anchor,
+    AAnchorLink: Anchor.Link,
+    ...getComponents()
+  },
+  props: {
+    content: Object,//分析内容
+  },
+  data(){
+    return {
+      itemList: [],
+      titleList: []
+    }
+  },
+  watch: {
+    content: {
+      handler(val) {
+        this.getItemList();
+        this.getTitleList();
+      },
+      deep: true
+    }
+  },
+  created(){
+    this.getItemList();
+    this.getTitleList();
+  },
+  methods: {
+    getVal() {
+      return this.itemList;
+    },
+    getItemList() {
+      if(this.content){
+        let arr = [], index = 0, sort, title;
+        getItems(this.content).forEach(item => {
+          if(item.sort && sort !== item.sort){
+            arr.push({key: ++index, sort: item.sort, title: item.title})
+            sort = item.sort;
+          }
+          if(item.title && item.title !== item.sort) {
+            arr.push({ show: true, title: item.title });
+            title = item.title
+          }
+          arr.push(item);
+        })
+        this.itemList = arr;
+      }
+    },
+    getTitleList() {
+      if(this.itemList){
+        let arr = this.itemList.filter(item => typeof(item.key) == "string"), list = [], title;
+        arr.forEach(item => {
+          if(item.title && title !== item.title) {
+            list.push(item);
+            title = item.title;
+          }
+        })
+        this.titleList = list;
+      }
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  position: relative;
+  height: 100%;
+  .form-body {
+    height: 100%;
+    padding: 0 @content-padding-h;
+    overflow-y: auto;
+    padding-right: 200px + @content-padding-h;
+
+    .item-group{
+      margin: @content-padding-v 0;
+      width: 360px;
+      color: @white;
+      font-weight: bolder;
+      border-top: 1px solid @primary-color;
+      > span{
+        position: relative;
+        display: inline-block;
+        padding: @content-padding-v/2 @content-padding-v;
+        background-color: @primary-color;
+        &:before{
+          content: '';
+          position: absolute;
+          right: -30px;
+          top: -1px;
+          width: 0;
+          height: 0;
+          border-top: 30px solid @primary-color;
+          border-right: 30px solid transparent;
+        }
+      }
+    }
+    .title-bar{
+      margin: 10px 0;
+      line-height: 1em;
+      border-left: 5px solid @primary-color;
+      font-weight: bolder;
+      text-indent: 5px;
+    }
+  }
+  /deep/.form-anchor {
+    position: absolute;
+    top: 50px;
+    right: @content-padding-h;
+    width: 180px;
+    padding-left: 5px;
+  }
+}
+</style>

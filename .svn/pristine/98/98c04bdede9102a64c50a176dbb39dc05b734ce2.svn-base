@@ -1,0 +1,459 @@
+<template>
+  <div class="separateorg">
+    <div class="content">
+      <div class="title"><h1>组织分设</h1></div>
+      <div class="separatecontent">
+        <a-tabs class="tabs" :tab-bar-gutter='500' v-model="activeKey">
+          <a-tab-pane key="1" tab="1 填写分社信息">
+            <div class="tab1">
+              <div class="content1">
+                <a-form :form="form">
+                  <div class="separateitem">
+                    <a-form-item
+                      label="分社组织"
+                      v-bind="formItemLayout"
+                      >
+                        <a-input
+                          v-decorator="[
+                            'neworg',
+                            { rules: [{ required: true, message: '请选择组织!' }] },
+                          ]"
+                          placeholder="输入关键词查找或选择组织"
+                          style="width: 80%; margin-right: 4px"
+                          @click="showNewOrgOutSelect"
+                        >
+                          <a-icon slot="addonAfter" type="select" @click="showNewOrgOutSelect" />
+                        </a-input>
+                    </a-form-item>
+                  </div>
+                  <div class="separatenew">
+                    <a-form-item
+                      v-for="(k, index) in form.getFieldValue('keys')"
+                      :key="k"
+                      v-bind="index === 0 ? formItemLayout : formItemLayoutWithOutLabel"
+                      :label="index === 0 ? '分社后的组织' : ''"
+                    >
+                      <a-input
+                        v-decorator="[
+                          `names[${k}]`,
+                          { rules: [{ required: true, message: '请选择组织!' }] },
+                        ]"
+                        placeholder="输入关键词查找或选择组织"
+                        style="width: 80%; margin-right: 4px"
+                        @click="showOrgOutSelect(`names[${k}]`, k)"
+                        @change="ifchoose(index)"
+                        >
+                        <a-icon slot="addonAfter" type="select" @click="showOrgOutSelect(`names[${k}]`, k)" />
+                      </a-input>
+                      <a-icon
+                        v-if="form.getFieldValue('keys').length > 1"
+                        class="dynamic-delete-button"
+                        type="minus-circle-o"
+                        :disabled="form.getFieldValue('keys').length === 1"
+                        @click="() => remove(k)"
+                      />
+                    </a-form-item>
+                    <a-form-item v-bind="formItemLayoutWithOutLabel">
+                      <a-button type="dashed" style="width: 80%" @click="add">
+                        <a-icon type="plus" /> 添加分社后的组织
+                      </a-button>
+                    </a-form-item>
+                  </div>
+                  
+                </a-form>
+                <a-modal
+                  :footer="null"
+                  v-model="orgOutVisible"
+                  :width="500"
+                  :title="`选择组织`"
+                  :bodyStyle="{ height: '500px', padding: '0'}"
+                >
+                  <idm-org-tree  @select-ok="orgOutOk" @select-cancel="orgOutCancel" />
+                </a-modal>
+                <a-modal
+                  :footer="null"
+                  v-model="newOrgOutVisible"
+                  :width="500"
+                  :title="`选择组织`"
+                  :bodyStyle="{ height: '500px', padding: '0'}"
+                >
+                  <idm-org-tree  @select-ok="newOrgOutOk" @select-cancel="newOrgOutCancel" />
+                </a-modal>
+              </div>
+              <div class="footer1">
+                <a-button @click="goBack">取消</a-button>
+                <a-button type="primary" @click="nextStep">下一步</a-button>
+              </div>
+            </div>
+          </a-tab-pane>
+          <a-tab-pane key="2" tab="2 完善组织信息" force-render>
+            <div class="tab2">
+              <div class="content2">
+                <a-tabs default-active-key="1" tab-position="left">
+                  <a-tab-pane v-for="(item, index) in orgList" :key="index" :tab="`分社组织${index + 1}`">
+                    <add-org-form :formInfo="item" :key="forcekey" ref="childsubmit"/>
+                    <a-row>
+                      <a-col :span="12" :offset="6">
+                        <h1>人员分配</h1>
+                        <a-button class="userbtn"  @click="showUserSelect(index)"><a-icon type="plus"/>添加人员</a-button>
+                        <span v-for="(uitem, uindex) in userList[index]" :key="uindex"><a-tag closable :key="uindex" @close="deleteUser(uitem, index)">{{uitem}}</a-tag></span>
+                      </a-col>
+                    </a-row>
+                  </a-tab-pane>
+                </a-tabs>
+              </div>
+              <div class="empty"></div>
+              <div class="footer2">
+                <a-button class="btn1" type="primary" @click="activeKey='1'">
+                  上一步
+                </a-button>
+                <a-button class="btn2" type="primary" @click="submit">
+                  提交
+                </a-button>
+              </div>
+            </div>
+            <a-modal
+              :footer="null"
+              v-model="userVisible"
+              :width="800"
+              :title="`选择调入人员`"
+              :bodyStyle="{ height: '600px', padding: '0'}"
+            >
+              <idm-account-select @select-ok="userOk" @select-cancel="userCancel"></idm-account-select>
+            </a-modal>
+          </a-tab-pane>
+        </a-tabs>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import {Tabs, Button, Input, Icon, Form, Modal, Row, Col, Tag} from 'ant-design-vue';
+import AddOrgForm from '../../account/components/AddOrgForm'
+import IdmOrgTree from "@/idm/components/IdmOrgTree";
+import { separateOrg, completeOrginfo} from "@/idm/api/separateOrg";
+import { showError } from "@/framework/utils/index";
+import IdmAccountSelect from "@/idm/components/IdmAccountSelect";
+let id = 1;
+export default {
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    ATabs:Tabs,
+    ATabPane:Tabs.TabPane,
+    AButton: Button,
+    AddOrgForm,
+    AInput: Input,
+    AIcon: Icon,
+    AModal: Modal,
+    ARow: Row,
+    ACol: Col,
+    ATag: Tag,
+    IdmOrgTree,
+    IdmAccountSelect
+  },
+  data() {
+    return {
+      formItemLayout: {
+        labelCol: {
+          span: 8 
+        },
+        wrapperCol: {
+          span: 8 
+        },
+      },
+      formItemLayoutWithOutLabel: {
+        wrapperCol: {
+          span: 8, 
+          offset: 8 
+        },
+      },
+      dynamicValidateForm: {
+        domains: [{value:''}],
+        separateitem: '',
+      },
+      info: {
+        orgid: [], 
+        neworgid:undefined
+      },
+      orgOutVisible: false,
+      newOrgOutVisible: false,
+      kname: undefined,
+      akey: '1',
+      formInfo: undefined,
+      forcekey: 0,
+      kindex: undefined,
+      orgList: undefined,
+      userVisible: false,
+      userList: [],
+      tabindex: undefined,
+      activeKey: '1',
+      resdata: undefined,
+      ischooseorgindex: undefined
+    };
+  },
+  beforeCreate() {
+    this.form = this.$form.createForm(this, { name: 'dynamic_form_item' });
+    this.form.getFieldDecorator('keys', { initialValue: [0], preserve: true });
+  },
+  methods: {
+     orgOutOk(org) {
+      this.orgOutVisible = false;
+      let { _id, name } = org.data;
+      this.form.setFieldsValue({ 
+         [this.kname]: name
+      });
+      this.ischooseorgindex = 0;
+      this.info.orgid[this.kindex] = {
+        ischooseorg:0,
+        orgid:_id,
+        separateorgname:name
+        };
+      console.log(this.info.orgid);
+    },
+    orgOutCancel() {
+      this.orgOutVisible = false;
+    },
+    showOrgOutSelect(a, k) {
+      this.orgOutVisible = true;
+      this.kname = a;
+      this.kindex = k;
+    },
+    newOrgOutOk(org) {
+      this.newOrgOutVisible = false;
+      let { _id, name } = org.data;
+      this.form.setFieldsValue({ 
+         neworg: name
+      });
+      this.info.neworgid=_id;
+    },
+    newOrgOutCancel() {
+      this.newOrgOutVisible = false;
+    },
+    showNewOrgOutSelect(a) {
+      this.newOrgOutVisible = true;
+    },
+    showUserSelect(k) {
+      this.userVisible = true;
+      this.tabindex = k;
+    },
+    userOk(data) {
+      this.userVisible = false;
+      let { _id, username } = data;
+      this.userList[this.tabindex].push(username);
+    },
+    userCancel() {
+      this.userVisible = false;
+    },
+    deleteUser(uitem, index){
+      this.userList[index] = this.userList[index].filter(value =>{
+        return value !== uitem;
+      })
+    },
+    remove(k) {
+      const { form } = this;
+      // can use data-binding to get
+      const keys = form.getFieldValue('keys');
+      // We need at least one passenger
+      if (keys.length === 1) {
+        return;
+      }
+      // can use data-binding to set
+      form.setFieldsValue({
+        keys: keys.filter(key => key !== k),
+        
+      });
+    },
+    ifchoose(k){
+      this.ischooseorgindex = 1
+    },
+    add() {
+      const { form } = this;
+      // can use data-binding to get
+      const keys = form.getFieldValue('keys');
+      const nextKeys = keys.concat(id++);
+      // can use data-binding to set
+      // important! notify form to detect changes
+      form.setFieldsValue({
+        keys: nextKeys,
+      });
+    },
+        goBack() {
+      this.$router.push({
+        path: '/idm/index'
+      });
+    },
+    async submit(){
+      let formdata = [];
+      for(var i = 0; i<this.orgList.length; i++){
+        formdata[i] = await this.$refs.childsubmit[i].submitform();
+      };
+      let orglist = [];
+      for(var i = 0; i<this.orgList.length; i++){
+        orglist[i] = {
+          administrativedivision: formdata[i].administrativedivision,
+          contactsmobilephone: formdata[i].contactsmobilephone,
+          contactsname: formdata[i].contactsname,
+          contactsofficephone: formdata[i].contactsofficephone,
+          divisionlevel: formdata[i].divisionlevel,
+          name: formdata[i].name,
+          // nsjg: formdata[i].domains[0].value,
+          oid: this.info.orgid[i].orgid,
+          orgunittype: formdata[i].orgunittype,
+          shortname: formdata[i].shortname,
+          superorgdata: this.orgList[i].superorgdata,
+          // treeid: this.orgList[i].superorgdata[0].treeid,
+          usccode: formdata[i].usccode,
+          serialnum: this.orgList[i].serialnum,
+        }
+      };
+      const params = {
+        orgList: orglist,
+        serialnum: this.resdata.serialnum
+      };
+      completeOrginfo(params).then(res=>{
+        this.$message.success('组织分社成功');
+        this.$router.push({
+        path: '/idm/index'
+      });
+      }).catch(err => {
+            showError(err);
+          })
+    },
+    nextStep() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          const { keys, names, neworg } = values;
+          console.log(values);
+          for(var i = 0; i < this.info.orgid.length; i++){
+            if(this.ischooseorgindex == 1){
+              this.info.orgid[i]={
+                ischooseorg:1,
+                separateorgname:names[i]
+              }
+            }
+          }
+          const params = {
+            separatedata:this.info.orgid,
+            separateorgid:this.info.neworgid 
+          };
+          separateOrg(params)
+          .then(res => {
+            this.resdata = res.result
+            this.orgList = res.result.orglist;
+            console.log(res);
+            this.activeKey = '2';
+            this.forcekey += 1;
+            for(var i = 0; i<this.orgList.length; i++){
+              this.userList[i] = [];
+            }
+          }).catch(err => {
+            showError(err);
+            console.log(err);
+          })
+        }
+      });
+    }
+  },
+};
+</script>
+
+<style lang="less" scoped>
+  /deep/ .ant-tabs-nav-scroll{
+    display: flex !important;
+    justify-content: center !important;
+  }
+  .separateorg{
+    height: 100%;
+    padding: 10px;
+    .content{
+      height: 100%;
+      background-color: @white;
+      padding: @content-padding-v @content-padding-h;
+      overflow: auto;
+      .separatecontent{
+        padding: @content-padding-v @content-padding-h;
+        width: 100%;
+        .tab1{
+          height: 100%;
+          width: 100%;
+          padding: @content-padding-v @content-padding-h;
+            .content1{
+              padding: @content-padding-v @content-padding-h;
+              .separatenew{
+                padding: @content-padding-v @content-padding-h;
+                .dynamic-delete-button{
+                  cursor: pointer;
+                  position: relative;
+                  top: 4px;
+                  font-size: 24px;
+                  color: #999;
+                  transition: all 0.3s;
+                }
+                .dynamic-delete-button:hover {
+                  color: #777;
+                }
+                .dynamic-delete-button[disabled] {
+                  cursor: not-allowed;
+                  opacity: 0.5;
+                }
+              }
+              .separateitem{
+                padding: @content-padding-v @content-padding-h;
+              }
+            }
+            .footer1{
+              position: fixed;
+              left: 0px;
+              bottom: 0px;
+              z-index: 100;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              width: 100%;
+              height: 65px;
+              box-shadow: 0 -2px 5px fade(@black, 20%);
+              background-color: @white;
+              button{
+                width: 150px;
+                &:last-child{
+                  margin-left: 50px;
+                }
+              }
+            }
+        }
+        .tab2{
+          height: 100%;
+          width: 100%;
+          padding: @content-padding-v @content-padding-h;
+          .content2{
+            padding: @content-padding-v @content-padding-h;
+          }
+          .empty{
+            height: 65px;
+            width: 100%;
+          }
+          .footer2{
+            position: fixed;
+            left: 0px;
+            bottom: 0px;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 65px;
+            box-shadow: 0 -2px 5px fade(@black, 20%);
+            background-color: @white;
+            button{
+              width: 150px;
+              &:last-child{
+                margin-left: 50px;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+</style>

@@ -1,0 +1,56 @@
+<template>
+  <div class="staff-violate">
+    <a-row :gutter="20">
+      <a-col :span="6">
+        <span v-if="data.policyOrgLimit" class="name">行政机构限额：{{data.policyOrgLimit}}</span>
+        <span v-else class="name">事业机构限额：{{data.businessOrgLimit}}</span>
+      </a-col>
+      <a-col :span="6">
+        <span class="name">局级机构限额（包括副局级）：{{data.officeOrgLimit}}</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**区域机构限额
+*/
+import { Row, Col } from "ant-design-vue";
+import { createReportItem } from "@/person-shaoxing/utils/index";
+export default {
+  props: {
+    data: Object
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+  },
+  created() {},
+  mounted() {
+  },
+  methods: {
+    getHtml() {
+      let text = this.data.policyOrgLimit 
+      ? `行政机构限额：${this.data.policyOrgLimit}` 
+      : `事业机构限额：${this.data.businessOrgLimit}`;
+      let data = `<p>${text}</p><p>局级机构限额（包括副局级）：${this.data.officeOrgLimit}</p>`
+      return createReportItem(data, '关联情况分析')
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.staff-violate{  
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

@@ -1,0 +1,42 @@
+<template>
+  <div class="org-namenotation">
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">{{data}}</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**机构命名情况
+*/
+import { Row, Col } from "ant-design-vue";
+export default {
+  props: {
+    data: String
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+  },
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.org-namenotation{  
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

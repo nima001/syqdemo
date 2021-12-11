@@ -1,0 +1,25 @@
+export default {
+  "list": [
+    {
+      "type": "colLayout",
+      "children": [
+        {
+          "span": 8,
+          "components": [
+            { "type": 'inputText', "code": 'name', "name": "其它机构名称" }
+          ]
+        },
+        {
+          "span": 16,
+          "components": [
+            {
+              "type": 'inputText',
+              "code": 'orgcode',
+              "name": '机构编号'
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

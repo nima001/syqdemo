@@ -1,0 +1,22 @@
+<template>
+  <a-modal :visible="true" :footer="null" width="998px" @cancel="cancel">排班表</a-modal>
+</template>
+
+<script>
+import { Modal, Table, Pagination } from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+export default {
+  components: {
+    AModal: Modal,
+    ATable: Table,
+    APagination: Pagination
+  },
+  methods: {
+    cancel() {
+      this.$emit("input", false);
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+</style>

@@ -1,0 +1,101 @@
+<template>
+  <a-spin :spinning="loading" :delay="200">
+    <div class='chart-panel'>
+      <component v-if="dataTable" :is="chartType" :dataTable="dataTable" :settings="settings" />
+    </div>
+  </a-spin>
+</template>
+<script>
+import { Spin } from 'ant-design-vue'
+import { get, set } from "lodash";
+import { getChartById } from "@person/api/chart";
+import { showError } from "@/framework/utils/index";
+import { components } from "../chart";
+
+export default {
+  components: { 
+    ASpin: Spin,
+    ...components 
+  },
+  props: {
+    code: {
+      type: String,
+      required: true
+    },
+    defalutValue: {}
+  },
+  inject: ["formData"],
+  data() {
+    return {
+      loading: false,
+      chartType: undefined,
+      dataTable: undefined,
+      settings: undefined,
+    };
+  },
+  computed: {
+    chartId() {
+      return get(this.formData.data, this.code) || this.defalutValue;
+    },
+    context(){
+      return this.formData.data;
+    }
+  },
+  watch: {
+    chartId(v){
+      this.loadData();
+    },
+    context(){
+      this.loadData();
+    }
+  },
+  created(){
+    this.loadData();
+  },
+  methods: {
+    loadData(){
+      this.dataTable = undefined;
+      if(this.chartId){
+        this.loading = true;
+        let id = this.chartId;
+        getChartById(id, this.context).then(({result}) => {
+          if(this.chartId != id){//还未加载完成切换存在问题
+            return;
+          }
+          this.dataTable = result.data;
+          this.settings = result.settings;
+          this.chartType = this.switchCmpt(get(result, 'settings.chartType'));
+          this.loading = false;
+          this.$emit('loaded', this.code)
+        }).catch(err => {
+          if(this.chartId != id){
+            return
+          }
+          showError(err);
+          this.$emit('loaded', this.code)
+        });
+      }
+    },
+    switchCmpt(str) {
+      let cmptType = 'PieChart';
+      switch (str) {
+        case "pie-chart":cmptType = "PieChart";break;
+        case "bar-chart" :cmptType = "BarChart";break;
+        case "line-chart" :cmptType = "LineChart";break;
+      }
+      return cmptType;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+//@import url(); 引入公共css类
+.chart-panel{
+  min-height: 400px;
+
+  & > .loading{
+    text-align: center;
+    line-height: 400px;
+  }
+}
+</style>

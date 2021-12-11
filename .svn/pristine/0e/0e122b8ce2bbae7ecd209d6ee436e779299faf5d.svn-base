@@ -1,0 +1,183 @@
+<template>
+  <div class="staff-violate">
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <div id="mainChart"></div>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**编制职数使用情况分析
+*/
+import { Row, Col } from "ant-design-vue";
+import { Chart } from '@antv/g2';
+import DataSet from '@antv/data-set';
+import { numberToPercent, colorGroup, createReportItem } from "@/person-shaoxing/utils/index";
+import { bzzsgwreport } from "@/person-shaoxing/api/assessment";
+import { showError } from "@/framework/utils/index";
+export default {
+  props: {
+    data: Object
+  },
+  components: {
+    ARow: Row,
+    ACol: Col
+  },
+  data() {
+    return {
+      chart: null,
+      chartData: [
+        { item: '编制使用率 ', val: 0 },
+        { item: '职数使用率', val: 0 },
+        { item: '人员配备率', val: 0 },
+        { item: '专技岗位匹配率', val: 0 },
+        { item: '人员岗位匹配度', val: 0 },
+        { item: '人员年龄结构合理度', val: 0 },
+      ]
+    };
+  },
+  watch: {},
+  computed: {
+  },
+  created() {
+    //  获取数据
+    if(this.data.orgid) {
+      this.getData(this.data.orgid, this.data.type);
+    }
+  },
+  mounted() {},
+  methods: {
+    getHtml() {
+      let el = document.getElementById('mainChart')
+      if (el) {
+        let canvas = el.querySelector('canvas')
+        if (canvas) {
+          let data = canvas.toDataURL('image/png');
+          return createReportItem(data, '编制职数使用情况分析图', true)
+        }
+      }
+    },
+    toPoint(divisor, dividend, decimal){
+      if (dividend == 0) {
+        return 0
+      }
+   		return Math.floor((divisor / dividend) * (100 * Math.pow(10, decimal))) / Math.pow(10, decimal)
+		},
+    getData(orgid, type) {
+      bzzsgwreport(orgid, type)
+      .then(({result}) => {
+        this.chartData[0].val = this.toPoint(result.bzzj_sy, result.bzzj, 1)
+        this.chartData[1].val = this.toPoint(result.ldzs_sy, result.ldzs, 1) 
+        this.chartData[2].val = this.toPoint(result.zbzg, result.bzzj, 1) 
+        this.chartData[3].val = this.toPoint(this.data.agenum, this.data.total, 1) 
+        this.chartData[4].val = this.toPoint(result.zbzg, result.bzzj_sy, 1) 
+        this.chartData[5].val = this.toPoint(this.data.xlnum, this.data.total, 1) 
+        this.createChart(this.chartData);
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    createChart(data) {
+      const { DataView } = DataSet;
+      const dv = new DataView().source(data);
+      dv.transform({
+        type: 'fold',
+        fields: ['val'], // 展开字段集
+        key: 'user', // key字段
+        value: 'score', // value字段
+      });
+      this.chart = new Chart({
+        container: 'mainChart',
+        width: 554,
+        height: 369,
+      });
+      this.chart.data(dv.rows);
+      this.chart.scale('score', {
+        min: 0,
+        max: 100,
+      });
+      this.chart.coordinate('polar', {
+        radius: 0.8,
+      });
+      this.chart.legend(false);
+      this.chart.tooltip({
+        shared: true,
+        showCrosshairs: true,
+        crosshairs: {
+          line: {
+            style: {
+              lineDash: [4, 4],
+              stroke: '#333'
+            }
+          }
+        },
+      });
+      this.chart.axis('item', {
+        line: null,
+        tickLine: null,
+        grid: {
+          line: {
+            style: {
+              lineDash: null,
+            },
+          },
+        },
+        label: {
+          style: {},
+          offset: 30 // label文本的偏移量
+        }
+      });
+      this.chart.axis('score', {
+        line: null,
+        tickLine: null,
+        grid: {
+          line: {
+            type: 'line',
+            style: {
+              lineDash: null,
+            },
+          },
+        },
+      });
+
+     this.chart
+        .line()
+        .position('item*score')
+        .color('user')
+        .label('score', (xValue) => {
+        return {
+            content: xValue + '%',
+          };
+        })
+        .size(2);
+      this.chart
+        .point()
+        .position('item*score')
+        .color('user')
+        .shape('circle')
+        .size(4)
+        .style({
+          stroke: '#fff',
+          lineWidth: 1,
+          fillOpacity: 1,
+        });
+      this.chart
+        .area()
+        .position('item*score')
+        .color('user');
+      this.chart.render();
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.staff-violate{  
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

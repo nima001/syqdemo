@@ -1,0 +1,182 @@
+<template>
+  <div class="wrap">
+    <p class="title">实有机构分布情况</p>
+    <div class="spotList">
+      <div class="spotItem">
+        <span class="spot"></span>
+        <span class="text">党政机构</span>
+      </div>
+      <div class="spotItem">
+        <span class="spot"></span>
+        <span class="text">事业单位</span>
+      </div>
+    </div>
+    <div class="swiperView">
+      <div class="swiperWrap">
+        <span class="swiperBtn preBtn"></span>
+        <div class="swiperContent">
+          <ul class="swiper">
+            <li class="swiperItem">
+              <div class="capsuleList">
+                <capsule-group></capsule-group>
+              </div>
+              <div class="capsuleList">
+                <capsule-group></capsule-group>
+              </div>
+              <div class="capsuleList">
+                <capsule-group></capsule-group>
+              </div>
+              <div class="capsuleList">
+                <capsule-group></capsule-group>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <span class="swiperBtn nextBtn"></span>
+      </div>
+      <ul class="swiperSpot">
+        <li class="active"></li>
+        <li></li>
+        <li></li>
+        <li></li>
+      </ul>
+    </div>
+  </div>
+</template>
+
+<script>
+import CapsuleGroup from "./CapsuleGroup";
+export default {
+  components: {
+    CapsuleGroup
+  },
+  data() {
+    return {
+      list: [1, 2, 3, 4]
+    };
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+//@import url(); 引入公共css类
+.wrap {
+  .title {
+    width: 160px;
+    height: 26px;
+    margin: 0px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.8;
+  }
+  .spotList {
+    display: flex;
+    padding: 12px 0px;
+    flex-direction: row-reverse;
+    .spotItem {
+      display: flex;
+      align-items: center;
+      .spot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        opacity: 1;
+      }
+      &:nth-child(2n) .spot {
+        background: linear-gradient(
+          180deg,
+          #8fd2ff 0%,
+          rgba(87, 140, 246, 0.66) 49%,
+          #5d4ef4 100%
+        );
+      }
+      &:nth-child(2n + 1) .spot {
+        background: linear-gradient(
+          180deg,
+          #fcb75b 0%,
+          rgba(240, 150, 81, 0.66) 49%,
+          #f26e52 100%
+        );
+      }
+      &:first-child {
+        margin-left: 20px;
+      }
+      .text {
+        width: 56px;
+        height: 19px;
+        margin-left: 8px;
+        font-size: 14px;
+        font-family: Microsoft YaHei;
+        font-weight: 400;
+        line-height: 19px;
+        color: #ffffff;
+        opacity: 0.6;
+      }
+    }
+  }
+  .swiperView {
+    display: flex;
+    flex-direction: column;
+    .swiperWrap {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      .swiperBtn {
+        width: 44px;
+        height: 44px;
+        cursor: pointer;
+        &.preBtn {
+          background: url("../img/pre.png");
+        }
+        &.nextBtn {
+          background: url("../img/next.png");
+        }
+      }
+      .swiperContent {
+        height: 100%;
+        margin: 0px 6px;
+        .swiper {
+          height: 100%;
+          display: flex;
+          .swiperItem {
+            .capsuleList {
+              margin-top: 16px;
+              &:first-child {
+                margin-top: 0px;
+              }
+            }
+          }
+        }
+      }
+    }
+    .swiperSpot {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 16px;
+      li {
+        width: 12px;
+        height: 12px;
+        background: #8fc7ff;
+        border-radius: 50%;
+        opacity: 0.4;
+        margin-right: 20px;
+        cursor: pointer;
+        &.active {
+          width: 36px;
+          height: 36px;
+          background: url("../img/spot.png");
+          margin-right: 10px;
+        }
+        &:last-child {
+          margin-right: 0px;
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,40 @@
+import request from '@/framework/utils/request'
+/************************  调入或兼职流程 *************************/
+
+// 创建待办流程 - 获取短信发送模板
+export function msgcontent(data){
+  return request({
+    url:'/idm/v2/userevent/msgcontent',
+    method:'post',
+    data
+  })
+}
+
+// 创建调入或兼职流程
+export function create(data){
+  return request({
+    url:'/idm/v2/userevent/create',
+    method:'post',
+    data
+  })
+}
+
+// 模板相关 - 根据分组查询模板
+export function queryByGroupby(data){
+  return request({
+    url:'/v2/am/msgtemplate/queryByGroupby',
+    method:'post',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+    },
+    data
+  })
+}
+
+// 模板相关 - 根据模板id获取模板
+export function getMsgtemplate(id) {
+  return request({
+    url: '/idm/v2/am/msgtemplate/' + id,
+    method: 'get'
+  });
+}

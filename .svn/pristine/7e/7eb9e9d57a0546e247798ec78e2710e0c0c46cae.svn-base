@@ -1,0 +1,392 @@
+<template>
+  <div class="part-time">
+    <div class="container">
+      <a-form :form="form" class="form-account">
+
+        <a-row>
+          <a-col :span="12">
+            <a-form-item
+            label="兼职人员"
+            :label-col="formItemLayout.labelCol"
+            :wrapper-col="formItemLayout.wrapperCol"
+            >
+              <a-input
+                :read-only="true"
+                v-decorator="[
+                  'username',
+                  { rules: [{ required: true, message: '请选择兼职人员!' }] },
+                ]"
+                placeholder="兼职人员"
+                @click="showUserSelect"
+              >
+                <a-icon slot="addonAfter" type="select" @click="showUserSelect" />
+              </a-input>
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-row>
+          <a-col :span="12">
+            <a-form-item
+            :label="`[${username}]申请到`"
+            :label-col="formItemLayout.labelCol"
+            :wrapper-col="formItemLayout.wrapperCol"
+            >
+              <a-input
+                :read-only="true"
+                v-decorator="[
+                  'org',
+                  { rules: [{ required: true, message: '请选择组织!' }] },
+                ]"
+                placeholder="输入关键词查找或选择组织"
+                @click="showOrgOutSelect"
+              >
+                <a-icon slot="addonAfter" type="select" @click="showOrgOutSelect" />
+              </a-input>
+              <div class="tip">
+                兼职
+              </div>
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-row>
+          <a-col :span="12">
+            <a-form-item
+            label="岗位"
+            :label-col="formItemLayout.labelCol"
+            :wrapper-col="formItemLayout.wrapperCol"
+            >
+              <a-input
+                v-decorator="[
+                  'job',
+                  { rules: [{ required: false, message: '请输入职位!' }] },
+                ]"
+                placeholder="请输入"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item
+            label="职务"
+            :label-col="formItemLayout.labelCol"
+            :wrapper-col="formItemLayout.wrapperCol"
+            >
+              <a-input
+                v-decorator="[
+                  'position',
+                  { rules: [{ required: false, message: '请输入职务!' }] },
+                ]"
+                placeholder="请输入"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-row>
+          <a-form-item
+          label="调动说明"
+          :label-col="RowLayout.labelCol"
+          :wrapper-col="RowLayout.wrapperCol"
+          >
+            <a-textarea
+              placeholder="请输入"
+              v-decorator="[
+                'content',
+                { rules: [{ required: true, message: '请输入调动说明!' }] },
+              ]"
+              :auto-size="{ minRows: 3, maxRows: 5 }"
+            />
+          </a-form-item>
+        </a-row>
+
+        <a-row>
+          <a-form-item
+          label="是否短信通知"
+          :label-col="RowLayout.labelCol"
+          :wrapper-col="RowLayout.wrapperCol"
+          >
+            <a-switch 
+              checked-children="开" 
+              un-checked-children="关" 
+              @change="switchChange"
+              v-decorator="[
+                'smssend',
+                { 
+                  initialValue: isMsgTemp, valuePropName: 'checked', 
+                  rules: [{ required: false, message: '请选择是否短信通知!' }]
+                }]"
+              />
+          </a-form-item>
+        </a-row>
+
+        <a-row v-show="isMsgTemp">
+          <a-col :span="12">
+            <a-form-item
+            label="短信模板"
+            :label-col="formItemLayout.labelCol"
+            :wrapper-col="formItemLayout.wrapperCol"
+            >
+                <!-- style="width: 200px"  -->
+              <a-select 
+                @change="msgChange"
+                v-decorator="[
+                  'tempid',
+                  { initialValue: currentMsg && currentMsg.id, rules: [{ required: false, message: '请输入短信模板!' }] },
+                ]"
+                >
+                <a-select-option v-for="msg in msgList" :value="msg.id" :key="msg.id">
+                  {{msg.name}}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-row v-show="isMsgTemp">
+          <a-form-item
+          label="短信内容"
+          :label-col="RowLayout.labelCol"
+          :wrapper-col="RowLayout.wrapperCol"
+          >
+            <a-textarea
+              v-decorator="[
+                'msgtemplate',
+                { initialValue: currentMsg && currentMsg.template, rules: [{ required: isMsgTemp, message: '请输入短信内容!' }] },
+              ]"
+              placeholder="请输入"
+              :auto-size="{ minRows: 3, maxRows: 5 }"
+            />
+          </a-form-item>
+        </a-row>
+
+      </a-form>
+
+      <div class="empty"></div>
+
+    </div>
+
+    <div class="footer">
+      <a-button @click="goBack">取消</a-button>
+      <a-button type="primary" @click="submit">提交申请</a-button>
+    </div>
+
+    <!-- 人员选择 -->
+    <a-modal
+      :footer="null"
+      v-model="userVisible"
+      :width="500"
+      :title="`选择调入人员`"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select mode="user" :show-dept="true" @finish="userOk" />
+    </a-modal>
+    <!-- 调入组织选择 -->
+    <a-modal
+      :footer="null"
+      v-model="orgOutVisible"
+      :width="500"
+      :title="`选择组织`"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select
+        mode="org"
+        :usePermit="true"
+        @finish="orgOutOk"
+      />
+    </a-modal>
+  </div>
+</template>
+
+<script>
+/** 调入 */
+import { Form, Input, Button, Row, Col, Switch, Select, Icon, Modal } from "ant-design-vue";
+import OrgUserSelect from "@/idm/components/OrgUserSelect";
+import { msgcontent, create, queryByGroupby } from "../../api/home";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  props: {},
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    AButton: Button,
+    ARow: Row,
+    ACol: Col,
+    ASwitch: Switch,
+    AModal: Modal,
+    AIcon: Icon,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    OrgUserSelect
+  },
+  data() {
+    return {
+      form: this.$form.createForm(this, { name: 'call_in' }),
+      formItemLayout: {
+        labelCol: { span: 8 },
+        wrapperCol: { span: 16 },
+      },
+      RowLayout: {
+        labelCol: { span: 4 },
+        wrapperCol: { span: 20 },
+      },
+      msgList: [],
+      currentMsg: undefined,
+      info: {
+        orgid: undefined, 
+        userid: undefined,
+      },
+      username: '人员',
+      userVisible: false,
+      orgOutVisible: false,
+      isMsgTemp: true,
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    this.getMsgTemplate();
+  },
+  mounted() {},
+  methods: {
+    switchChange(ev) {
+      this.isMsgTemp = ev;
+    },
+    getMsgTemplate() {
+      queryByGroupby({ groupby: 3 })
+      .then(({result}) => {
+        this.msgList = result;
+        this.currentMsg = result[1];
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    msgChange(value) {
+      this.msgList.forEach(item => {
+        if (item.id === value) {
+          this.form.setFieldsValue({ 
+            msgtemplate: item.template,
+          });
+        } 
+      })
+    },
+    userOk(type, list) {
+      this.userVisible = false;
+      if (type == "ok" && list.length > 0) {
+        let { _id, username } = list[0];
+        this.username = username;
+        this.form.setFieldsValue({ 
+          username: username
+        });
+        this.info.userid = _id;
+      }
+    },
+    orgOutOk(type, list) {
+      this.orgOutVisible = false;
+      if (type == "ok" && list.length > 0) {
+        let { _id, name } = list[0];
+        this.form.setFieldsValue({ 
+          org: name, 
+        });
+        this.info.orgid = _id;
+      }
+    },
+    showUserSelect() {
+      this.userVisible = true;
+    },
+    showOrgOutSelect() {
+      this.orgOutVisible = true;
+    },
+    goBack() {
+      this.$router.push({
+        path: '/idm/index'
+      });
+    },
+    submit() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let { job, position, content, tempid, msgtemplate } = values;
+          let smssend = values.smssend === true ? 1 : 0;
+          let { userid, orgid } = this.info;
+          let params = {};
+          params = this.isMsgTemp
+                   ? { job, position, content, tempid, msgtemplate, smssend, userid, orgid }
+                   : { job, position, content, smssend, userid, orgid };
+
+          create({ ...params, type: 1 })
+          .then(res => {
+            this.$notification.success({
+              message: "提示",
+              description: "提交成功，请等待审核。",
+              duration: 3
+            });
+            this.$router.push({
+              path: '/idm/index'
+            });
+          })
+          .catch(err => {
+            showError(err);
+          })
+        } else {
+          showError({
+            message: '请正确填写表单'
+          });
+        }
+      })
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.part-time{
+  min-height: 100%;
+  .container{
+    height: 100%;
+    margin: 0 10px;
+    background-color: @white;
+    .form-account{
+      width: 840px;
+      margin: 0 auto 0;
+      padding: @padding-lg;
+      /deep/.ant-row{
+        .ant-form-item-control{
+          .ant-form-item-children{
+            .tip{
+              position: absolute;
+              right: -40px;
+              top: -8px;
+            }
+          }
+        }
+      }
+    }
+    .empty{
+      width: 100%;
+      height: 65px;
+    }
+  }
+  .footer{
+    position: fixed;
+    left: 0;
+    bottom: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 65px;
+    box-shadow: 0 -2px 5px fade(@black, 20%);
+    background-color: @white;
+    button{
+      width: 150px;
+      &:last-child{
+        margin-left: 50px;
+      }
+    }
+  }
+}
+</style>

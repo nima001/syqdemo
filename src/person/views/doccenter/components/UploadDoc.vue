@@ -1,0 +1,593 @@
+<template>
+  <div class="main">
+    <a-modal
+      :visible="visible"
+      title="上传文件"
+      :width="800"
+      :bodyStyle="bodyStyle"
+      :centered="true"
+      okText="确定"
+      cancelText="取消"
+      @cancel="createdCancel"
+      @ok="createdOk"
+    >
+      <a-form layout="horizontal" :form="form">
+        <a-row :gutter="24" class="fatherbox">
+          <a-form-item label="发文字号" :label-col="{ span: 3 }" :wrapper-col="{ span: 21 }">
+            <a-input-group compact>
+              <a-input
+                type="text"
+                style="width: 30%;"
+                v-decorator="['input.name', { rules: [{ required: true, message: '请填写正确的发文字号' }] }]"
+              />
+              <a-input
+                addonBefore="〔"
+                addonAfter="〕"
+                type="text"
+                style="width:40%"
+                v-decorator="['input.year', { rules: [{ required: true, message: '请填写正确的发文字号' }] }]"
+              />
+              <a-input
+                addonAfter="号"
+                type="text"
+                style="width: 30%;"
+                v-decorator="['input.number', { rules: [{ required: true, message: '请填写正确的发文字号' }] }]"
+              />
+            </a-input-group>
+          </a-form-item>
+        </a-row>
+        <a-row :gutter="24" class="fatherbox">
+          <a-form-item label="文件标题" :label-col="{ span: 3 }" :wrapper-col="{ span: 21 }">
+            <a-input
+              v-decorator="['titlename', { rules: [{ required: true, message: '请填写正确的文件标题' }] }]"
+              placeholder="请填写文件标题"
+            />
+          </a-form-item>
+        </a-row>
+        <a-row :gutter="24" class="fatherbox">
+          <a-form-item label="发文时间" :label-col="{ span: 3 }" :wrapper-col="{ span: 21 }">
+            <a-date-picker
+              v-decorator="['dispatchdate', { rules: [{ required: true, message: '请选择发文时间' }] }]"
+              :format="dateFormat"
+              style="width: 100%"
+            />
+          </a-form-item>
+        </a-row>
+        <a-row :gutter="24" class="fatherbox">
+          <a-form-item label="文件分类" :label-col="{ span: 3 }" :wrapper-col="{ span: 21 }">
+            <a-select
+              v-decorator="['type', { rules: [{ required: false, message: '请选择文件类型' }] }]"
+              placeholder="请选择文件类型"
+              style="width: 100%"
+              @change="typeChange"
+            >
+              <a-select-option
+                v-for="(item,index) in typeList"
+                :key="index"
+                :value="item.value"
+              >{{item.text}}</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-row>
+        <a-row :gutter="24" class="fatherbox">
+          <a-form-item label="文件来源" :label-col="{ span: 3 }" :wrapper-col="{ span: 21 }">
+            <a-select
+              v-decorator="['level']"
+              placeholder="请选择文件来源"
+              style="width: 100%"
+              @change="levelChange"
+            >
+              <a-select-option
+                v-for="(item,index) in levelList"
+                :key="index"
+                :value="item.value"
+              >{{item.text}}</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-row>
+        <a-row :gutter="24" class="fatherbox" style="flex-direction: column;">
+          <div v-if="!([1,3,4].includes(form.getFieldValue('type')))">
+            <a-form-item
+              v-bind="formItemLayoutWithOutLabel"
+              label="相关单位"
+              class="formcss"
+              :label-col="{ span: 3 }"
+              :wrapper-col="{ span: 21 }"
+            >
+              <div v-for="(item,index) in nodelist" :key="index">
+                <a-input :value="item.orgname" placeholder="请选择相关单位" class="inputcss" />
+                <a-icon
+                  v-if="form.getFieldValue('keys').length > 0"
+                  class="dynamic-delete-button"
+                  type="minus-circle-o"
+                  @click="() => remove(index)"
+                />
+              </div>
+              <a-button type="dashed" @click="addCompany" style="width:100%">
+                <a-icon type="plus" />添加单位
+              </a-button>
+            </a-form-item>
+          </div>
+          <div v-if="([4].includes(form.getFieldValue('type')))">
+            <a-form-item
+              v-bind="formItemLayoutWithOutLabel"
+              label="相关单位"
+              class="formcss"
+              :label-col="{ span: 3 }"
+              :wrapper-col="{ span: 21 }"
+            >
+              <div v-for="(item,index) in nodelist" :key="index">
+                <a-input class="inputcss" read-only :value="item.orgname" placeholder="请选择相关单位" />
+                <a-icon
+                  v-if="nodelist.length > 1"
+                  class="dynamic-delete-button"
+                  type="minus-circle-o"
+                  @click="() => remove(index)"
+                />
+              </div>
+              <a-button type="dashed" @click="addCompany" style="width:100%">
+                <a-icon type="plus" />添加单位
+              </a-button>
+              <a-input
+                class="inputcss"
+                read-only
+                v-if="nodelist.length === 0"
+                v-decorator="['index',{rules: [{ required: true, message: '请选择相关单位' }] }]"
+              />
+            </a-form-item>
+          </div>
+        </a-row>
+        <a-row
+          :gutter="24"
+          class="fatherbox"
+          style="display: flex;flex-direction: column;"
+          v-if="!([1].includes(form.getFieldValue('type')))"
+        >
+          <a-form-item
+            label="关键字"
+            :label-col="{ span: 3 }"
+            :wrapper-col="{ span: 21 }"
+            style="margin-left:77px"
+          >
+            <a-input v-model="nowkeyword" style="width: 80%" />
+            <a-button @click="addkeyword" style="width: 15%;margin-left:5%">添加</a-button>
+            <div class="selected-data">
+              <ul>
+                <li v-for="(item, index) in keywords" :key="index">
+                  <div class="item">
+                    {{item}}
+                    <a-icon type="close" class="remove" @click="deleteKeyWord(index)" />
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </a-form-item>
+        </a-row>
+        <a-row :gutter="24" class="fatherbox">
+          <a-form-item label="文件上传" :label-col="{ span: 3 }" :wrapper-col="{ span: 21 }">
+            <div class="storage-upload" @click="trigger">
+              <span class="spanicon">
+                <a-icon type="upload" class="iconstyle" />点击上传
+              </span>
+              <span class="spanname">{{docData.fileName}}</span>
+            </div>
+            <input
+              type="file"
+              ref="fileBtn"
+              class="fileBtn"
+              @change="getFile($event)"
+              multiple="multiple"
+            />
+          </a-form-item>
+        </a-row>
+      </a-form>
+    </a-modal>
+    <a-modal
+      title="单位选择"
+      v-model="orgVisible"
+      :footer="null"
+      :width="800"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select
+        mode="org"
+        :max-select="100"
+        :root-selectable="true"
+        :selected="selected"
+        @finish="selectOrg"
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+let id = 0;
+import moment from "moment";
+import { document } from "@/person/api/document";
+import { upload } from "@/framework/api/file";
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+import {
+  Modal,
+  Form,
+  Row,
+  Col,
+  Input,
+  Button,
+  Select,
+  Icon,
+  DatePicker,
+} from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+export default {
+  components: {
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AIcon: Icon,
+    ADatePicker: DatePicker,
+    OrgUserSelect,
+  },
+  data() {
+    return {
+      typeList: [],
+      levelList: [],
+      levelvalue: null,
+      typevalue: null,
+      keywords: [],
+      nowkeyword: "",
+      nodelist: [],
+      selected: [],
+      orgVisible: false,
+      title: "基本信息",
+      dateFormat: "YYYY-MM-DD",
+      bodyStyle: {
+        overflow: "auto",
+        height: "400px",
+        padding: "8px 24px",
+      },
+      docData: {
+        fileid: null,
+        fileName: null,
+        fileuri: null,
+      },
+      formItemLayout: {
+        labelCol: {
+          xs: { span: 24 },
+          sm: { span: 4 },
+        },
+        wrapperCol: {
+          xs: { span: 24 },
+          sm: { span: 20 },
+        },
+      },
+      formItemLayoutWithOutLabel: {
+        wrapperCol: {
+          xs: { span: 24, offset: 0 },
+          sm: { span: 20, offset: 4 },
+        },
+      },
+      orgvisible: false,
+    };
+  },
+  watch: {
+    selected: {
+      handler(newValue, oldValue) {
+        for (let i = 0; i < newValue.length; i++) {
+          if (oldValue[i] != newValue[i]) {
+          }
+        }
+      },
+      deep: true,
+    },
+  },
+  props: ["visible"],
+  created() { 
+    this.dictList();
+  },
+  beforeCreate() {
+    this.form = this.$form.createForm(this, { name: "dynamic_form_item" });
+    this.form.getFieldDecorator("keys", { initialValue: [], preserve: true });
+  },
+  methods: {
+    dictList() {
+      this.levelList = this.$store.getters.dict("library.doclevel");
+      this.typeList = this.$store.getters.dict("library.doctype");
+    },
+    getFile(event) {
+      let file = event.target.files[0];
+      upload(file)
+        .then((res) => {
+          this.docData.fileuri = res.data.result;
+          //截取有效字段
+          let indexleft = res.data.result.indexOf("=");
+          let fileName = res.data.result.substring(
+            indexleft + 1,
+            res.data.result.length
+          );
+          this.docData.fileName = decodeURIComponent(fileName);
+          this.$notification.success({
+            message: "提示",
+            description: "文件上传成功!",
+            duration: 3,
+          });
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    trigger() {
+      this.$refs.fileBtn.value = null;
+      this.$refs.fileBtn.dispatchEvent(new MouseEvent("click"));
+    },
+    OrgModelShow() {
+      this.orgVisible = true;
+    },
+    //确定选择的机构
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok") {
+        let orgarr = [];
+        list.forEach(function (item) {
+          orgarr.push({
+            orgid: item._id,
+            orgname: item.name,
+            name: item.name,
+          });
+        });
+        this.nodelist = orgarr;
+        this.selected = this.nodelist;
+      }
+    },
+    addkeyword() {
+      if (!this.nowkeyword || !this.nowkeyword.trim()) return;
+      if (this.keywords.indexOf(this.nowkeyword) !== -1) return;
+      if (this.nowkeyword != "") {
+        this.keywords.push(this.nowkeyword);
+        this.nowkeyword = "";
+      }
+    },
+    deleteKeyWord(i) {
+      this.keywords.splice(i, 1);
+    },
+    addCompany() {
+      const { form } = this;
+      const keys = form.getFieldValue("keys");
+      const nextKeys = keys.concat(id++);
+      this.OrgModelShow();
+      form.setFieldsValue({
+        keys: nextKeys,
+      });
+    },
+    remove(index) {
+      this.nodelist.splice(index, 1);
+    },
+    levelChange(value) {
+      this.levelvalue = value;
+    },
+    typeChange(value) {
+      this.typevalue = value;
+    },
+    createdCancel() {
+      this.$emit("closeModal");
+    },
+    createdOk() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let obj = {};
+          obj.fileuri = this.docData.fileuri;
+          obj.title = values.titlename;
+          obj.type = this.typevalue;
+          obj.level = this.levelvalue;
+          obj.dispatchdate = values.dispatchdate
+            ? moment(values.dispatchdate).format("YYYY-MM-DD")
+            : null;
+          obj.num =
+            values.input.name +
+            "〔" +
+            values.input.year +
+            "〕" +
+            values.input.number +
+            "号";
+          obj.keywords = [...this.keywords];
+          obj.orgs = [...this.nodelist];
+          // 不上传文件类型就是待入库文件
+          document(obj)
+            .then((res) => {
+              this.$notification.success({
+                message: "提示",
+                description: "文件上传成功!",
+                duration: 3,
+              });
+              this.$emit("getDocList");
+              this.$emit("closeModal");
+            })
+            .catch((err) => {
+              showError(err);
+            });
+        }
+      });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.ant-form {
+  // /deep/.ant-col-sm-offset-4 {
+  //   margin-left: 0;
+  // }
+  // /deep/.ant-col-sm-20 {
+  //   margin-left: 87px;
+  // }
+  .item-name {
+    line-height: 40px;
+    float: right;
+    font-size: 14px;
+  }
+  .ant-form-item {
+    width: 80%;
+    margin-bottom: 8px;
+  }
+  .fileBtn {
+    width: 0px;
+    height: 0px;
+  }
+  /deep/.ant-input-group-wrapper :first-child {
+    border-radius: 0;
+    .ant-input {
+      border-width: 1px 0;
+    }
+    .ant-input-group-addon {
+      border-width: 1px 0;
+    }
+  }
+  /deep/.ant-input-group-wrapper :last-child {
+    border-radius: 0 4px 4px 0;
+    .ant-input {
+      border-width: 1px 0;
+    }
+    .ant-input-group-addon {
+      border-right-width: 1px;
+    }
+  }
+  .dynamic-delete-button {
+    position: absolute;
+    margin: 8px;
+    cursor: pointer;
+    font-size: 24px;
+    color: @primary-color;
+    transition: all 0.3s;
+  }
+  .dynamic-delete-button:hover {
+    color: #777;
+  }
+  .dynamic-delete-button[disabled] {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  .selected-data {
+    height: 100%;
+    overflow-y: auto;
+    ul {
+      margin: 0;
+      overflow: hidden;
+    }
+    li {
+      float: left;
+      padding: 4px;
+      max-width: 100%;
+      .item {
+        position: relative;
+        padding: 6px 12px 6px 8px;
+        line-height: 1.4em;
+        background: #e8e8e8;
+        border-radius: @border-radius-base;
+        cursor: pointer;
+        // overflow: hidden;
+        // white-space: nowrap;
+        // text-overflow: ellipsis;
+        i {
+          position: absolute;
+          right: 0;
+          top: 0;
+          font-size: 10px;
+          padding: 1px 1px 3px 3px;
+          border-top-right-radius: @border-radius-base;
+          border-bottom-left-radius: 10px;
+          // background: rgba(#d3d2d2, 0.6);
+        }
+        & i:hover {
+          color: @error-color;
+        }
+      }
+    }
+  }
+  .inputcss {
+    width: 100%;
+  }
+  .formcss {
+    margin-left: 77px;
+  }
+  .fatherbox {
+    display: flex;
+    justify-content: center;
+    /deep/ .ant-input-group {
+      top: 0.8px !important;
+    }
+    .storage-upload {
+      cursor: pointer;
+      width: 300px;
+      .spanname {
+        float: left;
+        padding-left: 15px;
+        width: 180px;
+        overflow: hidden;
+        margin: 0;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .spanicon {
+        float: left;
+        width: 75px;
+        .iconstyle {
+          color: @primary-color;
+        }
+      }
+    }
+  }
+  .pbox {
+    width: 100px;
+    height: 39px;
+    background: #d3d3d3;
+    color: #000;
+    font-size: 16px;
+    padding-left: 10px;
+    .closeicon {
+      float: right;
+      color: @primary-color;
+      display: none;
+    }
+    &:hover {
+      .closeicon {
+        display: block;
+      }
+    }
+  }
+  .keyword-text {
+    border-radius: 3px;
+    background-color: #d3d3d3;
+    color: #000;
+    line-height: 30px;
+    padding: 5px 10px;
+    margin: 0 5px;
+  }
+  /deep/.ant-input-group-addon {
+    background: #fff;
+  }
+  // .pzwh {
+  //   width: auto;
+  //   border: 1px solid #d9d9d9;
+  //   border-radius: 4px;
+  //   &:hover {
+  //     border-color: @primary-color;
+  //   }
+  //   &:focus-within {
+  //     border-color: @primary-color;
+  //     box-shadow: 0 0 0 2px fade(@primary-color, 20%);
+  //   }
+  //   /deep/.ant-input {
+  //     border: none;
+  //     height: 30px;
+  //   }
+  //   /deep/.ant-input-group-addon {
+  //     border: none;
+  //     background: none;
+  //   }
+  // }
+}
+</style>

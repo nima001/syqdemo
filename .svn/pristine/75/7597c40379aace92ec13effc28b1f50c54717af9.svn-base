@@ -1,0 +1,493 @@
+<template>
+  <div class="Personnel-query">
+    <div class="panel">
+      <div class="toolbar">
+        <a-form class="ant-advanced-search-form" :form="form">
+          <div class="box">
+            <ul class="in-box">
+              <li class="li-content">
+                <div>
+                  <span class="name">关键字:</span>
+                  <a-input
+                    :allowClear="true"
+                    placeholder="请输入关键字"
+                    v-model="searchCondition.searchkey"
+                  />
+                </div>
+              </li>
+              <li class="li-content" style="width: 180px">
+                <div>
+                  <span class="name">本人身份:</span>
+                  <a-select
+                    v-model="properties.identitytype"
+                    placeholder="请选择身份类型"
+                    @change="idtypeChange"
+                  >
+                    <a-select-option
+                      v-for="(item, index) in userList"
+                      :key="index"
+                      :value="item.value"
+                      >{{ item.text }}</a-select-option
+                    >
+                  </a-select>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">编制所在单位:</span>
+                  <a-input
+                    allowClear
+                    @change="onOrgNameChange"
+                    @click="orgVisible = true"
+                    placeholder="请选择编制所在单位"
+                    v-model="orgValue"
+                  />
+                </div>
+              </li>
+              <li class="li-button">
+                <div>
+                  <span class="name"></span>
+                  <div>
+                    <a-button
+                      type="primary"
+                      @click="onSearch"
+                      style="margin-right: 10px"
+                      >搜索</a-button
+                    >
+                    <a-button @click="onreset">重置</a-button>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </a-form>
+      </div>
+    </div>
+    <div class="Personnel-main"></div>
+    <div class="Personnel-list">
+      <div class="Personnel-content">
+        <h3 class="Personnel-h3">查询结果:</h3>
+        <div class="list-content">
+          <a-table
+            row-key="_id"
+            :loading="loading"
+            :columns="columns"
+            :customRow="customRow"
+            :rowClassName="(row) => selected == row._id ? 'selected': ''"
+            :dataSource="pagination.rows"
+            :pagination="false"
+          >
+          </a-table>
+        </div>
+        <div class="footer">
+          <a-pagination
+            v-if="pagination.rows && pagination.rows.length"
+            showSizeChanger
+            :showTotal="(total) => `总共：${total}条`"
+            @showSizeChange="onShowSizeChange"
+            :total="pagination.total"
+            v-model="pagination.pagenum"
+            @change="onPageChange"
+          />
+        </div>
+      </div>
+      <!-- <div class="main-image" v-else>
+        <empty-data :tips="warningtext" />
+      </div> -->
+    </div>
+    <!--组织选择-->
+    <a-modal
+      title="选择单位"
+      :width="500"
+      :bodyStyle="{ height: '600px', padding: '0' }"
+      v-model="orgVisible"
+      :footer="null"
+    >
+      <org-user-select
+        mode="org"
+        :root-selectable="true"
+        @finish="selectOrg"
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import moment from "moment";
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+import { showError } from "@/framework/utils/index";
+import { treequery } from "@person/api/org";
+import { sxquery, organization } from "@/person-shaoxing/api/information";
+import EmptyData from "@/framework/components/EmptyData";
+import {
+  Form,
+  Input,
+  Button,
+  Select,
+  Modal,
+  Pagination,
+  Table,
+} from "ant-design-vue";
+let orgLoader = {
+  cache: new Map(),
+  loading: new Set(),
+};
+export default {
+  name: "Personnelquery",
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    ATable: Table,
+    AInput: Input,
+    APagination: Pagination,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AModal: Modal,
+    EmptyData,
+    OrgUserSelect,
+  },
+  data() {
+    return {
+      selected: undefined,
+      warningtext: "请选择机构或进行关键字搜索",
+      idtypevalue: null,
+      form: this.$form.createForm(this, { name: "advanced_search" }),
+      searchCondition: {
+        orgid: null,
+        searchkey: null,
+        nodeid: 0,
+      },
+      loading: false,
+      properties: {
+        identitytype: undefined,
+      },
+      pagination: {
+        rows: null,
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+      },
+      orgValue: null,
+      orgVisible: false,
+      name: '',
+      columns: [
+        {
+          title: "所在主管单位",
+          dataIndex: "org._id",
+          key: "org._id",
+          width:'15%',
+          customRender: this.getsuporgname
+        },
+        {
+          title: "所在单位",
+          dataIndex: "org.name",
+          key: "name",
+          width: '18%'
+        },
+        {
+          title: "姓名",
+          dataIndex: "username",
+          key: "username",
+        },
+        {
+          title: "身份证",
+          key: "idcard",
+          dataIndex: "idcard",
+        },
+        {
+          title: "性别",
+          key: "sex",
+          dataIndex: "sex",
+          customRender: this.dictRender("usermanage.user.sex"),
+        },
+        {
+          title: "本人身份",
+          key: "identitytype",
+          dataIndex: "identitytype",
+          customRender: this.dictRender("usermanage.user.identitytype"),
+        },
+        {
+          title: "人员分类",
+          key: "postkind",
+          dataIndex: "postkind",
+          customRender: this.dictRender("usermanage.user.postkind"),
+        },
+        {
+          title: "领导职务层次",
+          key: "leaderpostlevel",
+          dataIndex: "leaderpostlevel",
+          customRender: this.dictRender("usermanage.user.leaderpostlevel"),
+        },
+        {
+          title: "最高学历",
+          key: "highesteducation",
+          dataIndex: "highesteducation",
+          customRender: this.dictRender("usermanage.user.education"),
+        },
+      ],
+    };
+  },
+  computed: {
+    //身份字典表
+    userList() {
+      return this.$store.getters.dict("usermanage.user.identitytype");
+    },
+  },
+  methods: {
+    customRow(row) {
+      return {
+        on: {
+          click: () => {
+            this.selected = row._id;
+          },
+          dblclick: (event) => {
+            this.loading = true;
+            treequery({
+              allsub: true,
+              pagesize: 1,
+              dataid: row.org._id,
+            })
+              .then(({ result }) => {
+                if (result.rows.length) {
+                  let node = result.rows[0];
+                  let routeParams;
+                  routeParams = {
+                    path: "/person/org/userinfo",
+                    query: { id: node.id, userid: row._id },
+                  };
+                  window.open(this.$router.resolve(routeParams).href, "_blank");
+                }
+              })
+              .catch((error) => {
+                showError(error);
+              }).finally(()=>{
+                this.loading = false;
+              });
+          },
+        },
+      };
+    },
+    dictRender(key) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key, text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    //确定选择的机构
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok" && list.length) {
+        let org = list[0];
+        this.searchCondition.orgid = org._id;
+        this.orgValue = org.name;
+        // this.searchCondition.nodeid = org.id;
+      }
+    },
+    onOrgNameChange() {
+      if (!this.orgValue) {
+        this.searchCondition.orgid = undefined;
+      }
+    },
+    idtypeChange(value) {
+      this.idtypevalue = value;
+    },
+    //带参查询
+    onSearch() {
+      if((this.searchCondition.nodeid===0||!this.searchCondition.orgid)&&!this.searchCondition.searchkey&&!this.properties.identitytype) {
+        this.$notification.warning({
+          message: '提示',
+          description: '请输入查询内容！',
+          duration: 3,
+        })
+      }else{
+        this.loading = true;
+        this.loadData(1, this.pagination.pagesize);
+      }
+    },
+    //页数切换
+    onPageChange(page, pagesize) {
+      this.loadData(page, pagesize);
+    },
+    onShowSizeChange(current, size) {
+      this.loadData(1, size);
+    },
+    getsuporgname(key, row, index){
+       if(!key){
+        return '';
+      }
+      let {cache, loading} = orgLoader;
+      let v = cache.get(key);
+      if(v){
+        return v.suporg.name;
+      }
+       if(!loading.has(key)){
+          loading.add(key);
+          organization(key).then(({result}) => {
+            loading.delete(key);
+            cache.set(key,  {suporg: result.suporg});
+            this.pagination.rows = [...this.pagination.rows];
+          }).catch(err => {
+            loading.delete(key);
+        });
+       }
+    },
+    loadData(pagenum, pagesize) {
+      let params = {
+        ...this.searchCondition,
+        properties: this.properties,
+        scope: "ORG",
+        needtotal: true,
+        pagenum,
+        pagesize,
+      };
+      sxquery(params)
+        .then((res) => {
+          this.loading = false;
+          if (res.result.rows.length) {
+            this.pagination = res.result;
+          } else {
+            this.pagination.rows = null;
+            this.$notification.warning({
+              message: "提示",
+              description: "暂无数据!",
+              duration: 3,
+            });
+          }
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    onreset() {
+      this.searchCondition = { input: {} };
+      this.searchCondition.nodeid = 0;
+      this.properties.identitytype = undefined;
+      this.orgValue = null;
+      this.pagination.rows = null;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.Personnel-query {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .panel {
+    display: flex;
+    // flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    .toolbar {
+      padding: @layout-space-base;
+      width: 100%;
+      margin: 0 auto;
+      .ant-advanced-search-form {
+        .box {
+          width: 100%;
+          .in-box {
+            margin-bottom: 0;
+            overflow: hidden;
+            // margin: 5px;
+            .li-content {
+              float: left;
+              padding: @layout-space-base;
+            }
+            .li-button {
+              float: left;
+              padding: @layout-space-base;
+            }
+            .name {
+              line-height: 32px;
+              padding-right: 5px;
+              // vertical-align: initial;
+            }
+            .ant-input-group.ant-input-group-compact {
+              display: inline-block;
+              vertical-align: super;
+            }
+            /deep/ .ant-input-group {
+              top: 0.8px;
+            }
+            /deep/.ant-select-selection--multiple {
+              padding-bottom: 0px;
+            }
+            @media screen and(max-width:1410px) {
+              .li-content {
+                width: 33%;
+              }
+            }
+            @media screen and (min-width: 1410px) and(max-width:1750px) {
+              .li-content {
+                width: 25%;
+              }
+            }
+            @media screen and (min-width: 1750px) {
+              .li-content {
+                width: 20%;
+              }
+            }
+          }
+        }
+      }
+      .pzwh {
+        width: auto;
+        border: 1px solid #d9d9d9;
+        border-radius: 4px;
+        &:hover {
+          border-color: @primary-color;
+        }
+        &:focus-within {
+          border-color: @primary-color;
+          box-shadow: 0 0 0 2px fade(@primary-color, 20%);
+        }
+        /deep/.ant-input {
+          border: none;
+          height: 30px;
+        }
+        /deep/.ant-input-group-addon {
+          border: none;
+          background: none;
+        }
+      }
+    }
+  }
+  .Personnel-main {
+    background: #f3f7fa;
+    height: @layout-space-base;
+    width: 100%;
+  }
+  .Personnel-list {
+    flex: 1;
+    padding: 10px 24px;
+    .Personnel-h3 {
+      font-weight: 700;
+      color: #666666;
+    }
+    .main-image {
+      position: relative;
+      top: 40%;
+    }
+    .Personnel-content {
+      /deep/.ant-table {
+        tr {
+          cursor: pointer;
+          user-select: none;
+        }
+        tr.selected {
+          background: @primary-2;
+        }
+      }
+      .footer {
+        padding: @content-padding-v @content-padding-h;
+        .ant-pagination {
+          float: right;
+          margin-bottom: 10px;
+        }
+      }
+    }
+  }
+}
+</style>

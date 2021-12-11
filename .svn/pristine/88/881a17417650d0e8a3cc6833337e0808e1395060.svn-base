@@ -1,0 +1,424 @@
+<template>
+  <div class="directory-change">
+    <a-form :form="form" class="directory-form">
+      <a-row>
+        <a-form-item label="上一级目录">
+          <a-tree-select
+            allowClear
+            :disabled="disabled"
+            placeholder="请选择上一级目录"
+            tree-data-simple-mode
+            :dropdown-style="{ width: '100%', maxHeight: '400px', overflowX: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }"
+            dropdownClassName="tree-select"
+            :tree-data="treeData"
+            :load-data="onLoadData"
+            :getPopupContainer="triggerNode => triggerNode.parentNode"
+            @change="getTreeVal"
+            v-decorator="[
+              'parent',
+              { rules: [{ required: false, message: '请选择上一级目录' }] },
+            ]"
+          />
+        </a-form-item>
+      </a-row>
+      <a-row>
+        <a-form-item label="目录名称" :wrapper-col="{ span: 25}">
+          <a-input
+            v-decorator="['name', { rules: [{ required: true, whitespace:true, message: '请输入目录名称'}] }]"
+          />
+        </a-form-item>
+      </a-row>
+      <a-row>
+        <a-form-item label="排序（插入到选择节点之前）">
+          <a-select
+            placeholder="添加排序"
+            allowClear
+            v-decorator="[
+              'sort',
+              { rules: [{ required: false, message: '请添加排序'}] },
+            ]"
+            >
+            <a-select-option
+              v-for="(item,index) in sortList"
+              :key="index"
+              :value="item.id"
+            >{{item.name}}</a-select-option>
+          </a-select>
+        </a-form-item>
+      </a-row>
+      <a-row>
+        <a-form-item label="绑定模板">
+          <a-select
+            show-search
+            @popupScroll="onScroll"
+            @search="handleSearch"
+            @change="getTemp"
+            :filter-option="false"
+            v-decorator="[
+              'tempid',
+              { rules: [{ required: true, message: '请选择模板'}] },
+            ]"
+          >
+            <!-- 输入加载 -->
+            <a-spin v-if="selectConfig.fetching" slot="notFoundContent" size="small" />
+            <!-- 下拉滚动加载 -->
+            <div slot="dropdownRender" slot-scope="menu">
+              <v-nodes :vnodes="menu" />
+              <a-spin v-if="selectConfig.loading" style="position: absolute; bottom: 0;left: 0;width: calc(100% - 6px);height: 30px;background: #fff;border-radius: 0 0 5px 5px;" slot="notFoundContent" size="small" />
+            </div>
+            <a-select-option
+              v-for="(item,index) in tempList"
+              :key="index"
+              :value="item.id"
+            >{{item.name}}</a-select-option>
+          </a-select>
+        </a-form-item>
+      </a-row>
+      <FormGroup v-if="contextProps && contextProps.length" 
+        ref="context"
+        :properties="contextProps" 
+        :data="contextData" 
+        :edit="true" 
+      />
+    </a-form>
+  </div>
+</template>
+<script>
+import { templateList, parentDirectory, catalogDetail, catalogspost } from "@/person/api/booklet";
+import { Row, Col, Select, Form, Input, Spin, TreeSelect } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import DictSelect from "@/framework/components/DictSelect";
+import FormGroup from "@person/views/org/components/form/FormGroup";
+
+export default {
+  props: ['bookid', 'record'],
+  data() {
+    return {
+      tempList: [],
+      sortList: [],
+      treeData: [],
+      disabled: false,
+      treeVal: undefined,
+      selectConfig: {
+        loading: false,
+        isEnd: false,       
+        fetching: false
+      },
+      pagination: {
+        needtotal: false,
+        pagenum: 1,
+        pagesize: 20,
+        searchkey: undefined
+      },
+      bookInfo: undefined,
+      isChangeTemp: false,
+      contextData: {},
+      contextProps: [],
+    }
+  },
+  components:{
+    ARow: Row,
+    ACol: Col,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInput: Input,
+    ASpin: Spin,
+    ATreeSelect: TreeSelect,
+    OrgUserSelect,
+    DictSelect,
+    FormGroup,
+    VNodes: {
+      functional: true,
+      render: (h, ctx) => ctx.props.vnodes,
+    },
+  },
+  watch: {
+    treeVal(val) {
+      let query = {
+        allsub: false,
+        bookid: val.bookid,
+        parentid: val.pId
+      };
+      catalogspost(query)
+      .then(({result}) => {
+        this.sortList = result.rows.filter(item=> item.id != val.id);
+      })
+      .catch(err => {
+        showError(err);
+      })
+    }
+  },
+  beforeCreate() {
+    this.form = this.$form.createForm(this);
+  },
+  created() {
+    this.loadTemp();
+    this.loadCatalog();
+  },
+  methods: {
+    loadCatalog() {
+      if(this.record.id) {// 存在id 编辑 否则新增
+        catalogDetail(this.record.id) 
+        .then(({result}) => {
+          this.disabled = true;
+          this.bookInfo = result;
+          this.contextProps = this.bulidContextPorps(result.fields);
+          this.contextData = this.bulidContextData(this.bookInfo.context, result.fields);
+          if(!result.pid) {// 没有父级
+            let query = {
+              allsub: false,
+              bookid: result.bookid,
+              pagenum: 0,
+              pagesize: 0
+            };
+            catalogspost(query)
+            .then(({result}) => {
+              this.sortList = result.rows;
+            })
+            .catch(error => {
+              showError(error);
+            });
+            this.$nextTick(() => {
+              this.form.setFieldsValue({
+                parent: "无上级目录",
+                sort: result.beforeid,
+                name: result.name,
+                tempid: result.tempname
+              });
+            });
+          }else{
+            catalogspost({// 同级排序
+              allsub: false,
+              bookid: result.bookid,
+              parentid: result.pid
+            })
+            .then(({result}) => {
+              this.sortList = result.rows;
+            })
+            .catch(error => {
+              showError(error);
+            });
+            this.$nextTick(() => {
+              this.form.setFieldsValue({
+                parent: result.pName,
+                sort: result.beforeid,
+                name: result.name,
+                tempid: result.tempname
+              });
+            });
+          }
+        })
+        .catch(err => {
+          showError(err);
+        })
+      }else{
+        let query = {
+          allsub: false,
+          bookid: this.bookid,
+          pagenum: 0,
+          pagesize: 0
+        };
+        catalogspost(query)
+        .then(({result}) => {
+          let arr = [];
+          let obj = {};
+          (result.rows || []).forEach(item => {
+            obj = {};
+            obj.bookid = item.bookid;
+            obj.id = item.id;
+            obj.pid = item.pid;
+            obj.value = `${item.id}`;
+            obj.title = item.name;
+            obj.isLeaf = item.leaf?true:false;
+            // if(item.leaf){
+            //   obj.children = [];
+            // }
+            arr.push(obj);
+          })
+          this.treeData = arr;
+          this.sortList = result.rows;
+        })
+        .catch(error => {
+          showError(error);
+        });
+      }
+    },
+    loadTemp() {
+      templateList(this.pagination)
+      .then(res => {
+        this.tempList = res.result.rows;
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    onLoadData(treeNode) {
+      let arr = [],
+          obj = {};
+      return new Promise(resolve => {
+        const { id, bookid } = treeNode.dataRef;
+        setTimeout(() => {
+          let query = {
+            allsub: false,
+            bookid,
+            parentid: id
+          };
+          catalogspost(query)
+          .then(({result}) => {
+            (result.rows || []).forEach(item => {
+              obj = {};
+              obj.bookid = item.bookid;
+              obj.id = item.id;
+              obj.pId = id;
+              obj.value = `${item.id}`;
+              obj.title = item.name;
+              obj.isLeaf = item.leaf?true:false;
+              arr.push(obj);
+            })
+            this.treeData = this.treeData.concat(arr);
+          })
+          .catch(err => {
+            showError(err);
+          })
+          resolve();
+        }, 300);
+      });
+    },
+    getTreeVal(value, label, extra) {
+      this.treeVal = extra.triggerNode.dataRef;
+    },
+    getFormValue(){
+      return new Promise((resolve, reject) => {
+        this.form.validateFields((error, values) => {
+          if(error){
+            reject({code:'form_validate_fail', message: '表单验证失败'});
+            return;
+          }
+          if(!this.isChangeTemp) {//  解决如果没进行模板切换，默认取到模板名称
+            values.tempid = this.record.tempid;
+          }
+
+          let contextFrom = this.$refs.context;
+          if(contextFrom){
+            let context = {};
+            contextFrom.validateFields(context).then(() => {
+              resolve({...values, context});
+            }).catch((error) => {
+              reject({code:'form_validate_fail', message: error});
+            });
+          }else{
+            resolve(values);
+          }
+        })
+      })
+    },
+    getTemp(value) {
+      this.isChangeTemp = true;
+      let temp = (this.tempList || []).find(item => item.id == value);
+      if(temp){
+        let context = this.bookInfo && this.bookInfo.context;
+        this.contextData = this.bulidContextData(context, temp.fields);
+        this.contextProps = this.bulidContextPorps(temp.fields);
+      }
+    },
+    onScroll(e) {
+      if(!this.selectConfig.loading && !this.selectConfig.isEnd) {
+        if(e.target.scrollHeight - e.target.clientHeight - e.target.scrollTop <= 0) {//  滚动到底部 继续加载
+          this.pagination.pagenum ++;
+          this.selectConfig.loading = true;
+          templateList(this.pagination).then(res => {
+            this.selectConfig.loading = false;
+            this.selectConfig.isEnd = res.result.rows.length == 0 ? true : false;
+            this.tempList = [...this.tempList, ...res.result.rows];
+          })
+          .catch(err => {
+            this.selectConfig.loading = false;
+            showError(err);
+          });
+        }
+      }
+    },
+    handleSearch(value) {
+      this.selectConfig.isEnd = false;
+      if(value) {
+        this.selectConfig.fetching = true;
+        this.pagination.pagenum = 1;
+        this.pagination.searchkey = value;
+        templateList(this.pagination)
+        .then(res => {
+          this.selectConfig.fetching = false;
+          this.tempList = res.result.rows;
+        })
+        .catch(err => {
+          this.selectConfig.fetching = false;
+          showError(err);
+        })
+      }else{
+        this.pagination.pagenum = 1;
+        this.pagination.searchkey = undefined;
+        templateList(this.pagination)
+        .then(res => {
+          this.tempList = res.result.rows;
+        })
+        .catch(err => {
+          showError(err);
+        })
+      }
+    },
+    bulidContextData(context, fields){
+      let obj = {};
+      (fields || []).forEach(item => {
+        obj[item.name] = undefined;
+      })
+      return Object.assign(obj, context);
+    },
+    bulidContextPorps(fields){
+      let arr = [];
+      (fields || []).forEach(item => {
+        let { name, desc, require, datatype, inputtype, datasource} = item;
+        let obj = { label: desc, code: name, span: 4, require }
+        if(datatype == 2){
+          obj.type = 'dict';
+          obj.dict = datasource;
+        }else if(datatype == 3){
+          if(datasource == 'organization'){
+            obj.type = 'org';
+          }else if(datasource == 'user'){
+            obj.type = 'user';  
+          }
+        }else if(datatype == 4){
+          if(inputtype == 1 || inputtype == 2){
+            obj.type = 'number';
+          }else if(inputtype == 3){
+            obj.type = 'date';
+          }else if(inputtype == 4){
+            obj.type = 'bool';
+          }else{
+            obj.type = 'text';
+          }
+        }
+        if(obj.type){
+          arr.push(obj);
+        }
+      });
+      return arr;
+    }
+  }
+}
+</script>
+<style lang="less"scoped>
+.directory-change{
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .directory-form{
+    flex: auto;
+    min-height: 0;
+    overflow: auto;
+    padding: @content-padding-v @content-padding-h;
+  }
+}
+</style>

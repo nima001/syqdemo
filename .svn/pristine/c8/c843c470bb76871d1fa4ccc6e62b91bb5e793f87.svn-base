@@ -1,0 +1,539 @@
+<template>
+  <div>
+    <div class="wrap">
+      <div class="selectWrap" :class="{fullPage:!multi}">
+        <div class="opwrap">
+          <a-input placeholder="输入关键词搜索" v-model="searchkey" @change="onSearch">
+            <a-icon
+              slot="suffix"
+              :type="searchkey ? 'close-circle' : 'search'"
+              @click="clearSearch"
+            />
+          </a-input>
+          <a-breadcrumb v-if="!searchkey">
+            <a-breadcrumb-item @click.native="goHome">
+              <a-icon type="home" />
+            </a-breadcrumb-item>
+            <a-breadcrumb-item
+              v-for="(item,index) in treePath"
+              :key="index+Math.random()"
+              @click.native="crumbClick(item,index)"
+            >{{item.showname || item.sort}}</a-breadcrumb-item>
+          </a-breadcrumb>
+        </div>
+        <ul class="list">
+          <a-spin :spinning='loading'>
+          <template v-if="searchkey">
+            <template v-if="searchList.length == 0 ">
+              <li class="nodata">
+                <!-- <empty-data></empty-data> -->
+                <a-spin :spining='true'></a-spin>
+              </li>
+            </template>
+            <template>
+              <li class="item" v-for="item in searchList" :key="item.key">
+                <div class="left" @click.stop="checkboxHandle(item)">
+                  <a-checkbox :checked="inArray(selected,item['key'])"></a-checkbox>
+                  <span class="text">{{item.showname}}</span>
+                </div>
+              </li>
+            </template>
+          </template>
+          <template v-else>
+            <li class="item" v-for="(item,index) in curTreeData" :key="index+Math.random()">
+              <div class="left" @click.stop="checkboxHandle(item)">
+                <template v-if="item.children">
+                  <a-checkbox
+                    v-if="item.datatype  && item.datatype == 3"
+                    :checked="inArray(selected,item['key'])"
+                  ></a-checkbox>
+                  <span class="icon" v-else>
+                    <img src="@/framework/assets/img/org-icon-group.png" />
+                  </span>
+                  <span class="text">{{item.sort}}</span>
+                </template>
+                <template v-else>
+                  <a-checkbox :checked="inArray(selected,item['key'])"></a-checkbox>
+                  <span class="text">{{item.showname}}</span>
+                </template>
+              </div>
+              <div
+                class="right"
+                v-if="item.children || (item.datatype  && item.datatype == 3 && !item['key'].includes('@'))"
+                @click="nextLevel(item)"
+              >下级</div>
+            </li>
+          </template>
+          </a-spin>
+        </ul>
+      </div>
+      <div class="resultWrap" v-if="multi">
+        <div class="header">
+          <span class="tips">
+            已选择
+            <span>{{selected.length}}/{{maxSelect}}</span>
+          </span>
+          <span class="clear" @click="clear">
+            <a-icon type="delete" />&nbsp;清空
+          </span>
+        </div>
+        <div class="content">
+          <draggable :animation="150" ghost-class="ghost" v-model="selected" handle=".item">
+            <transition-group>
+              <div class="listItem" v-for="item in selected" :key="item.key">
+                <a-icon type="bars" class="item" />
+                <span>{{item.showname}}</span>
+                <a-icon class="delBtn" type="delete" @click="delSelect(item)" />
+              </div>
+            </transition-group>
+          </draggable>
+        </div>
+      </div>
+    </div>
+    <div class="footer" :class="{single:!multi}">
+      <div class="left"></div>
+      <div class="right" :class="{multi}">
+        <a-button type="primary" @click="onFinish('ok')">确定</a-button>
+        <a-button @click="onFinish('cancel')">取消</a-button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import cloneDeep from "lodash/cloneDeep";
+import { queryfields } from "@/person/api/integratedquery";
+import { sortArrByKey, debounce } from "../../../utils/index";
+import draggable from "vuedraggable";
+import { showError } from "@/framework/utils/index";
+import { Spin } from "ant-design-vue";
+import EmptyData from "@/framework/components/EmptyData";
+import {
+  Input,
+  Breadcrumb,
+  Icon,
+  Checkbox,
+  Button,
+  Modal
+} from "ant-design-vue";
+let canceltoken = 0;
+export default {
+  name: "SelectTree",
+  components: {
+    ASpin: Spin,
+    draggable,
+    AInput: Input,
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    AIcon: Icon,
+    ACheckbox: Checkbox,
+    AButton: Button,
+    EmptyData
+  },
+  props: {
+    // 查询对象
+    searchObj: {
+      type: String,
+      required: true
+    },
+    // 数据源
+    treeFields: {
+      type: Array,
+      required: true
+    },
+    //多选模式/默认单选
+    multi: {
+      type: Boolean,
+      default: false
+    },
+    // 默认选择
+    defaultSelected: {
+      type: Array,
+      required: false
+    },
+    // 最大选择数
+    maxSelect: {
+      type: Number,
+      default: 50
+    }
+  },
+  data() {
+    return {
+      //已选数据
+      selected: [],
+      //选择路径
+      treePath: [],
+      //当前数组
+      curTreeData: [],
+      // 搜索结果
+      searchList: [],
+      // 搜索关键词
+      searchkey: "",
+      // 平铺搜索列表
+      loopArr: [],
+      loading:false
+    };
+  },
+  created() {
+    this.initFn();
+  },
+  watch: {
+    searchkey(val) {
+      if (val == "") {
+        this.searchList = [];
+      }
+    }
+  },
+  methods: {
+    initFn() {
+      let tileFields = this.$store.getters.tilefields;
+      if (tileFields.length == 0) {
+        this.dataType();
+      }
+      let arrs = sortArrByKey(cloneDeep(this.treeFields));
+      this.curTreeData = arrs;
+      if (this.multi) {
+        if (this.defaultSelected.length > this.maxSelect) {
+          let splitArr = cloneDeep(this.defaultSelected).splice(
+            0,
+            this.maxSelect
+          );
+          this.selected = splitArr;
+          Modal.info({
+            title: "提示",
+            content: `默认选择项超过了最大选项,已经截取前${this.maxSelect}项!`
+          });
+        } else {
+          this.selected = cloneDeep(this.defaultSelected);
+        }
+      }
+    },
+    clearSearch() {
+      this.searchkey = undefined;
+      this.searchList = [];
+    },
+    goHome() {
+      canceltoken++;
+      this.curTreeData = sortArrByKey(cloneDeep(this.treeFields));
+      this.treePath = [];
+      this.loading = false;
+    },
+    crumbClick(item, index) {
+      this.loading = true;
+      let token = ++canceltoken;
+      if (item["datatype"] && item["datatype"] == 3) {
+        this.getQueryFields(item).then(res=>{
+          if(token == canceltoken){
+            this.treePath = this.treePath.slice(0, index + 1);
+            this.loading = false;
+          }
+        });
+      } else {
+        this.curTreeData = item["children"];
+        this.treePath = this.treePath.slice(0, index + 1);
+        this.loading = false;
+      }
+    },
+    checkboxHandle(item) {
+      if (item["datatype"]) {
+        let type = this.inArray(this.selected, item.key);
+        if (type) {
+          let index = this.indexInArray(this.selected, "key", item);
+          this.selected.splice(index, 1);
+        } else {
+          if (this.multi) {
+            this.selected.length >= this.maxSelect
+              ? Modal.info({
+                  title: "提示",
+                  content: `最多选择${this.maxSelect}项!`
+                })
+              : this.selected.push(item);
+          } else {
+            this.$set(this.selected, 0, item);
+          }
+        }
+      }
+    },
+    onSearch: debounce(function(e) {
+      this.searchList = [];
+      let tileFields = this.$store.getters.tilefields;
+      let arr = [...cloneDeep(this.treeFields), ...cloneDeep(tileFields)];
+      for (let i = 0; i < arr.length; i++) {
+        let cur = arr[i];
+        if (
+          this.searchkey != "" &&
+          cur["showname"].indexOf(this.searchkey) != -1
+        ) {
+          this.searchList.push(arr[i]);
+        }
+      }
+    }, 500),
+    async dataType() {
+      let arr = this.treeFields;
+      let loop = [];
+      for (let i = 0; i < arr.length; i++) {
+        let item = arr[i];
+        if (item["datatype"] == 3 && !item["key"].includes("@")) {
+          loop.push(item);
+        }
+      }
+      for (let i = 0; i < loop.length; i++) {
+        await queryfields({ key: loop[i].key, modelNs: this.searchObj })
+          .then(res => {
+            this.loopArr = [
+              ...cloneDeep(this.loopArr),
+              ...cloneDeep(res.result)
+            ];
+          })
+          .catch(err => {
+            showError(err);
+          });
+      }
+      this.$store.commit({
+        type: "ADD_ALLFIELDS",
+        data: this.loopArr
+      });
+    },
+    nextLevel(item) {
+      let loop = ++ canceltoken;
+      this.loading = true;
+      if (item.datatype && item.datatype == 3) {
+        this.getQueryFields(item).then(res=>{
+          if(loop == canceltoken){
+            this.treePath.push(item);
+            this.loading = false;
+          }
+        });
+      } else {
+        this.curTreeData = cloneDeep(item["children"]);
+        this.treePath.push(item);
+        this.loading = false;
+      }
+    },
+    getQueryFields(item) {
+      let json = {
+        key: item.key,
+        modelNs: this.searchObj
+      };
+      return new Promise((resolve,reject)=>{
+        queryfields(json)
+          .then(res => {
+            let result = sortArrByKey(res.result);
+            this.curTreeData = result;
+            resolve()
+          })
+          .catch(err => {
+            showError(err);
+          });
+      })
+    },
+    // 判断数组中是否存在某一项
+    inArray(arr, key) {
+      let result = arr.some(item => {
+        if (item.key == key) {
+          return true;
+        }
+      });
+      return result;
+    },
+    // 获取数组中对象的索引
+    indexInArray(arr, key, obj) {
+      let index = arr.findIndex(item => item[key] == obj[key]);
+      return index;
+    },
+    // 清除选择0
+    clear() {
+      this.selected = [];
+    },
+    // 删除选择项
+    delSelect(item) {
+      let index = this.indexInArray(this.selected, "key", item);
+      this.selected.splice(index, 1);
+    },
+    onFinish(type) {
+      if (type == "ok") {
+        let length = this.selected.length;
+        if (length) {
+          let data = this.multi ? this.selected : this.selected[0];
+          this.$emit("finish", type, data);
+        } else {
+          Modal.info({ title: "提示", content: "尚未选择数据项" });
+        }
+      } else {
+        this.$emit("finish", type);
+      }
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  display: flex;
+  .selectWrap {
+    width: 50%;
+    height: 475px;
+    display: flex;
+    flex-direction: column;
+    &.fullPage {
+      width: 100%;
+    }
+    .opwrap {
+      padding: @content-padding-v @content-padding-h;
+      .ant-input-affix-wrapper {
+        margin: @content-padding-v 0px;
+      }
+      /deep/.ant-breadcrumb-link {
+        cursor: pointer;
+      }
+    }
+    .list {
+      flex: 1;
+      overflow: scroll;
+      padding: 0px 12px;
+      .nodata {
+        text-align: center;
+        padding: 100px 0px;
+      }
+      .item {
+        cursor: pointer;
+        font-size: 0px;
+        display: flex;
+        align-items: center;
+        &:hover {
+          background: @primary-1;
+        }
+        .left {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          padding: @content-padding-v @padding-sm;
+          span {
+            &.icon {
+              width: 16px;
+              height: 16px;
+            }
+            &.text {
+              margin-left: 8px;
+              font-size: 14px;
+            }
+          }
+        }
+        .right {
+          width: 40px;
+          height: 20px;
+          line-height: 20px;
+          font-size: 14px;
+          text-align: center;
+          color: @text-color-secondary;
+          position: relative;
+          border-left: 1px solid fade(@text-color-secondary, 30%);
+          &:hover {
+            color: @primary-color;
+            border-color: @primary-color;
+          }
+        }
+      }
+    }
+  }
+  .resultWrap {
+    height: 475px;
+    width: 50%;
+    border-left: 1px solid @border-color-split;
+    display: flex;
+    flex-direction: column;
+    .header {
+      margin: @content-padding-v 0px;
+      display: flex;
+      justify-content: space-between;
+      span {
+        margin: @content-padding-v @content-padding-h;
+        height: 32px;
+        line-height: 32px;
+        &.tips {
+          padding-left: @padding-sm;
+          position: relative;
+          &::after {
+            content: "";
+            width: 4px;
+            height: 18px;
+            background-color: @primary-color;
+            position: absolute;
+            left: 0px;
+            top: 50%;
+            transform: translateY(-50%);
+          }
+          span {
+            color: @primary-color;
+            margin: 0px;
+          }
+        }
+        &.clear {
+          cursor: pointer;
+          color: @primary-color;
+          &:hover {
+            color: fade(@primary-color, 75%);
+          }
+        }
+      }
+    }
+    .content {
+      flex: 1;
+      overflow: scroll;
+      padding: 0px @padding-xs;
+      .listItem {
+        padding: @content-padding-v @padding-sm;
+        color: @text-color-secondary;
+        display: flex;
+        align-items: center;
+        i {
+          cursor: pointer;
+        }
+        span {
+          padding: 0px @padding-xs;
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        &:hover {
+          background: @primary-1;
+          .delBtn {
+            color: @primary-color;
+            cursor: pointer;
+            visibility: visible;
+          }
+        }
+        &.ghost {
+          background: @primary-1;
+        }
+      }
+    }
+  }
+}
+.footer {
+  display: flex;
+  align-items: center;
+  &.single {
+    border-top: 1px solid @border-color-split;
+  }
+  div {
+    width: 50%;
+    height: 100%;
+    &.multi {
+      border-left: 1px solid @border-color-split;
+      border-top: 1px solid @border-color-split;
+    }
+    &.right {
+      display: flex;
+      align-items: center;
+      flex-direction: row-reverse;
+      padding: 10px @content-padding-h;
+      button {
+        &:last-child {
+          margin-right: 8px;
+        }
+      }
+    }
+  }
+}
+</style>

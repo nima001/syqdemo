@@ -1,0 +1,1031 @@
+<template>
+  <div class="processDesign">
+    <div class="main-section">
+      <iframe id="bdIframe" ref="activit" width="100%" :src="src" frameborder="0" scrolling="no"></iframe>
+    </div>
+    <!-- 节点属性配置弹框 -->
+    <a-modal
+      title="节点属性配置"
+      v-model="visible"
+      width="1300px"
+      :footer="null"
+      style="top:50px;"
+      class="set"
+      :bodyStyle="bodyStyle"
+      :destroyOnClose="true"
+      @cancel="cancel"
+    >
+      <a-tabs type="card" v-model="mode" @change="changeTab">
+        <a-tab-pane tab="页面设计" value="1" key="1">
+          <iframe
+            id="mainframe"
+            width="100%"
+            style="height:800px;"
+            :src="formdesignsrc"
+            frameborder="0"
+            scrolling="no"
+          ></iframe>
+        </a-tab-pane>
+        <a-tab-pane tab="基本属性配置" value="2" key="2">
+          <div class="save" @click="add">
+            <a-icon type="save" />保存
+          </div>
+          <a-form :form="form">
+            <a-form-item label="环节名称" :label-col="{ span: 5,offset:2 }" :wrapper-col="{ span: 8 }">
+              <a-input
+                :maxlength="30"
+                placeholder="最多填30个字符!"
+                v-decorator="[
+           `name`,
+          {rules: [{ required: true, message:  `请填写环节名称!` }],
+          initialValue: formData.name}
+        ]"
+              ></a-input>
+            </a-form-item>
+            <a-form-item
+              label="环节办理人依据"
+              :label-col="{ span: 5,offset:2 }"
+              :wrapper-col="{ span: 8 }"
+            >
+              <a-select
+                placeholder="--请选择--"
+                @change="changeHandleUser"
+                v-decorator="[
+           `handlelusertype`,
+          {rules: [{ required: true, message:  `请选择环节办理人依据!` }],
+          initialValue: formData.handlelusertype}
+        ]"
+              >
+                <a-select-option
+                  v-for="(item,index) in handlelusertypelist"
+                  :key="index"
+                  :value="item.value"
+                >{{item.text}}</a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              v-if="handlelusertype==4"
+              label="环节办理人角色"
+              :label-col="{ span: 5,offset:2 }"
+              :wrapper-col="{ span: 12 }"
+            >
+              <a-textarea
+                @click="openHandleUser"
+                read-only
+                :rows="5"
+                v-decorator="[
+           `handlevalue`,
+          {rules: [{ required: true, message:  `请选择环节办理人角色!` }],
+          initialValue: formData.handlevalue}
+        ]"
+              />
+            </a-form-item>
+            <a-form-item
+              v-if="handlelusertype==9"
+              placeholder="--请选择--"
+              label="关联字段"
+              :label-col="{ span: 5,offset:2 }"
+              :wrapper-col="{ span: 8 }"
+            >
+              <a-tree-select
+                showSearch
+                :filterTreeNode="filterTreeNode"
+                :dropdownStyle="{ maxHeight: '400px', overflow: 'auto' }"
+                :treeData="orglist"
+                placeholder="--请选择控件（code）--"
+                v-decorator="[
+           `relatecode`,
+          {rules: [{ required: true, message:  `请选择关联字段!` }],
+          initialValue: formData.relatecode}
+        ]"
+              ></a-tree-select>
+            </a-form-item>
+            <a-form-item
+              v-if="handlelusertype==9"
+              label="是否需要主管单位"
+              :label-col="{ span: 5,offset:2 }"
+              :wrapper-col="{ span: 12 }"
+            >
+              <a-switch
+                checkedChildren="是"
+                unCheckedChildren="否"
+                v-decorator="[
+           `needsuporg`,
+          {rules: [{ required: true, message:  `请选择是否需要主管单位!` }],
+          valuePropName: 'checked',
+          initialValue: formData.needsuporg}
+        ]"
+              />
+            </a-form-item>
+            <a-form-item
+              placeholder="--请选择--"
+              label="环节办理规则"
+              :label-col="{ span: 5,offset:2 }"
+              :wrapper-col="{ span: 8 }"
+            >
+              <a-select
+                v-decorator="[
+           `handletype`,
+          {rules: [{ required: true, message:  `请选择环节办理规则!` }],
+          initialValue: formData.handletype}
+        ]"
+              >
+                <a-select-option
+                  v-for="(item,index) in handletypelist"
+                  :key="index"
+                  :value="item.value"
+                >{{item.text}}</a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              placeholder="--请选择--"
+              label="表单类型"
+              :label-col="{ span: 5,offset:2 }"
+              :wrapper-col="{ span: 8 }"
+            >
+              <a-select
+                @change="changePageType"
+                v-decorator="[
+           `pagetype`,
+          {rules: [{ required: true, message:  `请选择表单类型!` }],
+          initialValue: formData.pagetype}
+        ]"
+              >
+                <a-select-option
+                  v-for="(item,index) in formTypeList"
+                  :key="index"
+                  :value="item.value"
+                >{{item.text}}</a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item
+              v-if="pagetype==2"
+              placeholder="--请选择--"
+              label="跳转路径"
+              :label-col="{ span: 5,offset:2 }"
+              :wrapper-col="{ span: 8 }"
+            >
+              <a-input
+                v-decorator="[
+           `formurl`,
+          {rules: [{ required: true, message:  `请填写跳转路径!` }],
+          initialValue: formData.formurl}
+        ]"
+              ></a-input>
+            </a-form-item>
+            <a-form-item
+              label="环节办理时限"
+              :label-col="{ span: 5,offset:2 }"
+              :wrapper-col="{ span: 12 }"
+            >
+              <a-input-number
+                :min="0"
+                v-decorator="[
+           `handletimelimit`,
+          {rules: [{ required: false, message:  `请填写环节办理时限!` }],
+          initialValue: formData.handletimelimit}
+        ]"
+              ></a-input-number>
+            </a-form-item>
+            <a-form-item
+              label="是否批量盖章"
+              :label-col="{ span: 5,offset:2 }"
+              :wrapper-col="{ span: 12 }"
+            >
+              <a-switch
+                checkedChildren="是"
+                unCheckedChildren="否"
+                v-decorator="[
+           `allbatch`,
+          {rules: [{ required: true, message:  `请选择是否批量盖章!` }],
+          valuePropName: 'checked',
+          initialValue: formData.allbatch}
+        ]"
+              />
+            </a-form-item>
+            <a-form-item
+              label="是否允许退回"
+              :label-col="{ span: 5,offset:2 }"
+              :wrapper-col="{ span: 12 }"
+            >
+              <a-switch
+                @change="changeallowback"
+                checkedChildren="是"
+                unCheckedChildren="否"
+                v-decorator="[
+           `allowback`,
+          {rules: [{ required: true, message:  `请选择是否允许退回!` }],
+          valuePropName: 'checked',
+          initialValue: formData.allowback}
+        ]"
+              />
+            </a-form-item>
+            <a-form-item
+              v-if="allowback"
+              label="退回时需要恢复的字段"
+              :label-col="{ span: 5,offset:2 }"
+              :wrapper-col="{ span: 16 }"
+            >
+              <div class="backcodelist">
+                <div class="wrap" v-for="(item,i) in backcodelist" :key="i">
+                  <h3>{{item.nodename}}</h3>
+                  <div v-for="(obj,j) in item.value" :key="j" class="formwrap">
+                    <h4>{{obj.formname}}:</h4>
+                    <a-row :gutter="20" style="margin-left:15px">
+                      <a-col
+                        :span="8"
+                        v-for="(a,idx) in obj.code"
+                        :key="idx"
+                        style="line-height:28px"
+                      >
+                        <a-tooltip placement="topLeft">
+                          <template slot="title">
+                            <span>{{a.text+"("+a.value+")"}}</span>
+                          </template>
+                          <a-checkbox
+                            :checked="a.selected"
+                            @change="selectbackcodes"
+                            :value="a.value"
+                          >{{a.text+"("+a.value+")"}}</a-checkbox>
+                        </a-tooltip>
+                      </a-col>
+                    </a-row>
+                  </div>
+                </div>
+              </div>
+            </a-form-item>
+          </a-form>
+        </a-tab-pane>
+      </a-tabs>
+    </a-modal>
+    <!-- 环节办理人角色弹框 -->
+    <a-modal
+      title="添加角色"
+      v-model="handleUserVisible"
+      width="500px"
+      @ok="addroles"
+      @cancel="cancelRole"
+    >
+      <a-input-search
+        placeholder="请填入要搜索的角色名称"
+        v-model="searchrole"
+        @search="onSearch"
+        enterButton
+        style="margin-bottom:15px;"
+      />
+      <a-table
+        :columns="columns"
+        :dataSource="data"
+        size="middle"
+        :rowSelection="{selectedRowKeys: handlevalue, onChange: onSelectChange}"
+        :rowKey="record=>record.id+'_'+record.name"
+        :pagination="pagination"
+        @change="handleTableChange"
+      ></a-table>
+    </a-modal>
+
+    <!-- 关系getway配置弹窗 -->
+    <a-modal
+      title="节点属性配置"
+      v-model="getwayvisible"
+      width="800px"
+      :footer="null"
+      style="top:50px;"
+      class="set getway"
+      :bodyStyle="bodyStyle"
+      @cancel="cancelGateway"
+    >
+      <div class="save" @click="savegetway">
+        <a-icon type="save" />保存
+      </div>
+      <a-form :form="getwayform">
+        <a-form-item label="环节名称：" :label-col="{ span: 5,offset:2 }" :wrapper-col="{ span: 8 }">
+          <a-input
+            :maxlength="30"
+            placeholder="最多填30个字符!"
+            v-decorator="[
+           `name`,
+          {rules: [{ required: true, message:  `请填写环节名称!` }],
+          initialValue: getwayData.name}
+        ]"
+          ></a-input>
+        </a-form-item>
+        <div v-for="(item,index) in getwayData.nodelist" :key="index">
+          <a-row>
+            <a-col :offset="4">
+              <h3>流转方式{{index+1}}：</h3>
+            </a-col>
+          </a-row>
+          <a-form-item label="节点名称：" :label-col="{ span: 5,offset:2 }" :wrapper-col="{ span: 8 }">
+            <a-input read-only v-model="item.flowname"></a-input>
+          </a-form-item>
+          <a-form-item label="流转条件：" :label-col="{ span: 5,offset:2 }" :wrapper-col="{ span: 8 }">
+            <a-textarea :rows="4" v-model="item.condition"></a-textarea>
+          </a-form-item>
+        </div>
+      </a-form>
+    </a-modal>
+
+    <!-- 关系callActivity配置弹窗 -->
+    <!-- <a-modal
+      title="节点属性配置"
+      v-model="cllActivityVisible"
+      width="800px"
+      :footer="null"
+      style="top:50px;"
+      class="set getway"
+      :bodyStyle="bodyStyle"
+      @cancel="cllActivityVisible=false"
+    >
+      <div class="save" @click="savegetway">
+        <a-icon type="save" />保存
+      </div>
+      <a-form :form="cllActivityform">
+        <a-form-item label="环节名称：" :label-col="{ span: 5,offset:2 }" :wrapper-col="{ span: 8 }">
+          <a-input
+            :maxlength="30"
+            placeholder="最多填30个字符!"
+            v-decorator="[
+           `name`,
+          {rules: [{ required: true, message:  `请填写环节名称!` }],
+          initialValue: getwayData.name}
+        ]"
+          ></a-input>
+        </a-form-item>
+        <div v-for="(item,index) in getwayData.nodelist" :key="index">
+          <a-row>
+            <a-col :offset="4">
+              <h3>流转方式{{index+1}}：</h3>
+            </a-col>
+          </a-row>
+          <a-form-item label="节点名称：" :label-col="{ span: 5,offset:2 }" :wrapper-col="{ span: 8 }">
+            <a-input read-only v-model="item.flowname"></a-input>
+          </a-form-item>
+          <a-form-item label="流转条件：" :label-col="{ span: 5,offset:2 }" :wrapper-col="{ span: 8 }">
+            <a-textarea :rows="4" v-model="item.condition"></a-textarea>
+          </a-form-item>
+        </div>
+      </a-form>
+    </a-modal> -->
+  </div>
+</template>
+
+<script>
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { showError } from "@/framework/utils/index";
+import {
+  getrolesList,
+  getListroles,
+  getRelateComponents,
+  getListconstantbydictkey
+} from "@/workflow/api/workflow";
+import {
+  getNodeProperty,
+  saveNodeProperty
+} from "@/workflow/api/nodeproperty";
+const columns = [
+  {
+    title: "角色名称",
+    dataIndex: "name"
+  }
+];
+import {
+  Form,
+  Input,
+  Row,
+  Col,
+  Modal,
+  Icon,
+  Table,
+  Tooltip,
+  InputNumber,
+  Switch,
+  Select,
+  Tabs,
+  Checkbox,
+  TreeSelect
+} from "ant-design-vue";
+export default {
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    AInputSearch: Input.Search,
+    ARow: Row,
+    ACol: Col,
+    AModal: Modal,
+    AIcon: Icon,
+    ATable: Table,
+    ATooltip: Tooltip,
+    AInputNumber: InputNumber,
+    ASwitch: Switch,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    ACheckbox: Checkbox,
+    ATreeSelect: TreeSelect
+  },
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      modelInstanceId: this.$route.query.modelInstanceId,
+      modelId: this.$route.query.modelId,
+      resourceid: "",
+      visible: false,
+      mode: "1",
+      query: {},
+      bodyStyle: {
+        height: "800px",
+        overflow: "auto",
+        padding: "5px 5px 0 5px"
+      },
+      formdesignsrc: "",
+      form: this.$form.createForm(this),
+      formData: {
+        name: "",
+        handlelusertype: undefined,
+        handlevalue: "",
+        handletype: undefined,
+        handletimelimit: undefined,
+        optedcodetype: undefined,
+        optedcode: undefined,
+        applycode: undefined,
+        allbatch: false,
+        allowback: false,
+        pagetype: 1,
+        formurl: "",
+        relatecode: undefined,
+        needsuporg: false
+      },
+      handlevalue: [],
+      handlevalueIds: [],
+      searchrole: "",
+      backcode: [],
+      handlelusertypelist: [],
+      handletypelist: [
+        { value: 1, text: "或签" },
+        { value: 2, text: "会签" },
+        { value: 3, text: "顺序签" }
+      ],
+      orglist: [],
+      handlelusertype: undefined,
+      pagetype: 1,
+      allowback: true,
+      handleUserVisible: false,
+      pagination: {
+        current: 1,
+        pagesize: 10,
+        total: 0,
+        showTotal: function(total) {
+          return `总共： ${total} 条`;
+        }
+      },
+      columns,
+      data: [],
+      backcodelist: [],
+      formTypeList: [
+        {
+          value: 1,
+          text: "配置"
+        },
+        {
+          value: 2,
+          text: "链接"
+        }
+      ],
+      //getway节点配置
+      getwayvisible: false,
+      getwayform: this.$form.createForm(this),
+      getwayData: {
+        name: "",
+        nodelist: []
+      },
+      //callActivity节点配置
+      cllActivityVisible: false,
+      cllActivityform: this.$form.createForm(this)
+    };
+  },
+  mounted() {
+    window.getMyVue = this;
+    const oIframe = document.getElementById("bdIframe");
+    const deviceWidth = document.documentElement.clientWidth;
+    const deviceHeight = document.documentElement.clientHeight;
+    oIframe.style.width = Number(deviceWidth) - 90 + "px"; //数字是页面布局宽度差值
+    oIframe.style.height = Number(deviceHeight) - 270 + "px"; //数字是页面布局高度差
+    window.addEventListener("message", this.handleMessage);
+  },
+  computed: {
+    src() {
+      return process.env.NODE_ENV === "production"
+        ? `${process.env.BASE_URL}static/modeler.html?modelInstanceId=` +
+            this.modelInstanceId +
+            "&modelId=" +
+            this.modelId
+        : "/static/modeler.html?modelInstanceId=" +
+            this.modelInstanceId +
+            "&modelId=" +
+            this.modelId;
+    },
+    apiUrl() {
+      return this.uiConfigs["api.url"] + "/workflow";
+    }
+  },
+  destroyed() {
+    window.removeEventListener("message", this.handleMessage);
+  },
+  created() {
+    this.getRolesLists();
+  },
+  methods: {
+    handleMessage(event) {
+      let data = event.data.data;
+      this.mode = "1";
+      if (data && data.info == "success") {
+        let query = {};
+        query.modelinstanceid = this.modelInstanceId;
+        query.resourceId = data.data.resourceId;
+        query.nodetype = data.data.type;
+        this.resourceid = data.data.resourceId;
+        if (data.data.type == 1) {
+          //获取表单设计器地址
+          this.formdesignsrc =
+            this.uiConfigs["workflow.formconfig.url"] +
+            "?resourceId=" +
+            data.data.resourceId +
+            "&modelInstanceId=" +
+            this.modelInstanceId +
+            "&modelId=" +
+            this.modelId;
+          this.query = query;
+          this.visible = true;
+          this.handlevalue = [];
+        } else if (data.data.type == 2) {
+          this.getwayData = {
+            name: "",
+            nodelist: []
+          };
+          this.getNodeInfo(query, 2);
+          this.getwayvisible = true;
+        }
+        else if (data.data.type == 3) {
+          this.getNodeInfo(query, 3);
+          this.cllActivityVisible = true;
+        }
+      }
+    },
+    //切换面板
+    changeTab(val) {
+      if (val == "2") {
+        this.getHandleUserList();
+        //节点属性配置查看
+        this.getNodeInfo(this.query, 1);
+      }
+    },
+    //获取节点配置
+    getNodeInfo(query, type) {
+      getNodeProperty(query)
+        .then(res => {
+          if (type == 1) {
+            //指定角色
+            if (res.result.handlevalue) {
+              this.handlevalueIds = res.result.handlevalue;
+              this.getRoles(res.result.handlevalues).then(data => {
+                if (data) {
+                  let arr = [];
+                  data.forEach(item => {
+                    this.handlevalue.push(item.id + "_" + item.name);
+                    arr.push(item.name);
+                  });
+                  this.formData.handlevalue = arr.join(",");
+                }
+              });
+            }
+            this.formData.name = res.result.name;
+            this.formData.handlelusertype = res.result.handlelusertype;
+            this.handlelusertype = res.result.handlelusertype;
+            if (this.handlelusertype == 9) {
+              this.getnodePropertyCodeList();
+            }
+            this.formData.handletype = res.result.handletype;
+            this.formData.handletimelimit = res.result.handletimelimit;
+            this.formData.allowback = res.result.allowback == 1 ? true : false;
+            this.formData.allbatch = res.result.allbatch == 1 ? true : false;
+            this.allowback = this.formData.allowback == 1 ? true : false;
+            this.formData.pagetype = res.result.pagetype;
+            this.pagetype = res.result.pagetype;
+            this.formData.formurl = res.result.formurl;
+            if (res.result.relatecode) {
+              if (res.result.relatecode.split(".").length > 1) {
+                this.formData.relatecode = res.result.relatecode.split(".")[1];
+              } else {
+                this.formData.relatecode = res.result.relatecode;
+              }
+            }
+            this.formData.needsuporg =
+              res.result.needsuporg == 1 ? true : false;
+            //获取退回字段
+            if (res.result.backcodelist) {
+              this.backcode = res.result.backcodes;
+              res.result.backcodelist.forEach((a, i) => {
+                this.backcodelist.push({
+                  nodename: a.nodename,
+                  value: []
+                });
+                a.value.forEach(b => {
+                  if (b.code.length > 0) {
+                    this.backcodelist[i].value = a.value;
+                  }
+                });
+              });
+              this.backcodelist = this.backcodelist.filter(item => {
+                return item.value.length > 0;
+              });
+              //退回字段回显
+              if (res.result.backcodes) {
+                this.backcodelist.forEach((a, i) => {
+                  a.value.forEach((b, j) => {
+                    b.code.forEach(c => {
+                      res.result.backcodes.forEach(d => {
+                        if (c.value == d) {
+                          this.$set(c, "selected", true);
+                        }
+                      });
+                    });
+                  });
+                });
+              }
+            }
+            this.formData.optedcodetype = res.result.optedcodetype;
+          } else if (type == 2) {
+            this.getwayData.name = res.result.name;
+            res.result.nextnode.forEach(item => {
+              this.getwayData.nodelist.push({
+                resourceid: item.resourceid,
+                flowname: item.flowname,
+                condition: undefined
+              });
+            });
+            if (res.result.expression) {
+              let arr = JSON.parse(res.result.expression);
+              if (arr.length > 0) {
+                arr.forEach(a => {
+                  this.getwayData.nodelist.forEach(b => {
+                    if (a.resourceid == b.resourceid) {
+                      this.$set(b, "condition", a.condition);
+                    }
+                  });
+                });
+              }
+            }
+          }
+          else if (type == 3) {
+          }
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    //获取角色集合
+    getRoles(ids) {
+      let params = ids.join(",");
+      let p = new Promise((resolve, reject) => {
+        getListroles(params)
+          .then(res => {
+            resolve(res.result);
+          })
+          .catch(error => {
+            showError(error);
+          });
+      });
+      return p;
+    },
+    //获取关联字段下拉框
+    getnodePropertyCodeList(val, type) {
+      let query = {};
+      query.modelInstanceId = this.modelInstanceId;
+      query.types = "org";
+      getRelateComponents(query)
+        .then(res => {
+          res.result.forEach(item => {
+            if (item.children) {
+              this.$set(item, "selectable", false);
+            }
+          });
+          this.orglist = res.result;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //树型选择框搜索筛选
+    filterTreeNode(input, option) {
+      return (
+        option.componentOptions.propsData.title
+          .toLowerCase()
+          .indexOf(input.toLowerCase()) >= 0
+      );
+    },
+    //保存
+    add() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          values.handlevalue = this.handlevalueIds;
+          values.backcode = this.backcode;
+          let nodePropertyVo = values;
+          nodePropertyVo.modelinstanceid = this.modelInstanceId;
+          nodePropertyVo.resourceid = this.resourceid;
+          nodePropertyVo.nodetype = 1;
+          this.orglist.forEach(item => {
+            if (item.children) {
+              item.children.forEach(o => {
+                if (o.value == values.relatecode) {
+                  values.relatecode = item.value + "." + values.relatecode;
+                }
+              });
+            }
+          });
+          saveNodeProperty(nodePropertyVo)
+            .then(res => {
+              if (res.code == "success") {
+                this.$message.success("节点属性保存成功！");
+                this.changeIframeName(values.name);
+                this.visible = false;
+                this.reset();
+              }
+            })
+            .catch(err => {
+              showError(err);
+            });
+        }
+      });
+    },
+    //取消
+    cancel() {
+      this.visible = false;
+      this.reset();
+    },
+    //节点配置重置
+    reset() {
+      this.form.resetFields();
+      this.handlelusertype = undefined;
+      this.pagetype = 1;
+      this.formData = {
+        name: "",
+        handlelusertype: undefined,
+        handlevalue: "",
+        handletype: undefined,
+        handletimelimit: undefined,
+        optedcodetype: undefined,
+        optedcode: undefined,
+        applycode: undefined,
+        allbatch: false,
+        allowback: false,
+        pagetype: 1,
+        formurl: "",
+        relatecode: undefined,
+        needsuporg: false
+      };
+      this.handlevalue = [];
+    },
+    //获取环节办理人依据
+    getHandleUserList() {
+      getListconstantbydictkey("workflow.handlerusertype")
+        .then(res => {
+          this.handlelusertypelist = res.result;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //环节办理人依据切换
+    changeHandleUser(value) {
+      this.formData.handlevalue = undefined;
+      this.handlevalue = [];
+      this.handlevalueIds = [];
+      this.handlelusertype = value;
+      if (value == 9) {
+        this.getnodePropertyCodeList();
+      }
+    },
+    //表单类型切换
+    changePageType(val) {
+      this.pagetype = val;
+    },
+    //是否允许退回
+    changeallowback(val) {
+      if (val) {
+        this.allowback = true;
+      } else {
+        this.backcode = [];
+        this.backcodelist.forEach((a, i) => {
+          a.value.forEach((b, j) => {
+            b.code.forEach(c => {
+              this.$set(c, "selected", false);
+            });
+          });
+        });
+        this.allowback = false;
+      }
+    },
+    //打开选择办理人角色弹框
+    openHandleUser() {
+      this.handleUserVisible = true;
+    },
+    //获取角色列表
+    getRolesLists(name) {
+      let query = {};
+      query.namelike = name;
+      query.needtotal = true;
+      query.pagenum = this.pagination.current;
+      query.pagesize = this.pagination.pagesize;
+      getrolesList(query)
+        .then(res => {
+          this.pagination.total = res.result.total ? res.result.total : 0;
+          this.pagination.current = res.result.pagenum ? res.result.pagenum : 1;
+          this.data = res.result.rows;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //列表分页切换
+    handleTableChange(pagination) {
+      const pager = { ...this.pagination };
+      pager.current = pagination.current;
+      this.pagination = pager;
+      this.getRolesLists(this.searchrole);
+    },
+    onSelectChange(selectedRowKeys) {
+      this.handlevalue = selectedRowKeys;
+    },
+    //搜索
+    onSearch(val) {
+      this.getRolesLists(val);
+    },
+    //选择角色
+    addroles() {
+      let arr = [];
+      this.handlevalueIds = [];
+      this.handlevalue.forEach(item => {
+        let temp = item.split("_");
+        this.handlevalueIds.push(parseInt(temp[0]));
+        arr.push(temp[1]);
+      });
+      this.formData.handlevalue = arr.join("、");
+      this.handleUserVisible = false;
+    },
+    //取消角色
+    cancelRole() {
+      this.handleUserVisible = false;
+      this.handlevalue = [];
+    },
+    //选择需要退回的字段
+    selectbackcodes(e) {
+      let val = e.target.value;
+      if (!this.backcode) {
+        this.backcode = [];
+      }
+      if (this.backcode.indexOf(val) == -1) {
+        this.backcode.push(val);
+        this.backcodelist.forEach((a, i) => {
+          a.value.forEach((b, j) => {
+            b.code.forEach(c => {
+              if (c.value == val) {
+                this.$set(c, "selected", true);
+              }
+            });
+          });
+        });
+      } else {
+        this.backcode = this.backcode.filter(item => {
+          return item != val;
+        });
+        this.backcodelist.forEach((a, i) => {
+          a.value.forEach((b, j) => {
+            b.code.forEach(c => {
+              if (c.value == val) {
+                this.$set(c, "selected", false);
+              }
+            });
+          });
+        });
+      }
+    },
+    //保存网关节点
+    savegetway() {
+      this.getwayform.validateFields((err, values) => {
+        if (!err) {
+          let nodePropertyVo = {};
+          let arr = [];
+          this.getwayData.nodelist.forEach(item => {
+            arr.push({
+              resourceid: item.resourceid,
+              condition: item.condition
+            });
+          });
+          nodePropertyVo.expression = JSON.stringify(arr);
+          nodePropertyVo.modelinstanceid = this.modelInstanceId;
+          nodePropertyVo.resourceid = this.resourceid;
+          nodePropertyVo.name = values.name;
+          nodePropertyVo.nodetype = 2;
+          saveNodeProperty(nodePropertyVo)
+            .then(res => {
+              this.$message.success("节点属性保存成功！");
+              this.changeIframeName(values.name);
+              this.getwayvisible = false;
+              this.resetGateway();
+            })
+            .catch(error => {
+              showError(error);
+            });
+        }
+      });
+    },
+    //取消保存网关
+    cancelGateway() {
+      this.getwayvisible = false;
+      this.resetGateway();
+    },
+    //重置网关表单
+    resetGateway() {
+      this.getwayform.resetFields();
+      this.getwayData = {
+        name: "",
+        nodelist: []
+      };
+    },
+    changeIframeName(val) {
+      let myframe = document.getElementById("bdIframe");
+      myframe.contentWindow.postMessage({ data: val }, window.location.origin);
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.set {
+  .save {
+    width: 100px;
+    cursor: pointer;
+    i {
+      font-size: 17px;
+      padding-right: 5px;
+    }
+  }
+  .backcodelist {
+    border: 1px dashed #ddd;
+    border-radius: 5px;
+    padding: 5px 10px;
+    h3 {
+      line-height: 25px;
+    }
+    .formwrap {
+      margin-left: 15px;
+      h4 {
+        color: rgba(0, 0, 0, 0.65);
+        font-weight: bold;
+        line-height: 1.5;
+        margin: 0;
+      }
+      /deep/.ant-checkbox-group {
+        margin-left: 15px;
+      }
+      /deep/.ant-checkbox-wrapper {
+        width: 240px;
+        .ant-checkbox {
+          margin-top: -18px;
+        }
+        > span:last-child {
+          display: inline-block;
+          width: 200px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          margin-top: 5px;
+        }
+      }
+    }
+  }
+}
+.processDesign {
+  .main-section {
+    margin: 0 auto;
+  }
+}
+.getway {
+  .save {
+    width: 100px;
+    cursor: pointer;
+    padding: 10px 15px;
+    i {
+      font-size: 17px;
+      padding-right: 5px;
+    }
+  }
+  h3 {
+    font-size: 15px;
+    font-weight: bold;
+  }
+}
+</style>

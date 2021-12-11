@@ -1,0 +1,140 @@
+<template>
+  <div class="screen-header">
+    <div class="left">浙江省机构编制数字化管理平台</div>
+    <div class="center">
+      <ul>
+        <li :class="{'active': isActive('浙编汇')}" @click="onclick('/person/screen/staffing')">
+          <div class="text">浙编汇</div>
+        </li>
+      </ul>
+    </div>
+    <div class="center-stretch">
+      <ul>
+        <li :class="{'active': isActive('业务办理')}" @click="hrefTo('http://59.202.42.184:8008/main.do?sys_id=1&userId=30583&serviceCode=6a8f43671eec59c11371212230151793')">
+          <div class="text">业务办理</div>
+        </li>
+        <li :class="{'active': isActive('智慧监管')}" @click="onclick('/person/screen/problems')">
+          <div class="text">智慧监管</div>
+        </li>
+        <li :class="{'active': isActive('共享协同')}" @click="hrefTo('http://59.202.42.184:8008/main.do?sys_id=22')">
+          <div class="text">共享协同</div>
+        </li>
+        <li :class="{'active': isActive('绩效监管')}">
+          <div class="text">绩效评估</div>
+        </li>
+    </ul>
+    </div>
+    <div class="right">
+      <a class="back" @click="$router.go(-1)">返回</a>
+    </div>
+  </div>
+</template>
+<script>
+export default {
+  props: {
+    title: String,
+  },
+  methods: {
+    isActive(val) {
+      if(val==this.title) {
+        return true;
+      }
+      return false;
+    },
+    onclick(val) {
+      this.$router.push(val);
+    },
+    hrefTo(url) {
+      window.location.href=url;
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.screen-header{
+  display: flex;
+  height: 90px;
+  .left{
+    flex: none;
+    min-width: 400px;
+    background: url('../../../assets/img/screen/head-bg-left.png') center top no-repeat;
+    background-size: 100% 88px;
+    text-indent: 24px;
+    font-size: 32px;
+    font-weight: bold;
+    line-height: 72px;
+    color: #FFFFFF;
+    text-shadow: 0px 0px 16px rgba(28, 28, 30, 0.95);
+    letter-spacing: 4px;
+  }
+  .center, .center-stretch{
+    // flex: none;
+    // width: 160px;
+    // background: url('../../../assets/img/screen/head-bg-center.png') center top no-repeat;
+    font-size: 18px;
+    font-weight: 400;
+    height: 88px;
+    // text-indent: 40px;
+    color: rgba(255, 255, 255, 0.8);
+    text-shadow: 0px 0px 16px rgba(28, 28, 30, 0.95);
+    ul {
+      display: flex;
+      li.active {
+        color: #01E3FC;
+        background: fade(#000, 20%);
+        &:hover {
+          background: fade(#000, 20%);
+        }
+      }
+      li {
+        width: 120px;
+        padding: 0 @padding-sm;
+        line-height: 63px;
+        color: fade(#fff, 80%);
+        text-align: center;
+        -webkit-box-reflect: below -90% -webkit-linear-gradient(transparent 15%, rgba(255, 255, 255, 0.8));
+        padding: 0 @padding-md;
+        cursor: pointer;
+        .text {
+          transform: translateY(-10px);
+        }
+      }
+    }
+  }
+  .center {
+    flex: none;
+    width: 155px;
+    padding-left: 20px;
+    background: url('../../../assets/img/screen/head-bg-center.png') center top no-repeat;
+    background-size: 100% 100%;
+  }
+  .center-stretch{
+    flex: auto;
+    background: url('../../../assets/img/screen/head-bg-center-stretch.png') center top no-repeat;
+    background-size: 100% 100%;
+    ul {
+      display: flex;
+      justify-content: space-between;
+    }
+  }
+  .right{
+    flex: none;
+    width: 290px;
+    background: url('../../../assets/img/screen/head-bg-right.png') center top no-repeat;
+    background-size: 100% 100%;
+  }
+  .back{
+    float: right;
+    margin: 15px 24px;
+    padding: 4px;
+    text-indent: 24px;
+    font-size: 20px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.6);
+    background: url('../../../assets/img/screen/icon-back.png') left center no-repeat;
+    &:hover{
+      color: rgba(255, 255, 255, .8);
+    }
+  }
+}
+</style>

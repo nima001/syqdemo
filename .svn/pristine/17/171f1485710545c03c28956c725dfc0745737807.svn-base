@@ -1,0 +1,403 @@
+<template>
+  <div class="processLayout">
+    <div class="top">
+      <p v-if="allow" class="applytext">请选择需要申请的接口：</p>
+      <p v-if="!allow && (parseInt(this.$route.query.verifystate) === 1)" class="applytext">已审核的接口列表：</p>
+      <div class="toolList">
+        <a-select allowClear v-if="allow" v-model="actionstate" @change="getActionList" :style="{width:'200px'}" placeholder="请选择接口">
+          <a-select-option value="0">所有接口</a-select-option>
+          <a-select-option value="1">选中接口</a-select-option>
+          <a-select-option value="2">待审核接口</a-select-option>
+        </a-select>
+        <a-input allowClear v-model="namelike" :style="{width:'200px',marginLeft:'10px'}" placeholder="请输入接口名称" @pressEnter="getActionList"/>
+        <a-button type="primary" @click="getActionList">搜索</a-button>
+        <a-button type="primary" @click="resetsearch">重置</a-button>
+      </div>
+      <div class="toolList" v-if="!allow && $route.query.state == 1 && hasPermit('/dev/manage/service/modify')">
+        <a-button type="primary" @click="changeInfo">变更</a-button>
+      </div>
+      <div class="toolList" v-if="!allow && (parseInt(this.$route.query.verifystate) === 0) && this.hasPermit('/dev/audit/service/verify')">
+        <a-button type="primary" @click="refuseApply">退回</a-button>
+        <a-button type="primary" @click="agreedApply">通过</a-button>
+      </div>
+    </div>
+    <div class="middle">
+      <a-table :row-selection="rowSelection" :loading="loading" :columns="columns" :data-source="data" rowKey="id">
+        <span slot="name" slot-scope="text, record">
+            <span class="actionname">{{text}}</span>
+            <span @click="actionDetail(record)" class="actiondetil">详情</span>
+        </span>
+        <span slot="acstate" slot-scope="text">
+          <span>{{stateMap[text]}}</span>
+        </span>
+      </a-table>
+    </div>
+    <div class="bottom">
+      <a-form :form="form">
+        <a-form-item label="用途说明">
+          <a-textarea :auto-size="{ minRows: 4, maxRows:4 }" :readOnly="!allow"
+            v-decorator="['desc',{rules: [{ required: true, message: '请输入用途说明' }], initialValue: descform.desc}]"
+          />
+        </a-form-item>
+      </a-form>
+      <!-- <template v-if="descform.faildesc">
+        <p class="applytext">审核退回原因</p>
+        <a-textarea readonly :auto-size="{ minRows: 4, maxRows:4 }" :value="descform.faildesc"></a-textarea>
+      </template> -->
+      <a-button v-if="allow" type="primary" @click="nextstep">下一步</a-button>
+    </div>
+    <!-- 接口详情接口 -->
+    <interface-info-modal v-model="actionVisible" :actionData="actionData"></interface-info-modal>
+    <refuse-modal v-if="refuseVisible" :selectedRowKeys="selectedRowKeys" @callBack="refuseCallBack"></refuse-modal>
+  </div>
+</template>
+<script>
+import { Layout, Button, Input, Form, Select, Table } from "ant-design-vue";
+import { appliedList, serviceDesc,apiVerify } from "@/dev/api/service";
+import { showError } from "@/framework/utils";
+import InterfaceInfoModal from './InterfaceInfoModal';
+import RefuseModal from '@/dev/views/auditcenter/components/RefuseModal';
+const allowcolumns = [
+  {
+    title: "接口名称",
+    dataIndex: "name",
+    width: "35%",
+    scopedSlots: { customRender: "name" }
+  },
+  {
+    title: "标签",
+    dataIndex: "age",
+    width: "15%"
+  },
+  {
+    title: "接口地址",
+    dataIndex: "address",
+    width: "40%"
+  }
+];
+export default {
+  components: {
+    ALayout: Layout,
+    AButton: Button,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    ATextarea: Input.TextArea,
+    InterfaceInfoModal,
+    RefuseModal
+  },
+  props: {
+    allow: {
+      type: Boolean
+    }
+  },
+  data() {
+    return {
+      loading:false,
+      descform: {},
+      //接口状态下拉框标识
+      actionstate: "0",
+      namelike: "",
+      selectedRowKeys: [],
+      //从接口获取选择的key
+      apiSelectKeys: [],
+      desc: "",
+      columns: [
+        {
+          title: "接口名称",
+          dataIndex: "name",
+          width: "35%",
+          scopedSlots: { customRender: "name" }
+        },
+        {
+          title: "标签",
+          dataIndex: "age",
+          width: "15%"
+        },
+        {
+          title: "接口地址",
+          dataIndex: "url",
+          width: "40%"
+        },
+        {
+          title: "状态",
+          dataIndex: "state",
+          width: "10%",
+          scopedSlots: { customRender: "acstate" },
+          customCell: (record, rowIndex) => {
+            return { style: this.colors(record.state) }; //return 想要设置的样式
+          }
+        }
+      ],
+      data: [],
+      //接口详情窗口
+      actionVisible: false,
+      actionData: {},
+      //接口状态
+      stateMap: {
+        "0": "未开通",
+        "1": "待审核",
+        "2": "使用中",
+        "4": "退回"
+      },
+      verifystate: this.$route.query.verifystate
+        ? parseInt(this.$route.query.verifystate)
+        : this.$route.query.verifystate,
+      form: this.$form.createForm(this),
+      refuseVisible:false
+    };
+  },
+  computed: {
+    rowSelection() {
+      if (this.allow || this.verifystate === 0) {
+        return {
+          //选择的keys
+          selectedRowKeys: this.selectedRowKeys,
+          //接口选择修改
+          onChange: this.changeSelectedRow,
+          getCheckboxProps: record => {
+            let props = {
+              disabled: record.name === "Disabled User",
+              name: record.name
+            };
+            return props;
+          }
+        };
+      } else {
+        return null;
+      }
+    }
+  },
+  mounted() {
+    this.changeActionState();
+    this.getAppliedList();
+    this.getActionDesc();
+  },
+  methods: {
+    refuseCallBack(res){
+      if(res.type == 'ok'){
+        this.selectedRowKeys = []
+        this.getAppliedList();
+      }
+      this.refuseVisible = false;
+    },
+    refuseApply(){
+      if(this.selectedRowKeys.length == 0){
+        this.$notification.warning({
+          message: "提示",
+          description: "请先选择审核的接口",
+          duration: 1.5
+        });  
+      }else{
+        this.refuseVisible = true;
+      }
+    },
+    // 同意申请
+    agreedApply() {
+      var data = {
+        apiIdList:this.selectedRowKeys ||[],
+        appid: this.$route.query.appid,
+        serviceId: this.$route.query.serviceId,
+        state: 1
+      };
+      if(data.apiIdList.length == 0){
+        this.$notification.warning({
+          message: "提示",
+          description: "请先选择审核的接口",
+          duration: 1.5
+        });    
+        return false     
+      }
+      apiVerify(data)
+        .then(res => {
+          this.$message.success("审核完成");
+          this.selectedRowKeys = [];
+          this.getAppliedList();
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //获取action列表事件
+    getActionList() {
+      this.getAppliedList();
+    },
+    //变更
+    changeInfo() {
+      let { appid, code, state, serviceId } = this.$route.query;
+      this.$router.push({
+        path: "/dev/manage/service/apply",
+        query: { appid, code, state, serviceId }
+      });
+    },
+    // 调取已申请的api接口
+    getAppliedList() {
+      var data = {
+        appid: this.$route.query.appid,
+        name: this.namelike,
+        module: this.$route.query.code,
+        serviceId: this.$route.query.serviceId,
+        tag: undefined,
+        type: this.actionstate
+      };
+      this.loading = true;
+      appliedList(data)
+        .then(res => {
+          this.spinning = false;
+          let result = res.result;
+          if (result) {
+            if (this.allow) {
+              let array = [];
+              result.forEach(item => {
+                if (item.state != 0) {
+                  array.push(item.id);
+                }
+              });
+              this.apiSelectKeys = array;
+              this.selectedRowKeys = [...this.apiSelectKeys];
+            }
+          }
+          // 审核人员
+          if (this.hasPermit("InterfaceAudit")) {
+            let arr = result.devApiVos || [];
+            this.data = arr.filter(function(item) {
+              return item.selected == 1;
+            });
+          } else {
+            // 开发人员
+            this.data = result;
+          }
+        })
+        .catch(err => {
+          showError(err);
+        }).finally(()=>{
+          this.loading = false;
+        });
+    },
+    //获取状态信息
+    getActionDesc() {
+      let data = {
+        appid: this.$route.query.appid,
+        serviceid: this.$route.query.serviceId
+      };
+      serviceDesc(data)
+        .then(res => {
+          this.descform = res.result;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //重置
+    resetsearch() {
+      this.namelike = "";
+      this.changeActionState();
+      this.getAppliedList();
+    },
+    // colors
+    colors(state) {
+      switch (state) {
+        case 0:
+          return "color:#999 !important";
+        case 1:
+          return "color:#faad14";
+        case 2:
+          return "color:#0dbc79";
+        case 3:
+          return "color:#0dbc79";
+        case 4:
+          return "color:#f5222d";
+        default:
+          return;
+      }
+    },
+    //展示接口详细信息
+    actionDetail(data) {
+      this.actionData = data;
+      this.actionVisible = true;
+    },
+    //下一步操作
+    nextstep() {
+      if (
+        this.rowSelection.selectedRowKeys.sort().toString() ==
+        this.apiSelectKeys.sort().toString()
+      ) {
+        showError({ message: "申请接口未改变或未勾选" });
+        return;
+      }
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          this.desc = values.desc;
+          this.$emit("changeCurrent", 1);
+        }
+      });
+    },
+    //接口选择修改
+    changeSelectedRow(selectedRowKeys) {
+      this.selectedRowKeys = selectedRowKeys;
+    },
+    //接口状态值判断 从不同的页面跳转来赋不同的值
+    // 从审核页面的已审核转入，显示已选择的接口
+    //从审核页面待审核跳转展示 待审核接口
+    //从修改页面跳转展示 已选择的接口、
+    //从待申请展示所有接口
+    changeActionState() {
+      if (this.verifystate === 1) {
+        this.actionstate = "1";
+      } else if (this.verifystate === 0) {
+        this.actionstate = "2";
+      } else {
+        if (this.allow) {
+          this.actionstate = "0";
+        } else {
+          this.actionstate = "1";
+        }
+      }
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.processLayout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .top {
+    padding: 0px @content-padding-h @content-padding-v;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    p {
+      margin: 0px;
+    }
+    .toolList {
+      text-align: right;
+      button {
+        margin-left: 10px;
+      }
+    }
+  }
+  .middle {
+    padding: 0px @content-padding-h;
+    flex-shrink: 1;
+    overflow-y: auto;
+    /deep/ .actiondetil {
+      color: @primary-color;
+      margin:0px @layout-space-base;
+      cursor: pointer;
+    }
+  }
+  .bottom {
+    padding: 0px @content-padding-h;
+    button{
+      display: block;
+      margin:  0 auto;
+    }
+  }
+}
+</style>

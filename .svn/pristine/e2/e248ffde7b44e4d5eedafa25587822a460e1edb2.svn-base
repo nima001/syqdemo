@@ -1,0 +1,99 @@
+<template>
+  <a-modal :visible="true" width="600px" @cancel="cancel">
+    <a-form :form="form">
+      <a-row :gutter="24">
+        <a-col :span="12">
+          <a-form-item label="所在窗口">
+            <a-select>
+              <a-select-option :value="1">窗口1</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="排班人">
+            <a-select>
+              <a-select-option :value="1">张三</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="日期选择">
+            <a-date-picker :style="{width:'100%'}"></a-date-picker>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="星期">
+            <a-select>
+              <a-select-option :value="1">星期一</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="开始时间">
+            <a-select>
+              <a-select-option :value="1">8:30</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="结束时间">
+            <a-select>
+              <a-select-option :value="1">8:30</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="24">
+          <a-form-item label="值班人员选择">
+            <a-input></a-input>
+          </a-form-item>
+        </a-col>
+        <a-col :span="24">
+          <a-form-item label="是否短信通知">
+            <a-select>
+              <a-select-option :value="1">是</a-select-option>
+              <a-select-option :value="0">否</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+      </a-row>
+    </a-form>
+  </a-modal>
+</template>
+
+<script>
+import {
+  Modal,
+  Form,
+  Select,
+  Row,
+  Col,
+  DatePicker,
+  Input
+} from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+export default {
+  components: {
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ARow: Row,
+    ACol: Col,
+    ADatePicker: DatePicker,
+    AInput: Input
+  },
+  data() {
+    return {
+      form: this.$form.createForm(this, { name: "schedueForm" })
+    };
+  },
+  methods: {
+    cancel() {
+      this.$emit("input", false);
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+</style>

@@ -1,0 +1,619 @@
+<template>
+  <div class="report-chart-panel">
+    <div class="left">
+      <div class="title">数据集</div>
+      <div class="data-set">
+        <a-input :value="chartData.query && chartData.query.title" :read-only="false">
+          <a slot="addonAfter" @click="showQueryModal = true">编辑</a>
+        </a-input>
+      </div>
+      <div class="title">
+        维度
+        <a-tooltip placement="right">
+          <a-icon type="question-circle"/>
+          <span slot="title">按什么统计</span>
+        </a-tooltip>
+      </div>
+      <ul class="dimension">
+        <li v-for="item in dimension" :key="item.key"
+          @click="onDimensionClick(item)"
+        >{{item.showname}}</li>
+      </ul>
+      <div class="title">
+        指标
+        <a-tooltip placement="right">
+          <a-icon type="question-circle"/>
+          <span slot="title">统计的数据</span>
+        </a-tooltip>
+      </div>
+      <ul class="measure">
+        <li v-for="item in measure" :key="item.key"
+           @click="onMeasureClick(item)"
+        >{{item.showname}}</li>
+      </ul>
+      <div class="title">图表类型</div>
+      <div class="graph">
+        <ul>
+          <li v-for="item in chartTypes" :key="item.type">
+            <div class="item">
+              <div :class="{
+                'chart-type': true,
+                'selected': item.type == chartType
+              }" @click="chartType=item.type"><a-icon :type="item.icon"/></div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="content">
+      <div class="header">
+        <div class="axis">
+          <div class="title">横轴</div>
+          <draggable
+            v-model="chartData.groupby.with" 
+            tag="ul"
+            :animation="200"
+          >
+            <transition-group>
+              <dimension v-for="(item, index) in chartData.groupby.with" 
+                :key="generateId(item)"
+                v-model="chartData.groupby.with[index]"
+                :measures="chartData.groupby.fields"
+                @remove="onDimensionRemove(index)"
+              />
+            </transition-group>
+          </draggable>
+        </div>
+        <div class="axis">
+          <div class="title">纵轴</div>
+          <draggable
+            v-model="chartData.groupby.fields" 
+            tag="ul"
+            :animation="200"
+          >
+            <transition-group>
+              <measure v-for="(item, index) in chartData.groupby.fields" 
+                :key="generateId(item)"
+                v-model="chartData.groupby.fields[index]"
+                @remove="onMeasureRemove(index)"
+              />
+            </transition-group>
+          </draggable>
+        </div>
+      </div>
+      <div class="body">
+        <component v-if="queryData" 
+          :is="chartType" 
+          :settings="queryData.settings" 
+          :dataTable="queryData.data" 
+          ref="chart"
+        />
+        <div class="loading" v-if="loading">
+          <a-spin size="large" tip="正在查询"/>
+        </div>
+      </div>
+    </div>
+    <div class="right">
+      <div class="header">
+        <a-button type="primary" @click="save">保存</a-button>
+        <a-button type="primary" @click="aggregate()">查询</a-button>
+        <a-button type="primary" @click="doExport()" :disabled="!queryData">导出</a-button>
+      </div>
+      <div class="body">
+        <a-collapse :bordered="false">
+          <a-collapse-panel key="1" header="标题">
+            <a-input :read-only="true" :value="chartData.settings.title" @click="editTitle" style="cursor: pointer;"/>
+          </a-collapse-panel>
+          <a-collapse-panel key="2" header="自定义数据" class="data-source">
+            <DataSource v-model="chartData.fields"/>
+          </a-collapse-panel>
+        </a-collapse>
+      </div>
+    </div>
+    <!-- 设置查询数据集合 -->
+    <a-modal v-model="showQueryModal" 
+      class="dataset-query-model" :footer="null" :destroyOnClose="true"
+      width="90%" :style="{minWidth:'1100px'}" :bodyStyle="{padding:'10px 0 0 0', height: '80vh'}">
+      <Query namespace="report.chart" 
+        :query="chartData.query" 
+        copySource="customquery" 
+        :submit="false" 
+        :context="chartData.fields"
+        @save="onDataSetSelected"
+      />
+    </a-modal>
+    <!-- 外部参数输入 -->
+    <a-modal v-model="showInput"
+      title="设置自定义数据"
+      :width="500"
+      :destroyOnClose="true"
+      @ok="filedInputFinish"
+      :bodyStyle="{paddingTop: '5px'}"
+    >
+      <PropValueForm :properties="chartData.fields" ref="propValueForm"/>
+    </a-modal>
+    <a-modal v-model="titleModel.show" title="标题" @ok="onTitleEdit" :bodyStyle="{paddingBottom: '0'}">
+      <a-input v-model="titleModel.value" ref="titleInput"/>
+      <div style="margin: 10px 0">
+        <tags :value="chartData.fields" text="name" :deleteable="false" @click="onTagChecked"/>
+      </div>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Modal, Input, Button, Icon, Tooltip, Spin, Collapse} from 'ant-design-vue'
+import Dimension from './components/Dimension'
+import Measure from './components/Measure'
+import Query from '@person/views/integratedquery/query';
+import DataSource from '../components/DataSource'
+import PropValueForm from "../components/PropValueForm/index";
+import Tags from '@framework/components/Tags'
+import { components } from "@person/components/chart";
+import draggable from "vuedraggable";
+import html2canvas from 'html2canvas'
+import { getChart, saveChart, aggregateQuery } from '@person/api/chart';
+import { showError, randomStr } from '@framework/utils';
+
+const TYPE_DICT = 2, TYPE_INPUT = 4, TYPE_INT = 1, TYPE_FLOAT = 2, TYPE_DATE = 3, TYPE_BOOL = 4;
+
+export default {
+	components:{
+		AModal: Modal,
+		AInput: Input,
+		AButton: Button,
+    AIcon: Icon,
+    ATooltip: Tooltip,
+    ASpin: Spin,
+    ACollapse: Collapse,
+    ACollapsePanel: Collapse.Panel,
+    draggable,
+    Query, Dimension, Measure,
+    DataSource, PropValueForm, Tags,
+    ...components,
+  },
+  props: {
+    chart: {//统计图 Number 统计图ID Object 统计图对象
+      type: [Number, Object]
+    },
+    context: {//查询上下文 [{name: 'orgid', desc: '单位'},...]
+      type: Array
+    }
+  },
+	data(){
+		return {
+      showQueryModal: false,
+      loading: false,
+      chartData: {//统计配置
+        query: undefined, //数据源
+        groupby: {//分组表达式
+          with: [],
+          fields: [],
+        },
+        fields: undefined,
+        settings: {//ui设置
+          chartType: 'pie-chart',
+          title: undefined,
+        }
+      },
+      queryData: undefined,//统计结果数据表
+      chartTypes: [
+        { type: 'pie-chart', icon: 'pie-chart' },
+        { type: 'bar-chart', icon: 'bar-chart' },
+        { type: 'line-chart', icon: 'line-chart' },
+      ],
+      showInput: false,
+      titleModel: {
+        show: false,
+        value: undefined,
+      }
+		}
+  },
+  computed: {
+    chartType: {
+      set(value){
+        this.$set(this.chartData.settings, 'chartType', value);
+      },
+      get(){
+        return this.chartData.settings.chartType;
+      }
+    },
+    dimension(){//根据数据源字段获取维度
+      if(this.chartData.query){
+        let arr = this.chartData.query.fields.filter(item => {
+          if(item.datatype == TYPE_DICT){//字典
+            return true;
+          }else if(item.datatype == TYPE_INPUT){//输入类型（排除字符串）
+            return [TYPE_INT, TYPE_FLOAT, TYPE_DATE, TYPE_BOOL].indexOf(item.inputtype) >= 0; 
+          }
+        });
+        return [{ showname: '指标名称' }, ...arr];
+      }
+    },
+    measure(){//根据数据源字段获取指标
+      if(this.chartData.query){
+        let arr = this.chartData.query.fields.filter(item => {
+          if(item.datatype == TYPE_INPUT){//输入类型
+            return [TYPE_INT, TYPE_FLOAT].indexOf(item.inputtype) >= 0; 
+          }
+        });
+        return [{ showname: '记录数' }, ...arr];
+      }
+    },
+  },
+  created(){
+		if(typeof(this.chart) == 'number'){
+      getChart(this.chart).then(({result}) => {
+        this.initData(result);
+        this.aggregate();
+      }).catch(error => {
+        showError(error);
+      })
+    }else{
+      this.initData(this.chart);//拷贝 防止传入的对象被修改
+    }
+  },
+	methods: {
+    initData(chart = {}){
+      if(!chart.groupby){
+        chart.groupby = { with: [], fields: [] }
+      }
+      if(chart.query){
+        if(!chart.query.title){
+          chart.query.title = '未命名';
+        }
+        let fields = chart.query.fields;
+        chart.groupby.with.forEach(element => {//为维度补上字段信息。方便获取
+          if(element.key){
+            element.field = fields.find(item => item.key == element.key);
+          }
+        });
+      }
+      if(this.context){
+        chart.fields = this.context;
+      }
+      Object.assign(this.chartData, chart);
+    },
+		onDataSetSelected(query){
+      this.chartData.query = query;
+      this.showQueryModal = false;
+    },
+    onDimensionClick(d){
+      let type, field, withs = this.chartData.groupby.with;
+      if(!d.key){//key为空（指标名称）
+         if(withs.find(item => item.type == 'field')){
+          this.$message.error('指标名称已经添加，不能重复添加');
+          return;
+        }
+        type = 'field';
+      }else{
+        type = 'value';//字典按值统计
+        field = d;
+        if(d.datatype == TYPE_INPUT){
+          if(d.inputtype == TYPE_DATE){//时间默认按日统计
+            type = 'date'; //按值分组
+          }else if(d.inputtype == TYPE_INT || d.inputtype == TYPE_FLOAT){//数字按区间
+            type = 'section';
+          }
+        }
+      }
+      withs.push({
+				type,
+        key: d.key,
+        showname: d.showname,
+        field,
+			});
+    },
+    onMeasureClick(i){
+      let type, fields = this.chartData.groupby.fields;
+      if(!i.key){//key为空（记录数）
+        type = 'count';
+      }else if(!fields.find(item => item.key == i.key && item.type == 'sum')){
+        type = 'sum';
+      }else if(!fields.find(item => item.key == i.key && item.type == 'avg')){
+        type = 'avg';
+      }else{
+        type = 'sum';
+      }
+      fields.push({ type, key: i.key, showname: i.showname })
+    },
+    onDimensionRemove(index){
+      this.chartData.groupby.with.splice(index, 1);
+    },
+    onMeasureRemove(index){
+      this.chartData.groupby.fields.splice(index, 1);
+    },
+    editTitle(){
+      this.titleModel = { show: true, value: this.chartData.settings.title }
+      this.$nextTick(() => this.$refs.titleInput.focus())
+    },
+    onTitleEdit(){
+      this.chartData.settings.title = this.titleModel.value;
+      this.titleModel.show = false;
+    },
+    onTagChecked(field){
+      let dom = this.$refs.titleInput.$el;
+      let start = dom.selectionStart, end = dom.selectionEnd;
+      let text = this.titleModel.value || '';
+      this.titleModel.value = text.substr(0, start) + '${' + field.name + '}' + text.substr(end);
+      dom.focus();
+    },
+    validate(){
+      if(!this.chartData.query){
+				this.$message.error('未设置数据集');
+				return;
+      }
+      let {'with': _with, fields} = this.chartData.groupby;
+      if(!_with.length){//TODO 验证提示优化
+        this.$message.error('未设置维度');
+        return;
+      }
+      if(!fields.length){
+        this.$message.error('未设置指标');
+        return;
+      }
+      let unSetSection = _with.find(item => item.type == 'section' && !item.section);
+      if(unSetSection){
+        this.$message.error(unSetSection.showname + '未设置区间');
+        return;
+      }
+      if(!this.chartType){
+        this.$message.error('请选择图表类型');
+        return;
+      }
+      return true;
+    },
+    save(){
+      if(!this.validate()){
+        return;
+      }
+      //TODO 输入一个标题
+      saveChart(this.chartData).then(({result}) => {
+        this.chartData.id = result;
+        this.$emit('save', this.chartData);
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    filedInputFinish(){
+      this.$refs.propValueForm.getFieldsValue().then((context) => {
+        this.showInput = false;
+        this.aggregate(context);
+      }).catch((error) => {
+        this.$message.error(error);
+      });
+    },
+    aggregate(context){
+      if(!this.validate()){
+        return;
+      }
+      if(this.chartData.fields && this.chartData.fields.length && !context){
+        this.showInput = true;
+        return;
+      }
+      this.loading = true;
+      aggregateQuery({
+        ...this.chartData,
+        context,
+      }).then(({result}) => {
+        this.queryData = result
+      }).catch((error) => {
+        showError(error);
+      }).finally(() => {
+        this.loading = false;
+      })
+    },
+    doExport(){
+      let chart = this.$refs.chart;
+      if(!chart){
+        this.$message.info('未查询数据');
+        return;
+      }
+      let name = this.queryData.settings.title || this.chartData.title || '未命名';
+      html2canvas(chart.$el).then(canvas => {
+        // let dataurl = canvas.toDataURL('image/png');//直接用base64部分浏览器不支持下载，图片过大导致url过长
+        canvas.toBlob((blob) => {
+          let a = document.createElement('a');
+          a.style.display = 'none';
+          a.setAttribute('href', URL.createObjectURL(blob));
+          a.setAttribute('download', name + '.png');
+          document.body.appendChild(a);
+          a.click();
+          URL.revokeObjectURL(blob);
+          document.body.removeChild(a);
+        }, 'image/png');
+      });
+    },
+    generateId(item){
+      if(!item.id){
+        item.id = randomStr(6);
+      }
+      return item.id;
+    },
+	}
+}
+</script>
+<style lang="less" scoped>
+@axis-height: 42px;
+
+.report-chart-panel{
+	height: 100%;
+	display: flex;
+	background-color: @white;
+	border-radius: @border-radius-base;
+	& > .left{
+    flex: 0 0 300px;
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		border-right: 1px dashed @border-color-base;
+		padding: 10px;
+		.title{
+      margin-top: 10px;
+      font-weight: bold;
+      line-height: 1.8em;
+		}
+		.dimension{
+			flex: 1 1 35%;
+			margin: 0;
+			overflow-y: auto;
+		}
+		.measure{
+			flex: 1 1 35%;
+			margin: 0;
+			overflow-y: auto;
+    }
+    .dimension li,.measure li{
+      line-height: 2em;
+      cursor: pointer;
+      text-indent: 5px;
+      &:hover{
+        background-color: @primary-1;
+      }
+    }
+		.graph{
+      flex: 1 1 30%;
+      ul{
+        margin: 0;
+        li{
+          float: left;
+          width: 20%;
+          height: 0;
+          padding-top: 20%;
+          position: relative;
+          & > .item{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 6px;
+          }
+        }
+      }
+			.chart-type{
+        border-radius: @border-radius-base;
+				font-size: 30px;
+        text-align: center;
+        cursor: pointer;
+        &.selected{
+          background-color: @primary-1;
+        }
+        &:hover{
+          color: @primary-color;
+        }
+			}
+		}
+	}
+	& > .content{
+    flex: 1 1 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    & > .header{
+      flex: none;
+      padding: @content-padding-v @content-padding-h;
+      .axis{
+        height: @axis-height;
+        margin-top: 10px;
+        padding-left: 50px;
+        border-radius: @border-radius-base;
+        background: @background-color-base;
+        overflow: hidden;
+        & > .title{
+          position: absolute;
+          width: 50px;
+          margin-left: -50px;
+          padding: 0 @padding-xs;
+          line-height: @axis-height;
+          border-right: 1px dashed @border-color-base;
+          text-align: center;
+        }
+        & > ul{
+          width: 100%;
+          margin: 6px 0 0 0;
+          padding: 0 @padding-xs;
+          line-height: @axis-height - 12px;
+          white-space: nowrap;
+          overflow-x: auto;
+          li{
+            display: inline-block;
+            line-height: 1.8em;
+            margin-left: 6px;
+            padding: 0 4px 0 10px;
+            background: @primary-1;
+            border-radius: 10px 0 10px 0;
+            cursor: pointer;
+            &:hover{
+              background: @primary-2;
+            }
+          }
+        }
+      }
+    }
+    & > .body{
+      flex: auto;
+      padding: @content-padding-v @content-padding-h;
+      position: relative;
+      .loading{
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        .ant-spin{
+          position: absolute;
+          top: 30%;
+          left: 50%;
+          width: 100px;
+          margin-left: -50px;
+          padding: 12px 8px 8px 8px;
+          text-align: center;
+          background: fade(@background-color-base, 90%);
+          box-shadow: 1px 1px 10px #dad9d9;
+          border-radius: @border-radius-base;
+        }
+      }
+    }
+  }
+  & > .right{
+    flex: 0 0 225px;
+    border-left: 1px dashed @border-color-base;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    & > .header{
+      flex: none;
+      padding: @content-padding-v 10px;
+      text-align: center;
+      .ant-btn{
+        margin: 10px 8px 10px 0;
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+      .ant-btn:last-child{
+        margin-right: 0;
+      }
+    }
+    & > .body{
+      flex: auto;
+      height: 100%;
+      .data-source{
+        /deep/ .ant-collapse-content > .ant-collapse-content-box{
+          padding: 0;
+        }
+      }
+    }
+  }
+}
+</style>
+<style lang="less">
+.dataset-query-model{
+  .ant-modal-close-x{
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+  }
+}
+</style>

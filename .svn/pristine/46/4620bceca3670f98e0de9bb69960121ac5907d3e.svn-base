@@ -1,0 +1,68 @@
+import request from '@/framework/utils/request'
+
+// 业务办理监测
+export function orgDataStatisticQuery (data) {
+  return request({
+    url: '/person/v1/datastatistic/list',
+    method: 'post',
+    data
+  })
+}
+
+//  机构增减情况
+export function orgChangeInfo (data) {
+  return request({
+    url: '/person/v1/datastatistic/info',
+    method: 'post',
+    data
+  })
+}
+
+//  机构增减情况量
+export function orgChangeNum (data) {
+  return request({
+    url: '/person/v1/datastatistic/num',
+    method: 'post',
+    data
+  })
+}
+
+// 监控策略列表
+export function listMonitorStrategy (data) {
+  return request({
+    url: '/person/v1/monitorstrategy/list',
+    method: 'post',
+    data
+  })
+}
+// 获取监控策略
+export function getMonitorStrategy (id) {
+  return request({
+    url: `/person/v1/monitorstrategy/get/${id}`,
+    method: 'get'
+  })
+}
+// 添加监控策略
+export function addMonitorStrategy (data) {
+  return request({
+    url: '/person/v1/monitorstrategy/add',
+    method: 'post',
+    data
+  })
+}
+// 更新监控策略
+export function updateMonitorStrategy (data) {
+  return request({
+    url: '/person/v1/monitorstrategy/update',
+    method: 'put',
+    data
+  })
+}
+// 删除监控策略
+export function deleteMonitorStrategy (id) {
+  return request({
+    url: `/person/v1/monitorstrategy/delete/${id}`,
+    method: 'delete'
+  })
+}
+

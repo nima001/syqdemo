@@ -1,0 +1,60 @@
+<template>
+  <div class="message">
+    <div class="message-content">
+      <div class="list" v-for="(msg, index) in msgList" :key="index">
+        <div class="msg">{{msg.content}}</div>
+        <div class="time">{{msg.time}}</div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {},
+  components: {},
+  data() {
+    return {
+      msgList: [
+        { content: '这是一条消息，哈哈哈哈哈哈哈哈', time: '2021-4-5' },
+        { content: '这是一条消息，哈哈哈哈哈哈哈哈', time: '2021-4-5' },
+        { content: '这是一条消息，哈哈哈哈哈哈哈哈', time: '2021-4-5' },
+        { content: '这是一条消息，哈哈哈哈哈哈哈哈', time: '2021-4-5' },
+        { content: '这是一条消息，哈哈哈哈哈哈哈哈', time: '2021-4-5' },
+        { content: '这是一条消息，哈哈哈哈哈哈哈哈', time: '2021-4-5' },
+        { content: '这是一条消息，哈哈哈哈哈哈哈哈', time: '2021-4-5' },
+        { content: '这是一条消息，哈哈哈哈哈哈哈哈', time: '2021-4-5' },
+      ]
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.message{
+  height: 100%;
+  padding: 10px 0;
+  .message-content{
+    height: 100%;
+    .list{
+      width: 100%;
+      height: 28px;
+      line-height: 28px;
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+      &:hover {
+        background: @primary-1;
+      }
+      .time{
+        margin-left: @padding-lg;
+        color: #bbb;
+      }
+    }
+  }
+}
+</style>

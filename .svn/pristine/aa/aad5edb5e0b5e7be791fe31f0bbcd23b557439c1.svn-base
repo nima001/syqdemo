@@ -1,0 +1,44 @@
+<template>
+  <a-input placeholder="查找历史"/>
+</template>
+<script>
+import { Icon, Input } from 'ant-design-vue';
+import { querylist } from "@/person/api/integratedquery";
+import { showError } from '@framework/utils';
+
+/**
+ * 查询选择
+ * 提供外部事件
+ * 1.select 选中查询事件 返回查询ID
+ */
+export default {
+  components: {
+    AInput: Input,
+    AIcon: Icon,
+  },
+  props: {
+    namespace: {//搜索查询的命名空间
+      type: String,
+      required: true,
+    }
+  },
+  created(){
+    console.log('select source', this.namespace);
+  },
+  methods: {
+    loadData(searchkey){
+      querylist({
+        searchkey,
+        namespace: this.namespace 
+      }).then(res => {
+        // this.dataSourceList = res.result;
+      }).catch(error => {
+        showError(error);
+      });
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+
+</style>

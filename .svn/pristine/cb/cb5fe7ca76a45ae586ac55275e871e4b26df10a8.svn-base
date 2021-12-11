@@ -1,0 +1,104 @@
+<!-- 应用系统 -->
+<template>
+  <a-layout class="dev-layout">
+    <div class="body">
+      <div class="head">
+        <div>
+          <h3>
+            <b>{{ $store.getters.appInfo.name }}</b>
+          </h3>
+          <p>{{ $store.getters.appInfo.devCompany }}</p>
+        </div>
+        <div style="text-align: right;">
+          <!-- <h3 class="auditstatus">
+            <b>审核通过</b>
+          </h3>
+          <p>状态</p> -->
+        </div>
+      </div>
+      <div ref="tabs">
+        <a-tabs  v-model="activeKey" @change="callback">
+          <a-tab-pane key="1" tab="基本信息">
+            <app-detail></app-detail>
+          </a-tab-pane>
+          <a-tab-pane key="2" tab="服务管理">
+            <service></service>
+          </a-tab-pane>
+          <!-- <a-tab-pane key="3" tab="权限管理">
+            <app-auth></app-auth>
+          </a-tab-pane> -->
+          <!-- <a-tab-pane key="4" tab="业务管理">
+            <manage-app></manage-app>
+          </a-tab-pane> -->
+          <!-- <a-tab-pane key="5" tab="测试中心">测试中心</a-tab-pane>
+          <a-tab-pane key="6" tab="组织机构树">组织机构树</a-tab-pane>
+          <a-tab-pane key="7" tab="管理员">
+            <administrator></administrator>
+          </a-tab-pane> -->
+          <a-tab-pane key="8" tab="变更日志">变更日志</a-tab-pane>
+        </a-tabs>
+      </div>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import { Tabs, Layout } from "ant-design-vue";
+import appDetail from "./AppDetail";
+import service from "../service/index";
+import appAuth from "./AppAuth";
+import manageApp from "../business/BusinessManage";
+import administrator from "./Administrator";
+export default {
+  data() {
+    return {
+      activeKey: "1",
+    };
+  },
+  created() {
+    this.activeKey = window.sessionStorage.getItem("activeKey")
+      ? window.sessionStorage.getItem("activeKey")
+      : "1";
+  },
+  methods: {
+    callback(key) {
+      window.sessionStorage.setItem("activeKey", key);
+      this.activeKey = key;
+    },
+  },
+  components: {
+    ALayout: Layout,
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    appDetail,
+    service,
+    appAuth,
+    manageApp,
+    administrator,
+  },
+};
+</script>
+<style lang="less" scoped>
+.dev-layout {
+  height: 100%;
+  padding: 10px;
+  .body {
+    position: relative;
+    padding: 8px 24px;
+    width: 100%;
+    height: 100%;
+    min-height: 300px;
+    margin: 0 auto;
+    overflow-y: auto;
+    background: #fff;
+    .head {
+      display: flex;
+      justify-content: space-between;
+      margin: 20px 0 20px;
+    }
+    .auditstatus {
+      color: @primary-color;
+    }
+  }
+}
+</style>

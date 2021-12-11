@@ -1,0 +1,246 @@
+
+<template>
+  <div class="g6-wrapper">
+    <div class="header">
+      <div class="tabs">市人力资源和社会保障局</div>
+    </div>
+    <div class="container-main">
+      <div>
+        <div class="mechanism-div">
+          <div class="small-div"></div>
+          <div class="small-p">变革沿革</div>
+        </div>
+      </div>
+      <div
+        style="width: 100%; height: 100%; overflow-x: auto; white-space: nowrap"
+      >
+        <div id="container"></div>
+        <div class="timeline" :style="{ width: boxwidth }">
+          <a-steps progress-dot :current="g6timedata.length - 1">
+            <a-step
+              :title="item"
+              v-for="(item, index) in g6timedata"
+              :key="index"
+            />
+          </a-steps>
+        </div>
+      </div>
+    </div>
+    <div class="container-reason">
+      <div class="mechanism-div">
+        <div class="small-div"></div>
+        <div class="small-p">变更原因及依据</div>
+      </div>
+      <div class="reason-div">
+        <p class="reason-p">
+          变更原因变更原因变更原因变更原因变更原因变更原因变更原因变更原因变更原因变更原因
+        </p>
+        <a-button>下载文件</a-button>
+      </div>
+    </div>
+    <div class="container-footer">
+      <div class="mechanism-div">
+        <div class="small-div"></div>
+        <div class="small-p">基本情况</div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import G6 from "@antv/g6";
+import dagre from "dagre";
+import { Button, Steps } from "ant-design-vue";
+export default {
+  components: {
+    AButton: Button,
+    ASteps: Steps,
+    AStep: Steps.Step,
+  },
+  data() {
+    return {
+      documentwidth: "",
+      documentheight: "",
+      g6timedata: [],
+      G6data: {},
+      G6dataid: null,
+      boxwidth: "",
+    };
+  },
+  created() {
+    this.G6data = this.$route.params.G6data;
+    this.g6timedata = this.$route.params.g6timedata;
+    this.G6dataid = this.$route.params.G6dataid;
+  },
+  mounted() {
+    this.documentwidth =
+      this.g6timedata.length * 120 + (this.g6timedata.length - 1) * 130 + 23;
+    this.boxwidth = this.documentwidth + "px";
+    this.documentheight =
+      document.getElementById("container").scrollHeight || 500;
+    this.init();
+  },
+  methods: {
+    init() {
+      G6.registerNode(
+        "sql",
+        {
+          drawShape(cfg, group) {
+            //边框
+            const rect = group.addShape("rect", {
+              attrs: {
+                x: -75,
+                y: -25,
+                width: 120,
+                height: 60,
+                radius: 10,
+                fill: cfg.id == this.G6dataid ? "#d60002" : "white",
+                stroke: cfg.id == this.G6dataid ? "#d60002" : "#D9D9D9",
+                lineWidth: 3,
+                cursor: "pointer",
+              },
+              name: "rect-shape",
+            });
+            //字体
+            if (cfg.orgname) {
+              group.addShape("text", {
+                attrs: {
+                  text:
+                    cfg.orgname.length > 6
+                      ? cfg.orgname.slice(0, 6) + "..."
+                      : cfg.orgname,
+                  x: -15,
+                  y: 5,
+                  fill: "black",
+                  fontSize: 14,
+                  textAlign: "center",
+                  textBaseline: "middle",
+                },
+                name: "text-shape",
+              });
+            }
+            return rect;
+          },
+        },
+        "single-node"
+      );
+      const tooltip = new G6.Tooltip({
+        offsetX: 10,
+        offsetY: 20,
+        getContent(e) {
+          const outDiv = document.createElement("div");
+          outDiv.style.width = "180px";
+          outDiv.innerHTML = `
+      <h4>tooltip</h4>
+      <ul>
+        <li>机构名称: ${e.item.getModel().orgname}</li>
+      </ul>`;
+          return outDiv;
+        },
+        itemTypes: ["node"],
+      });
+      const graph = new G6.Graph({
+        container: "container",
+        width: this.documentwidth,
+        height: this.documentheight,
+        plugins: [tooltip], // 配置 Tooltip 插件
+        layout: {
+          rankdir: "LR",
+          type: "dagre",
+          ranksep: 70,
+          controlPoints: true,
+        },
+        defaultNode: {
+          type: "sql",
+        },
+        defaultEdge: {
+          style: {
+            // lineDash:[10,15],
+            endArrow: true,
+            lineWidth: 2,
+            stroke: "#D9D9D9",
+          },
+        },
+        nodeStateStyles: {
+          selected: {
+            stroke: "#d60002",
+            fill: "#d60002",
+            shadowColor: "#d60002",
+            shadowBlur: 10,
+          },
+        },
+        modes: {
+          default: [
+            //点击
+            "click-select",
+          ],
+        },
+        fitCenter: true,
+      });
+      // 当 click-select 选中的元素集合发生变化时将会触发下面时机事件，e 中包含相关信息
+      // graph.on('nodeselectchange', (e) => {
+      //   // 当前操作的 item
+      //   console.log(e.target);
+      //   // 当前操作后，所有被选中的 items 集合
+      //   console.log(e.selectedItems);
+      //   // 当前操作时选中(true)还是取消选中(false)
+      //   console.log(e.select);
+      // });
+      graph.data(this.G6data);
+      graph.render();
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+.g6-wrapper {
+  margin: 10px;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  .header {
+    padding: @layout-space-base @content-padding-h;
+    height: 50px;
+    border-bottom: 1px solid #ededed;
+    align-items: center;
+    display: flex;
+    .tabs {
+      font-size: 18px;
+      font-weight: 800;
+      color: #666666;
+    }
+  }
+  .mechanism-div {
+    padding: @layout-space-base @content-padding-h;
+    display: flex;
+    align-items: center;
+    .small-div {
+      width: 5px;
+      height: 20px;
+      background: @primary-color;
+    }
+    .small-p {
+      font-size: 20px;
+      margin-left: 5px;
+    }
+  }
+  .container-main {
+    border-bottom: 1px solid #ededed;
+    #container {
+      width: 100%;
+    }
+    .timeline {
+      padding: 10px;
+    }
+  }
+  .container-reason {
+    border-bottom: 1px solid #ededed;
+    .reason-div {
+      padding: 0 @layout-space-base @layout-space-base @content-padding-h;
+      .reason-p {
+      }
+    }
+  }
+  .container-footer {
+  }
+}
+</style>

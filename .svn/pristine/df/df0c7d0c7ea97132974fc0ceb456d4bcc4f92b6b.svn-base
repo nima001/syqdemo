@@ -1,0 +1,89 @@
+<template>
+  <div class="layout-reform">
+    <div class="header">
+      <div class="evolutionlist">
+        <span
+          v-for="item in evolutionList"
+          :key="item.value"
+          :class="{ active: active && active.value == item.value }"
+          @click="active = item"
+          >{{ item.text }}</span
+        >
+      </div>
+    </div>
+    <div class="main">
+      <reform-institutional v-if="active" :active="active" />
+    </div>
+  </div>
+</template>
+<script>
+import ReformInstitutional from "./components/reformInstitutional";
+export default {
+  data() {
+    return {
+      active: undefined,
+      evolutionList: null,
+      g6timedata: [],
+      G6data: {},
+    };
+  },
+  components: {
+    ReformInstitutional,
+  },
+  async created() {
+    await this.init();
+    this.active = this.evolutionList[0];
+  },
+  methods: {
+    init() {
+      this.evolutionList = this.$store.getters.dict("person.evolutionyear");
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.layout-reform {
+  min-height: 100%;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  .header {
+    background: #ffffff;
+    box-shadow: 1px 1px 3px 1px #fdf2f2;
+    margin: 0px 10px 3px 10px;
+    padding: @layout-space-base @content-padding-h;
+    height: 70px;
+    align-items: center;
+    display: flex;
+    .evolutionlist {
+      span {
+        cursor: pointer;
+        display: inline-block;
+        height: 40px;
+        line-height: 40px;
+        padding: 0 12px;
+        margin-left: 6px;
+        border-radius: @border-radius-base;
+        &:hover {
+          background: @primary-1;
+        }
+      }
+      span:first-child {
+        margin-left: 0;
+      }
+      span.active {
+        background-color: @primary-color;
+        color: white;
+        &:hover {
+          background: lighten(@primary-color, 5%);
+        }
+      }
+    }
+  }
+  .main {
+    flex: 1;
+    background: #ffffff;
+    margin: 0px 10px 10px 10px;
+  }
+}
+</style>

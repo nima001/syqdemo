@@ -1,0 +1,302 @@
+<template>
+  <div class="itemwrap">
+    <!-- <div class="field" v-bind:class="[depth % 2 != 0 ? 'red':'yellow']"> -->
+    <div class="field">
+      <div class="column-one">
+        <a-input read-only class="code-one" v-model="showname" @click.native="()=>treeSelect = true">
+          <a-icon slot="suffix" type="select"/>
+        </a-input>
+        <a-modal title="字段选择" :destroyOnClose="true" :footer='null' @cancel='()=>treeSelect=false' :visible='treeSelect'  width='500px' :bodyStyle="{padding:'0px'}">
+          <select-field :targetid="targetid" @finish="finishHandle"/>
+        </a-modal>
+      </div>
+      
+      <op-select class="selectList" :defaultData="defaultData" :position="position" :targetid="targetid"/>
+
+      <type-one v-if="cType == 1" :targetid="targetid" :position="position" :defaultData="defaultData"></type-one>
+      <type-two v-if="cType == 2" :position="position" :defaultData="defaultData"></type-two>
+      <type-three v-if="cType == 3" :position="position" :defaultData="defaultData"></type-three>
+      <type-four v-if="cType == 4" :position="position" :defaultData="defaultData"></type-four>
+      <type-five v-if="cType == 5" :position="position" :defaultData="defaultData"></type-five>
+      <type-six v-if="cType == 6" :position="position" :defaultData="defaultData"></type-six>
+      <type-seven v-if="cType == 7" :position="position" :defaultData="defaultData"></type-seven>
+      <type-eight v-if="cType == 8" :position="position" :defaultData="defaultData"></type-eight>
+      <type-nine v-if="cType == 9" :position="position" :defaultData="defaultData"></type-nine>
+      <type-ten v-if="cType == 10" :position="position" :defaultData="defaultData"></type-ten>
+      <type-eleven v-if="cType == 11" :position="position" :defaultData="defaultData"></type-eleven>
+      <type-twelve v-if="cType == 12" :position="position" :defaultData="defaultData"></type-twelve>
+      <type-thirteen v-if="cType == 13" :position="position" :defaultData="defaultData"></type-thirteen>
+      <type-fourteen v-if="cType == 14" :position="position" :defaultData="defaultData"></type-fourteen>
+      <type-fifteen v-if="cType == 15" :position="position" :defaultData="defaultData"></type-fifteen>
+
+      <icon-font class="opIcon" type="del" @click.native="delByPosition"></icon-font>
+      
+    </div>
+
+    <div class="relation" v-if="index < length-1">
+      <select-component :keys="position" :relationop="relationop"></select-component>
+      <span class="split" @click="split($event)" v-if="depth != 0">拆分</span>
+      <span class="union" @click="union($event)" v-if="length>2">组合</span>
+      <icon-font class="opIcon" type="add" @click.native="addByPosition"></icon-font>
+    </div>
+  </div>
+</template>
+
+<script>
+import { querylistop } from "@/person/api/integratedquery";
+import { comType } from "../../../utils/index";
+import SelectComponent from "./SelectComponent";
+import OpSelect from "../fields/OpSelect";
+import TypeOne from "./../fields/TypeOne";
+import TypeTwo from "./../fields/TypeTwo";
+import TypeThree from "./../fields/TypeThree";
+import TypeFour from "./../fields/TypeFour";
+import TypeFive from "./../fields/TypeFive";
+import TypeSix from "./../fields/TypeSix";
+import TypeSeven from "./../fields/TypeSeven";
+import TypeEight from "./../fields/TypeEight";
+import TypeNine from "./../fields/TypeNine";
+import TypeTen from "./../fields/TypeTen";
+import TypeEleven from "./../fields/TypeEleven";
+import TypeTwelve from "./../fields/TypeTwelve";
+import TypeThirteen from "./../fields/TypeThirteen";
+import TypeFourteen from "../fields/TypeFourteen";
+import TypeFifteen from "../fields/TypeFifteen";
+import { Popover, Input, Tooltip, Icon ,Modal} from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+import IconFont from "@/framework/components/IconFont";
+import SelectField from './SelectField';
+
+export default {
+  name: "QueryItem",
+  props: {
+    length: {
+      type: Number,
+      required: true
+    },
+    position: {
+      type: String,
+      required: true
+    },
+    depth: {
+      type: Number,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    },
+    relationop: {
+      type: String,
+      required: true
+    },
+    targetid: {
+      type: Number,
+      required: true
+    }
+  },
+  data(){
+    return{
+      treeSelect:false,
+    }
+  },
+  provide() {
+    return { setField: this.setField };
+  },
+  components: {
+    APopover: Popover,
+    AInput: Input,
+    ATooltip: Tooltip,
+    AIcon: Icon,
+    AModal:Modal,
+    SelectComponent,
+    OpSelect,
+    TypeOne,
+    TypeTwo,
+    TypeThree,
+    TypeFour,
+    TypeFive,
+    TypeSix,
+    TypeSeven,
+    TypeEight,
+    TypeNine,
+    TypeTen,
+    TypeEleven,
+    TypeTwelve,
+    TypeThirteen,
+    TypeFourteen,
+    TypeFifteen,
+    IconFont,
+    SelectField
+  },
+  created() {
+    if (this.defaultData.op && !this.defaultData.opList) {
+      this.getListop(this.defaultData.field.key);
+    }
+  },
+  computed: {
+    index() {
+      return parseInt(this.position.split("_").pop());
+    },
+    cType() {
+      let type = comType(this.defaultData.field, this.defaultData.op);
+      return type;
+    },
+    showname() {
+      return this.defaultData.field ? this.defaultData.field.showname : "";
+    }
+  },
+  methods: {
+    finishHandle(type,data){
+      if(type == 'ok'){
+        this.setField(data);
+      }
+      this.treeSelect = false;
+    },
+    setField(res) {
+      this.getListop(res.key);
+      this.$store.commit({
+        type: "ADD_FIELD",
+        position: this.position,
+        field: res
+      });
+    },
+    addByPosition() {
+      this.$store.commit({
+        type: "ADD_BY_POSITION",
+        data: this.position
+      });
+    },
+    delByPosition() {
+      this.$store.commit({
+        type: "DEL_BY_POSITION",
+        data: this.position
+      });
+    },
+    getListop(key) {
+      querylistop({
+        targetid: this.targetid,
+        key
+      }).then(res => {
+        this.opList = res.result;
+        this.$store.commit({
+          type: "SET_OP_LIST",
+          position: this.position,
+          data: res.result
+        });
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    changeValue(e) {
+      let val = e.target.value;
+      let value =
+        this.defaultData.field.datatype == 2 && !isNaN(val)
+          ? parseInt(val)
+          : val;
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value
+      });
+    },
+    split(position) {
+      this.$store.commit({
+        type: "SPLIT",
+        position: this.position
+      });
+    },
+    union(position) {
+      this.$store.commit({
+        type: "UNION",
+        op: this.relationop,
+        position: this.position
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.itemwrap {
+  .field {
+    display: flex;
+    align-items: center;
+    .column-one {
+      // flex: 1;
+      width: 320px;
+      height: 30px;
+      margin-right: 15px;
+      position: relative;
+      /deep/ input {
+        cursor: pointer;
+        border-top-left-radius: 0px;
+        border-bottom-left-radius: 0px;
+      }
+      svg{
+        width: 12px;
+        height: 12px;
+        color: #666;
+      }
+    }
+    .opIcon {
+      cursor: pointer;
+      color: @primary-color;
+      width: 22px;
+      height: 22px;
+      &:hover {
+        color: fade(@primary-color, 75%);
+      }
+      &:last-child {
+        margin-left: 14px;
+      }
+    }
+    .selectList {
+      // flex: 1;
+      width: 150px;
+      margin-right: 15px;
+    }
+    .ant-input {
+      flex: 1;
+      margin-right: 15px;
+    }
+    .anticon {
+      font-size: 16px;
+      padding: 5px;
+      cursor: pointer;
+    }
+  }
+  .relation {
+    display: flex;
+    align-items: center;
+    margin: 15px 0px;
+    .opIcon {
+      cursor: pointer;
+      color: @primary-color;
+      width: 22px;
+      height: 22px;
+      &:hover {
+        color: fade(@primary-color, 75%);
+      }
+      &:last-child {
+        margin-left: 14px;
+      }
+    }
+    span {
+      width: 72px;
+      height: 32px;
+      text-align: center;
+      line-height: 32px;
+      background: #9e9e9e3d;
+      border: 1px solid #9e9e9e3d;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #666;
+      margin-left: 15px;
+      transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+      &:hover {
+        border-color: @primary-color;
+      }
+    }
+  }
+}
+</style>

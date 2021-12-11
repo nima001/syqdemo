@@ -1,0 +1,22 @@
+
+
+import request from '@/framework/utils/request'
+/*
+**---------------- 工作任务相关接口 ----------------
+*/
+//查询我需要办理的任务
+export function queryWorkTask(data) {
+    return request({
+        url: '/person/sx/worktask/listdealtask',
+        method: 'post',
+        data
+    })
+}
+//查询我关注的任务
+export function queryConcernTask(data) {
+  return request({
+      url: '/person/sx/worktask/listattentiontask',
+      method: 'post',
+      data
+  })
+}

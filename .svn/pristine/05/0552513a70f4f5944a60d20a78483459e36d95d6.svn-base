@@ -1,0 +1,161 @@
+<template>
+  <div class="wrap">
+    <p class="title">实有机构分布情况</p>
+    <div class="spotList">
+      <div class="spotItem">
+        <span class="spot"></span>
+        <span class="text">党政机构</span>
+      </div>
+      <div class="spotItem">
+        <span class="spot"></span>
+        <span class="text">事业单位</span>
+      </div>
+    </div>
+    <div class="swiperView">
+      <div class="swiperWrap">
+        <div class="swiperContent">
+          <swiper :size="3">
+            <template v-for="(item,index) in formatList" :slot="'swiper'+`${index}`">
+              <div class="capsuleList" v-for="(lg,idx) in item" :key="idx">
+                <capsule-group :target="lg" :maxNum="220"></capsule-group>
+              </div>
+            </template>
+          </swiper>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import CapsuleGroup from "./CapsuleGroup";
+import Swiper from "../components/Swiper";
+export default {
+  components: {
+    CapsuleGroup,
+    Swiper
+  },
+  data() {
+    return {
+      width: undefined,
+      list: [
+        { name: "党委", dzjg: 220, sydw: 150 },
+        { name: "人大", dzjg: 180, sydw: 120 },
+        { name: "政府", dzjg: 140, sydw: 135 },
+        { name: "政协", dzjg: 150, sydw: 99 },
+        { name: "法院", dzjg: 99, sydw: 200 },
+        { name: "检察院", dzjg: 145, sydw: 120 },
+        { name: "街道", dzjg: 189, sydw: 88 },
+        { name: "乡镇", dzjg: 202, sydw: 188 },
+        { name: "其它", dzjg: 140, sydw: 205 }
+      ]
+    };
+  },
+  computed: {
+    formatList() {
+      return this.sliceArr(this.list, 4);
+    }
+  },
+  methods: {
+    sliceArr(arr, length) {
+      let productData = [];
+      let num = Math.ceil(arr.length / length);
+      for (let i = 0; i < num; i++) {
+        productData.push(arr.slice(i * length, i * length + length));
+      }
+      return productData;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  .title {
+    height: 26px;
+    margin: 0px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    text-align: center;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.8;
+  }
+  .spotList {
+    display: flex;
+    padding: 12px 0px;
+    flex-direction: row-reverse;
+    .spotItem {
+      display: flex;
+      align-items: center;
+      .spot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        opacity: 1;
+      }
+      &:nth-child(2n) .spot {
+        background: linear-gradient(
+          180deg,
+          #8fd2ff 0%,
+          rgba(87, 140, 246, 0.66) 49%,
+          #5d4ef4 100%
+        );
+      }
+      &:nth-child(2n + 1) .spot {
+        background: linear-gradient(
+          180deg,
+          #fcb75b 0%,
+          rgba(240, 150, 81, 0.66) 49%,
+          #f26e52 100%
+        );
+      }
+      &:first-child {
+        margin-left: 20px;
+      }
+      .text {
+        width: 56px;
+        height: 19px;
+        margin-left: 8px;
+        font-size: 14px;
+        font-family: Microsoft YaHei;
+        font-weight: 400;
+        line-height: 19px;
+        color: #ffffff;
+        opacity: 0.6;
+      }
+    }
+  }
+  .swiperView {
+    display: flex;
+    flex-direction: column;
+    .swiperWrap {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      .swiperBtn {
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        &.preBtn {
+          background: url("../img/pre.png");
+        }
+        &.nextBtn {
+          background: url("../img/next.png");
+        }
+      }
+      .swiperContent {
+        height: 100%;
+        flex: 1;
+        overflow: hidden;
+        .capsuleList{
+          margin-top: 12px;
+          &:first-child{
+            margin-top: 0px;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

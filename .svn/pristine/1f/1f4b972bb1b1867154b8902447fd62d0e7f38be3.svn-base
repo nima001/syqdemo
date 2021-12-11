@@ -1,0 +1,10 @@
+import request from '@/framework/utils/request'
+
+// 新增模板
+export function queryTemplate (data) {
+  return request({
+    url: '/person/evaluate/query/template',
+    method: 'post',
+    data
+  })
+}

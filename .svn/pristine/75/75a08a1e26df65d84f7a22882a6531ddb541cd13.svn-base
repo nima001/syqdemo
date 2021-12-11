@@ -1,0 +1,127 @@
+<template>
+  <a-spin :spinning="!!loadid" :delay="300">
+    <iframe
+      :src="src || 'about:blank'"
+      :height="height"
+      class="report-template-display" 
+      frameborder="0"
+      ref="iframe"
+      scrolling="no"
+    />
+    <!-- 加载中iframe高度为0，需要撑开一个高度 -->
+    <div v-if="loadid || !src" class="error" 
+      :style="{ visibility: loadid ? 'hidden' : 'visible'}"
+    >
+      {{this.name}}加载失败
+    </div>
+  </a-spin>
+</template>
+<script>
+import { Spin } from 'ant-design-vue'
+import { previewById } from "@/person/api/booklet";
+import { showError } from "@/framework/utils/index";
+import { mixins } from "@formdesign/views/mixin/index";
+
+/**
+ * 报表模板显示组件
+ */
+export default {
+  mixins: [mixins],
+  components: {
+    ASpin: Spin,
+  },
+  props: {
+    code: {
+      type: String,
+      required: true
+    },
+    name: String,
+    defalutValue: Object
+  },
+  inject: ["formData"],
+  computed:{
+    temp() {
+      return this.propValue || this.defalutValue;
+    },
+    context(){
+      return this.formData.data;
+    }
+  },
+  watch: {
+    temp(v){
+      this.initData();
+    },
+    context(){
+      this.initData();
+    },
+  },
+  data(){
+    return {
+      src: undefined,
+      height: 0,
+      loadid: 0
+    }
+  },
+  created(){
+    this.initData();
+  },
+  methods: {
+    initData(){
+      if(typeof this.temp == 'number'){
+        this.loadData(this.temp);
+      }else{
+        let {template} = this.temp;
+        if(template){
+          template = template.replace('</head>', '<style>body{margin: 0 !important;}</style></head>')//去除预算的页边距
+          this.$nextTick(() => {
+            this.src = `javascript:void(function(){document.open();document.write('${template}');document.close();}())`;
+            let iframe = this.$refs.iframe;//create方法直接加载数据iframe获取不到
+            if(iframe){
+              iframe.onload = () => {
+                this.height = iframe.contentWindow.document.body.scrollHeight;
+                iframe.onload = null;
+                // console.log('tempate iframe onload, height is', this.height);
+              };
+            }
+          })
+        }
+      }
+    },
+    loadData(id){
+      if(this.loadid == id){
+        //当前id已经在加载
+        return;
+      }
+      this.src = undefined;
+      this.height = 0;
+      this.loadid = id;
+      previewById(id, this.context).then(({result}) => {
+        if(this.loadid !== id){//还未加载完成切换
+          return;
+        }
+        this.propValue = result;
+        this.loadid = 0;
+      }).catch(err => {
+        console.log(err);
+        if(this.loadid != id){
+          return;
+        }
+        this.loadid = 0;
+        this.$message.error(this.name + '加载失败')
+      })
+    },
+  }
+}
+</script>
+<style lang="less" scoped >
+.report-template-display{
+  display: block;
+  width: 100%;
+}
+.error{
+  height: 50px;
+  line-height: 50px;
+  text-align: center;
+  color: @error-color;
+}
+</style>

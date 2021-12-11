@@ -1,0 +1,62 @@
+<template>
+  <a-layout style="height: 100%;min-width: 1200px;">
+    <system-header/>
+    <a-layout-content :style="{overflowY: 'auto', height: '100%'}">
+      <div class="content">
+        <div class="content-modal">
+          <div class="warp">
+            <a-steps :current="current" size="small">
+              <a-step v-for="(step, index) in stepList" :key="index" :title="step.title" />
+            </a-steps>
+          </div>
+        </div>
+      </div>
+    </a-layout-content>
+  </a-layout>
+</template>
+<script>
+import { Layout, Steps } from "ant-design-vue";
+import SystemHeader from "@/framework/components/SystemHeader";
+
+export default {
+  components: {
+    ALayout: Layout,
+    ALayoutContent: Layout.Content,
+    SystemHeader,
+    ASteps: Steps,
+    AStep: Steps.Step,
+  },
+  data() {
+    return {
+      current: 0,
+      stepList: [
+        { title: '填写账号名' },
+        { title: '验证身份' },
+        { title: '设置新密码' },
+        { title: '完成1' },
+      ]
+    }
+  }
+};
+</script>
+
+<style lang="less" scoped>
+.ant-layout{
+  .ant-layout-content{
+    .content{
+      // height: 100%;
+      display: flex;
+      justify-content: center;
+      overflow: hidden;
+      .content-modal{
+        margin-top: 50px;
+        width: 900px;
+        background-color: @white;
+        .warp{
+            
+        }
+      }
+    }
+  }
+}
+</style>

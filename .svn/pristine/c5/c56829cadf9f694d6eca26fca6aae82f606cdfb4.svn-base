@@ -1,0 +1,16 @@
+<template>
+  <div style="height: 500px">
+  </div>
+</template>
+<script>
+
+/**
+ * 事项办理列表
+ */
+export default {
+
+}
+</script>
+<style lang="less" scoped>
+
+</style>

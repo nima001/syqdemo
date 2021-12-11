@@ -1,0 +1,108 @@
+<template>
+  <div class="user-form-job-tabpanel">
+    <div class="toolbar" v-if="hasPermit('/person/org/user/edit')">
+      <template v-if="editor">
+        <a-button type="primary" @click="save">保存</a-button>
+        <a-button @click="editor=false" :style="{marginLeft:'10px'}">取消</a-button>
+      </template>
+      <a-button v-else type="primary" @click="editor=true">编辑</a-button>
+    </div>
+    <div class="body">
+       <form-display :formConfig="formConfig" :formData="formData" :editor="editor" ref="formDisplay" v-if="show"></form-display>
+    </div>
+  </div>
+</template>
+<script>
+import data from "./UserBase";
+import { Button } from "ant-design-vue";
+import FormDisplay from "@formdesign/views/FormDisplay";
+import { showError } from "@framework/utils/index";
+import cloneDeep from 'lodash/cloneDeep';
+import { updateUser, modelForm } from "@person/api/user";
+import {initDataProps} from "@formdesign/views/common"
+export default {
+  components: {
+    AButton: Button,
+    FormDisplay
+  },
+  data() {
+    return {
+      // 表单配置
+      formConfig: [],
+      // 表单初始化数据
+      formData: cloneDeep(this.user),
+      // 表单可编辑
+      editor: false
+    };
+  },
+  props: {
+    user: {
+      type: Object,
+      default: () => ({})
+    }
+  },
+  watch:{
+    user:{
+      handler(v){
+        this.formData = v;
+      },
+      deep:true
+    }
+  },
+  computed:{
+    show(){
+      return this.formConfig.length ==0 ? false:true;
+    }
+  },
+  created() {
+    this.formConfig = data.list;
+  },
+  methods: {
+    save() {
+      // 表单提交
+      this.$refs.formDisplay && this.$refs.formDisplay
+        .submit()
+        .then(res => {
+          // res : 表单填写数据
+          this.update(res);
+        })
+        .catch(errors => {
+          if(Array.isArray(errors)){
+            let firstError = errors[0];
+            showError({message: firstError.message || firstError})
+          }else{
+            showError(errors);
+          }
+        });
+    },
+    update(data) {
+      updateUser(this.user._id, data)
+        .then(res => {
+          this.formData = Object.assign({},this.formData,res.result)
+          this.editor = false;
+          this.$message.info("保存成功");
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.user-form-job-tabpanel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  & > .toolbar{
+    padding: 0 @content-padding-h;
+    margin-top: 10px;
+  }
+
+  & > .body{
+    flex: auto;
+    min-height: 0;
+    margin: @content-padding-v 0;
+  }
+}
+</style>

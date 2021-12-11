@@ -1,0 +1,186 @@
+<template>
+  <dialog-box 
+    v-model="show"
+    :title="(districtName || '') + title"
+  >
+    <div class="detail-info">
+      <ul class="list">
+        <li v-for="item in page.rows" :key="item._id">
+          <div>
+            <div class="border"></div>
+            <div class="content" :title="item.name" 
+              @click="orgDetail = { show: true, orgid: item._id, title: item.name }"
+            >{{item.name}}</div>
+            <div class="border"></div>
+          </div>
+        </li>
+      </ul>
+      <div class="footer">
+        <div class="pagintion">
+          <a :class="{disabled: page.pagenum <= 1}" 
+            @click="loadData(page.pagenum-1)"
+          ><img src="../img/p-down.png"></a>
+          <span>{{page.pagenum}}/{{pageTotal}}</span>
+          <a :class="{disabled: page.pagenum >= pageTotal}" 
+            @click="loadData(page.pagenum+1)"
+          ><img src="../img/p-up.png"></a>
+        </div>
+      </div>
+    </div>
+    <dialog-box 
+      v-model="orgDetail.show"
+      :title="orgDetail.title"
+      :destroyOnClose="true"
+    >
+      <org-detail :orgid="orgDetail.orgid"/>
+    </dialog-box>
+  </dialog-box>
+</template>
+<script>
+import DialogBox from '../components/DialogBox'
+import OrgDetail from '../components/OrgDetail'
+import { mixins } from "../components/minxin";
+import { showError } from "@/framework/utils/index";
+import { ckOrgQuery } from "@/person-shaoxing/api/orgStaffReport";
+
+
+export default {
+  components: {
+    DialogBox,
+    OrgDetail
+  },
+  mixins: [mixins],
+  props: {
+    value: Boolean,
+    title: String,
+    params: {
+      type: Object,
+      default: () => ({})
+    }
+  },
+  data(){
+    return {
+      show: this.value,
+      page: {
+        pagenum: 1,
+        pagesize: 10,
+        rows: [],
+        total: 0
+      },
+      orgDetail: {
+        show: false,
+        orgid: undefined,
+        title: undefined
+      }
+    }
+  },
+  computed: {
+    pageTotal(){
+      let { pagesize, total} = this.page;
+      if(total > 0){
+        return Math.ceil(total/pagesize);
+      }
+      return 1;
+    },
+  },
+  watch: {
+    value(value){
+      this.show = value;
+    },
+    show(show){
+      this.$emit('input', show);
+    },
+    params:{
+      immediate: true,
+      handler(p){
+        this.page = {
+          pagenum: 1,
+          pagesize: 10,
+          rows: [],
+          total: 0
+        }
+        this.loadData(1);
+      }
+    }
+  },
+  methods: {
+    loadData(pagenum){
+      if(pagenum < 1 || pagenum > this.pageTotal){
+        return;
+      }
+      ckOrgQuery({
+        ...this.params,
+        needtotal: true,
+        pagesize: 10,
+        pagenum
+      }).then(({result}) => {
+        this.page = result;
+      })
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.detail-info{
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 45px 65px 0 65px;
+  font-size: 16px;
+  & > .list{
+    flex: auto;
+    overflow: hidden;
+    li{
+      float: left;
+      width: 50%;
+      padding: 12px;
+      color: #FFF;
+      .border{
+        height: 2px;
+        background: radial-gradient(circle, #4A92FF 0%, #1598AD 100%);
+      }
+      .content{
+        margin: 0 10px;
+        padding: 0 10px;
+        line-height: 66px;
+        text-align: center;
+        background-color: #101b2c;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        cursor: pointer;
+        &:hover{
+          background-color: #3a5472;
+        }
+      }
+    }
+  }
+  & > .footer{
+    flex: none;
+    padding: 20px;
+    .pagintion{
+      width: 140px;
+      height: 40px;
+      margin: auto;
+      padding: 5px;
+      line-height: 30px;
+      background-color: #101b2c;
+      border-radius: 4px;
+      color: white;
+      text-align: center;
+      span{
+        display: inline-block;
+        width: 3em;
+      }
+      a{
+        display: inline-block;
+        padding: 0 10px;
+        &.disabled{
+          cursor: not-allowed;
+        }
+      }
+    }
+  }
+}
+</style>

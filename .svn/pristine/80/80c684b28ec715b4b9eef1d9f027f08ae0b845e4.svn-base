@@ -1,0 +1,148 @@
+<template>
+  <div class="wrap" :id="id">
+    <a-spin :spinning="loading"></a-spin>
+  </div>
+</template>
+<script>
+import DataSet from "@antv/data-set";
+import { Chart } from "@antv/g2";
+import { problemAndOrg } from "@/person-shaoxing/api/monitor";
+import { showError } from "@framework/utils";
+import { Spin } from "ant-design-vue";
+export default {
+  data() {
+    return {
+      id: Math.random()
+        .toString(32)
+        .substr(2),
+      list: [],
+      loading: true
+    };
+  },
+  components: {
+    ASpin: Spin
+  },
+  mounted() {
+    problemAndOrg()
+      .then(res => {
+        this.createData(res.result.data, () => {
+          this.draw();
+        });
+      })
+      .catch(err => {
+        showError(err);
+      })
+      .finally(() => {
+        this.loading = false;
+      });
+  },
+  methods: {
+    createData(dataTable, fn) {
+      let { keyCols, rows, valueCols } = dataTable;
+      let key = keyCols[0];
+      this.list = (rows || []).map(item => {
+        let obj = { key: item[key.column] };
+        delete item[key.column];
+        return { ...obj, ...item };
+      });
+      fn();
+    },
+    draw() {
+      const chart = new Chart({
+        container: this.id,
+        autoFit: true
+      });
+      chart.data(this.list);
+      chart.scale({
+        v1: {
+          min: 0,
+          max: 10,
+          alias: "问题数"
+        },
+        v0: {
+          min: 0,
+          max: 10,
+          alias: "机构数"
+        }
+      });
+      chart.legend({
+        custom: true,
+        items: [
+          {
+            value: "v1",
+            name: "问题数",
+            marker: { symbol: "square", style: { fill: "#3182bd", r: 5 } }
+          },
+          {
+            value: "v0",
+            name: "机构数",
+            marker: {
+              symbol: "hyphen",
+              style: { stroke: "#fdae6b", r: 5, lineWidth: 3 }
+            }
+          }
+        ]
+      });
+      chart.axis("v0", {
+        grid: null,
+        title: {
+          style: {
+            fill: "#fdae6b"
+          }
+        },
+        label: {
+          style: {
+            fill: "#fdae6b"
+          }
+        }
+      });
+      chart.tooltip({
+        shared: true
+      });
+      chart
+        .interval()
+        .position("key*v1")
+        .color("#D15456").label("v1", {
+          style: {
+            fill: "#D15456"
+          },
+          offset:12
+        });
+      chart
+        .line()
+        .position("key*v0")
+        .color("#5488d1")
+        .size(3)
+        .shape("smooth");
+      chart
+        .point()
+        .position("key*v0")
+        .color("#fdae6b")
+        .size(3)
+        .shape("circle").label("v0", {
+          style: {
+            fill: "#5488d1"
+          },
+          offset:-12
+        });;
+
+      chart.interaction("active-region");
+      chart.removeInteraction("legend-filter"); // 自定义图例，移除默认的分类图例筛选交互
+      chart.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  width: 100%;
+  height: 100%;
+  .ant-spin {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+</style>

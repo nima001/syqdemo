@@ -1,0 +1,66 @@
+<template>
+  <a-form-item :label="name" :required="!!required" :validateStatus="validateStatus" :class="{editor:!editor}" >
+    <a-tooltip placement="topLeft" :title="help">
+      <a-date-picker v-model="propValue" :disabled="!!disabled"></a-date-picker>
+    </a-tooltip>
+  </a-form-item>
+</template>
+<script>
+import moment from "moment";
+import get from "lodash/get";
+import set from "lodash/set";
+import { Form, Input, DatePicker } from "ant-design-vue";
+import { mixins } from "@formdesign/views/mixin/index";
+export default {
+  title: "日期选择",
+  mixins: [mixins],
+  components: {
+    AFormItem: Form.Item,
+    AInput: Input,
+    ADatePicker: DatePicker
+  },
+  computed: {
+    // 覆盖mixin中的 propValue
+    propValue: {
+      get() {
+        let d = null;
+        if (this.data) {
+          d = get(this.data, this.code);
+        } else {
+          d = get(this.formData.data, this.code);
+        }
+        return d && moment(d);
+      },
+      set(value) {
+        if (this.data) {
+          set(this.data, this.code, value);
+        } else {
+          set(this.formData.data, this.code, value);
+        }
+      }
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-form-item {
+  margin-bottom: 0;
+  &.editor{
+    position: relative;
+    &::before{
+      position: absolute;
+      left: 0px;
+      top: 0px;
+      content: '';
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: not-allowed;
+      z-index: 3;
+    }
+  }
+  .ant-calendar-picker {
+    width: 100%;
+  }
+}
+</style>

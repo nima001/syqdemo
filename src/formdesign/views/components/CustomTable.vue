@@ -1,0 +1,230 @@
+<template>
+  <a-form-item>
+    <a-table :columns="columns" :data-source="dataSource" :pagination="false" rowKey="_id">
+      <template slot="opts" slot-scope="text,row,index">
+        <a @click="editItem(text,row,index)">{{editor?'编辑':'查看'}}</a>
+        <a @click="removeItem(text,row,index)" :style="{marginLeft:'6px'}" v-if='editor'>删除</a>
+      </template>
+    </a-table>
+    <a-button type="dashed" @click="addGroup" :style="{width:'100%',margin:'6px 0px'}" :disabled='disabled' v-if='!simple && editor'>
+      <a-icon type="plus" />添加
+    </a-button>
+    <a-modal
+      :title="label"
+      v-model="visible"
+      :width="800"
+      :destroyOnClose="true"
+    >
+      <a-row :gutter="24">
+        <a-col :span="item.span" v-for="(item,index) in properties" :key="index">
+          <component :is="item.type" :key="index" v-bind="item" />
+        </a-col>
+      </a-row>
+      <template slot="footer">
+        <a-button @click="handleCancel">取消</a-button>
+        <a-button type="primary" @click="handleOk">确定 </a-button>
+      </template>
+    </a-modal>
+  </a-form-item>
+</template>
+<script>
+import {Form,Input,Table,Button,Icon,Modal,Row,Col} from "ant-design-vue";
+import { mixins } from "@formdesign/views/mixin/index";
+import moment from "moment";
+import {cloneDeep,get,set} from "lodash";
+import { components, initDataProps } from "../common";
+import { showError } from "@framework/utils/index";
+import Vue from "vue";
+export default {
+  title: "自定义table",
+  mixins: [mixins],
+  components: {
+    ATable: Table,
+    AFormItem: Form.Item,
+    AButton: Button,
+    AIcon: Icon,
+    AModal: Modal,
+    ARow: Row,
+    ACol: Col,
+    ...components
+  },
+  props: {
+    // table配置
+    properties: {
+      type: Array,
+      required: true
+    },
+    // 可编辑
+    edit: {
+      type: Boolean,
+      required: true
+    },
+    // table的label
+    label: {
+      tyepe: String,
+      required: true
+    },
+    // 简单table(只展示数据,没操作)
+    simple: {
+      type: Boolean,
+      default: () => {
+        return true;
+      }
+    },
+    disabled:{
+      type:Boolean
+    }
+  },
+  data() {
+    return {
+      visible: false,
+      initFormData: Object.assign({}, initDataProps({}, this.properties)),
+      editIndex : undefined
+    };
+  },
+  provide() {
+    const _this = this;
+    return {
+      formData: new Vue({
+        data() {
+          return {
+            data: cloneDeep(_this.initFormData),
+            formItem: [],
+            editor: _this.editor,
+            formLayout: _this.formLayout,
+            formConfig:_this.properties
+          };
+        }
+      })
+    };
+  },
+  computed: {
+    // 组装表头
+    columns() {
+      let cs = [];
+      (this.properties || []).forEach(item => {
+        if (item.show) {
+          cs.push({
+            title: item.name,
+            dataIndex: item.code,
+            customRender: this.createPropRender(item)
+          });
+        }
+      });
+      if (!this.simple) {
+        cs.push({ title: "操作", scopedSlots: { customRender: "opts" } });
+      }
+      return cs;
+    },
+    // 数据源
+    dataSource() {
+      return get(this.formData.data, this.code) || [];
+    }
+  },
+  watch:{
+    editor(v){
+      this._provided.formData.editor = v;
+    }
+  },
+  methods: {
+    validate(callback) {
+      if(this.required && !this.list.length){//列表空验证
+        callback({ code: this.code, message: `${this.name || this.code}不能为空`})
+        return;
+      }
+      callback()
+    },
+    // 内部子组件验证
+    validateChildren() {
+      // 表单项目
+      let formList = this._provided.formData.formItem;
+      let validator = [];
+      (formList || []).forEach(ele => {
+        if(ele.validateField){
+          validator.push(ele.validateField());
+        }
+      });
+      return Promise.all(validator).then(result => {
+        let arr = [];
+        result.forEach(item => {
+          if(Array.isArray(item)){
+            arr = [...arr, ...item];
+          }else if(item){
+            arr.push(item);
+          }
+        })
+        return arr;
+      });
+    },
+    handleCancel() {
+      this._provided.formData.formItem = [];
+      this.visible = false;
+    },
+    handleOk() {
+      let data = Object.assign({}, this._provided.formData.data, {_id: new Date().getTime()});
+      this.validateChildren()
+        .then(errors => {
+          if(errors.length){
+            let firstError = errors[0];
+            showError({message: firstError.message || firstError})
+          }else{
+            if(this.editIndex === undefined){
+              if (get(this.formData.data, this.code) == undefined) {
+                set(this.formData.data, this.code, []);
+              }
+              // 添加table
+              this.formData.data[this.code].push(cloneDeep(data));
+            }else{
+              // 更新table
+              this.$set(this.formData.data[this.code],this.editIndex,cloneDeep(data))
+            }
+            this.visible = false;
+            this.editIndex = undefined;
+          }
+        })
+        .catch(err => {
+          showError(err)
+        });
+    },
+    // 添加table组数据
+    addGroup() {
+      this.visible = !this.visible;
+      this._provided.formData.data = cloneDeep(this.initFormData)
+    },
+    // 编辑table
+    editItem(text, row, index) {
+      this._provided.formData.data = cloneDeep(row);
+      this.visible = true;
+      this.editIndex = index;
+    },
+    // 删除table指定行数据
+    removeItem(text, row, index) {
+      this.formData.data[this.code].splice(index, 1);
+    },
+    createPropRender(property){
+      return (text, row, index) => {
+        if(property.type == 'selectDict'){
+          let v = this.$store.getters.dictKey(property.dict, text);
+          text = (v && v.text) || '';
+          return <span title={text}>{text}</span>;
+        }else if(property.type == 'datePicker'){
+          if(text){
+            let t = moment(text);
+            return t && t.format('YYYY-MM-DD');  
+          }
+        }else{
+          return <span title={text}>{text}</span>;
+        }
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-form-item {
+  margin-bottom: 0;
+  .ant-calendar-picker {
+    width: 100%;
+  }
+}
+</style>

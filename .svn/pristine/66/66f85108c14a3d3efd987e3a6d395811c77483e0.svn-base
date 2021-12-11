@@ -1,0 +1,273 @@
+<template>
+  <div class="table-list">
+    <a-row class="antd-table-query">
+      <a-col class="query-serach" :span="18">
+        <a-input
+            style="width: 200px"
+            :value="dataSearchVal"
+            :read-only="true"
+            placeholder="请选择机构"
+            @click="orgvisible = true"
+          >
+            <a-icon slot="addonAfter" type="select" @click="orgvisible = true"/>
+          </a-input>
+        <a-input 
+          allowClear
+          class="queryitem" 
+          style="width: 160px"
+          v-model="search.searchkey"
+          placeholder="请输入关键词"
+          >
+        </a-input>
+        <a-button class="queryitem" type="primary" @click="onSearch">搜索</a-button>
+        <a-button class="queryitem" @click="onReset">重置</a-button>
+      </a-col>
+    </a-row>
+    <a-table
+      class="stra-table"
+      rowKey="id"
+      :columns="initColumn"
+      :dataSource="tableData"
+      :pagination="false"
+      :loading="loading"
+      >
+      <span slot="detail" class="operation" slot-scope="text, record">
+        <a @click="onShowDetail(record.content)">查看详情</a>
+      </span>
+    </a-table>
+    <div class="footer">
+      <a-pagination
+        v-if="tableData && tableData.length"
+        showSizeChanger
+        :showTotal="total => `总共：${total}条`"
+        @showSizeChange="onShowSizeChange"
+        :total="pagination.total"
+        :pageSize="pagination.pagesize"
+        v-model="pagination.pagenum"
+        @change="onPageChange"
+      />
+    </div>
+    <a-modal centered v-model="detailVisible" title="详情" ok-text="确认" cancel-text="取消" :footer="null">
+      <p>{{detailContent}}</p>
+    </a-modal>
+    <a-modal
+      :footer="null"
+      v-model="orgvisible"
+      :width="500"
+      title="选择单位"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select mode="org" 
+        @finish="orgOk" 
+        :defaultRoot="cityId"
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Row, Col, Input, Table, Pagination, Button, Modal,Icon } from "ant-design-vue";
+import DictSelect from "@/framework/components/DictSelect";
+import { dataqualityPageList, dataqualitySendMsg } from "@/person-shaoxing/api/monitor";
+import { showError } from "@/framework/utils/index";
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+import moment from "moment";
+export default {
+  name: 'TableList',
+  props: ['district', 'orgid','dataSearchVal'],
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    ATable: Table,
+    AButton: Button,
+    APagination: Pagination,
+    AModal: Modal,
+    AIcon:Icon,
+    DictSelect,
+    OrgUserSelect
+  },
+  watch: {
+    district: {
+      handler() {
+        this.handlestatus = 2;
+        this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+        if(this.district == "330600"){
+          this.cityId = "b447363173bf42a0b593aeeef1ed7c14"
+        }else if(this.district == "330602"){
+          this.cityId = "7a0c55b7f6f040729492941ed780f964"
+        }else if(this.district == "330604"){
+          this.cityId = "0906f7122848455eb03ab9a45750db7e"
+        }else if(this.district == "330603"){
+          this.cityId = "ee0f27085675431193e22cfd988f9d0d"
+        }else if(this.district == "330681"){
+          this.cityId = "c33f4405901d42808efdbeba49305e4d"
+        }else if(this.district == "330683"){
+          this.cityId = "e05d937b057b42e59469b0503500b28b"
+        }else if(this.district == "330624"){
+          this.cityId = "4e040be7571f4e299f9e496ce9b79c76"
+        }
+      },
+      immediate: true
+    },
+    orgid() {
+        this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+    },
+  },
+  data() {
+    return {
+      cityId:undefined,
+      initColumn: [
+        { title: '类别', dataIndex: 'strategytype', customRender: this.dictRender('person.monitor.strategytype'), width: '10%' },
+        { title: '相关部门', dataIndex: 'orgname', customRender: text => <span title={text}>{text}</span>, width: '20%' },
+        { title: '问题或异动情况描述', dataIndex: 'content', customRender: text => <span title={text}>{text}</span>, width: '40%' },
+        { title: '发现时间', dataIndex: 'createtime', customRender: (text) => (text && text.substr(0, 10)), width: '15%' },
+        { title: "操作", width: "15%", scopedSlots: { customRender: "detail" }},
+      ],
+      tableData: [],
+      loading: false,
+      search: {
+        searchkey: undefined
+      },
+      pagination: {
+        total: 0,
+        pagenum: 1,
+        pagesize: 10
+      },
+      handlestatus: 0,
+      strategytypeIn:[1,2,4],
+      sendMsgVisible: false,
+
+      detailVisible: false,
+      detailContent: undefined,
+      orgvisible:false,
+      orgValue:undefined,
+      searchValue:""
+    }
+  },
+  methods: {
+    getData(page) {
+      this.loading = true;
+      if(this.handlestatus == 1 || this.handlestatus == 0){
+        this.strategytypeIn = [1,2,4];
+      }else{
+        this.strategytypeIn = [3];
+      }
+      let newHandlestatus = this.handlestatus;
+      if(newHandlestatus == 2){
+        newHandlestatus = 0;
+      }
+      let orders = [{orderby: "createtime", ordertype: "DESC"}]
+      let params = {
+        ...page,
+        needtotal: true,
+        district: this.district.district,
+        orgid: this.orgid,
+        handlestatus: newHandlestatus,
+        searchkey: this.search.searchkey,
+        strategytypeIn: this.strategytypeIn,
+        orders
+      }; 
+
+      if(!(this.handlestatus == 1 || this.handlestatus == 0)){
+        let starttime = moment().subtract(1,"months").format("YYYY-MM-DD HH:mm:ss");
+        let endtime = moment().format("YYYY-MM-DD HH:mm:ss");
+        params.starttime = starttime;
+        params.endtime = endtime;
+      }
+
+      dataqualityPageList(params)
+      .then(({result}) => {
+        this.loading = false;
+        this.pagination = result;
+        this.tableData = result.rows;
+      })
+      .catch(err => {
+        this.loading = false;
+        showError(err);
+      })
+    },
+    dictRender(key, attr){
+      return (text, row, index) => {
+        let v =  this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || ''
+        return <span title={text}>{text}</span>;
+      }
+    },
+    onSearch() {
+      this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+    },
+    onReset() {
+      for(let key in this.search) {
+        this.search[key] = undefined;
+      }
+      this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+    },
+    onPageChange(pagenum, pagesize) {
+      this.getData({ pagenum, pagesize });
+    },
+    onShowSizeChange(pagenum, pagesize) {
+      this.getData({ pagenum: 1, pagesize });
+    },
+    sendMsg(){
+      dataqualitySendMsg("").then(res =>{
+        this.$message.success('消息发送成功');
+      }).catch(err =>{
+        showError(err);
+      })
+      this.sendMsgVisible = false;
+    },
+    onShowDetail(content) {
+      this.detailVisible = true;
+      this.detailContent = content;
+    },
+    orgOk(type, list) {
+      this.orgvisible = false;
+      if (type == "ok" && list.length > 0) {
+        this.showChart = false;
+        this.orgValue = list[0];
+      }
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.table-list{
+    margin-top: 20px;
+    /deep/ .ant-spin-nested-loading {
+    overflow: scroll;
+    height: 41vh;
+  }
+  .antd-table-query{
+    padding: @content-padding-v @content-padding-h;
+    .query-serach{
+        width: 100%;
+      display: flex;
+      justify-content: flex-end;
+      padding-right: 20px;
+      .queryitem{
+        margin-left: 20px;
+      }
+    }
+  }
+  .antd-table-con{
+    padding: @content-padding-v @content-padding-h;
+  }
+  & > .footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 12px @content-padding-h;
+  }
+  .stra-table {
+    padding: @content-padding-v @content-padding-h;
+    /deep/table {
+      table-layout: fixed;
+      td,
+      th {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,112 @@
+<template>
+  <a-carousel arrows :autoplay="true" dots-class="slick-dots slick-thumb" :after-change="change">
+    <div slot="prevArrow" class="custom-slick-arrow" :style="pretBtn">
+      <div class="preBtn"></div>
+    </div>
+    <div slot="nextArrow" class="custom-slick-arrow" :style="nextBtn">
+      <div class="nextBtn"></div>
+    </div>
+    <a slot="customPaging"></a>
+    <div v-for="(item,index) in size" :key="index" :style="{height:'100%'}">
+      <slot :name="'swiper'+`${index}`"></slot>
+    </div>
+  </a-carousel>
+</template>
+<script>
+import { Carousel } from "ant-design-vue";
+export default {
+  components: {
+    ACarousel: Carousel
+  },
+  props: {
+    size: {
+      type: Number,
+      required: true
+    },
+    pretBtn: {
+      type: Object,
+      default: () => {
+        return {};
+      }
+    },
+    nextBtn: {
+      type: Object,
+      default: () => {
+        return {};
+      }
+    }
+  },
+  methods: {
+    change(page) {
+      this.$emit("input", page);
+    }
+  }
+};
+</script>
+<style scoped>
+.preBtn {
+  width: 40px;
+  height: 40px;
+  background: url("../img/pre.png") center center no-repeat;
+}
+.nextBtn {
+  width: 40px;
+  height: 40px;
+  background: url("../img/next.png") center center no-repeat;
+}
+.ant-carousel {
+  width: 100%;
+  height: 100%;
+}
+.ant-carousel >>> .slick-slider {
+  width: 100%;
+  height: 100%;
+}
+
+.ant-carousel >>> .slick-list {
+  width: 100%;
+  height: 100%;
+  padding-bottom: 36px;
+}
+.ant-carousel >>> .slick-list .slick-track {
+  height: 100%;
+}
+.ant-carousel >>> .slick-dots {
+  height: auto;
+  bottom: 0px;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+.ant-carousel >>> .slick-thumb li {
+  width: 12px;
+  height: 12px;
+}
+.ant-carousel >>> .slick-thumb li a {
+  width: 12px;
+  height: 12px;
+  display: block;
+  background: #8fc7ff;
+  border-radius: 50%;
+  opacity: 0.4;
+  margin-right: 20px;
+  cursor: pointer;
+}
+.ant-carousel >>> .slick-thumb li.slick-active {
+  width: 36px;
+  height: 36px;
+}
+.ant-carousel >>> .slick-thumb li.slick-active a {
+  width: 36px;
+  height: 36px;
+  background: url("../img/spot.png") center center no-repeat;
+}
+
+.ant-carousel >>> .custom-slick-arrow {
+  width: 40px;
+  height: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-top: -18px;
+}
+</style>

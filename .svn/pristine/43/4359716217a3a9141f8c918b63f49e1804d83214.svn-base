@@ -1,0 +1,165 @@
+<template>
+  <a-collapse v-model="activeKey" :bordered="false" style="background-color: unset">
+    <a-collapse-panel key="12" header="数据操作">
+      <div class="sort">
+        <span>排序</span>
+        <a-select @change="sortChange">
+          <a-select-option v-for="item in sortArray" :key="item.value">
+            {{ item.label }}
+          </a-select-option>
+        </a-select>
+      </div>
+      <a-button class="merge" style="width: 90%" type="primary" ghost @click="showModal">截取</a-button>
+      <a-modal
+        width="450px"
+        title="选择截取区间"
+        v-model="showSlideModal"
+        :destroyOnClose="true"
+        :footer="null"
+      >
+        <a-slider
+          range
+          v-model="rangeData"
+          :max="interceptLength"
+          :min="0"
+          :default-value="[0, interceptLength]"
+          :tooltip-visible="showSlideModal"
+          @change="range"
+        />
+        <div :class="[ 'merge', { show: rangeData && rangeData[1] - rangeData[0] < interceptLength - 1 } ]" >
+          <span>是否合并剩余项: </span>
+          <a-switch v-model="chartData.settings.sort.mergeOther" />
+        </div>
+      </a-modal>
+    </a-collapse-panel>
+  </a-collapse>
+</template>
+
+<script>
+import { Collapse, Button, Select, Switch, Slider } from "ant-design-vue";
+export default {
+  props: {
+    value: {
+      type: Object,
+    },
+  },
+  components: {
+    AButton: Button,
+    ACollapse: Collapse,
+    ASelect: Select,
+    ASwitch: Switch,
+    ASlider: Slider,
+    ASelectOption: Select.Option,
+    ACollapsePanel: Collapse.Panel,
+  },
+  data() {
+    return {
+      interceptLength: 1,
+      showSlideModal: false,
+      activeKey: undefined,
+      chartData: this.value,
+      rangeData: undefined,
+      sortArray: [
+        { label: "升序", value: "asc" },
+        { label: "降序", value: "desc" },
+        { label: "还原", value: "recover" },
+      ],
+    };
+  },
+  watch: {
+    chartData: {
+      deep: true,
+      handler(val) {
+        this.$emit("input", val);
+      },
+    },
+    queryData: {
+      deep: true,
+      handler(val) {
+        if(val) {
+          this.getLength(val.data.rows);
+        }
+      }
+    },
+  },
+  computed: {
+    queryData() {
+      return this.$attrs.queryData;
+    },
+    muitl() {
+      if (this.queryData && this.queryData.data) {
+        let { keyCols, valueCols, rows } = this.queryData.data;
+        return valueCols.length > 1 || keyCols.length > 1;
+      }
+    },
+    showOptions() {
+      if (
+        this.chartData.chartType === "pie-chart" ||
+        this.chartData.chartType === "ring-chart"
+      ) {
+        return true;
+      } else if (this.chartData.chartType !== "radar-chart") {
+        if (!this.muitl) {
+          return true;
+        }
+      }
+      return false;
+    },
+  },
+  methods: {
+    open(key) {
+      if (this.activeKey && this.activeKey.length) {
+        let index = this.activeKey.indexOf(key);
+        if (index >= 0) {
+          this.activeKey.splice(index, 1);
+        }
+      }
+    },
+    sortChange(val) {
+      this.$set(this.chartData.settings.sort, "type", val);
+      this.$emit("input", this.chartData);
+      this.sort = val;
+    },
+    range(val) {
+      this.$set(this.chartData.settings.sort, "range", val);
+      this.$emit("input", this.chartData);
+    },
+    showModal() {
+      if (this.showSlideModal) {
+        this.showSlideModal = false;
+        return;
+      }
+      this.showSlideModal = true;
+    },
+    getLength(data) {
+      this.interceptLength = data.length;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.sort {
+  display: flex;
+  align-items: center;
+  .ant-select {
+    flex: 1;
+    margin-left: @padding-sm;
+  }
+}
+.merge.ant-btn {
+  margin-top: 12px;
+  margin-left: 24px;
+}
+/deep/.ant-modal-body {
+  padding: 48px 24px;
+  height: 150px;
+  .merge{
+    opacity: 0;
+    width: 92%;
+    transition: all .3s;
+    &.show {
+      opacity: 1;
+    }
+  }
+}
+</style>

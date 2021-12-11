@@ -1,0 +1,158 @@
+import request from '@/framework/utils/request'
+
+//search
+export function fieldsearch(data) {
+    return request({
+        url: '/person/statistic/search',
+        method: 'post',
+        data
+    })
+}
+//获取统计对象
+export function fieldtarget() {
+    return request({
+        url: '/person/statistic/target',
+        method: 'get',
+    })
+}
+
+//分页获取统计对象
+export function fieldtargets(data) {
+    return request({
+        url: '/person/statistic/target/search',
+        method: 'post',
+        data
+    })
+}
+
+//删除
+export function deletefield(data) {
+    return request({
+        url: '/person/statistic',
+        method: 'delete',
+        data
+    })
+}
+
+//新增
+export function newfield(data) {
+    return request({
+        url: '/person/statistic',
+        method: 'post',
+        data
+    })
+}
+//修改
+export function editupd(data) {
+    return request({
+        url: '/person/statistic/upd',
+        method: 'post',
+        data
+    })
+}
+/**
+ * @description: 获取所有统计模型
+ */
+export function fieldmodel() {
+    return request({
+        url: '/person/statistic//list/model',
+        method: 'get'
+    })
+}
+/**
+ * @description: 获取表达式
+ * @param {Number} id 表格中这一行数据的id
+ */
+// export function getExpression(id) {
+//     return request({
+//         url: '/person/statistic/get/expression',
+//         method: 'get',
+//         params: {
+//             id
+//         }
+//     })
+// }
+/**
+ * @description: 保存表达式
+ * @param {Object} data {"expression": String 表达式的名称,"id": Number 表格中这一行数据的id,"targetid": Number 统计对象的id,
+ *                       "code": String 字段编码,"datasets": Array 数据集,"enable": Boolean 是否启用,"index" String 排序}
+ */
+export function saveExpression(data,codeid) {
+    return request({
+        url: '/person/statistic/save/expression?codeid=' + codeid,
+        method: 'post',
+        data
+    })
+}
+/**
+ * @description: 删除表达式
+ * @param {Number} expressionId 表达式的id
+ */
+export function deleteExpression(ids) {
+    return request({
+        url: '/person/statistic/expression',
+        method: 'delete',
+        params: {
+            ids
+        }
+    })
+}
+/**
+ * @description: 保存统计对象
+ * @param {Object} data {"title": String 对象名称,"id": Number 这一行的id,"namespace": String 统计模型,"depends": Array 依赖的id,"filters": Object 过滤规则}
+ */
+export function saveTarget(data) {
+    return request({
+        url: '/person/statistic/target',
+        method: 'post',
+        data
+    })
+}
+/**
+ * @description: 删除统计对象
+ * @param {Number} id 表格中这一行数据的id
+ */
+export function deleteTarget(ids) {
+    return request({
+        url: '/person/statistic/target',
+        method: 'delete',
+        params: {
+            ids
+        }
+    })
+}
+/**
+ * @description: 获取所有字段分类
+ */
+export function getField() {
+    return request({
+        url: '/person/statistic/sort',
+        method: 'get'
+    })
+}
+/**
+ * @description: 获取表达式
+ * @param {Object} data { 字段编码,"targetid": Number 统计对象id, "code": String 字段编码 , "searchKey": String 字段名称或编码, 
+ *                        pagenum": Number 页数,"pagesize": Number 每页数量, "needtotal": Boolean}
+ */
+export function getExpression(data) {
+    return request({
+        url: '/person/statistic/expression/query',
+        method: 'post',
+        data
+    })
+}
+
+/**
+ *
+ *
+ * @description  获取全量数据
+ * @param {String}  id  数据id
+ * @returns
+ */
+export function expression(id){
+    return request({
+        url: '/person/statistic/expression/' + id,
+        method: 'get'
+    })
+}

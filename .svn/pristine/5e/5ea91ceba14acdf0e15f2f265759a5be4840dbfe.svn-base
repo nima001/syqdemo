@@ -1,0 +1,158 @@
+<template>
+  <a-collapse :bordered="false" style="background-color: unset">
+    <a-collapse-panel key="8" header="标题">
+      <div class="content">
+        <div class="title-setting">
+          <div class="title">主标题</div>
+          <div class="titlecontent">
+            <a-input
+              :disabled="!title.visible"
+              :read-only="true"
+              :value="title.value"
+              @click="editTitle({ value: title.value, placeholder: chartData.fields, callback: (value) => (title.value = value), })"
+              style="cursor: pointer"
+            />
+            <a-switch @click=" (check, e) => { e.stopPropagation(); } " v-model="title.visible"/>
+          </div>
+          <div class="subtitle">副标题</div>
+          <div class="titlecontent">
+            <a-input
+              :disabled="!subTitle.visible"
+              :read-only="true"
+              :value="subTitle.value"
+              @click="editTitle({ value: subTitle.value, placeholder: chartData.fields, callback: (value) => (subTitle.value = value), })"
+              style="cursor: pointer"
+            />
+            <a-switch @click=" (check, e) => { e.stopPropagation(); } " v-model="subTitle.visible" />
+          </div>
+          <div class="subtitle">位置</div>
+          <a-radio-group :value="titleValue" @change="onchange">
+            <a-radio-button
+              v-for="item in titlePosition"
+              :value="item.value"
+              :key="item.value"
+              >{{ item.label }}</a-radio-button
+            >
+          </a-radio-group>
+        </div>
+        <!-- 图表标题 -->
+        <a-modal v-model="$attrs.titleModel.show" title="标题" @ok="onTitleEdit">
+          <a-input v-model="$attrs.titleModel.value" allowClear ref="titleInput"/>
+          <div style="margin-top: 10px" v-if="$attrs.titleModel.placeholder">
+            <!-- <tags :value="$attrs.titleModel.placeholder" text="name" :deleteable="false" @click="onTagChecked"/> -->
+          </div>
+        </a-modal>
+      </div>
+    </a-collapse-panel>
+  </a-collapse>
+</template>
+
+<script>
+import { Collapse, Input, Switch, Radio } from "ant-design-vue";
+import { showError } from '../../../../../framework/utils';
+export default {
+  props: {
+    value: {
+      type: Object,
+    },
+  },
+  components: {
+    ASwitch: Switch,
+    AInput: Input,
+    ACollapse: Collapse,
+    ACollapsePanel: Collapse.Panel,
+    ARadioButton: Radio.Button,
+    ARadioGroup: Radio.Group,
+  },
+  data() {
+    return {
+      titleValue: "center",
+      chartData: this.value,
+      titlePosition: [
+        { label: "左", value: "left" },
+        { label: "居中", value: "center" },
+        { label: "右", value: "right" },
+      ],
+    };
+  },
+  watch: {
+    chartData: {
+      deep: true,
+      handler(val) {
+        this.$emit("input", val);
+      },
+    },
+    show(val) {
+      if(val) {
+        this.$nextTick(()=>{
+          this.$refs.titleInput.focus();
+        })
+      }
+    }
+  },
+  computed: {
+    title() {
+      let { main } = this.chartData.settings.title;
+      return main;
+    },
+    subTitle() {
+      let { sub } = this.chartData.settings.title;
+      return sub;
+    },
+    show() {
+      return this.$attrs.titleModel.show;
+    }
+  },
+  methods: {
+    onchange(val) {
+      this.titleValue = val.target.value;
+      this.$set(this.chartData.settings.title, "position", this.titleValue);
+      this.$emit("input", this.chartData);
+    },
+    onTitleEdit() {
+      this.$emit('onTitleEdit');
+    },
+    editTitle(val) {
+      this.$emit('editTitle',{ show: true, ...val });
+    },
+    onTagChecked(field){
+      let dom = this.$refs.titleInput.$el;
+      if(dom.tagName != 'INPUT'){
+        dom = dom.getElementsByTagName('input')[0];
+      }
+      let start = dom.selectionStart, end = dom.selectionEnd;
+      let text = this.titleModel.value || '';
+      this.titleModel.value = text.substr(0, start) + '${' + field.code + '}' + text.substr(end);
+      this.$nextTick(() => {
+        dom.setSelectionRange(start, start + field.code.length + 3);
+        dom.focus();
+      })
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.content {
+  .title {
+    margin-bottom: @layout-space-base;
+  }
+  .subtitle {
+    margin: @layout-space-base 0;
+  }
+  .title-setting {
+    padding-left: 24px;
+    .titlecontent {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      .ant-switch {
+        position: relative;
+        right: -10px;
+      }
+    }
+    .ant-select {
+      width: 105%;
+    }
+  }
+}
+</style>

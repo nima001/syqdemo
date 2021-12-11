@@ -1,0 +1,275 @@
+<template>
+  <div class="form-panel">
+    <div class="form-body" ref="formBody">
+      <div v-for="item in tables" :key="item.key" :id="item.key">
+        <div class="title-bar">{{item.name}}</div>
+        <bar-chart :dataTable="item.chart"/> 
+        <a-table style="padding-bottom: 20px;"
+          :columns="item.table.columns"
+          :dataSource="item.table.rows"
+          :pagination="false"
+        />
+      </div>
+    </div>
+    <a-anchor v-if="tables && tables.length > 1" wrapperClass="form-anchor" :getContainer="() => $refs.formBody">
+      <a-anchor-link v-for="item in tables" :href="`#${item.key}`" :title="item.name" :key="item.key"/>
+    </a-anchor>
+  </div>
+</template>
+<script>
+import { Anchor, Table } from "ant-design-vue";
+import BarChart from '@person/views/statistics/chart/components/BarChart'
+
+import { orgStaffReport } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '@framework/utils'
+
+/**
+ * 机构数监测
+ */
+export default {
+  components: {
+    AAnchor: Anchor,
+    AAnchorLink: Anchor.Link,
+    ATable: Table,
+    BarChart,
+  },
+  props: {
+    unittype: {
+      type: Number,
+      required: true,
+    },
+    district: {
+      type: String,
+    }
+  },
+  data(){
+    return {
+      tables: undefined
+    }
+  },
+  computed: {
+    params(){
+      return { unittype: this.unittype, district: this.district}
+    }
+  },
+  watch: {
+    params(v){
+      this.tables = null;
+      this.loadData(this.params);
+    }
+  },
+  created(){
+    this.loadData(this.params);
+  },
+  methods: {
+    loadData({unittype, district}){
+      orgStaffReport(unittype, district).then(({result}) => {
+        if(unittype == 1){
+          this.tables = this.getXzTable(result);
+        }else{
+          this.tables = this.getSyTable(result);
+        }
+        console.log(this.tables);
+      }).catch(error => {
+        console.log(error);
+        showError(error);
+      });
+    },
+    getXzTable(data){
+      let tables = [];
+      let { keyCols, valueCols, rows } = data; 
+      valueCols.splice(1, 0, {column: 'dfpbzs', showname: '待分配编制数'})
+      valueCols.splice(4, 0, {column: 'cks', showname: '超(-)空(+)数'})
+      valueCols.splice(7, 0, {column: 'cks1', showname: '超(-)空(+)数'})
+      valueCols.splice(10, 0, {column: 'cks2', showname: '超(-)空(+)数'})
+      valueCols.splice(13, 0, {column: 'cks3', showname: '超(-)空(+)数'})
+
+      rows.forEach(item => {
+        item.dfpbzs = item.v1 - item.v0;
+        item.cks = item.v2 - item.v1;
+        item.cks1 = item.v4 - item.v3;
+        item.cks2 = item.v6 - item.v5;
+        item.cks3 = item.v8 - item.v7;
+      })
+
+      let total = this.sum(rows, valueCols);
+      total[keyCols[0].column] = "全市";
+      tables.push({ 
+        key: 'all', 
+        name: '市级机关编制超编情况表',
+        chart: {
+          keyCols,
+          valueCols: [{column: 'cks', showname: '超(-)空(+)数'}],
+          rows
+        },
+        table: {
+          columns: [
+            ... keyCols.map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            })),
+            ... valueCols.filter((item, index) => index < 5).map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            }))
+          ],
+          rows: [ total, ...rows ]
+        }
+      });
+
+      tables.push({ 
+        key: 'xz', 
+        name: '行政编制超编情况表',
+        chart: {
+          keyCols,
+          valueCols: [{column: 'cks1', showname: '超(-)空(+)数'}],
+          rows
+        },
+        table: {
+          columns: [
+            ... keyCols.map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            })),
+            ... valueCols.filter((item, index) => index >= 5 && index < 8).map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            }))
+          ],
+          rows: [ total, ...rows ]
+        }
+      })
+
+      tables.push({ 
+        key: 'zx', 
+        name: '专项编制超编情况表',
+        chart: {
+          keyCols,
+          valueCols: [{column: 'cks2', showname: '超(-)空(+)数'}],
+          rows
+        },
+        table: {
+          columns: [
+             ... keyCols.map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            })),
+            ... valueCols.filter((item, index) => index >= 8 && index < 11).map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            }))
+          ],
+          rows: [ total, ...rows ]
+        }
+      })
+
+      tables.push({ 
+        key: 'hq', 
+        name: '后勤编制超编情况表',
+        chart: {
+          keyCols,
+          valueCols: [{column: 'cks3', showname: '超(-)空(+)数'}],
+          rows
+        },
+        table: {
+          columns: [
+             ... keyCols.map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            })),
+            ... valueCols.filter((item, index) => index >= 11).map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            }))
+          ],
+          rows: [ total, ...rows ]
+        }
+      })
+      return tables;
+    },
+    getSyTable(data){
+      let tables = [];
+      let { keyCols, valueCols, rows } = data; 
+      valueCols.splice(1, 0, {column: 'dfpbzs', showname: '待分配编制数'})
+      valueCols.splice(4, 0, {column: 'cks', showname: '超(-)空(+)数'})
+
+      rows.forEach(item => {
+        item.dfpbzs = item.v1 - item.v0;
+        item.cks = item.v2 - item.v1;
+      })
+      let total = this.sum(rows, valueCols);
+      total[keyCols[0].column] = "全市";
+      tables.push({ 
+        key: 'all', 
+        name: '市级事业编制超编情况',
+        chart: {
+          keyCols,
+          valueCols: [{column: 'cks', showname: '超(-)空(+)数'}],
+          rows
+        },
+        table: {
+          columns: [
+            ... keyCols.map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            })),
+            ... valueCols.map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            }))
+          ],
+          rows: [ total, ...rows ]
+        }
+      });
+      return tables;
+    },
+    sum(list, valueCols){//求和
+      let sum = {};
+      (list || []).forEach(item => {
+        valueCols.forEach(col => {
+          let key = col.column;
+          sum[key] = (sum[key] || 0) + (item[key] || 0);
+        })
+      });
+      return sum;
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  position: relative;
+  height: 100%;
+  .form-body {
+    height: 100%;
+    padding: 0 @content-padding-h;
+    overflow-y: auto;
+    padding-right: 200px + @content-padding-h;
+
+    .title-bar{
+      margin: 10px 0;
+      line-height: 1em;
+      font-size: 18px;
+      text-align: center;
+      font-weight: bold;
+    }
+  }
+  /deep/.form-anchor {
+    position: absolute;
+    top: 50px;
+    right: @content-padding-h;
+    width: 180px;
+    padding-left: 5px;
+  }
+}
+</style>

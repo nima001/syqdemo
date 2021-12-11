@@ -1,0 +1,313 @@
+<template>
+  <div class="wrap">
+    <h2 v-if="title" :style="{ textAlign: 'center' }">{{ title }}</h2>
+    <div :id="id"></div>
+  </div>
+</template>
+<script>
+import * as G2 from "@antv/g2";
+import BaseMixin from "./BaseMixin";
+
+// 柱状图
+/**
+ * color: 自定义主题色 -- Array
+ * annotation: 是否显示标注 -- Boolean
+ * background: 是否显示背景色 -- Boolean
+ * size: 柱状图宽度 -- Number
+ * padding: 自定义边距 --Array
+ * legend: 是否显示图例 -- Boolean 默认不显示
+ * label: 是否显示label -- Boolean 默认显示
+ */
+export default {
+  icon: "chart-bar",
+  title: "柱状图",
+  name: "BarChart",
+  mixins: [BaseMixin],
+  watch: {
+    data: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true,
+    },
+  },
+  data() {
+    return {
+      id: Math.random().toString(36).substr(2),
+      singleColumn: true,
+      plot: undefined,
+    };
+  },
+  computed: {
+    colors() {
+      if (this.settings.color) {
+        if(typeof this.settings.color==='string') {
+          return this.settings.color.split(',');
+        }
+        return this.settings.color;
+      } else {
+        let colors = this.$store.getters.getConfig("chart.colors");
+        if (colors) {
+          try {
+            colors = JSON.parse(colors);
+            if (colors && colors.length) {
+              return colors;
+            }
+          } catch (err) {}
+        }
+      }
+      return ["#D15456", "#5488D1", "#EDBA55", "#D48265", "#91C7AE", "#749F83", "#BDA29A", "#6E7074", "#585470", "#706254"];
+    },
+  },
+  mounted() {
+    this.draw(this.data);
+  },
+  methods: {
+    // keyCols :[]    [{column: "k0", key: "systype" ,showname: "系统类别"}]
+    // rows :[]       [{k0: "党委", v0: 46},{k0: "人大" ,v0: 9}]
+    // valueCols:[]   [{column: "v0" , showname: "记录数"}]
+    createData(dataTable) {
+      if (!dataTable) {
+        return;
+      }
+      let datas = [];
+      let { keyCols, valueCols, rows } = dataTable;
+      this.singleColumn = keyCols.length == 1;
+      rows.map((item) => {
+        let key = keyCols[0];
+        let names;
+        if (keyCols.length) {
+          names = [];
+          for (let i = 1; i < keyCols.length; i++) {
+            names.push(item[keyCols[i].column]);
+          }
+        }
+        valueCols.forEach((valueItem, index) => {
+          if (this.settings.isStack) {
+            if (index > 0) {
+              datas.push({
+                key: item[key.column],
+                name: names && names.join("-"),
+                type: valueCols[index].key,
+                value: item[valueCols[index].column] || 0,
+                total: item[valueCols[0].column] || 0,
+              });
+            }
+          } else {
+            datas.push({
+              key: item[key.column],
+              name: names && names.join("-"),
+              type: valueCols[index].key,
+              value: item[valueCols[index].column] || 0,
+            });
+          }
+        });
+      });
+      return datas;
+    },
+    draw(dataTable) {
+      let data = this.createData(dataTable);
+      if (!data) {
+        return false;
+      }
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      const chart = new G2.Chart({
+        container: this.id,
+        autoFit: true,
+        appendPadding: this.settings.padding || [20, 0, 0, 0],
+      });
+      chart.data(data);
+      // X轴,Y轴标题别名
+      chart.scale({
+        key: {
+          alias: dataTable.keyCols[0].showname,
+        },
+        value: {
+          alias: dataTable.valueCols[0].showname,
+          nice: true,
+        },
+      });
+     
+      // X 轴
+      chart.axis("key", {
+        title: {
+          style: {
+            fill: "#aaaaaa",
+          },
+        },
+        label: {
+          autoHide: false, //新增配置label不隐藏
+        },
+      });
+      // Y 轴
+      chart.axis("value", {
+        title: {
+          offset: 50,
+          style: {
+            fill: "#aaaaaa",
+          },
+        },
+      });
+      
+      // 提示
+      chart.tooltip({
+        showMarkers: false,
+        shared: true,
+      });
+      
+      if (!this.settings.annotation) {
+        chart.interaction("active-region");
+      }
+
+      //  geometry 图形
+      let geometry = undefined;
+      if (this.settings.background) {
+        let color = this.colorRgba(this.colors[0], "20%");
+        geometry = chart.interval({
+          background: {
+            style: {
+              fill: color,
+            },
+          },
+        });
+      } else {
+        geometry = chart.interval();
+      }
+
+      //配置柱子宽度
+      if (this.settings.size) {
+        geometry.size(this.settings.size);
+      }
+      //堆叠柱状图和基础柱状图分开处理
+      if (this.settings.isStack) {
+        chart.legend("type", {
+          position: "top-left",
+          layout: "horizontal",
+          marker: {
+            symbol: "circle",
+          },
+        });
+        // 配置文本标注
+        if (this.settings.annotation) {
+          data.forEach((item) => {
+            chart.annotation().text({
+              position: [item.key, "max"],
+              content: item.total,
+              style: {
+                fill: this.colors[0],
+                textAlign: "center",
+              },
+              offsetY: -20,
+            });
+          });
+        }
+        //新增tooltip配置
+        geometry.position("key*value");
+        //配置是否堆叠
+        geometry.adjust("stack").color("type", this.colors);
+        this.changeAnnotation(chart, data);
+      } else {
+        //新增tooltip配置
+        geometry.position("key*value").tooltip("value");
+        // 配置文本标注
+        if (this.settings.annotation) {
+          data.forEach((item) => {
+            chart.annotation().text({
+              position: [item.key, "max"],
+              content: item.value,
+              style: {
+                fill: this.colors[0],
+                textAlign: "center",
+              },
+              offsetY: -20,
+            });
+          });
+        }
+        //添加代码--设置相应颜色
+        geometry.color("key", this.colors[0]);
+      }
+      //是否显示图例
+      if(!this.settings.legend) {
+        chart.legend(false);
+      }
+      //是否显示lebal
+      if(this.settings.label===false) {
+        geometry.label(false);
+      }else{
+        //添加 解决在分组柱状图中无法在各个图形上显示label
+        geometry.label("value");
+      }
+      if (!this.singleColumn) {
+        geometry
+          .adjust([
+            {
+              type: "dodge",
+              marginRatio: 0,
+            },
+          ])
+          .color("name", this.colors);
+      }
+      chart.render();
+      this.plot = chart;
+    },
+    //图例点击
+    changeAnnotation(chart, data) {
+      chart.on("legend-item:click", (...args) => {
+        chart.controllers[3].option = [];
+        chart.filteredData.forEach((item) => {
+          chart.annotation().text({
+            position: [item.key, "max"],
+            content: chart.filteredData.length === data.length ? item.total : item.value,
+            style: {
+              fill: this.colors[0],
+              textAlign: "center",
+            },
+            offsetY: -20,
+          });
+        });
+        chart.changeData(data);
+      });
+    },
+    colorRgba(sHex, alpha) {
+      // 十六进制颜色值的正则表达式
+      var reg = /^#([0-9a-fA-f]{3}|[0-9a-fA-f]{6})$/;
+      /* 16进制颜色转为RGB格式 */
+      let sColor = sHex;
+      if (sColor && reg.test(sColor)) {
+        if (sColor.length === 4) {
+          var sColorNew = "#";
+          for (let i = 1; i < 4; i += 1) {
+            sColorNew += sColor.slice(i, i + 1).concat(sColor.slice(i, i + 1));
+          }
+          sColor = sColorNew;
+        }
+        // 处理六位的颜色值
+        var sColorChange = [];
+        for (let i = 1; i < 7; i += 2) {
+          sColorChange.push(parseInt("0x" + sColor.slice(i, i + 2)));
+        }
+        // return sColorChange.join(',')
+        return "rgba(" + sColorChange.join(",") + "," + alpha + ")";
+      } else {
+        return sColor;
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.wrap {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

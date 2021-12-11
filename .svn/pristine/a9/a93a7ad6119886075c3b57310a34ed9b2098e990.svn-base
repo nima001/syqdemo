@@ -1,0 +1,162 @@
+<template>
+    <div>
+        <!--stickyTop为true是置顶项，需要显示，stickyTop为false的时候，只需要显示display不是2的即可-->
+        <a-card  class="widget" :title="data.name" :bodyStyle="{ padding: 0 }" :bordered="false" v-if="this.stickyTop?true:(data.display!==2?true:false)">
+            <div slot="extra" class="extra">
+                <a-dropdown>
+                <a class="ant-dropdown-link" @click="(e) => e.preventDefault()">
+                    <a-icon type="more" class="icon" />
+                </a>
+                <a-menu slot="overlay" @click="onClick($event, data)">
+                    <a-menu-item key="1" style="width: 100px; text-align: center">删除</a-menu-item>
+                    <a-menu-item key="2" style="width: 100px; text-align: center" class="more" v-if="data.moreurl"><router-link :to="data.moreurl">更多</router-link></a-menu-item>
+                </a-menu>
+                </a-dropdown>
+            </div>
+            <component ref="child" :is="data.componenturi" :rowcount="data.rowcount" :class="['component',{ isiframe: isiframe }]" />
+            <!-- <div :class="['resize-handle',{'resizeDisable': this.resizeDisable || this.draging}]" @mouseover.prevent="displayButton(data)">
+                <span @click="reduceHeight" :class="['add',{'addButton':data.showButton}]"><a-icon :style="{ fontSize: '20px' }" type="caret-up" /></span>
+                <span @click="addHeight" :class="['reduce',{'reduceButton':data.showButton}]" ><a-icon :style="{ fontSize: '20px' }" type="caret-down" /></span>
+            </div> -->
+        </a-card>
+    </div>
+</template>
+
+<script>
+import { Card, Icon, Dropdown, Menu } from "ant-design-vue";
+import widgets from "../../../widgets";
+
+export default {
+    components:{
+        ACard: Card,
+        AIcon: Icon,
+        ADropdown: Dropdown,
+        AMenu: Menu,
+        AMenuItem: Menu.Item,
+        ACard: Card,
+        ...widgets,
+    },
+    props:{
+        //数据
+        data:{
+            type: Object,
+            required: true,
+        },
+        //是否显示遮罩层，用来遮挡住iframe，防止出现拖动卡顿问题
+        isiframe:{
+            type: Boolean,
+            required: true,
+        },
+        //是否为置顶项
+        stickyTop:{
+            type: Boolean,
+            default: false,
+        },
+        //是否处于正在移动状态，移动状态需禁用.resize-handle
+        draging:{
+            type: Boolean,
+            required: true,
+        }
+    },
+    data() {
+        return {
+            resizeDisable: false,//为TRUE将禁用改变高度功能
+        }
+    },
+    updated (){
+        this.resizeDisable = this.$refs.child.resizeHeight;
+    },
+    methods:{
+        onClick(event, w) {
+            this.$emit('onDel',event,w);
+        },
+        displayButton(w){
+            let that =this;
+            that.$set(w,'showButton',true);
+            document.onmouseout = function () {
+                that.$delete(w,'showButton');
+                document.onmousemove = null;
+                document.onmouseout = null;
+            };
+        },
+        addHeight(){
+            this.data.rowcount++;
+            this.$emit('changeRowcount');
+        },
+        reduceHeight(){
+            if(this.data.rowcount>0){
+                this.data.rowcount--;
+                this.$emit('changeRowcount');
+            }
+        }
+    }
+}
+</script>
+<style lang="less" scoped>
+.widget {
+    margin-bottom: 10px;
+    .extra {
+      .more {
+        color: @text-color-secondary;
+      }
+      .ant-dropdown-link {
+        .icon {
+          padding-left: 10px;
+          font-size: 18px;
+          color: @text-color-secondary;
+        }
+      }
+    }
+}
+.isiframe::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: -@layout-space-base;
+    left: 0;
+    right: 0;
+    z-index: 999;
+}
+.resize-handle {
+    position: absolute;
+    width: 100%;
+    height: @layout-space-base;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: all .3s;
+    z-index: 999;
+    & span{
+        position: absolute;
+        cursor: pointer;
+        transition: all .3s;
+        height: 20px;
+        overflow: hidden;
+    }
+    .add{
+        bottom: 75%;
+    }
+    .reduce{
+        top: -20%;
+    }
+    .addButton:hover{
+        color: @primary-color;
+        transform: scale(1.5);
+        z-index: 0;
+    }
+    .reduceButton:hover{
+        color: @primary-color;
+        transform: scale(1.5);
+        z-index: 0;
+    }
+}
+.resize-handle:hover{
+    cursor: pointer;
+    opacity: 1;
+}
+.resizeDisable{
+    display: none;
+}
+</style>

@@ -1,0 +1,188 @@
+<template>
+  <div class="wrap">
+    <a-row class="row" type="flex" justify="end">
+      <a-col :span="4" class="col">
+        <a-select>
+          <a-select-option
+            :value="item.value"
+            v-for="(item,index) in peopleType"
+            :key="index"
+          >{{item.name}}</a-select-option>
+        </a-select>
+      </a-col>
+      <a-col :span="4" class="col">
+        <a-input placeholder="请输入姓名" :allowClear="true" />
+      </a-col>
+      <a-col class="col">
+        <a-button type="primary">搜索</a-button>
+      </a-col>
+    </a-row>
+    <div class="table">
+      <a-table
+        rowKey="_id"
+        :columns="columns"
+        :dataSource="[]"
+        :rowClassName="(row) => pagination.selected && pagination.selected._id == row._id ? 'selected': ''"
+        :customRow="customRow"
+        :pagination="false"
+        :loading="loading"
+      >
+        <div class="table-tr" slot="username" slot-scope="record">
+          <span v-if="showWorkStatus" style="padding-right:3px">
+            <img
+              v-if="record._work && record._work.workstatus==5"
+              class="worstatus"
+              src="@person/assets/img/icon-workstatus-jd.png"
+            />
+            <img
+              v-else-if="record._work && record._work.workstatus==3"
+              class="worstatus"
+              src="@person/assets/img/icon-workstatus-dg.png"
+            />
+            <img
+              v-else-if="record._work && record._work.workstatus==2"
+              class="worstatus"
+              src="@person/assets/img/icon-workstatus-jz.png"
+            />
+            <img
+              v-else-if="record._work && record._work.workstatus==4"
+              class="worstatus"
+              src="@person/assets/img/icon-workstatus-gz.png"
+            />
+            <span class="worstatus" v-else />
+          </span>
+          <user-icon :user="record" />
+          {{record.username}}
+        </div>
+      </a-table>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Select, Row, Col, Input, Button, Table } from "ant-design-vue";
+export default {
+  components: {
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    AButton: Button,
+    ATable: Table
+  },
+  data() {
+    return {
+      peopleType: [
+        { name: "在编人员", value: 1 },
+        { name: "编外人员", value: 2 }
+      ],
+      columns: [
+        {
+          title: "姓名",
+          width: "110px",
+          scopedSlots: { customRender: "username" }
+        },
+        {
+          title: "性别",
+          width: "45px",
+          dataIndex: "sex",
+          customRender: this.dictRender("usermanage.user.sex")
+        },
+        {
+          title: "出生年月",
+          width: "10%",
+          dataIndex: "birthday",
+          customRender: text => moment(text).format("YYYY-MM-DD")
+        },
+        {
+          title: "所在处室",
+          width: "10%",
+          dataIndex: "_work.workdept.name",
+          customRender: text => <span title={text}>{text}</span>
+        },
+        {
+          title: "任职名称",
+          width: "15%",
+          dataIndex: "_work.workposition",
+          customRender: text => <span title={text}>{text}</span>
+        },
+        {
+          title: "职务级别",
+          width: "10%",
+          dataIndex: "_work.workpositionlevel",
+          customRender: this.dictRender("usermanage.user.positionlevel")
+        },
+        {
+          title: "人员分类",
+          width: "160px",
+          dataIndex: "_work.workpostkind",
+          customRender: this.dictRender("usermanage.user.postkind")
+        },
+        {
+          title: "本人身份",
+          width: "80px",
+          dataIndex: "identitytype",
+          customRender: this.dictRender("usermanage.user.identitytype")
+        },
+        {
+          title: "编制类型",
+          width: "80px",
+          dataIndex: "complietype",
+          customRender: this.dictRender("usermanage.user.complietype")
+        },
+        {
+          title: "编制单位",
+          width: "15%",
+          dataIndex: "org.shortname",
+          customRender: text => <span title={text}>{text}</span>
+        }
+      ],
+      loading: false,
+      pagination: {
+        selected: undefined,
+        rows: null,
+        pagesize: 20,
+        pagenum: 1,
+        total: 0
+      }
+    };
+  },
+  created() {},
+  methods: {
+    dictRender(key) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key, text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    customRow(row) {
+      return {
+        on: {
+          click: () => {
+            this.$set(this.pagination, "selected", row);
+          },
+          dblclick: event => {
+            this.$router.push({
+              name: "orgUserInfo",
+              query: { userid: row._id }
+            });
+          }
+        }
+      };
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.row {
+  padding: @content-padding-v @content-padding-h;
+  /deep/.col {
+    margin-left: @padding-xs;
+  }
+}
+.table {
+  padding: @content-padding-v @content-padding-h;
+}
+</style>

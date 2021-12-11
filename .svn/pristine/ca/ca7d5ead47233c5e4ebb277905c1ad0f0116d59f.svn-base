@@ -1,0 +1,440 @@
+<!-- 管理中心首页 -->
+<template>
+  <div class="layout">
+    <div class="content">
+      <div class="top">
+        <div class="left">
+          <a-button v-if="hasPermit('/dev/manage/app/create')" icon="plus" @click="()=> creatvisible = true" type="primary">创建应用</a-button>
+          <a-button v-if="hasPermit('/dev/manage/app/receive')" @click="receive" type="primary">接收转让</a-button>
+        </div>
+        <div class="right">
+          <a-select
+            v-model="query.state"
+            allowClear
+            placeholder="请选择状态"
+            :style="{width:'200px'}"
+            @change="getList"
+          >
+            <a-select-option :value="0">在用</a-select-option>
+            <a-select-option :value="1">挂起</a-select-option>
+            <a-select-option :value="2">注销</a-select-option>
+            <a-select-option :value="3">待接收</a-select-option>
+            <a-select-option :value="4">转让待确认</a-select-option>
+          </a-select>
+          <a-input
+            allowClear
+            :style="{width:'200px',margin:'0px 8px'}"
+            v-model="query.name"
+            placeholder="请输入名称"
+          />
+          <a-button @click="getList" type="primary" style="margin-right:8px">搜索</a-button>
+          <a-button @click="reset">重置</a-button>
+        </div>
+      </div>
+      <div class="middle">
+        <a-table :columns="columns" rowKey="id" :dataSource="pagination.rows" :pagination="false" :loading="loading" >
+          <span slot="statevalue" slot-scope="value,record">
+            <span :style="colors(value)">{{verifyAppState(record)}}</span>
+          </span>
+          <span slot="action" slot-scope="text, record">
+            <template v-if="(record.state != 5)">
+            <a v-if="hasPermit('/dev/manage/app')" @click="appmanage(record)">管理</a>
+            <template v-if="(record.state != 2)">
+              <a
+                v-if="hasPermit('/dev/manage/app/transfer') && record.state != 3 && record.state != 4"
+                :style="{marginLeft:'8px'}"
+                @click="showtransfermodal(record)"
+              >转让</a>
+              <a
+                v-if="hasPermit('/dev/manage/app/transfer') && (record.state == 3 || record.state == 4)"
+                :style="{marginLeft:'8px'}"
+                @click="showtransferinfomodal(record)"
+              >转让</a>
+              <a
+                v-if="hasPermit('/dev/manage/app/logout')"
+                :style="{marginLeft:'8px'}"
+                @click="logoutapp(record)"
+              >注销</a>
+            </template>
+            </template>
+          </span>
+        </a-table>
+      </div>
+      <div class="bottom">
+        <a-pagination
+          v-if="pagination.rows.length > 0"
+          :total="pagination.total"
+          :showSizeChanger="true"
+          @showSizeChange="onShowSizeChange"
+          :pageSize="pagination.pagesize"
+          v-model="pagination.pagenum"
+          @change="onPageChange"
+          :showTotal="(total) => `总共：${total}条`"
+        />
+      </div>
+    </div>
+    <a-modal
+      title="接收应用"
+      :visible="receivevisible"
+      :confirm-loading="receiveLoading"
+      @ok="receiveOk"
+      @cancel="receiveCancel"
+      width="600px"
+    >
+      <div :style="{margin:'20px auto',textAlign:'center'}">
+        <p :style="{color:'rgb(153, 153, 153)',fontSize:'13px'}">请联系转让应用的开发者索要转让码，通过转让码接收转让的应用。</p>转让码:
+        <a-input
+          v-model="receiveCode"
+          :style="{width:'260px',margin:'10px 0px 0px 40px'}"
+          placeholder="请输入"
+        />
+      </div>
+    </a-modal>
+    <a-modal
+      title="注销应用"
+      :visible="logoutvisible"
+      :confirm-loading="logoutLoading"
+      @ok="logoutOk"
+      @cancel="logoutCancel"
+      width="600px"
+      okText="确认注销"
+    >
+      <div style="margin:20px auto;text-align:center">
+        <p :style="{color:'rgb(153, 153, 153)',fontSize:'13px'}">注销操作不可逆，请谨慎操作。</p>
+      </div>
+    </a-modal>
+    <!-- 创建应用弹窗 -->
+    <app-create v-model="creatvisible" />
+    <!-- 转让弹窗 -->
+
+    <app-transfer
+      :transfervisible="transfervisible"
+      :appid="appid"
+      @closeTransfer="closeTransfer"
+    ></app-transfer>
+    <!-- 转让信息弹窗 -->
+    <app-transferInfo
+      :transferinfovisible="transferinfovisible"
+      :appid="appid"
+      @closeTransferInfo="closeTransferInfo"
+    ></app-transferInfo>
+  </div>
+</template>
+<script>
+import {
+  Select,
+  Table,
+  Button,
+  Input,
+  notification,
+  Pagination,
+  Modal
+} from "ant-design-vue";
+import { applist, generateTransfercode, receive, logout } from "@/dev/api/app";
+import { showError } from "@/framework/utils";
+import AppTransfer from "./components/AppTransfer";
+import AppTransferInfo from "./components/AppTransferInfo";
+import AppCreate from "./components/AppCreate";
+export default {
+  data() {
+    return {
+      columns: [
+        {
+          title: "序号",
+          customRender: (text, record, index) => index + 1
+        },
+        {
+          title: "应用名称",
+          dataIndex: "name",
+          key: "name"
+        },
+        {
+          title: "厂商",
+          dataIndex: "devCompany",
+          key: "devCompany"
+        },
+        {
+          title: "状态",
+          dataIndex: "state",
+          key: "state",
+          scopedSlots: { customRender: "statevalue" }
+        },
+        {
+          title: "操作",
+          key: "action",
+          dataIndex: "action",
+          scopedSlots: { customRender: "action" },
+          width: "160px"
+        }
+      ],
+      loading:false,
+      query:{
+        name : undefined,
+        state : undefined
+      },
+      pagination: {
+        pagenum: 1,
+        pagesize: 20,
+        total: 0,
+        needtotal:true,
+        rows: []
+      },
+      transfervisible: false,
+      appid: undefined,
+      //接收应用弹窗相关变量
+      receivevisible: false,
+      receiveLoading: false,
+      receiveCode: "",
+      //注销应用相关变量
+      logoutid: 0,
+      logoutvisible: false,
+      logoutLoading: false,
+      //应用创建相关变量
+      creatvisible: false,
+      //转让信息弹窗相关变量
+      transferinfovisible: false
+    };
+  },
+  components: {
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    AButton: Button,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    notification,
+    APagination: Pagination,
+    AModal: Modal,
+    AppTransfer,
+    AppTransferInfo,
+    AppCreate
+  },
+  created() {
+    this.getList();
+  },
+  methods: {
+    // 管理应用
+    appmanage(record) {
+      this.$store.commit("appInfo_change", record);
+      this.$router.push({
+        path: "/dev/manage/app"
+      });
+    },
+    // 展示转让页面
+    showtransfermodal(record) {
+      this.appid = record.id;
+      this.transfervisible = true;
+    },
+    //关闭转让页面
+    closeTransfer(flag) {
+      this.transfervisible = flag;
+      this.getList();
+    },
+    //展示转让信息页面
+    showtransferinfomodal(record) {
+      this.appid = record.id;
+      this.transferinfovisible = true;
+    },
+    // 关闭转让信息页面
+    closeTransferInfo(flag) {
+      this.transferinfovisible = flag;
+      this.getList();
+    },
+    //展示接收应用页面
+    receive() {
+      this.receivevisible = true;
+    },
+    //关闭接收页面弹窗
+    receiveCancel() {
+      this.receivevisible = false;
+    },
+    receiveOk() {
+      if (!this.receiveCode.trim()) {
+        this.$notification.success({
+          message: "提示",
+          description: "转让码不能为空",
+          duration: 3
+        });
+        return;
+      }
+      this.receiveLoading = true;
+      receive(this.receiveCode)
+        .then(res => {
+          this.$notification.success({
+            message: "提示",
+            description: "接收应用成功",
+            duration: 3
+          });
+          this.receiveLoading = false;
+          this.receivevisible = false;
+          this.getList();
+        })
+        .catch(err => {
+          showError(err);
+          this.receiveLoading = false;
+        });
+    },
+    //注销应用
+    logoutapp(record) {
+      this.logoutid = record.id;
+      this.logoutvisible = true;
+    },
+    //关闭注销页面弹窗
+    logoutCancel() {
+      this.logoutvisible = false;
+    },
+    //确认注销
+    logoutOk() {
+      if (!this.logoutid === 0) {
+        this.$notification.success({
+          message: "提示",
+          description: "未选择要注销的应用",
+          duration: 3
+        });
+        return;
+      }
+      this.logoutLoading = true;
+      logout(this.logoutid)
+        .then(res => {
+          this.$notification.success({
+            message: "提示",
+            description: "注销成功",
+            duration: 3
+          });
+          this.logoutLoading = false;
+          this.logoutvisible = false;
+          this.getList();
+        })
+        .catch(err => {
+          showError(err);
+          this.logoutLoading = false;
+        });
+    },
+    //创建业务
+    createbusiness(record) {
+      this.$store.commit("appInfo_change", record);
+      this.$router.push({
+        path: "/dev/addbusiness"
+      });
+    },
+    onShowSizeChange(current, size) {
+      this.pagination.pagenum = current;
+      this.pagination.pagesize = size;
+      this.getList();
+    },
+    // 分页数据
+    getList() {
+      this.loading = true;
+      // orders:[{orderby: "updatetime",ordertype: "DESC"}],
+      applist({...this.query,...this.pagination})
+        .then(res => {
+          let {pagenum,pagesize,rows,total} = res.result;
+          this.pagination.pagenum = pagenum;
+          this.pagination.pagesize = pagesize;
+          this.pagination.rows = rows||[];
+          this.pagination.total = total;
+        })
+        .catch(err => {
+          showError(err);
+        }).finally(()=>{
+          this.loading = false;
+        });
+    },
+    // 分页
+    onPageChange(current,ss) {
+      this.pagination.pagenum = current;
+      this.getList();
+    },
+    // 重置
+    reset() {
+      this.query = {};
+      this.pagination= {
+        pagenum: 1,
+        pagesize: 10,
+        total: 0,
+        needtotal:true,
+        rows: []
+      },
+      this.getList();
+    },
+    colors(state) {
+      switch (state) {
+        case 0:
+          return;
+        case 1:
+          return "color:#faad14";
+        case 2:
+          return "color:#999";
+        case 3:
+          return "color:#faad14";
+        case 4:
+          return "color:#faad14";
+        case 5:
+          return "color:#faad14";
+        default:
+          return;
+      }
+    },
+    verifyAppState(record) {
+      let str = "";
+      switch (record.state) {
+        case 0:
+          str += "在用";
+          break;
+        case 1:
+          str += "挂起(" + record.suspendDesc + ")";
+          break;
+        case 2:
+          str += "注销";
+          break;
+        case 3:
+          str += "待接收";
+          break;
+        case 4:
+          str += "转让待确认";
+          break;
+        case 5:
+          str += "接收待确认";
+          break;
+        default:
+      }
+      return str;
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  padding: @layout-space-base;
+  .content {
+    width: 100%;
+    height: 100%;
+    background: @white;
+    padding: @content-padding-v @content-padding-h;
+    display: flex;
+    flex-direction: column;
+    .top {
+      display: flex;
+      justify-content: space-between;
+      padding: @content-padding-v 0px;
+      .left {
+        button {
+          margin-left: @padding-xs;
+        }
+      }
+    }
+    .middle {
+      padding: @content-padding-v 0px;
+      flex-shrink: 1;
+      overflow: auto;
+    }
+    .bottom {
+      padding: @content-padding-v 0px;
+      display: flex;
+      justify-content: flex-end;
+    }
+  }
+}
+</style>

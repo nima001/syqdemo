@@ -1,0 +1,621 @@
+<template>
+  <div class="select-field">
+    <div class="wrap">
+      <div class="selectWrap" :class="{fullPage:!multi}">
+        <div class="opwrap">
+          <a-input placeholder="输入字段名搜索" v-model="search.key" @pressEnter="onSearch">
+            <a-icon slot="suffix" class="clear-search" 
+              theme="filled"
+              :type="search.key ? 'close-circle' : 'search'" 
+              @click="search.key = undefined" 
+            />
+          </a-input>
+        </div>
+        <div class="body">
+          <template v-if="search.key">
+            <div class="loading" v-if="!search.result"><a-spin tip="正在搜索..."/></div>
+            <EmptyData class="nodata" v-else-if="!search.result.length" msg="没有搜索结果"/>
+            <ul v-else class="search-list" @scroll="onScroll">
+              <template v-for="(item, index) in search.result" >
+                <li :key="item.key" 
+                  @click="doCheck(item, checkedKeys.checked.indexOf(item.key)<0)"
+                >
+                  <a-checkbox 
+                    :checked="checkedKeys.checked.indexOf(item.key)>=0"
+                    :disabled="item.disabled"
+                  />
+                  <custom-icon :type="getIcon(item)"/>
+                  <span class="title" v-html="item.title"></span>
+                  <div v-if="item.searchtext" class="search-text" v-html="item.searchtext"></div>
+                </li>
+                <li v-if="search.result.length-1 == index && (search.queue.length || search.loadnext)" 
+                  class="loading-more"
+                  :key="item.key + '_loading'"
+                >
+                  <a-spin tip="加载中..."><a-icon slot="indicator" type="loading"/></a-spin>
+                </li>
+              </template>
+            </ul>
+          </template>
+          <div v-else class="tree-list">
+            <a-tree
+              checkable
+              :selectable="false"
+              :checked-keys="checkedKeys"
+              :expanded-keys="expandedKeys"
+              :tree-data="treeData"
+              :load-data="onLoadData"
+              :check-strictly="true"
+              @expand="onExpand"
+              @check="onCheck"
+            >
+              <template slot="title" slot-scope="item">
+                <custom-icon v-if="item.sort" type="dir" style="margin-right: 4px"/>
+                <custom-icon v-else :type="getIcon(item.field)" class="field-icon"/>
+                <span>{{item.title}}</span>
+              </template>
+            </a-tree>
+          </div>
+        </div>
+      </div>
+      <div class="resultWrap" v-if="multi">
+        <div class="header">
+          <span class="tips">
+            已选择
+            <span>{{selected.length}}/{{maxSelect}}</span>
+          </span>
+          <span class="clear" @click="clear">
+            <a-icon type="delete" />&nbsp;清空
+          </span>
+        </div>
+        <div class="content">
+          <draggable :animation="150" ghost-class="ghost" v-model="selected" handle=".item">
+            <transition-group>
+              <div class="listItem" v-for="(item, index) in selected" :key="item.key">
+                <a-icon type="bars" class="item" />
+                <custom-icon :type="getIcon(item)"/>
+                <span>{{item.showname}}</span>
+                <a-icon class="delBtn" type="delete" @click="delSelect(item, index)" />
+              </div>
+            </transition-group>
+          </draggable>
+        </div>
+      </div>
+    </div>
+    <div class="footer" :class="{single:!multi}">
+      <div class="left"></div>
+      <div class="right" :class="{multi}">
+        <a-button type="primary" @click="onFinish('ok')">确定</a-button>
+        <a-button @click="onFinish('cancel')">取消</a-button>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Input, Icon, Checkbox, Button, Spin, Tree } from "ant-design-vue";
+import EmptyData from "@/framework/components/EmptyData";
+import CustomIcon from "@framework/components/CustomIcon";
+import cloneDeep from "lodash/cloneDeep";
+import { queryfields } from "@/person/api/integratedquery";
+import draggable from "vuedraggable";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  name: "SelectField",
+  components: {
+    ATree: Tree,
+    ASpin: Spin,
+    draggable,
+    AInput: Input,
+    AIcon: Icon,
+    ACheckbox: Checkbox,
+    AButton: Button,
+    EmptyData, CustomIcon,
+  },
+  props: {
+    // 查询对象ID
+    targetid: {
+      type: Number,
+      required: true
+    },
+    criteria: Object,//当前条件数据
+    //多选模式/默认单选
+    multi: {
+      type: Boolean,
+      default: false
+    },
+    // 默认选择
+    defaultSelected: {
+      type: Array,
+      required: false
+    },
+    // 最大选择数
+    maxSelect: {
+      type: Number,
+      default: 50
+    }
+  },
+  data() {
+    return {
+      dataCache: new Map(),//数据缓存
+      treeData: undefined,//当前数据列表
+      selected: [],//选中列表
+      expandedKeys: [],
+      checkedKeys: {
+        checked: [],
+      },
+      search: {
+        id: 0,//搜索ID
+        key: undefined,//搜索关键词
+        queue: [],//递归队列，当页面滚动到底部才递归下一个key
+        timer: 0, //延时搜索定时器，减少连续输入搜索频率
+        result: undefined,//搜索结果
+        loadnext: false,
+      },
+    };
+  },
+  created() {
+    this.initData();
+  },
+  watch: {
+    'search.key'() {
+      this.onSearch();
+    }
+  },
+  methods: {
+    initData() {
+      this.selected = this.defaultSelected ? [...this.defaultSelected] : [];
+      let key = '';
+      this.getQueryFields(key).then((result) => {
+        this.treeData = this.sort(key, result);
+        (this.defaultSelected || []).forEach(item => {
+          this.checkedKeys.checked.push(item.key);
+        })
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    onExpand(expandedKeys) {
+      this.expandedKeys = expandedKeys;
+    },
+    onCheck(checkedKeys, event) {
+      let field = event.node.dataRef.field;
+      if(!field){
+        return;
+      }
+      this.doCheck(field, event.checked);
+    },
+    doCheck(field, checked){
+      if(field.disabled){
+        return;
+      }
+      if(this.multi){
+        if(checked){//选中
+          this.selected.push(field);
+          this.checkedKeys.checked.push(field.key);
+        }else{//取消选中
+          let index = this.selected.findIndex(item => item.key == field.key);
+          if(index >= 0){
+            this.selected.splice(index, 1);
+          }
+          index = this.checkedKeys.checked.findIndex(item => item == field.key);
+          if(index >= 0){
+            this.checkedKeys.checked.splice(index, 1);
+          }
+        }
+      }else{//单选
+        if(checked){//选中
+          this.selected = [field];
+          this.checkedKeys = {checked: [field.key]}
+        }else{//取消选中
+          this.selected = [];
+          this.checkedKeys = {checked: []}
+        }
+      }
+    },
+    onLoadData(treeNode){
+      return new Promise((resolve, reject) =>{
+        let { key, children } = treeNode.dataRef;
+        if (children) {
+          resolve();
+          return;
+        }
+        this.getQueryFields(key).then((result) => {
+          treeNode.dataRef.children = this.sort(key, result);
+          this.treeData = [...this.treeData];
+          resolve();
+        }).catch(error => {
+          reject(error)
+        });
+      })
+    },
+    onScroll(e){//搜索时滚动底部加载下一页数据
+      let { key, queue, loadnext, result } = this.search;
+      if(!loadnext && queue.length){
+        if(e.target.scrollHeight - e.target.clientHeight - e.target.scrollTop <= 30){//剩余可滚动区域小于底部加载中高度
+          this.search.loadnext = true;
+          let searchid = ++this.search.id;
+          this.doSearch(key, queue, 20).then(list => {
+            if(this.search.id != searchid){
+              return;
+            }
+            this.search.loadnext = false;
+            this.search.result = [...result, ...list];
+          }).catch(error => {
+            showError(error);
+          })
+        }
+      }
+    },
+    onSearch(){
+      //清空前一个搜索状态和数据
+      clearTimeout(this.search.timer);
+      this.search.result = undefined;
+      this.search.loadnext = false;
+      let searchid = ++this.search.id;
+      if(this.search.key){
+        this.search.timer = setTimeout(() => {
+          this.search.queue = [''];
+          this.doSearch(this.search.key, this.search.queue, 20).then(list => {
+            if(this.search.id != searchid){
+              return;
+            }
+            this.search.result = list;
+          }).catch(error => {
+            showError(error);
+          })
+        }, 500)//延时500毫秒进行搜索
+      }
+    },
+    async doSearch(searchkey, queue, count){
+      let arr = []
+      if(queue.length){
+        let key = queue.shift();
+        let props = await this.getQueryFields(key);//按树的广度优先递归遍历
+        props.forEach(item => {
+          let { name, showname, key } = item;
+          let index = name.indexOf(searchkey);
+          let reg = new RegExp('(' + searchkey + ')');
+          if(index >= 0){
+            let searchtext, text = name.replace(reg, '<span class="key">$1</span>');
+            if(showname.indexOf(name) >= 0){
+              showname = showname.replace(name, text);
+            }else{//名称在显示的名称中不存在将名称显示在搜索结果中
+              searchtext = text;
+            }
+            arr.push({ 
+              ...item, 
+              title: showname, 
+              searchtext
+            });
+          }else{
+            index = key.lastIndexOf('.');//去除字段前缀
+            if(index > 0){
+              key = key.substr(index + 1);
+            }
+            index = key.indexOf(searchkey);
+            if(index >= 0){
+              arr.push({ 
+                ...item, 
+                title: showname,
+                searchtext: key.replace(reg, '<span class="key">$1</span>') 
+              });
+            }
+          }
+          if(item.joinable){//可查询下级
+            queue.push(item.key);
+          }
+        });
+        if(arr.length < count){//小于count递归查询下一个key
+          let next = await this.doSearch(searchkey, queue, count - arr.length);
+          arr = [...arr, ...next];
+        }
+      }
+      return arr;
+    },
+    clear() {
+      this.selected = [];
+      this.checkedKeys.checked = [];
+    },
+    delSelect(item, index) {
+      this.selected.splice(index, 1);
+      index = this.checkedKeys.checked.indexOf(item.key);
+      if(index >= 0){
+        this.checkedKeys.checked.splice(index, 1);
+      }
+    },
+    onFinish(type) {
+      if (type == "ok") {
+        let length = this.selected.length;
+        if (length) {
+          let data = this.multi ? this.selected : this.selected[0];
+          this.$emit("finish", type, data);
+        } else {
+          this.$message.info('请选择字段');
+        }
+      } else {
+        this.$emit("finish", type);
+      }
+    },
+    sort(key, props) {
+      let tree = [];
+      props.forEach(item => {
+        let group = tree.find(node => node.title === item.sort);
+        if(!group){
+          let groupKey = '#' + (key && key + '-' || '') + tree.length;
+          group = { 
+            title: item.sort, 
+            key: groupKey, 
+            disableCheckbox: true, 
+            class: 'sort',
+            sort: true,
+            scopedSlots: {
+              title: 'title',
+            },
+            children: [] 
+          };
+          tree.push(group);
+        }
+        group.children.push({
+          title: item.name,
+          key: item.key,
+          isLeaf: !item.joinable,
+          field: item,
+          scopedSlots: {
+            title: 'title',
+          },
+          disableCheckbox: item.disabled
+        })
+      })
+      return tree;
+    },
+    getQueryFields(key) {
+      let data = this.dataCache.get(key);
+      // console.log('cached', key, data ? data.length : 'none');
+      if(data){
+        return Promise.resolve(data);
+      }
+      let fieldKey, op;
+      if(this.criteria){
+        fieldKey = this.criteria.field.key;
+        op = this.criteria.op;
+      }
+      return queryfields({
+        targetid: this.targetid,
+        key: key,
+        filterKey: fieldKey, 
+        op
+      }).then(({result}) => {
+        let props = result || [];
+        this.dataCache.set(key, props);
+        return props;
+      })
+    },
+    getIcon(field){
+      let icon = field.icon;
+      if(!icon){
+        if(field.datatype == 2){//字典
+          icon = 'dict';
+        }else if(field.datatype == 3){//引用
+          icon = 'refer';
+        }else if(field.datatype == 4){//输入类型（排除字符串）
+          if(1 == field.inputtype){
+            icon = 'int'
+          }else if(2 == field.inputtype){
+            icon = 'float'
+          }else if(3 == field.inputtype){
+            icon = 'date'
+          }else if(4 == field.inputtype){
+            icon = 'bool'
+          }else{
+            icon = 'string'
+          }
+        }
+        field.icon = icon;
+      }
+      return icon;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.select-field{
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.wrap {
+  flex: auto;
+  height: 100%;
+  min-height: 1px;
+  display: flex;
+  .selectWrap {
+    width: 50%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    &.fullPage {
+      width: 100%;
+    }
+    .opwrap {
+      padding: @content-padding-v @content-padding-h;
+    }
+    .clear-search{
+      color: @text-color-secondary;
+      font-size: 12px;
+      &:hover{
+        color: @text-color;
+      }
+    }
+    .body {
+      flex: 1;
+      min-height: 1px;
+      /deep/ li.sort > .ant-tree-checkbox{
+        display: none;
+      }
+      .loading{
+        text-align: center;
+        padding-top: 50px;
+      }
+      .search-list{
+        height: 100%;
+        overflow-y: auto;
+        li{
+          padding: 5px @content-padding-h;
+          cursor: pointer;
+          &:not(.loading-more):hover{
+            background-color: @primary-1;
+          }
+          & > .icon{
+            margin-left: 6px;
+            opacity: .75;
+          }
+          & > .title{
+            text-indent: 10px;
+            padding: 0 4px;
+          }
+          
+          .search-text{
+            font-size: 0.85em;
+            padding-left: 24px;
+            color: @text-color-secondary;
+           
+          }
+          /deep/.key{
+            color: @accent-color ;
+          }
+        }
+        li.loading-more{
+          .ant-spin{
+            display: block;
+            text-align: center;
+            .anticon-loading{
+              vertical-align: middle
+            }
+            /deep/.ant-spin-text{
+              display: inline-block;
+              vertical-align: middle;
+              margin-left: 6px;
+              line-height: 30px;
+              color: fade(@black, 30%);
+            }
+          }
+        }
+      }
+      .tree-list{
+        height: 100%;
+        overflow: auto;
+        padding: 0 20px;
+        .field-icon{
+          margin-right: 4px;
+          opacity: .75;
+        }
+      }
+      
+    }
+  }
+  .resultWrap {
+    width: 50%;
+    border-left: 1px solid @border-color-split;
+    display: flex;
+    flex-direction: column;
+    .header {
+      margin: @content-padding-v 0px;
+      display: flex;
+      justify-content: space-between;
+      span {
+        margin: @content-padding-v @content-padding-h;
+        height: 32px;
+        line-height: 32px;
+        &.tips {
+          padding-left: @padding-sm;
+          position: relative;
+          &::after {
+            content: "";
+            width: 4px;
+            height: 18px;
+            background-color: @primary-color;
+            position: absolute;
+            left: 0px;
+            top: 50%;
+            transform: translateY(-50%);
+          }
+          span {
+            color: @primary-color;
+            margin: 0px;
+          }
+        }
+        &.clear {
+          cursor: pointer;
+          color: @primary-color;
+          &:hover {
+            color: fade(@primary-color, 75%);
+          }
+        }
+      }
+    }
+    .content {
+      flex: 1;
+      overflow: hidden auto;
+      padding: 0px @padding-xs;
+      .listItem {
+        padding: @content-padding-v @padding-sm;
+        color: @text-color;
+        display: flex;
+        align-items: center;
+        i {
+          cursor: move;
+        }
+        .icon{
+          margin-left: 6px;
+          opacity: .6;
+        }
+        span {
+          padding: 0px 4px;
+          flex: 1;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        &:hover {
+          background: @primary-1;
+          .delBtn {
+            color: @primary-color;
+            cursor: pointer;
+            visibility: visible;
+          }
+        }
+        &.ghost {
+          background: @primary-1;
+        }
+      }
+    }
+  }
+}
+.footer {
+  display: flex;
+  align-items: center;
+  &.single {
+    border-top: 1px solid @border-color-split;
+  }
+  div {
+    width: 50%;
+    height: 100%;
+    &.multi {
+      border-left: 1px solid @border-color-split;
+      border-top: 1px solid @border-color-split;
+    }
+    &.right {
+      display: flex;
+      align-items: center;
+      flex-direction: row-reverse;
+      padding: 10px @content-padding-h;
+      button {
+        &:last-child {
+          margin-right: 8px;
+        }
+      }
+    }
+  }
+}
+</style>

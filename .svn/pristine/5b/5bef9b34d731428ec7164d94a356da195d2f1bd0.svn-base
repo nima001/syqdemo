@@ -1,0 +1,205 @@
+<template>
+  <div class="set">
+    <div class="top">
+      <p class="title">考勤规则</p>
+    </div>
+    <div class="content">
+      <!-- <a-button type="primary" @click="del">删除</a-button> -->
+      <!-- <template v-if="editor"> -->
+        <a-button type="primary" @click="submit">保存</a-button>
+        <!-- <a-button type="primary" :style="{marginLeft:'10px'}" @click="cancel">取消</a-button> -->
+      <!-- </template> -->
+      <!-- <template v-else>
+        <a-button type="primary" @click="editor = true">编辑</a-button>
+      </template> -->
+      <div class="form">
+        <a-form :form="form" :layout="layout">
+          <a-row :gutter="24">
+            <a-col :span="24">
+              <a-form-item label="考勤对象">
+                <a-input @click="visible=true" :value="userName"></a-input>
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <rules-cmpt ref="rulesForm" v-model="rules"></rules-cmpt>
+          <a-row :gutter="24">
+            <a-col :span="7">
+              <a-form-item label="允许最早签到时间">
+                上班前
+                <a-input-number  class="selfInput" v-decorator="['earlymins',{rules: [{required: true,message: '请填写最早签到时间'}]}]"></a-input-number>
+                分钟
+              </a-form-item>
+            </a-col>
+            <a-col :span="7">
+              <a-form-item label="允许最晚签退时间">
+                下班后
+                <a-input-number class="selfInput" v-decorator="['latemins',{rules: [{required: true,message: '请填写最晚签退时间'}]}]"></a-input-number>
+                分钟
+              </a-form-item>
+            </a-col>
+          </a-row>
+        </a-form>
+      </div>
+    </div>
+    <a-modal :footer="null" v-model="visible" :width="800" title="选择用户" :bodyStyle="{ height: '600px', padding: '0'}">
+      <org-user-select mode="user" :show-dept="true" :selected="selectUser" :max-select="10" @finish="onUserSelected"/>
+    </a-modal>
+  </div>
+</template>
+<script>
+import OrgUserSelect from "@/hall/components/OrgUserSelect";
+import {Button,Form,Input,Row,Col,InputNumber,install,Modal} from "ant-design-vue";
+import RulesCmpt from "./RulesCmpt";
+import {rulesquery,rulesadd,rulesdel,insertOrUpdate} from "@/hall/api/attendance";
+import moment from "moment";
+import { showError } from "@/framework/utils";
+export default {
+  components: {
+    OrgUserSelect,
+    RulesCmpt,
+    AButton: Button,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    AModal: Modal,
+    AInputNumber: InputNumber
+  },
+  data() {
+    return {
+      layout: "horizontal",
+      visible: false,
+      form: this.$form.createForm(this, { name: "schedueForm" }),
+      editor: false,
+      id:undefined,
+      selectUser: [],
+      rules: [{date: undefined,startTime: undefined,endTime: undefined}]
+    };
+  },
+  computed: {
+    userName() {
+      let list = this.selectUser.map(item => {
+        return item.username;
+      });
+      return list.join(",");
+    },
+    userIds() {
+      let list = this.selectUser.map(item => {
+        return {
+          _id: item._id,
+          username: item.username
+        };
+      });
+      return JSON.stringify(list);
+    }
+  },
+  mounted() {
+    this.query();
+  },
+  methods: {
+    del() {
+      rulesdel()
+        .then()
+        .catch();
+    },
+    // 考勤查询
+    query() {
+      rulesquery()
+        .then(res => {
+          let result = res.result[0];
+          if (result) {
+            this.selectUser = JSON.parse(result.userids);
+            this.rules = JSON.parse(result.rules);
+            if(this.rules && this.rules.length ==0){
+              this.rules = [{date: undefined,startTime: undefined,endTime: undefined}]
+            }
+            this.id = result.id;
+            this.form.setFieldsValue({
+              earlymins: result.earlymins,
+              latemins: result.latemins
+            });
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    submit() {
+      let rulesForm = this.$refs.rulesForm.form;
+      let list = [];
+      rulesForm.validateFields((err, values) => {
+        let group = Reflect.ownKeys(values).length / 3;
+        for (let i = 0; i < group; i++) {
+          let dateStart = moment(values[`date${i}`][0]).format("YYYY-MM-DD");
+          let dateEnd = moment(values[`date${i}`][1]).format("YYYY-MM-DD");
+          let startTime = moment(values[`startTime${i}`]).format("HH:mm");
+          let endTime = moment(values[`endTime${i}`]).format("HH:mm");
+          list.push({ dateStart, dateEnd, startTime, endTime });
+        }
+        this.submitForm(list);
+      });
+
+    },
+    submitForm(list){
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let params = {id:this.id, rules: list, userids: this.selectUser, ...values };
+          insertOrUpdate(params)
+            .then(res => {
+              let message = this.id?'修改成功!':'添加成功!'
+              this.$message.success(message);
+            })
+            .catch(err => {
+              showError(err);
+            });
+        }
+      });
+    },
+    onUserSelected(type, list) {
+      this.visible = false;
+      if (type == "ok") {
+        this.selectUser = list;
+      }
+    },
+    cancel() {
+      this.editor = false;
+      this.form.resetFields();
+      this.$refs.rulesForm.form.resetFields();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.set {
+  padding: @content-padding-v @content-padding-h;
+  height: 100%;
+  background: @white;
+  overflow-y: auto;
+  border-radius: @border-radius-base;
+  .top {
+    padding: @content-padding-v 0px;
+    .title {
+      margin: 0px;
+      color: #262626;
+      font-size: 16px;
+      font-weight: 400;
+    }
+  }
+  .content {
+    .form {
+      /deep/ .ant-form-item-label {
+        color: #262626;
+      }
+      /deep/ .ant-form-item-children {
+        display: flex;
+        align-items: center;
+        .selfInput {
+          flex: 1;
+          margin: 0px 12px;
+        }
+      }
+    }
+  }
+}
+</style>

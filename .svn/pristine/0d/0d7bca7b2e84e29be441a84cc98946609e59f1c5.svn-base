@@ -1,0 +1,213 @@
+<template>
+  <div class="wrap">
+    <div ref="chart" class="chart"></div>
+  </div>
+</template>
+<script>
+import * as G2 from "@antv/g2";
+import BaseMixin from "./BaseMixin";
+export default {
+  name: "AreaChart",
+  mixins: [BaseMixin],
+  props: {
+    // data: {// 数据
+    //   type: Object,
+    // },
+    value: {
+      type: Array,
+      default:()=>{
+        return []
+      }
+    },
+    bgColor: {
+      type: String,
+      default: '#CBCBCB'
+    },
+    // settings: {// 配置
+    //   type: Object,
+    //   default: () => ({})
+    // },
+    max: Number
+  },
+  data() {
+    return {
+      plot: undefined,
+    };
+  },
+  watch: {
+    value: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true,
+    },
+  },
+  computed: {
+    colors() {
+      if (
+        this.settings.color &&
+        (this.settings.color.length || typeof this.settings.color === "string")
+      ) {
+        if (typeof this.settings.color === "string") {
+          return this.settings.color.split(",");
+        }
+        return this.settings.color;
+      } else {
+        let colors = this.$store.getters.getConfig("chart.colors");
+        if (colors) {
+          try {
+            colors = JSON.parse(colors);
+            if (colors && colors.length) {
+              return colors;
+            }
+          } catch (err) {}
+        }
+      }
+      return [
+        "#D15456",
+        "#5488D1",
+        "#EDBA55",
+        "#D48265",
+        "#91C7AE",
+        "#749F83",
+        "#BDA29A",
+        "#6E7074",
+        "#585470",
+        "#706254",
+      ];
+    },
+  },
+  mounted() {
+    this.draw(this.value);
+  },
+  methods: {
+    draw(data) {
+      G2.registerShape("point", "pointer", {
+        draw(cfg, container) {
+          const group = container.addGroup();
+          const center = this.parsePoint({ x: 0, y: 0 }); // 获取极坐标系下画布中心点
+          // 绘制指针
+          group.addShape("line", {
+            attrs: {
+              x1: center.x,
+              y1: center.y,
+              x2: cfg.x,
+              y2: cfg.y,
+              stroke: '#fff',
+              lineWidth: 5,
+              lineCap: "round",
+            },
+          });
+          group.addShape("circle", {
+            attrs: {
+              x: center.x,
+              y: center.y,
+              r: 9.75,
+              stroke: '#fff',
+              lineWidth: 4.5,
+              fill: "#fff",
+            },
+          });
+
+          return group;
+        },
+      });
+
+      const chart = new G2.Chart({
+        container: this.$refs.chart,
+        autoFit: true,
+        padding: this.settings.padding
+      });
+      chart.data(data);
+      chart.scale("value", {
+        min: 0,
+        max: this.max,
+        subTickLine: {
+          count: this.max,
+          length: -15,
+        },
+        tickLine: {
+          length: -24,
+        },
+        grid: null,
+      });
+      chart.coordinate("polar", {
+        startAngle: ((this.max-1) / this.max) * Math.PI,
+        endAngle: (1 / this.max) * Math.PI,
+        radius: 0.75,
+      });
+
+      chart.axis("1", false);
+      chart.axis("value", {
+        line: null,
+        subTickLine: {
+          count: 4,
+          length: -15,
+        },
+        tickLine: {
+          length: -24,
+        },
+        grid: null,
+      });
+      chart.legend(false);
+      chart
+        .point()
+        .position("value*1")
+        .shape("pointer")
+        .color("#1890FF")
+        .animate({
+          appear: {
+            animation: "fade-in",
+          },
+        });
+
+      // 绘制仪表盘背景
+      chart.annotation().arc({
+        top: false,
+        start: [0, 1],
+        end: [this.max, 1],
+        style: {
+          // 底灰色
+          stroke: this.bgColor,
+          lineWidth: 18,
+          lineDash: null,
+        },
+      });
+
+      // 绘制指标
+      chart.annotation().arc({
+        start: [0, 1],
+        end: [data[0].value, 1],
+        style: {
+          stroke: this.colors[0],
+          lineWidth: 18,
+          lineDash: null,
+        },
+      });
+
+      chart.render();
+      this.plot = chart;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.wrap {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  /deep/.chart {
+    div {
+      display: flex;
+      justify-content: center;
+    }
+  }
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

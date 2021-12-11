@@ -1,0 +1,49 @@
+<template>
+  <ScreenPane :width="1440" :height="900">
+    <div class="container">
+      <div class="body">
+        <div class="cover" @click="()=>$router.push('/person/screen/assessment/list')"/>
+      </div>
+    </div>
+  </ScreenPane>
+</template>
+
+<script>
+import ScreenPane from "../components/ScreenPane";
+import Header from "../components/Header";
+export default {
+  components: {
+    ScreenPane,
+    Header,
+  },
+  data() {
+    return {};
+  },
+};
+</script>
+<style lang="less" scoped>
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .body {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: url('../../../assets/img/screen/chart-depart.png') no-repeat;
+    background-size: 100% 100%;
+    position: relative;
+    .cover {
+      color: fade(#fff, 80%);
+      font-size: 14px;
+      width: 100px;
+      height: 100px;
+      padding: 5px;
+      position: absolute;
+      top: 51.2%;
+      left: 45%;
+    }
+  }
+}
+</style>

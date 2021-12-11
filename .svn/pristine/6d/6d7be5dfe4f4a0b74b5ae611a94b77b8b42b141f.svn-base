@@ -1,0 +1,61 @@
+<template>
+  <div class="base-item">
+    <a-row :gutter="20">
+      <a-col :span="12">
+        <span class="name">机构名称：{{data.name}}</span>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="12">
+        <span class="name">机构规格：{{politicallevel}}</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+<script>
+import { Row, Col } from "ant-design-vue";
+
+//评估项-基本信息
+export default {
+  components: {
+    ARow: Row,
+    ACol: Col,
+  },
+  props: {
+    data: Object, //内容数据
+    str: String
+  },
+  computed: {
+    politicallevel() {//  机构级别
+      return this.dictText('usermanage.org.politicallevel', this.data.politicallevel)
+    },
+  },
+  created() {
+    console.log(this.str);
+  },
+  mounted() {
+    let data = {
+      name: this.data.name,
+      politicallevel: this.politicallevel
+    }
+    this.$store.commit('setProcessedData', { key: this.str, data }); 
+  },
+  methods: {
+    dictText(dict, value) {
+      let v = this.$store.getters.dictKey(dict, value);
+      if(v){
+        return v.group ? `${v.group}/${v.text}` :  v.text;
+      }
+      return "";
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.base-item{
+  margin-bottom: 10px;
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

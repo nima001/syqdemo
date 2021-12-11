@@ -1,0 +1,8 @@
+export const mixins = {
+  inject: ['dictCode'],
+  computed: {
+    dictId () {
+      return this.dictCode.dictId
+    }
+  }
+}

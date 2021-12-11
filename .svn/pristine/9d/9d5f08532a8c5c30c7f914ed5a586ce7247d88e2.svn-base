@@ -1,0 +1,407 @@
+<template>
+  <div class="form-panel">
+    <div class="top">
+      <div class="left">
+        <div class="title">近五年预计退休人数预测</div>
+        <a-spin :spinning="chartloading" class="chart">
+          <area-chart :data="chartData" :settings="{canvas:{width: 550, height: 300}, color: ['#8ACF01'], point: true, yAxis: {visible: true, grid: true, title: {visible: true,content: '人数'}}, legend: {visible: true, position: 'top'}}"></area-chart>
+        </a-spin>
+      </div>
+      <div class="center">
+        <div class="center_con" @click="showModal">
+          <div class="tip">未及时办理退休</div>
+          <div class="num">
+            <span>{{errorNum}}</span>
+            <span>人</span>
+          </div>
+        </div>
+      </div>
+      <div class="right">
+        <div class="title">
+          <span>未及时办理退休人员明细</span>
+          <span>
+            <a class="icon" @click="showModal">
+              <img src="../../../assets/img/icon_more.png" alt=""/>
+            </a>
+          </span>
+        </div>
+        <div class="bottom_table">
+          <a-table
+            row-key="_id"
+            :scroll="{ y: 240 }"
+            :loading="errloading"
+            :columns="retirecolumns"
+            :rowClassName="(row) => this.listSelected == row._id ? 'selected': ''"
+            :customRow="(row)=>customRetireRow(row,'list')"
+            :dataSource="retiredata"
+            :pagination="false"
+            >
+          </a-table>
+        </div>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="title">退休人数预报</div>
+      <div class="bottom_table">
+        <a-table
+          :row-key="(record,index) => index"
+          :loading="sequenceloading"
+          :columns="columns"
+          :dataSource="dataSource"
+          :customRow="customRow"
+          :pagination="false"
+          >
+        </a-table>
+      </div>
+    </div>
+    <RetiredetailModal :name="name" :columns="columns" :district="district" :visible="showdetailModal" @handleCancel="handleCancel"/>
+    <a-modal
+      title="未及时办理退休人员明细"
+      :width="800"
+      :visible="visible"
+      @cancel="handleCancel"
+    >
+      <a-table
+        row-key="_id"
+        :loading="retireModalLoading"
+        :columns="retirecolumns"
+        :rowClassName="(row) => this.detailSelected == row._id ? 'selected': ''"
+        :customRow="(row)=>customRetireRow(row,'listdetail')"
+        :dataSource="retireModalData"
+        :pagination="false"
+        :scroll="{ y: 405 }"
+      />
+      <template slot="footer">
+        <div class="pagination">
+          <a-pagination
+            v-if="retireModalData.length"
+            showSizeChanger
+            :total="pagination.total"
+            :pageSize="pagination.pagesize"
+            :current="pagination.pagenum"
+            :showTotal="(total) => `总共：${total}条`"
+            @change="onChange"
+            @showSizeChange="onShowSizeChange"
+          />
+        </div>
+      </template>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Table, Spin, Icon, Modal, Pagination } from "ant-design-vue";
+import { components } from '@person/components/chart'
+import RetiredetailModal from './RetiredetailModal';
+import { assign, groupBy } from 'lodash';
+import { orgRetireReport, orgRetireErrorReport, retireSystypeReport } from '@/person-shaoxing/api/orgStaffReport'
+import { treequery } from "@person/api/org";
+import { aggregateQuery } from '@/person/api/chart'
+import { getNowFormatDate } from "@/person-shaoxing/utils/index";
+import { showError } from '@framework/utils'
+const year = new Date().getFullYear();
+/**
+ * 退休人数监测
+ */
+export default {
+  name: 'RetireReport',
+  components: {
+    ATable: Table,
+    ASpin: Spin,
+    AIcon: Icon,
+    AModal: Modal,
+    APagination: Pagination,
+    RetiredetailModal,
+    ...components
+  },
+  props: {
+    district: {
+      type: Object,
+      default: () => ({})
+    }
+  },
+  data(){
+    return {
+      listSelected: undefined,
+      detailSelected: undefined,
+      name: undefined,
+      showdetailModal: false,
+      chartloading: false,//图表--加载状态
+      errloading: false,//未及时办理退休人员明细--加载状态
+      sequenceloading: false,//退休人数预报--加载状态
+      retireModalLoading: false,//弹窗--加载状态
+      errorNum: 0,
+      chartData: undefined,
+      retirecolumns: [
+        { title: '人员姓名', dataIndex: 'username' },
+        { title: '单位名称', dataIndex: 'org', width: '50%' },
+        { title: '应退休时间', dataIndex: '_join0.yjtxsj' },],
+      columns: [
+        { title: '机构名称', dataIndex: 'name', width: '20%' },
+        { title: '本年度', dataIndex: year, width: '13%' },
+        { title: year + 1, dataIndex: year + 1, width: '13%'  },
+        { title: year + 2, dataIndex: year + 2, width: '13%' },
+        { title: year + 3, dataIndex: year + 3, width: '13%' },
+        { title: year + 4, dataIndex: year + 4, width: '13%' },
+        { title: year + 5, dataIndex: year + 5, width: '13%' },
+      ],
+      visible: false,
+      retiredata: [],//未及时办理退休人员明细--表格数据
+      retireModalData: [],//未及时办理退休人员明细--弹窗表格数据
+      dataSource: [],
+      pagination: {
+        total: 0,
+        pagenum: 1,
+        pagesize: 10,
+        needtotal: true,
+      }
+    }
+  },
+  computed: {},
+  watch: {
+    district:{
+      immediate: true,
+      handler(district) {
+        this.loadData(district.district);
+      }
+    }
+  },
+  mounted() {},
+  methods: {
+    customRetireRow(row, type) {
+      return {
+        on: {
+          click: () => {
+            if(type === 'list') {
+              this.listSelected = row._id;
+            }else if(type === 'listdetail'){
+              this.detailSelected = row._id;
+            }
+          },
+          dblclick: (event) => {
+            if(type === 'list') {
+              this.errloading = true;
+            }else if(type === 'listdetail'){
+              this.retireModalLoading = true;
+            }
+            treequery({
+              allsub: true,
+              pagesize: 1,
+              dataid: row.org._id,
+            })
+              .then(({ result }) => {
+                if (result.rows.length) {
+                  let node = result.rows[0];
+                  let routeParams;
+                  routeParams = {
+                    path: "/person/org/userinfo",
+                    query: { id: node.id, userid: row._id },
+                  };
+                  window.open(this.$router.resolve(routeParams).href, "_blank");
+                }
+              })
+              .catch((error) => {
+                showError(error);
+              }).finally(()=>{
+                if(type === 'list') {
+                  this.errloading = false;
+                }else if(type === 'listdetail'){
+                  this.retireModalLoading = false;
+                }
+              });
+          },
+        },
+      };
+    },
+    onChange(pagenum, pagesize) {
+      assign(this.pagination,{ pagenum, pagesize});
+      this.orgRetireError();
+    },
+    onShowSizeChange(current,pagesize){
+      assign(this.pagination,{ pagenum: 1, pagesize});
+      this.orgRetireError();
+    },
+    handleCancel() {
+      if(this.showdetailModal) {
+        this.showdetailModal =false;
+      }else if(this.visible) {
+        this.visible = false;
+        this.retireModalData = [];
+      }
+    },
+    showModal() {
+      this.pagination.pagenum = 1;
+      this.pagination.pagesize = 10;
+      this.orgRetireError();
+      this.visible = true;
+    },
+    customRow(row) {
+      return {
+        on: {
+          click: (event) => {
+            this.name = row.name;
+            this.showdetailModal = true
+          },
+        }
+      };
+    },
+    orgRetireError() {
+      this.retireModalLoading = true;
+      orgRetireErrorReport({district: this.district.district, ...this.pagination}).then((res)=>{
+        this.retireModalData = res.result.rows;
+        this.pagination.total = res.result.total;
+      }).catch((err)=>{
+        showError(err);
+      }).finally(()=>{
+        this.retireModalLoading = false;
+      })
+    },
+    loadData(district) {
+      this.chartloading = true;
+      this.errloading = true;
+      this.sequenceloading = true;
+      //近五年预计退休人数预测
+      orgRetireReport(district,undefined,'yyyy').then(({result})=>{
+        this.chartData = result;
+        this.chartData.keyCols[0].showname = ' ';
+      }).catch((err)=>{
+        showError(err);
+      }).finally(()=>{
+        this.chartloading = false;
+      });
+      //未及时办理退休人员明细
+      orgRetireErrorReport({district, pagesize: 7,pagenum: 1,needtotal: true}).then(({result})=>{
+        this.errorNum = result.total;
+        this.retiredata = result.rows;
+      }).catch((err)=>{
+        showError(err);
+      }).finally(()=>{
+        this.errloading = false;
+      });
+      //序列退休人员分布明细表
+      retireSystypeReport(district).then(({result})=>{
+        let data = groupBy(result.rows,'k1');
+        let keys = Object.keys(data);
+        let obj = {}, arr= [];
+        keys.forEach((item)=>{
+          obj.name = item;
+          data[item].forEach((dataItem)=>{
+            obj[dataItem.k0] = dataItem.v0||0;
+          });
+          arr.push(obj);
+          obj = {};
+        });
+        this.dataSource = arr;
+      }).catch((err)=>{
+        showError(err);
+      }).finally(()=>{
+        this.sequenceloading = false;
+      });
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  .top{
+    display: flex;
+    padding-bottom: @padding-lg;
+    justify-content: space-between;
+    > div{
+      .title{
+        font-weight: bold;
+        line-height: 30px;
+        margin-bottom: 20px;
+        display: flex;
+        justify-content: space-between;
+        span:last-child {
+          display: inline-block;
+          height: 0;
+          i.anticon-more {
+            color: @primary-color;
+            font-size: 30px;
+            cursor: pointer;
+          }
+        }
+      }
+    }
+    .left{
+      width: 550px;
+      .ant-spin-nested-loading{
+        height: 270px;
+      }
+    }
+    .center{
+      width: 176px;
+      .center_con{
+        margin-top: 51px;
+        height: 267px;
+        background-image: url('../../../assets/img/report_retire.png');
+        background-size: cover;
+        border-radius: 5px;
+        color: #fff;
+        cursor: pointer;
+        user-select: none;
+        .tip{
+          text-align: center;
+          font-size: 20px;
+          line-height: 72px;
+        }
+        .num{
+          text-indent: 2em;
+          span{
+            &:nth-child(1){
+              font-size: 40px;
+            }
+          }
+        }
+      }
+    }
+    .right{
+      width: 580px;
+      /deep/.ant-table-body {
+        tr {
+          cursor: pointer;
+          user-select: none;
+          td {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+        }
+        tr.selected {
+          background: @primary-2;
+        }
+      }
+    }
+  }
+  .bottom{
+    margin-top: @padding-lg;
+    .title{
+      font-weight: bold;
+      line-height: 30px;
+      margin-bottom: 10px;
+    }
+  }
+}
+/deep/.ant-modal-body {
+  height: 480px;
+  display: flex;
+  flex-direction: column;
+  .ant-table-wrapper {
+    flex: 1;
+    tr {
+      cursor: pointer;
+      user-select: none;
+    }
+    tr.selected {
+      background: @primary-2;
+    }
+  }
+}
+/deep/.ant-modal-footer {
+  border-top: 0;
+  .pagination ul li.ant-pagination-options ul li {
+    text-align: center;
+  }
+}
+</style>

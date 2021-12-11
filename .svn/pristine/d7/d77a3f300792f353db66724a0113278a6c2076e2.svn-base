@@ -1,0 +1,199 @@
+<template>
+  <BookPager @prev="onPrevPage" @next="onNextPage" @refresh="onRefresh">
+    <div :style="{ width: `${width}px`, minHeight: `${height}px` }">
+      <a-spin :spinning="loading" :delay="300">
+        <iframe ref="iframe" 
+          :height="iframeHeight"
+          class="sheet-iframe" 
+          frameborder="0" 
+          scrolling="no" 
+          src="about:blank"
+        ></iframe>
+      </a-spin>
+    </div>
+    <div slot="extraTools">
+      <a class="button" @click="toCatalog()" title="返回目录"><a-icon type="bars"/></a>
+      <a class="button" @click="download()" title="导出"><a-icon type="download"/></a>
+    </div>
+  </BookPager>
+</template>
+<script>
+import { Spin, Icon } from "ant-design-vue";
+import BookPager from "./components/BookPager";
+import { getSheet, buildSheet } from "@/person/api/booklet";
+import { convertHtmlToFileAsync } from "@/framework/api/file";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  components: {
+    ASpin: Spin,
+    AIcon: Icon,
+    BookPager
+  },
+  data() {
+    return {
+      loading: false,
+      catalog: undefined,
+      width: 1123,
+      height: 794,
+      iframeHeight: 794
+    };
+  },
+  created() {
+    let { catalogid } = this.$route.query;
+    if(catalogid){
+      this.loadData(catalogid);
+    }
+  },
+  watch: {
+    $route: {
+      handler() {
+        let catalogid = this.$route.query.catalogid;
+        this.loadData(catalogid);
+      },
+    }
+  },
+  methods: {
+    onPrevPage(){
+      if(!this.catalog){
+        this.$message.info('数据加载中,请稍后');
+        return;
+      }
+      let { bookid, prevcatalogid } = this.catalog;
+      if(prevcatalogid){//上一页不存在返回目录
+        this.$router.replace({name: "BookSheet", query: { bookid, catalogid: prevcatalogid}});
+      }else{
+        this.toCatalog();
+      }
+    },
+    onNextPage(){
+      if(!this.catalog){
+        this.$message.info('数据加载中,请稍后');
+        return;
+      }
+      let { bookid, nextcatalogid } = this.catalog;
+      if(nextcatalogid){
+        this.$router.replace({name: "BookSheet", query: { bookid, catalogid: nextcatalogid}});
+      }else{
+        this.$message.info('已经是最后一页');
+      }
+    },
+    toCatalog(){
+      if(!this.catalog){
+        this.$message.info('数据加载中,请稍后');
+        return;
+      }
+      this.$router.push({name: "BookCatalog", query: { bookid: this.catalog.bookid}});
+    },
+    onRefresh(){
+      if(!this.catalog){
+        this.$message.info('数据加载中,请稍后');
+        return;
+      }
+      if(this.catalog.sheet.id){//历史数据没必要刷新？？
+        this.$message.info('刷新成功')
+        return;
+      }
+      this.loading = true;
+      let { bookid, id } = this.catalog;
+      buildSheet(bookid, id, true).then(({ result }) => {
+        if(this.catalog && this.catalog.id == id){
+          this.catalog.sheet = result;
+          this.setIframeHtml(result.content);
+          this.$message.info('刷新成功')
+          this.loading = false;
+        }
+      }).catch(error => {
+        if(this.catalog && this.catalog.id == id){
+          this.loading = false;
+          showError(error);
+        }
+      });
+    },
+    download(){
+      if(!this.catalog || !this.catalog.sheet.content){
+        this.$message.info('数据加载中,请稍后');
+        return;
+      }
+      this.$confirm({
+        title: '提示',
+        content: h => '确定导出该报表？',
+        onOk: () => {
+          let { pagesize, rotate, margins, content } = this.catalog.sheet;
+          convertHtmlToFileAsync({
+            title: this.catalog.name,
+            pagesize,
+            rotate, 
+            margins,
+            html: content
+          }).then(() => {
+            //success
+          }).catch(error => {
+            showError(error);
+          })
+        }
+      });
+    },
+    loadData(catalogid) {
+      this.loading = true;
+      this.catalog = undefined;
+      getSheet(catalogid).then(({result}) => {
+        let { sheet } = result;
+        this.setPageRect(sheet.pagesize, sheet.rotate);
+        this.catalog = result
+        if(sheet.content){//内容不存在，非历史记录实时生成
+          this.setIframeHtml(sheet.content);
+          this.loading = false;
+        }else{
+          let { bookid, id } = result;
+          buildSheet(bookid, id).then(({ result }) => {
+            if(this.catalog && this.catalog.id == id){
+              this.catalog.sheet = result;
+              this.setIframeHtml(result.content);
+              this.loading = false;
+            }
+          }).catch(error => {
+            if(this.catalog && this.catalog.id == id){
+              showError(error);
+              this.setIframeHtml();
+              this.loading = false;
+            }
+          });
+        }
+      }).catch(error => {
+        showError(error);
+        this.setIframeHtml();
+        this.loading = false;
+      });
+    },
+    setIframeHtml(html){
+      this.$nextTick(() => {
+        let iframe = this.$refs.iframe;
+        if(iframe){
+          iframe.onload = () => {
+            this.iframeHeight = iframe.contentWindow.document.body.scrollHeight;
+            iframe.onload = null;
+          };
+          this.iframeHeight = this.height;
+          iframe.src = html ? `javascript:void(function(){document.open();document.write('${html}');document.close();}())` : 'about:blank'
+        }
+      });
+    },
+    setPageRect(pagesize, rotate){
+      //TODO 根据pagesize获取页面宽高
+      let width = 794, height = 1123;
+      if(rotate){
+        [this.width, this.height] = [ height, width ];
+      }else{
+        [this.width, this.height] = [ width, height ];
+      }
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.sheet-iframe{
+  display: block;
+  width: 100%;
+}
+</style>

@@ -1,0 +1,62 @@
+import axios from "axios";
+import { getCookie } from '@/framework/utils/auth'
+import Bus from '@/framework/utils/EventBus'
+
+//  全局设置
+axios.defaults.timeout = 10000  //  时间超时设置10s
+
+//  创建一个axios实例
+const instance = axios.create()
+instance.defaults.headers.post['Content-Type'] = 'application/json;charset=UTF-8'
+
+axios.interceptors.request.use = instance.interceptors.request.use
+
+//  request拦截器，每次发送请求的时候拦截下来
+instance.interceptors.request.use(
+  config => {
+    //  每次请求时，cookie是否存在
+    let cookie = getCookie("sso_token")
+    if (cookie) {
+      console.log('存在cookie');
+      return config
+    } else {
+      console.log('不存在cookie');
+      return Promise.reject(err)
+    }
+  },
+  err => {
+    return Promise.reject(err)
+  }
+)
+
+//  response拦截器
+instance.interceptors.response.use(
+  response => {
+    let res = response.data;
+    if (res.code == '0') {
+      return res;
+    } else {
+      return Promise.reject(res);
+    }
+  },
+  error => {
+    if (error.response) {
+      switch (error.response.status) {
+        case 401:
+          //Bus.$emit('logout', '身份认证失败,请重新登录');
+          break;
+        case 406:
+          Bus.$emit('logout', '登录已超时,请重新登录');
+          break;
+      }
+      return Promise.reject({
+        code: error.response.status,
+        message: error.message,
+      })
+    } else {
+      return Promise.reject(error);
+    }
+  }
+)
+
+export default instance;

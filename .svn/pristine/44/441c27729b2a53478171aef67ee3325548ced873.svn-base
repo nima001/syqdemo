@@ -1,0 +1,230 @@
+<template>
+  <div class="content">
+    <div class="addAndSearch">
+      <div>
+        <a-button type="primary" @click="add()">新增</a-button>
+      </div>
+      <div>
+        <a-input-search placeholder="输入名称搜索" enter-button="搜索" @search="onSearch" />
+      </div>
+    </div>
+    <div class="table">
+      <table width="100%" class="dataTabble">
+        <thead>
+          <tr>
+            <th width="10%">名称</th>
+            <th width="80%">数据类型</th>
+            <th width="10%">操作</th>
+          </tr>
+        </thead>
+        <draggable
+          :force-fallback="true"
+          v-model="data"
+          :disabled="this.disabled"
+          :animation="200"
+          element="tbody"
+          :move="getdata"
+          @update="datadragEnd"
+        >
+          <tr v-for="(item,id) in data" :key="item.id">
+            <td>{{item.name}}</td>
+            <td v-if="item.datatype==1">对象</td>
+            <td v-else-if="item.datatype==2">字典</td>
+            <td v-else-if="item.datatype==3">引用</td>
+            <td v-else-if="item.datatype==4">输入</td>
+            <td class="action">
+              <span>
+                <a href="javascript:;" @click="edit(item.id)">编辑</a>
+              </span>
+              <a-popconfirm title="确定删除吗?" @confirm="() => onDelete(item.id)">
+                <a href="javascript:;">删除</a>
+              </a-popconfirm>
+            </td>
+          </tr>
+        </draggable>
+      </table>
+      <a-modal v-model="visible" title="新增/编辑" @ok="handleOk">
+        <a-form :form="this.form" :label-col="{ span: 5 }" :wrapper-col="{ span: 12 }">
+          <a-form-item label="名称">
+            <a-input v-decorator="['name', { rules: [{ required: true, message: '请输入节点名称!' }] }]" />
+          </a-form-item>
+          <a-form-item label="类型">
+            <a-select
+              placeholder="请选择类型"
+              v-decorator="[
+                'datatype',
+                { rules: [{ required: true, message: '请选择类型!' }] },
+              ]"
+              @change="changeDatatype"
+            >
+              <a-select-option
+                v-for="(item,index) in datatype"
+                :value="Number(index)+1"
+                :key="index"
+              >{{item}}</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </div>
+  </div>
+</template>
+<script>
+import {
+  Button,
+  InputSearch,
+  Table,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Popconfirm,
+} from "ant-design-vue";
+import draggable from "vuedraggable";
+const datatype = ["对象", "字典", "引用", "输入"];
+export default {
+  components: {
+    AButton: Button,
+    ATable: Table,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInputSearch: Input.Search,
+    APopconfirm: Popconfirm,
+    draggable,
+  },
+  props: {
+    data: {
+      type: Array,
+    },
+  },
+  data() {
+    return {
+      visible: false,
+      datatype,
+      id: 0,
+      beforeid: 0,
+      datatypeselect: 1,
+      disabled: false,
+      form: this.$form.createForm(this, { name: "scopeForm" }),
+    };
+  },
+  methods: {
+    //拖动中
+    getdata(event) {
+      this.beforeid = event.draggedContext.element.id; //获取源变更元素id
+    },
+    //排序拖动结束
+    datadragEnd(event) {
+      let where = 0;
+      let afterid = 0;
+      if (event.oldIndex < event.newIndex) {
+        //更新后索引增大，往下,newxIndex和oldIndex从0开始
+        where = -1; //代表移动到目标元素的下方
+        afterid = this.getidbyIndex(Number(event.newIndex - 1)); //寻找目标id
+        this.sort({ from: this.beforeid, to: afterid, where: where }); //调用排序方法
+      } else if (event.oldIndex > event.newIndex) {
+        //更新后索引变小，往上
+        where = 1; //代表移动到目标元素的上方
+        afterid = this.getidbyIndex(Number(event.newIndex + 1)); //寻找目标id
+        this.sort({ from: this.beforeid, to: afterid, where: where }); //调用排序方法
+      } else {
+        where = 0; //位置不变
+      }
+    },
+    getidbyIndex(index) {
+      return this.data[index].id;
+    },
+    sort(data) {
+      this.$emit("sort", data);
+    },
+    //新增按钮点击事件
+    add() {
+      this.showModal();
+    },
+    onDelete(id) {
+      this.$emit("delete", id); //通知父组件改变
+    },
+    //查询
+    onSearch(value) {
+      if (value != "") {
+        this.disabled = true;
+      } else {
+        this.disabled = false;
+      }
+      this.$emit("search", value);
+    },
+    //编辑按钮点击事件
+    edit(id) {
+      this.id = id;
+      this.showModal();
+    },
+    showModal() {
+      this.visible = true;
+    },
+    changeDatatype(value) {
+      this.datatypeselect = value;
+    },
+    //确定
+    handleOk(e) {
+      e.preventDefault();
+      //验证输入
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          this.$emit("save", {
+            id: this.id,
+            name: values.name,
+            datatype: this.datatypeselect,
+          });
+          //重置所有组件
+          this.form.resetFields();
+          this.visible = false;
+        }
+      });
+    },
+  },
+};
+</script>
+
+<style lang="less" scoped>
+.content {
+  height: 100%;
+  padding: @layout-space-base;
+  background-color: @white;
+  .addAndSearch {
+    display: flex;
+    justify-content: space-between;
+    margin: 12px;
+  }
+  .action {
+    & a:not(:nth-child(2)) {
+      margin-right: 15px;
+      color: @primary-color;
+    }
+  }
+  tbody:hover {
+    cursor: pointer;
+  }
+  thead {
+    background-color: rgb(250, 250, 250);
+    border-bottom: 1px solid #e8e8e8;
+  }
+  tbody {
+    tr:hover {
+      background-color: rgb(251, 229, 229);
+    }
+  }
+  tr {
+    border-bottom: 1px solid #e8e8e8;
+    transition: background-color 0.4s ease;
+  }
+  th:not(:last-child),
+  td:not(:last-child) {
+    padding: 6px 6px;
+    text-align: center;
+  }
+}
+</style>

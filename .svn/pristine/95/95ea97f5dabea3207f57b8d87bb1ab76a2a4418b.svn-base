@@ -1,0 +1,22 @@
+import config from './modules/config'
+import session from './modules/session'
+import dict from './modules/dict'
+import permit from './modules/permit'
+import menu from './modules/menu'
+import Bus from '@/framework/utils/EventBus'
+
+Bus.$on('beforeLogout', () => {
+  let data = window.localStorage.getItem('saveData');
+  if(data){
+    data = JSON.parse(data);
+    for(let name in data){
+      let state = data[name];
+      if(!state.persiste){
+        data[name] = undefined;
+      }
+    }
+    window.localStorage.setItem('saveData', JSON.stringify(data));
+  }
+})
+
+export default {config, session, permit, menu, dict}

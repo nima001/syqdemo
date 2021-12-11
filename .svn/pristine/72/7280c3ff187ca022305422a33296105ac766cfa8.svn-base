@@ -1,0 +1,39 @@
+<template>
+  <div class="staff-item">
+    <a-row :gutter="20">
+      <a-col :span="6">
+        <span class="name">现核定编制：{{data.bzzj}}</span>
+        
+      </a-col>
+      <a-col :span="6">
+        <span class="name">实有人员：{{data.bzzj_sy}}</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+<script>
+import { Row, Col } from "ant-design-vue";
+
+//评估项-编制情况
+export default {
+  components: {
+    ARow: Row,
+    ACol: Col,
+  },
+  props: {
+    data: Object, //内容数据
+  },
+  created(){
+  },
+  methods: {
+
+  }
+}
+</script>
+<style lang="less" scoped>
+.staff-item{
+  /deep/.ant-row{
+    line-height: 30px;
+  }
+}
+</style>

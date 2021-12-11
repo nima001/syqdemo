@@ -1,0 +1,192 @@
+<template>
+  <div class="layout">
+    <div class="content-left">
+      <org-tree  class="org-tree" slot="nav" @select="onOrgSelect" :nodeid="undefined" :treeid="undefined"/>
+    </div>
+    <div class="content-right">
+      <div class="top">
+        <div class="top-left">
+          <a-button type="primary" @click="schedueModal = true">导出</a-button>
+        </div>
+        <div class="top-right">
+          <a-range-picker :style="{width:'200px',margin:'0px 10px'}" @change="dateChange" v-model="query.date" allowClear></a-range-picker>
+          <a-input-search placeholder="请输入人员姓名" :style="{width:'200px'}"  enter-button
+            allowClear  v-model="query.searchkey"  @search="inputSearch">
+          </a-input-search>
+        </div>
+      </div>
+      <div class="middle">
+        <a-table  rowKey="groupBy"  :loading="loading" :columns="columns" :data-source="dataSource" :pagination="false">
+          <template slot="namelist" slot-scope="text,record">{{record.namelist.join('，')}}</template>
+        </a-table>
+      </div>
+      <div class="bottom">
+        <a-pagination show-size-changer :total="pagination.total" :page-size="pagination.pagesize" :default-current="pagination.pagenum"
+         :show-total="(total) => `共 ${total} 条`" @change="onChange" @showSizeChange="onShowSizeChange">
+        </a-pagination>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import {DatePicker,Input, Table, Pagination,Select,Button} from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+import OrgTree from "@/hall/components/OrgTree";
+import AccordionLayout from "@/framework/components/AccordionLayout";
+import { showError } from "@/framework/utils/index";
+import { ondutyListInfo } from "@/hall/api/onduty";
+import moment from "moment";
+export default {
+  components: {
+    ARangePicker: DatePicker.RangePicker,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    APagination: Pagination,
+    AInputSearch: Input.Search,
+    OrgTree,
+    AccordionLayout,
+    AButton: Button
+  },
+  data() {
+    return {
+      schedueModal: false,
+      loading: false,
+      dataSource: [],
+      node: {},
+      query: {
+        searchkey: undefined,
+        date: []
+      },
+      pagination: {
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+        needtotal: true
+      }
+    };
+  },
+  computed: {
+    columns() {
+      return [
+        {
+          title: "值班日期",
+          dataIndex: "dutydate"
+        },
+        {
+          title: "星期",
+          dataIndex: "weekday"
+        },
+        {
+          title: "所在组织",
+          dataIndex: "org"
+        },
+        {
+          title: "人员",
+          dataIndex: "namelist",
+           scopedSlots: { customRender: "namelist" }
+        },
+        {
+          title: "开始时间",
+          dataIndex: "starttime"
+        },
+        {
+          title: "结束时间",
+          dataIndex: "endtime"
+        },
+        {
+          title: "排班人",
+          dataIndex: "creater"
+        }
+      ];
+    }
+  },
+  watch: {
+    node: {
+      handler() {
+        this.getData();
+      },
+      deep: true
+    }
+  },
+  methods: {
+    getData() {
+      this.loading = true;
+      let flag = this.query.date.length > 0;
+      let query = {
+        nodeid: this.node.id,
+        searchkey: this.query.searchkey,
+        starttime: flag ? moment(this.query.date[0]).format("YYYY-MM-DD"): undefined,
+        endtime: flag ? moment(this.query.date[1]).format("YYYY-MM-DD") : undefined,
+        ...this.pagination
+      };
+      ondutyListInfo(query)
+        .then(({ result: { pagenum, pagesize, rows = [], total } }) => {
+          this.dataSource = rows;
+          assign(this.pagination, { pagenum, pagesize, total });
+        })
+        .catch(err => {
+          showError(err);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    },
+    onOrgSelect(node) {
+      this.node = node;
+    },
+    dateChange() {
+      this.getData();
+    },
+    inputSearch() {
+      this.getData();
+    },
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagenum: 1, pagesize });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  .content-left {
+    width: 310px;
+    background: @white;
+    border-radius: @border-radius-base;
+  }
+  .content-right {
+    flex: 1;
+    padding: @content-padding-v @content-padding-h;
+    overflow-y: auto;
+    min-height: 0px;
+    background: @white;
+    display: flex;
+    flex-direction: column;
+    border-radius: @border-radius-base;
+    margin-left: @layout-space-base;
+    .top {
+      display: flex;
+      padding: @content-padding-v 0px;
+      justify-content: space-between;
+    }
+    .middle {
+      flex-shrink: 1;
+      padding: @content-padding-v 0px;
+      overflow-y: auto;
+      /deep/ tr {
+        cursor: pointer;
+      }
+    }
+    .bottom {
+      text-align: right;
+      padding: @content-padding-v 0px;
+    }
+  }
+}
+</style>

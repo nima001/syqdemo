@@ -1,0 +1,191 @@
+<template>
+  <a-form-item
+    :label="property.name"
+    :required="!!property.require" 
+    :validateStatus="validateStatus"
+  >
+    <a-input v-if="!property.multi"
+      :value="propValue && (selectMode == 'user' ? propValue.username: propValue.name)"
+      :disabled="!!property.disable"
+      :placeholder="property.hint"
+      :read-only="true"
+      :allowClear="!(property.disable || property.require || !propValue)"
+      @click="showSelect"
+      @change="onNameChange($event.target.value)"
+    >
+      <a-icon slot="addonAfter" type="select" @click="showSelect"/>
+    </a-input>
+    <MultiInput v-else 
+      v-model="propValue"
+      :optionProps="{key: '_id', label: selectMode == 'user' ? 'username' : 'name'}"
+      :inputable="false"
+      :disabled="!!property.disable"
+      :placeholder="property.hint"
+      :allowClear="!(property.disable || property.require || !propValue)"
+      @selectWindowVisible="showSelect" 
+    />
+    <a-modal
+      :footer="null"
+      v-model="visible"
+      :width="property.multi ? 800 : 500"
+      :title="`选择${property.name}`"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select 
+        :mode="selectMode" 
+        :show-dept="true" 
+        :usePermit="property.usePermit" 
+        :default-root="defaultRoot && defaultRoot._id" 
+        :orgFilter="orgFilter"
+        :userFilter="userFilter"
+        :maxSelect="property.multi ? 10 : 1"
+        @finish="finishSelect"
+      />
+    </a-modal>
+  </a-form-item>
+</template>
+<script>
+import { Form, Input, Modal, Icon } from "ant-design-vue";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import MultiInput from "@/framework/components/MultiInput";
+import get from 'lodash/get';
+import set from 'lodash/set';
+
+export default {
+  props: {
+    property: {
+      type: Object,
+    },
+    value:{
+      type: Object,
+    },
+  },
+  components: {
+    AFormItem: Form.Item,
+    AInput: Input,
+    AModal: Modal,
+    AIcon: Icon,
+    OrgUserSelect, MultiInput
+  },
+  data() {
+    return {
+      validateStatus: undefined,
+      visible: false
+    };
+  },
+  computed:{
+    code(){
+      return this.property.code;
+    },
+    propValue:{
+      get(){
+        let data = get(this.value, this.code);
+        if(data !== undefined){
+          if(this.property.multi){
+            if(!Array.isArray(data)){
+              data = [data];
+              this.propValue = data;
+            }
+          }else{
+            if(Array.isArray(data)){
+              data = data[0];
+              this.propValue = data;
+            }
+          }
+        }
+        return data;
+      },
+      set(value){
+        set(this.value, this.code, value);
+        this.$emit('change', this.code, value);
+      },
+      depttypes(){
+        let str = this.$store.getters.getConfig('unittype.dept');
+        return str ? JSON.parse(str) : [9]
+      }
+    },
+    selectMode(){
+      return this.property.datasource == 'user' ? 'user' : (this.property.dept ? 'dept' : 'org');
+    },
+    defaultRoot(){
+      if(this.property.location){
+        return get(this.value, this.property.location.code);
+      }
+    },
+    orgFilter(){
+      if(this.selectMode == 'org'){
+        return this.property.filter;
+      }else if(this.selectMode == 'user'){
+        return { unittype: this.depttypes }
+      }
+    },
+    userFilter(){
+      if(this.selectMode == 'user'){
+        return this.property.filter;
+      }
+    }
+  },
+  methods: {
+    validateField(obj){
+      return new Promise((resolve, reject) => {
+        this.validate((error) => {
+          if(error){
+            reject(error);
+          }else{
+            //值undefined时设置为null 才会序列化 需要传key 服务器识别情况数据
+            set(obj, this.code, this.propValue === undefined ? null : this.propValue);
+            resolve();
+          }
+        })
+      });
+    },
+    validate(callback){
+      let status = undefined;//error 验证失败 success成功
+      let error;
+      if(!this.property.disable){
+        //TODO 数据格式校验
+        if(this.property.require && !this.propValue){
+          status = 'error';
+          error = `请填写${this.property.name || this.code}`;
+        }else{
+          status = 'success';
+        }
+      }
+      this.validateStatus = status;
+      if(callback){
+        callback(error);
+      }
+    },
+    onNameChange(value){
+      if(!value){
+        this.propValue = undefined;
+      }
+    },
+    showSelect(){
+      if(!this.property.disable){
+        this.visible = true;
+      }
+    },
+    finishSelect(type, list) {
+      this.visible = false;
+      if (type == "ok" && list.length > 0) {
+        let labelKey = this.selectMode == 'user' ? 'username' : 'name';
+        if(this.property.multi){
+          this.propValue = list.map(item => {
+            return {_id: item._id, [labelKey]: item[labelKey]}
+          })
+        }else{
+          let item = list[0];
+          this.propValue = {_id: item._id, [labelKey]: item[labelKey]}
+        }
+        // this.validate();
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-form-item {
+  margin-bottom: 0;
+}
+</style>

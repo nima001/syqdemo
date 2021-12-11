@@ -1,0 +1,33 @@
+<template>
+  <a-layout>
+    <query :query="queryid" :catalogid="catalogid"/>
+  </a-layout>
+</template>
+<script>
+import { Layout } from 'ant-design-vue';
+import Query from './query';
+
+export default {
+  name: "IntegratedQuery",
+  data() {
+    return {
+      queryid: undefined,
+      catalogid: undefined,
+    };
+  },
+  components: {
+    ALayout:Layout,
+    Query
+  },
+  created() {
+    this.queryid = Number(this.$route.query.id) || undefined;
+    this.catalogid = Number(this.$route.query.catalogid) || undefined;
+  },
+};
+</script>
+<style lang="less" scoped>
+.ant-layout {
+  height: 100%;
+  padding: @layout-space-base;
+}
+</style>

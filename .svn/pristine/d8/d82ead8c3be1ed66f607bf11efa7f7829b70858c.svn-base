@@ -1,0 +1,241 @@
+<template>
+  <div class="orgmanager-detail" ref="orgmanagerDetail">
+    <div class="orgmanagerlist">
+      <div class="top">
+        <div class="left">
+          <a-button><a-icon type="upload"/>移除</a-button>
+        </div>
+        <div class="right">
+           <a-input
+            class="inputBox"
+            placeholder="请输入姓名/邮箱/手机/身份证号查询"
+            style="width: 300px"
+            allowClear
+          />
+          <a-button class="searchBt" type="primary">搜索</a-button>
+        </div>
+      </div>
+      <a-table
+        class="per-table"
+        :columns="columns"
+        :dataSource="pagination.rows"
+        :pagination="false"
+        :loading="loading"
+      >
+      </a-table>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Row, Col, Button, Select, Input, Table, Pagination, Modal, Icon } from "ant-design-vue";
+import {querypagelist} from "@/idm/api/orgmanager";
+import DictSelect from "@/framework/components/DictSelect";
+import TaskProgress from "@/framework/components/TaskProgress";
+import CustomIcon from "@/framework/components/CustomIcon";
+import { showError } from "@/framework/utils/index";
+export default {
+  props: ["org", "nodeid", "treeid"],
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInput: Input,
+    ATable: Table,
+    APagination: Pagination,
+    AModal: Modal,
+    AIcon: Icon,
+    DictSelect,
+    TaskProgress,
+    CustomIcon
+  },
+  data(){
+    return{
+      columns: [
+        { title: "序号", width: "45px", customRender: this.indexRender },
+        { title: "姓名", width: "110px", dataIndex: "name", scopedSlots: { customRender: "name" } },
+        { title: "账号", width: "110px", dataIndex: "loginname", scopedSlots: { customRender: "loginname" } },
+        { title: "手机号码", width: "110px", dataIndex: "mobilephone", scopedSlots: { customRender: "mobilephone" } },
+        { title: "所在组织", width: "110px", dataIndex: "orgname", scopedSlots: { customRender: "orgname" } },
+        { title: '操作', width: "110px", dataIndex: 'operation', scopedSlots: { customRender: 'operation' } },
+      ],
+      choice: 1,
+      properties: {},
+      keyWord: undefined,
+      pagination: {
+        selected: undefined,
+        rows: null,
+        pagesize: 20,
+        pagenum: 1,
+        total: 0
+      },
+      loading: false,
+    }
+  },
+  created() {
+    this.getOrgManager(this.pagination);
+  },
+  watch: {
+    org(val){
+      //监听刷新账号列表
+      this.getOrgManager(this.pagination);
+    }
+  },
+  methods:{
+    indexRender(text, row, index){
+      let p = this.pagination;
+      return (p.pagenum - 1) * p.pagesize + index + 1;
+    },
+    getParams(page) {
+      const params = {
+          orgid: this.org._id,
+          needtotal: true,
+          pagesize: 2,
+          pagenum: 1,
+        };
+        return params;
+    },
+    getOrgManager(page){
+      if (!this.org) {
+        return;
+      }
+      this.loading = true;
+      let request;
+      if(this.nodeid) {
+        request = querypagelist(this.getParams(page));
+      }
+      request.then(({result}) => {
+        this.pagination = result;
+        result.rows.forEach(element => { 
+        });
+        this.loading = false;
+      }).catch(error => {
+        this.pagination = {};
+        this.loading = false;
+        showError(error);
+      });
+     }
+  }
+}
+</script>
+
+<style lang="less" scoped>
+.orgmanager-detail {
+  height: 100%;
+  flex-direction: column;
+  display: flex;
+  .top-btn {
+    width: 100%;
+    height: auto;
+    padding: @content-padding-v @content-padding-h;
+    background-image: linear-gradient(to right, #fcfcfc, @primary-1);
+    .topbtn {
+      cursor: pointer;
+      height: 26px;
+      line-height: 26px;
+      padding: 0 14px;
+      float: left;
+      border-radius: 3px;
+      margin-right: 5px;
+      &:hover {
+        background-color: @primary-1;
+        color: @primary-color;
+      }
+      &.act-btn {
+        background-color: @primary-2;
+        color: @primary-color;
+      }
+    }
+  }
+  .orgmanagerlist {
+    flex: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    .top {
+      padding: @content-padding-v/2 @content-padding-h @content-padding-v @content-padding-h;
+      .left {
+        float: left;
+        margin-top: @content-padding-v/2;
+        .ant-btn {
+          margin-right: 10px;
+          color: @primary-color;
+          border-color: @primary-color;
+        }
+      }
+      .right {
+        margin-top: @content-padding-v/2;
+        float: right;
+        // line-height: 32px;
+        .ant-select {
+          margin-left: 5px;
+        }
+        .search-item {
+          width: 180px;
+          margin: 0 5px 0 0;
+          &.scope {
+            width: 100px;
+          }
+        }
+        .searchBt {
+          background-color: @primary-color;
+          border: 0;
+          color: @white;
+          margin-left: 5px;
+        }
+      }
+    }
+    .per-table {
+      flex-shrink: 1;
+      min-height: 0;
+      padding: 0 @content-padding-h;
+      overflow-y: auto;
+      /deep/table {
+        table-layout: fixed;
+        td,th {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        td{
+           padding: 2px 2px;
+        }
+        tr.selected{
+          background: @primary-2;
+        }
+      } 
+      .icon{
+        width: 18px;
+        height: 18px;
+        padding: 1px;
+      }
+      .table-tr {
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        .worstatus {
+          width: 16px;
+          height: 16px;
+          display: inline-block;
+        }
+      }
+      .editable-row-operations {
+        span{
+          margin: 0 10px;
+        }
+      }
+    }
+    .footer {
+      padding: @content-padding-v @content-padding-h;
+      .ant-pagination {
+        float: right;
+        margin-bottom: 10px;
+      }
+    }
+  }
+}
+
+</style>

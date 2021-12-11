@@ -1,0 +1,192 @@
+<template>
+  <div class="org-main-panel">
+    <div class="header">
+      <div class="title">{{loadData && loadData.node.name}}</div>
+      <div class="tabs">
+        <a
+          v-for="item in analysis"
+          :key="item.id"
+          :class="{active: active === item}"
+          @click="active = item"
+        >{{item.name}}</a>
+      </div>
+    </div>
+    <div class="body">
+      <!-- 分析模板未加载或正在加载内容，显示加载中 -->
+      <a-spin :spinning="!analysis || loading" :delay="300"/>
+      <!-- 分析模板为空或分析内容为空显示空数据 -->
+      <empty-data v-if="((analysis && analysis.length == 0) || (report && report.config.length == 0)) && !loading"/>
+      <form-display v-else-if="report && formData" :formConfig="report.config" :formData="formData" :showAnchor="false">
+        <ant-chart slot="chart" slot-scope="props" v-bind="props"/>
+        <report-template slot="template" slot-scope="props" v-bind="props"/>
+      </form-display>
+    </div>
+  </div>
+</template>
+<script>
+import { Button, Spin } from "ant-design-vue";
+import FormDisplay from "@formdesign/views/FormDisplay";
+import { components } from "@person/components/formdesign";
+import EmptyData from '@framework/components/EmptyData'
+import { querydisplay, queryScope, queryContent } from '@person/api/statistics'
+import { showError } from '@framework/utils';
+
+export default {
+  props: {
+    loadData: {
+      type: Object
+    }
+  },
+  components: {
+    AButton: Button,
+    ASpin: Spin,
+    FormDisplay, 
+    ...components,
+    EmptyData
+  },
+  data() {
+    return {
+      analysis: undefined,
+      active: undefined,
+      loading: false,//加载分析内容
+      formData: undefined,
+      report: undefined, //config/data/scope
+    };
+  },
+  computed: {
+    node() {
+      return this.loadData && this.loadData.node;
+    },
+  },
+  created() {
+    this.init();
+  },
+  watch: {
+    active(analyze) {//tab切换加载报表
+      this.loadReport(analyze);
+    },
+    node(){
+      if(!this.loading){
+        this.formData = this.getContextData();
+      }
+    },
+    analysis(val){
+      if(val && val.length){
+        if(!this.active || val.indexOf(this.active) < 0){//选中为空或选中不在列表中
+          this.active = val[0];
+        }
+      }else{
+        this.active = undefined;
+      }
+    }
+  },
+  methods: {
+    init() {
+      querydisplay({
+        type: 4, //指定分析类型（实名资源分析）
+      }).then(({result}) => {
+        this.analysis = result || [];
+      }).catch(error => {
+        showError(error)
+      })
+    },
+    getContextData(f){
+      if(this.report){
+        let context = { ...this.report.data };
+        if(this.node){
+          Object.assign(context, this.node.extra);
+        }
+        console.log('context data', context);
+        return context;
+      }
+    },
+    loadReport(analyze){
+      if(!analyze){
+        this.form = undefined;
+        return;
+      }
+      this.loading = true;
+      Promise.all([
+        queryScope({analyzeid: analyze.id}),
+        queryContent({analyzeid: analyze.id})
+      ]).then(([scope, content]) => {
+        let data = {}, config = [];
+        (content.result || []).forEach(item => {
+          if(item.form){
+            config = [...config, ...JSON.parse(item.form)];
+            if(item.data){
+              data = Object.assign(data, JSON.parse(item.data));
+            }
+          }
+        });
+        this.report = {config, data, scope: scope.result || []};
+        this.formData = this.getContextData();
+      }).catch(error => {
+        this.report = undefined;
+        showError(error);
+      }).finally(() => {
+         this.loading = false;
+      })
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.org-main-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: @border-radius-base;
+  & > .header {
+    background: @white;
+    margin-bottom: 10px;
+    padding: @content-padding-v @content-padding-h;
+    .title {
+      flex: auto;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-weight: bold;
+      font-size: 18px;
+      line-height: 26px;
+    }
+    .tabs {
+      padding: @content-padding-v 0px;
+      min-height: 42px;
+      a {
+        display: inline-block;
+        height: 26px;
+        line-height: 26px;
+        padding: 0 12px;
+        margin-left: 6px;
+        border-radius: @border-radius-base;
+        &:first-child{
+          margin-left: 0px;
+        }
+        &:hover {
+          background: @primary-1;
+        }
+      }
+      a.active {
+        background-color: @primary-color;
+        color: white;
+        &:hover {
+          background: lighten(@primary-color, 5%);
+        }
+      }
+    }
+  }
+
+  & > .body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    position: relative;
+    .ant-spin{
+      position: absolute;
+      top: 38%;
+      width: 100%;
+      z-index: 10;
+    }
+  }
+}
+</style>

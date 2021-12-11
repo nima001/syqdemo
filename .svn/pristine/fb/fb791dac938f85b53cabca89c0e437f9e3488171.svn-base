@@ -1,0 +1,472 @@
+<template>
+  <div ref="content" :class="['line-chart', {'border': isDrag}]" @mousedown.prevent="allowMove?move():false">
+    <h2 v-if="settings.titleVisible!==false" :style="{ textAlign: settings.titlePosition||'center' }">{{ title }}</h2>
+    <h3 v-if="settings.subtitleVisible!==false" :style="{ margin: 0, textAlign: settings.titlePosition||'center' }">{{subtitle}}</h3>
+    <div ref="chart" class="chart"></div>
+    <div class="tag" v-if="allowDrag" @mousedown.stop.prevent="drag()"/>
+  </div>
+</template>
+<script>
+import * as G2 from "@antv/g2";
+import BaseMixin from "./BaseMixin"
+import { maxBy, minBy, cloneDeep, get, orderBy, xorBy, reduce, concat, map  } from 'lodash';
+import { ContinuousLegend } from '@antv/g2/lib/dependents';
+/**
+ * rangeControl:范围控制
+ */
+export default {
+  icon: 'chart-line',
+  title: '折线图',
+  name: "LineChart",
+  mixins: [BaseMixin],
+  watch: {
+    data: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true
+    },
+    'settings': {
+      deep:true,
+      handler(val,old) {
+        if(val!=old) {
+          this.draw(this.data)
+        }
+      }
+    },
+    // colors: {
+    //   deep: true,
+    //   handler(val,old) {
+    //     if(val!=old) {
+    //       this.draw(this.data);
+    //     }
+    //   }
+    // }
+  },
+  data() {
+    return {
+      currentMoveX: 0,
+      currentMoveY: 0,
+      isDrag: false,
+      isMove: false,
+      plot: undefined,
+    };
+  },
+  computed: {
+    colors() {
+      if (this.settings.color&&(this.settings.color.length||typeof this.settings.color==='string')) {
+        if(typeof this.settings.color==='string') {
+          return this.settings.color.split(',');
+        }
+        return this.settings.color;
+      } else {
+        let colors = this.$store.getters.getConfig("chart.colors");
+        if (colors) {
+          try {
+            colors = JSON.parse(colors);
+            if (colors && colors.length) {
+              return colors;
+            }
+          } catch (err) {}
+        }
+      }
+      return ["#D15456", "#5488D1", "#EDBA55", "#D48265", "#91C7AE", "#749F83", "#BDA29A", "#6E7074", "#585470", "#706254"];
+    },
+    // muitl(){
+    //   if(this.data){
+    //     let { keyCols, valueCols, rows } = this.data;
+    //     return valueCols.length > 1 || keyCols.length > 1;
+    //   }
+    // }
+  },
+  mounted() {
+    this.draw(this.data);
+  },
+  methods: {
+    // changeColor() {
+    //   if(this.muitl){
+    //     //线
+    //     this.geometry.color("type", this.colors);
+    //     this.point.color("type", this.colors);
+    //   }else{
+    //     //线
+    //     this.geometry.color(this.colors[0]);
+    //     this.point.color(this.colors[0]);
+    //   }
+    // },
+    move() {
+      let that = this;
+      //获取x坐标和y坐标
+      let startX = event.clientX;
+      let startY = event.clientY;
+      //获取左部和顶部的偏移量
+      let left = that.$refs.content.offsetLeft;
+      let top = that.$refs.content.offsetTop;
+      this.isMove = true;
+      document.onmousemove = function (e) {
+        let endX = e.clientX;
+        let endY = e.clientY;
+        if(endX!=startX) {
+          that.$refs.content.style.left = endX-(startX-left)+'px';
+        }
+        if(endY!=startY) {
+          that.$refs.content.style.top =  endY-(startY-top)+'px';
+        }
+      }
+      document.onmouseup = function () {
+        this.isMove = false;
+        document.onmousemove = null;
+        document.onmouseup = null;
+      };
+      return false;
+    },
+    drag() {
+      let that = this;
+      let startX = event.x;
+      let startY = event.y;
+      let width = that.$refs.content.offsetWidth;
+      let height = that.$refs.content.offsetHeight;
+      that.isDrag = true;
+      document.onmousemove = function (e) {console.log('2')
+        let moveX = e.pageX - startX;
+        let moveY = e.pageY - startY;
+        if(that.currentMoveX!=event.x&&moveX!=0) {
+          that.$refs.content.style.width = Math.min(1400, Math.max(300, moveX+width))+'px';
+          that.currentMoveX = event.x;
+        }
+        if(that.currentMoveY!=event.y&&moveY!=0) {
+          that.$refs.content.style.height = Math.min(1400, Math.max(200, moveY+height))+'px';
+          that.currentMoveY = event.y;
+        }
+      };
+      document.onmouseup = function () {
+        that.draw(that.data)
+        that.isDrag = false;
+        document.onmousemove = null;
+        document.onmouseup = null;
+      };
+      return false;
+    },
+    createData(dataTable) {
+      if (!dataTable) {
+        return;
+      }
+      let { keyCols, valueCols, rows } = this.transform(dataTable);
+      return rows.map(item => {
+        let key, type;
+        if(keyCols.length > 1){
+          let keys = keyCols.map(k => item[k.column]);
+          type = keys.pop();
+          key = keys.join("-")
+        }else{
+          key = item[keyCols[0].column]
+        }
+        return {
+          key, type,
+          value: item[valueCols[0].column] || 0
+        };
+      });
+    },
+    //排序 截取
+    sortAndMerge(data) {
+      let sortData = cloneDeep(data);
+      if(!this.muitl){
+        let mergeData = [{ key: "其他", value: undefined }];
+        //截取合并之前需要先排序一次，保证截取的正确性
+        let type = get(this.settings,'sort.type');
+        let mergeOther = get(this.settings,'sort.mergeOther');
+        let afterintercept = get(this.settings, 'sort.afterintercept');
+        if (type && type !== "recover") {
+          //是否排序
+          sortData = orderBy(sortData, "value", type);
+        }
+        if (afterintercept) {
+          //是否截取
+          sortData = sortData.slice(
+            afterintercept[0] - 1,
+            afterintercept[1]
+          );
+        }
+        if (mergeOther) {
+          let xorData = map(xorBy(data, sortData, "key"), "value");
+          mergeData[0].value = reduce(xorData, (sum, n) => {
+            return sum + n;
+          });
+          sortData = concat(sortData, mergeData);
+        }
+        if (type && type !== "recover") {
+          //是否排序
+          sortData = orderBy(sortData, "value", type);
+        }
+      }
+      map(sortData,(item,index)=>{
+        var x = String(item.value).indexOf('.') + 1; //小数点的位置
+        if(x>0) {
+          item.value = (item.value).toFixed(2);
+        }
+      })
+      return sortData;
+    },
+    draw(dataTable) {
+      let data = this.createData(dataTable);
+      let sortData = this.sortAndMerge(data);
+      if (!data) {
+        return;
+      }
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      const chart = new G2.Chart({
+        container: this.$refs.chart,
+        // width: this.settings.canvas?this.settings.canvas.width:undefined,
+        // height: this.settings.canvas?this.settings.canvas.height:undefined,
+        autoFit: true,
+        forceFit: true,
+        appendPadding: this.settings.padding || [0, 0, 0, 0],
+      });
+      chart.data(sortData);
+      let xTitle = get(this.settings, 'xAxis.title');
+      let yTitle = get(this.settings, 'yAxis.title');
+      //度量
+      let max, min = undefined;
+      if(this.settings.rangeControl) {
+        if(this.data.rows.length) {
+          let v = this.data.keyCols[0].column;
+          max = cloneDeep(maxBy(this.data.rows, (o)=> { return o[v] }));
+          min = cloneDeep(minBy(this.data.rows, (o)=> { return o[v] }));
+          if(max[v]===min[v]) {
+            let num = (min[v])/2;
+            min[v]-=num;
+            max[v]+=num;
+          }
+        }
+      }
+      let xVisible = get(this.settings, 'xAxis.visible');
+      let yVisible = get(this.settings, 'yAxis.visible');
+      let xTitleVisible = get(this.settings, 'xAxis.title.visible');
+      let yTitleVisible = get(this.settings, 'yAxis.title.visible');
+      //配置X轴
+			if(xVisible!==false) {
+				chart.axis('key', {
+          title: { 
+            style: {
+              fill: '#AAAAAA'
+            }
+          },
+          label: {
+            autoRotate: true,
+          },
+          type: "timeCat",
+          formatter: (time) => {
+            return dateFormat(time, 'yyyy-MM');
+          },
+          grid: this.settings.xAxis&&this.settings.xAxis.grid?true:null,
+          animate: false
+        });
+        if(xTitleVisible) {
+          chart.scale({
+            key: {
+              alias: this.settings.xAxis&&this.settings.xAxis.title.content||' '
+            },
+          });
+        }else{
+          chart.scale({
+            key: {
+              alias: ' '
+            },
+          });
+        }
+			}else{
+				chart.axis('key', false);
+			}
+      //配置y轴
+			if(yVisible!==false) {
+				chart.axis('value', {
+					title: { 
+						style: {
+							fill: '#AAAAAA'
+						}
+					},
+					label: {
+						autoRotate: true,
+					},
+					grid: this.settings.yAxis&&this.settings.yAxis.grid?true:null,
+					animate: false
+				});
+        if(yTitleVisible) {
+					chart.scale({
+						value: {
+							alias: this.settings.yAxis&&this.settings.yAxis.title.content||'记录数',
+							nice: true,
+						},
+					});
+				}else{
+					chart.scale({
+						value: {
+							alias: ' ',
+							nice: true,
+						},
+					});
+				}
+			}else{
+				chart.axis('value', false);
+			}
+      //翻转
+			if(this.settings.exchange) {
+        chart.coordinate().transpose();
+			}else{
+        chart.coordinate();
+			}
+      // X轴,Y轴标题别名
+      // chart.scale({
+      //   key: {
+      //     alias: xTitle
+      //   },
+      //   value: {
+      //     alias: yTitle,
+      //     nice: true,
+      //     minLimit: this.settings.rangeControl&&min?min.v0:0,
+      //     maxLimit: this.settings.rangeControl&&max?max.v0:undefined,
+      //   }
+      // });
+      //图形
+      let geometry = chart.line().position("key*value").shape("smooth");
+      let point = chart.point().position("key*value").shape("breath-point");
+      this.drawPoint();
+      if(this.muitl){
+        //线
+        geometry.color("type", this.colors);
+        //线上的点
+        point.color("type", this.colors);
+      }else{
+        //线
+        geometry.color(this.colors[0]);
+        //线上的点
+        point.color(this.colors[0]);
+      }
+      //是否显示lebal
+      if(this.settings.label) {
+        geometry.label("value", {
+          layout: [
+            { type: 'hide-overlap' },
+          ]}
+        );
+      }else{
+        geometry.label(false);//FIXME 值太多默认不显示
+      }
+      // 配置图例
+      chart.legend(false);
+			if(this.settings.legend) {
+				if(this.settings.legend.visible) {
+					chart.legend({
+            offsetX: this.settings.legend.offsetX,
+            offsetY: this.settings.legend.offsetY,
+						position: this.settings.legend.position,
+						flipPage: this.settings.legend.flipPage,
+            itemHeight: 15,
+						marker: {
+							symbol: this.settings.legend.marker
+						},
+					});
+				}
+			}
+      //滑块
+      if(this.settings.slider) {
+        chart.option('slider', {
+          backgroundStyle: {
+            fill: this.colors[0],
+          }
+        });
+      }
+      //提示
+      chart.tooltip({
+        showCrosshairs: false,//显示辅助线
+        showTitle: this.muitl,
+        showMarkers: false,
+        shared: true,
+      })
+      if(this.settings.tooltip) {
+				if(!this.settings.tooltip.visible) {
+					chart.tooltip(false);
+				}
+			}
+      chart.changeData(sortData);
+      this.plot = chart;
+    },
+    drawPoint(val) {
+      const registerShape = G2.registerShape('point', 'breath-point', {
+        draw(cfg, container) {
+          const point = { x: cfg.x, y: cfg.y };
+          const group = container.addGroup();
+          //中心点
+          group.addShape('circle', {
+            attrs: {
+              x: point.x,
+              y: point.y,
+              r: 3,
+              fill: cfg.color,
+              opacity: 1,
+            },
+          });
+          group.addShape('circle', {
+            attrs: {
+              x: point.x,
+              y: point.y,
+              r: 4.5,
+              fill: cfg.color,
+              opacity: 0.5,
+            },
+          });
+          group.addShape('circle', {
+            attrs: {
+              x: point.x,
+              y: point.y,
+              r: 6.5,
+              fill: cfg.color,
+              opacity: 0.2,
+            },
+          });
+          return group;
+        },
+      });
+    },
+  }
+};
+</script>
+<style lang='less' scoped>
+.line-chart {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  &.border {
+    border: 1px dashed #000;
+  }
+  /deep/.chart {
+    display: flex;
+    div {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+  .tag {
+    position: absolute;
+    right: -10px;
+    bottom: -10px;
+    border-right: 5px solid #979797;
+    height: 14px;
+    border-bottom: 5px solid #979797;
+    width: 14px;
+    cursor: nw-resize;
+  }
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

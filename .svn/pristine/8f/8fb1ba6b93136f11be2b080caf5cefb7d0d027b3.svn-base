@@ -1,0 +1,74 @@
+import request from '@/framework/utils/request'
+import { method } from 'lodash'
+
+/************************  分析管理接口 *************************/
+//统计分析查询
+export function anslyzequery(data) {
+    return request({
+        url: '/person/analyze/query',
+        method: 'post',
+        data
+    })
+}
+//保存统计分析
+export function anssave(data){
+    return request({
+        url: '/person/analyze',
+        method: 'post',
+        data
+    })
+}
+//删除统计分析
+export function deleteanslyze(id){
+    return request({
+        url: `/person/analyze/${id}`,
+        method: 'delete',
+        params:{
+            id
+        }
+    })
+}
+
+
+//分析范围查询
+export function analysisscopequery(data){
+    return request({
+        url: '/person/analyze/scope/query',
+        method: 'post',
+        data
+    })
+}
+//保存分析范围
+export function analysisscopesave(data){
+    return request({
+        url: '/person/analyze/scope',
+        method: 'post',
+        data
+    })
+}
+//删除分析范围
+export function analysisscopedel(id){
+    return request({
+        url: `/person/analyze/scope/${id}`,
+        params:{
+            id
+        }
+    })
+}
+
+//分析内容查询
+export function  anscontentquery(data) {
+      return request({
+        url: '/person/analyze/content/query',
+        method: 'post',
+        data
+    })
+}
+//保存统计分析内容
+export function anscontentsave(data){
+    return request({
+        url: '/person/analyze/content',
+        method: 'post',
+        data
+    });
+}

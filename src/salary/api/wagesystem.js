@@ -1,0 +1,113 @@
+import request from '@/framework/utils/request'
+
+//获取存活的标准
+export function getscale(data) {
+    return request({
+        url: 'person/list/scale',
+        method: 'post',
+        data
+    })
+}
+//获取单个标准的未启用版本
+export function getnewest(id) {
+    return request({
+        url: `person/scale/newest/${id}`,
+        method: 'get',
+    })
+}
+//获取标准的数据
+export function getnewdata(id) {
+    return request({
+        url: `person/scale/data/${id}`,
+        method: 'get',
+    })
+}
+//获取单个标准的历史记录
+export function gethistory(data) {
+    return request({
+        url: 'person/scale/history',
+        method: 'post',
+        data
+    })
+}
+//显示存活的工资项
+export function getitem() {
+    return request({
+        url: 'person/wages/item',
+        method: 'get',
+    })
+}
+//获取工资项详情
+export function getdetail(id) {
+    return request({
+        url: `person/wages/item/detail/${id}`,
+        method: 'get',
+    })
+}
+//根据type获取工改或者调标的原因列表
+export function getreason(type) {
+    return request({
+        url: `person/wages/reason/${type}`,
+        method: 'get',
+    })
+}
+//获取台账记录
+export function gethistoryitem(archive) {
+    return request({
+        url: `person/wages/history/item/${archive}`,
+        method: 'get',
+    })
+}
+//获取社工套改标准
+export function getexchange(id) {
+    return request({
+        url: `person/socialworker/exchange/${id}`,
+        method: 'get',
+    })
+}
+//工改
+export function postarchive(data) {
+    return request({
+        url: 'person/wages/archive',
+        method: 'post',
+        data
+    })
+}
+//工改2
+export function scalearchive(data) {
+    return request({
+        url: 'person/scale/archive',
+        method: 'post',
+        data
+    })
+}
+//获取工改提交的标准
+export function getnotexist() {
+    return request({
+        url: 'person/scale/notexist',
+        method: 'get',
+    })
+}
+//发文查询
+export function docQuery(data) {
+    return request({
+        url: '/person/document/list',
+        method: 'post',
+        data
+    })
+}
+//获取标准台账记录
+export function getarchive(archiveid) {
+    return request({
+        url: `person/scale/archive/${archiveid}`,
+        method: 'get',
+    })
+}
+//调标
+export function scaleadjust(data) {
+    return request({
+        url: 'person/scale/adjust',
+        method: 'post',
+        data
+    })
+}

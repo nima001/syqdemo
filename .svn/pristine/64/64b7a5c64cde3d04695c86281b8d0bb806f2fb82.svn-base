@@ -1,0 +1,48 @@
+/**
+ * 管理中心路由
+ */
+import Layout from '../../views/Layout'
+export const manageCenter = {
+  path: '/dev/manage',
+  component: Layout,
+  redirect: '/dev/manage/index',
+  children: [
+    {
+      path: 'index',
+      component: () => import('@/dev/views/ManagementCenter'),
+      name:'manage',
+      meta: { access: 'login' }
+    },
+    {
+      path: 'app',
+      component: () => import('@/dev/views/app/ManageApp'),
+      name: 'app',
+      meta: { access: 'login' }
+      // meta: {
+      //   path: [{ name: '管理中心', path: '/dev/manage/index' },
+      //   { name: '应用', path: '/dev/manage/app' },], access: 'login'
+      // },
+    },
+    // {
+    //   path: 'app/create',
+    //   component: () => import('@/dev/views/app/AppAdd'),
+    //   meta: {
+    //     path: [{ name: '应用中心', path: '/dev/manage/index' },{ name: '创建应用', path: '/dev/manage/app/create' }],
+    //     access: 'auth'
+    //   }
+    // },
+    {
+      path: 'service/apply',
+      component: () => import('@/dev/views/service/ServiceApplyStep'),
+      name: 'apply',
+      meta: { access: 'login' }
+    },
+    {
+      path: 'service/accessInfo',
+      component: () => import('@/dev/views/service/ServiceAccessInfo'),
+      name: 'accessInfo',
+      meta: { access: 'login' }
+    },
+    
+  ]
+}

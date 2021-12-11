@@ -1,0 +1,69 @@
+import Layout from '../../views/Layout'
+
+/**
+ * 业务办理
+ */
+export const businessRoutes = {
+  path: '/person',
+  component: Layout,
+  children: [
+    {
+      path: 'business',
+      component: () => import('../../views/business/index'),
+      name: 'businessIndex',
+      meta: {
+        access: 'login',
+      }
+    },
+	  {
+      path: 'configure/businessmanage',
+      component: () => import('../../views/businessmanage/index'),
+      name: 'businessmanage',
+      meta: { 
+        access: 'login',
+        path: [{ name: '事项管理', path: '/person/configure/businessmanage' }] 
+      }
+    },
+    {
+      path: 'worktask',
+      component: () => import('../../views/business/WorkTaskManage'),
+      name: 'workTaskManage',
+      redirect: 'worktask/work',
+			children: [
+        {
+          path: 'work',
+          component: () => import('../../views/business/MyWorkTask'),
+          meta: {
+            access: 'login',
+            path: [
+              { name: '业务办理', path: '/person/business' },
+              { name: '工作任务', path: '/person/worktask/work'}
+            ]
+          },
+        },
+        {
+          path: 'concern',
+          component: () => import('../../views/business/ConcernTask'),
+          meta: {
+            access: 'login',
+            path: [
+              { name: '业务办理', path: '/person/business' },
+              { name: '工作任务', path: '/person/worktask/concern'}
+            ]
+          },
+        },
+        {
+          path: 'publish',
+          component: () => import('../../views/business/PublishTask'),
+          meta: {
+            access: 'login',
+            path: [
+              { name: '业务办理', path: '/person/business' },
+              { name: '工作任务', path: '/person/worktask/publish'}
+            ]
+          },
+        }
+      ]
+    },
+  ]
+}

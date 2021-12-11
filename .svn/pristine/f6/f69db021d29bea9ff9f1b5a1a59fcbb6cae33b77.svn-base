@@ -1,0 +1,104 @@
+<template>
+  <div class="warp">
+    <div class="title-bar" :id="category">{{name}}</div>
+    <a-table :columns="columns" :dataSource="res1" rowKey="name" :pagination="false" v-if="category == 'staff'"></a-table>
+    <a-table :columns="columns" :dataSource="res2" rowKey ="name" :pagination="false" v-if="category == 'post'">
+      <span slot="name" slot-scope="text,record">
+        <a-icon type="team" :style="{color:'#d60002'}" v-if="record.level == 1" />
+        <a-icon type="team" :style="{color:'#1b5293'}" v-if="record.level == 2" />
+        {{record.name}}
+      </span>
+    </a-table>
+  </div>
+</template>
+
+<script>
+import { listOrgDistrItem } from "@person/api/org";
+import { showError } from "@framework/utils/index";
+import { Table, Icon } from "ant-design-vue";
+export default {
+  components: {
+    AIcon: Icon,
+    ATable: Table
+  },
+  props: {
+    category: String,
+    orgid: String,
+    name: String
+  },
+  data() {
+    return {
+      columns: [
+        {
+          title: "类别",
+          dataIndex: "name",
+          align: "center",
+          scopedSlots: { customRender: "name" },
+          width:"33.33%"
+        },
+        {
+          title: "限额度",
+          dataIndex: "usernum",
+          align: "center",
+          width:"33.33%"
+        },
+        {
+          title: "实有",
+          dataIndex: "count",
+          align: "center",
+          width:"33.33%"
+        }
+      ],
+      res1: [
+        { name: "事业编制", usernum: 100, count: 88 },
+        { name: "参公事业编制", usernum: 99, count: 55 },
+        { name: "工勤编制", usernum: 99, count: 55 }
+      ],
+      res2: [
+        { name: "部门领导正职", usernum: 100, count: 88, level: 1 },
+        { name: "部门领导副职", usernum: 99, count: 55, level: 1 },
+        { name: "总师", usernum: 99, count: 55 },
+        { name: "其它", usernum: 100, count: 88 },
+        { name: "中层领导正职", usernum: 99, count: 55, level: 2 },
+        { name: "中层领导负职", usernum: 99, count: 55, level: 2 }
+      ]
+    };
+  },
+  computed: {
+    params() {
+      return {
+        // id: this.orgid,
+        id: "40288133657a45d101657a46b88401a4",
+        category: this.category
+      };
+    }
+  },
+  watch: {
+    params(params) {
+      this.loadDistr(params);
+    }
+  },
+  created() {
+    this.loadDistr(this.params);
+  },
+  methods: {
+    loadDistr(params) {
+      listOrgDistrItem(params.id, params.category)
+        .then(resp => {})
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.title-bar {
+  margin: 10px 0;
+  line-height: 1em;
+  border-left: 5px solid @primary-color;
+  font-size: 18px;
+  text-indent: 5px;
+  color: @primary-color;
+}
+</style>

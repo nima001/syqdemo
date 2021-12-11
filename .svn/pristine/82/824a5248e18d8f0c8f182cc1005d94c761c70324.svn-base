@@ -1,0 +1,99 @@
+<template>
+  <div class="form-panel">
+    <div class="top">
+      <div class="card" v-for="(item, index) in list" :key="index">
+        <Card></Card>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="title">周转编制列表</div>
+      <div class="bottom_table">
+        <a-table
+          :columns="columns"
+          :dataSource="dataSource"
+          :pagination="false"
+          >
+        </a-table>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Table } from "ant-design-vue";
+import Card from '@/person-shaoxing/views/orgStaffReport/components/Card'
+import { orgTempStaffReport } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '@framework/utils'
+
+/**
+ * 周转编制数监测
+ */
+export default {
+  components: {
+    ATable: Table,
+    Card
+  },
+  props: {
+    district: {
+      type: String,
+    }
+  },
+  data(){
+    return {
+      data: undefined,
+      list: [
+        { id: 0 },
+        { id: 1 },
+        { id: 2 },
+        { id: 3 },
+      ],
+      columns: [
+        { title: 'Age', dataIndex: 'age', key: 'age', },
+        { title: 'Name', dataIndex: 'name', key: 'name', },
+      ],
+      dataSource: [
+        { key: '1', name: 'John Brown', age: 32, },
+        { key: '2', name: 'John Brown', age: 32, },
+        { key: '3', name: 'John Brown', age: 32, },
+        { key: '4', name: 'John Brown', age: 32, },
+        { key: '5', name: 'John Brown', age: 32, },
+        { key: '6', name: 'John Brown', age: 32, },
+        { key: '7', name: 'John Brown', age: 32, },
+      ]
+    }
+  },
+  computed: {
+  },
+  watch: {
+  },
+  created(){
+  },
+  methods: {
+
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  .top{
+    display: flex;
+    padding: 15px 186px 24px 192px;
+    justify-content: space-between;
+    .card{
+      // &:nth-child(1){
+      //   margin
+      // }
+    }
+  }
+  .bottom{
+    padding: 24px 0 10px 0;
+    .title{
+      font-weight: bold;
+      line-height: 30px;
+      margin-bottom: 30px;
+    }
+    .bottom_table{
+
+    }
+  }
+}
+</style>

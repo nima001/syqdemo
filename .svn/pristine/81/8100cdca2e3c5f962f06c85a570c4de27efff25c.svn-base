@@ -1,0 +1,147 @@
+<template>
+  <a-modal v-model="visible" title="添加常用业务" on-ok="handleOk">
+    <template slot="footer">
+      <a-button key="back" @click="handleCancel"> 取消 </a-button>
+      <a-button
+        key="submit"
+        type="primary"
+        :loading="loading"
+        @click="handleOk"
+      >
+        确定
+      </a-button>
+    </template>
+    <a-tree
+      checkable
+      showIcon
+      :tree-data="menutree"
+      :default-expanded-keys="[3]"
+      v-model="checkedId"
+      :selectable="false"
+      :style="{ height: '380px', overflow: 'auto' }"
+      @check="oncheck"
+    >
+      <template slot="icon" slot-scope="data">
+        <img
+          v-if="data.icon"
+          :src="downloadUrl(data.icon)"
+          :onerror="`this.src='${defaultIcon}'`"
+        />
+        <img v-else :src="defaultIcon" class="icon" />
+      </template>
+    </a-tree>
+  </a-modal>
+</template>
+<script>
+import { Button, Modal, Tree } from "ant-design-vue";
+import { showError } from "../../utils/index";
+import { downloadUrl } from "../../api/file";
+import { updateStarMenu } from "@/framework/api/menu";
+
+export default {
+  name: "AddBusiness",
+  props: {
+    menuList: Array,
+    show: Boolean,
+  },
+  components: {
+    AButton: Button,
+    AModal: Modal,
+    ATree: Tree,
+  },
+  data() {
+    return {
+      defaultIcon: require("@/framework/assets/img/icon-menu-default.png"),
+      loading: false,
+      checkedId: [],
+    };
+  },
+  watch: {
+    menuList(newValue, oldValue) {
+      this.checkedId = newValue.map((item) => item.id);
+    },
+  },
+  computed: {
+    menutree() {
+      return this.replaceFields(this.$store.getters.menuList);
+    },
+    visible: {
+      get() {
+        return this.show;
+      },
+      set(val) {
+        this.$emit("update:show", val);
+      },
+    },
+  },
+  methods: {
+    downloadUrl,
+    replaceFields(list) {
+      return (list || []).map((item) => {
+        return {
+          children: this.replaceFields(item.children),
+          title: item.name,
+          key: item.id,
+          refData: list,
+          scopedSlots: {
+            icon: "icon",
+          },
+        };
+      });
+    },
+    getCheckedList(value) {
+      let seletedNoder = [];
+      this.checkedId.forEach((item) => {
+        function checkedMenu(obj) {
+          for (const key in obj) {
+            if (obj[key].id == item) {
+              seletedNoder.push(obj[key]);
+            }
+            if (typeof obj[key] == "object") {
+              checkedMenu(obj[key]);
+            }
+          }
+        }
+        checkedMenu(value);
+      });
+
+      return seletedNoder;
+    },
+    handleOk(e) {
+      this.loading = true;
+      const ids = this.checkedId;
+      updateStarMenu(ids)
+        .then(() => {
+          this.$emit(
+            "checkedList",
+            this.getCheckedList(this.menutree[0].refData)
+          );
+          this.visible = false;
+          this.loading = false;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    handleCancel() {
+      this.visible = false;
+    },
+    oncheck(checkedKeys) {
+      let fatherNodeId = [3, 12, 20, 33];
+      fatherNodeId.forEach((item) => {
+        if (this.checkedId.indexOf(item) != -1) {
+          checkedKeys.splice(this.checkedId.indexOf(item), 1);
+        }
+      });
+      this.checkedId = checkedKeys;
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+img {
+  height: 24px;
+  width: 24px;
+}
+</style>

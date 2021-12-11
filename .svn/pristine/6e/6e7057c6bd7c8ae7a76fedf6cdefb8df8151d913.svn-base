@@ -1,0 +1,74 @@
+<template>
+  <div class="area-info">
+    <div class="title">区域面积</div>
+    <div class="value"><span>{{data.qymj||0}}</span><span class="unit">k㎡</span></div>
+    <div class="title">常驻人口</div>
+    <div class="value"><span>{{data.czrk||0}}</span><span class="unit">人</span></div>
+    <div class="title">地区GDP</div>
+    <div class="value"><span>{{data.gdp||0}}</span><span class="unit">亿元</span></div>
+  </div>
+</template>
+<script>
+import { areaStatistics } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '../../../../framework/utils';
+export default {
+  props: {
+    districtCode: {
+      type: String,
+    },
+  },
+  data() {
+    return{
+      data: {},
+    }
+  },
+  watch: {
+    districtCode(val) {
+      this.loadData(val);
+      return val;
+    },
+  },
+  methods: {
+    loadData(district){
+      areaStatistics(district, [
+        'qymj','czrk',
+        'gdp'
+      ]).then(({result}) => {
+        this.data = result;
+      }).catch(error => {
+        showError(error)
+      });
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.area-info{
+  background: rgba(17, 31, 63, 0.4);
+  border-radius: 4px;
+  height: 100%;
+  padding: 8px;
+  .title{
+    font-size: 14px;
+    margin-top: 8px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+  .title:first-child{
+    margin-top: 0;
+  }
+  .value{
+    display: flex;
+    color: #D6FAFB;
+    font-size: 16px;
+    span{
+      flex: auto;
+    }
+    .unit{
+      flex: none;
+      font-size: 0.8em;
+      align-self: flex-end;
+      color: rgba(255, 255, 255, 0.6);
+    }
+  }
+}
+</style>

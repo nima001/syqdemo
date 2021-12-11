@@ -1,0 +1,250 @@
+<template>
+  <a-tree-select v-if="tree"
+    :multiple="multiple"
+    v-model="inputValue"
+    :treeData="selectList"
+    :disabled="disabled"
+    @change="onChange"
+    @blur="$emit('blur')"
+    @focus="$emit('focus')"
+    :labelInValue="true"
+    :allowClear="allowClear"
+    :placeholder="placeholder"
+    treeNodeFilterProp="title"
+    :dropdownStyle="{ maxHeight: '320px', overflow: 'auto' }"
+    :getPopupContainer="triggerNode => triggerNode.parentNode"
+  />
+  <a-select v-else
+    :mode="multiple ? 'multiple' : 'default'"
+    v-model="inputValue"
+    :disabled="disabled"
+    @change="onChange"
+    @blur="$emit('blur')"
+    @focus="$emit('focus')"
+    :labelInValue="true"
+    :allowClear="allowClear"
+    :placeholder="placeholder"
+    optionFilterProp="title"
+    :getPopupContainer="triggerNode => triggerNode.parentNode"
+    dropdownClassName="dict-select-popup-panel"
+  >
+    <template v-for="(item,index) in selectList">
+      <a-select-opt-group v-if="item.children"  :key="`${index+new Date().getTime()}`">
+        <span class="dict-group-label" slot="label" :title="item.text">{{item.text}}</span>
+        <a-select-option v-for="(it,lk) in item.children"  :key="`${lk+new Date().getTime()}`" :value="item.value" :title="it.text">{{it.text}}</a-select-option>
+      </a-select-opt-group>
+      <a-select-option v-else :key="`${index+new Date().getTime()}`" :value="item.value" :title="item.text">{{item.text}}</a-select-option>
+    </template>
+  </a-select>
+</template>
+<script>
+import { Select, TreeSelect, } from "ant-design-vue";
+/**
+ * 字典选择框
+ */
+export default {
+  name: "DictSelect",
+  props: {
+    value: {
+      type: [String, Number, Array],
+    },
+    multiple: {
+      type: Boolean,
+      default: false,
+    },
+    allowClear:{
+      type: Boolean,
+      default: false,
+    },
+    disabled:{
+      type: Boolean,
+      default: false,
+    },
+    defaultValue:{
+      type: [Number, String, Array]
+    },
+    placeholder: {
+      type: String
+    },
+    /*****  自定义以参数 *****/
+    dict: {//字典key
+      type: String,
+    },
+    filter: {//数据过滤，array.filter
+      type: Function,
+    },
+    showGroup: {//是否显示分组
+      type: Boolean,
+      default: true,
+    },
+  },
+  components: {
+    ASelect: Select,
+    ATreeSelect: TreeSelect,
+    ASelectOption: Select.Option,
+    ASelectOptGroup: Select.OptGroup,
+  },
+  data(){
+    return {
+      tree: false,
+      inputValue: this.initValue(),
+    }
+  },
+  watch:{
+    value(newValue){
+      this.inputValue = this.convertValue(newValue)
+    },
+    selectList(){
+      if(this.inputValue){
+        this.inputValue = this.convertValue(this.inputValue);
+      }
+    },
+  },
+  computed:{
+    selectList() {
+      let arr = this.dict && this.$store.getters.dict(this.dict) || [];
+      if(this.showGroup){
+        let list = [], groupPath = [], tree = false;
+        arr.forEach((ele, index) => {
+          //过滤之前先判断数据是否有多级分组，不同过滤条件下展示形式保持一致
+          if(ele.group){//&& ele.group.indexOf('/') > 0
+            tree = true;
+          }
+          if(this.filter && !this.filter(ele, index)){
+            return;
+          }
+          this.addToGroupTree(list, groupPath, ele);
+        });
+        this.tree = tree;
+        return tree ? this.covertTreeData(list) : list;
+      }else if(this.filter){
+        return arr.filter(this.filter);
+      }
+      return arr;
+    }
+  },
+  methods: {
+    initValue(){
+      let value;
+      if(this.value !== undefined){
+        value = this.value;
+      }else if(this.defaultValue !== undefined){
+        value = this.defaultValue;
+      }
+      return this.convertValue(value);
+    },
+    onChange(value){
+      let v;
+      if(Array.isArray(value)){
+        v = value.map(item => item.key !== undefined ? item.key : item.value);
+      }else if(value !== undefined){
+        v = value.key === undefined ? value.value : value.key;
+      }
+      this.$emit('input', v);
+      this.$emit('change', v);
+    },
+    convertValue(value){
+      let dict = this.$store.getters.dict(this.dict) || [];
+      if(Array.isArray(value)){
+        return value.map(v => {
+          let _v = typeof(v) == "object" ? (v.key !== undefined ? v.key : v.value) : v;
+          let item = dict.find(item => item.value == _v);
+          if(item){
+            return {key: item.value, value: item.value, label: item.text};
+          }else{
+            return {key: _v, value: _v, label: _v};          
+          }
+        });
+      }else if(value !== undefined){
+        let _v = typeof(value) == "object" ? (value.key !== undefined ? value.key : value.value) : value;
+        let item = dict.find(item => item.value == _v);
+        if(item){
+          return {key: item.value, value: item.value, label: item.text};
+        }else{
+          return {key: _v, value: _v, label: _v};
+        }
+      }
+    },
+    addToGroupTree(tops, path, item){
+      if(!item.group){//分组不存在直接添加到顶级节点
+        tops.push(item);
+        path.length = 0;
+        return;
+      }
+      let last;
+      if(path.length){
+        last = path.pop();
+      }
+      if(!last || item.group.startsWith(last.group + '/')){//第一个数据或父路径
+        let parent = '', subPath, children;
+        if(last){
+          path.push(last);
+          parent = last.group;
+          subPath = item.group.substr(last.group.length);
+          children = last.children;
+        }else{
+          subPath = item.group;
+          children = tops;
+        }
+        subPath.split('/').forEach(name => {
+          if(name){
+            if(parent){
+              parent += '/';
+            }
+            parent += name;
+            let temp = { group: parent, text: name, children: [] };
+            path.push(temp);
+            children.push(temp);
+            children = temp.children;
+          }
+        })
+        children.push(item);
+      }else if(last.group == item.group){//同路径
+        path.push(last);
+        last.children.push(item);
+      }else{
+        this.addToGroupTree(tops, path, item);
+      }
+    },
+    covertTreeData(list, topKey){
+      return list.map((item, index) => {
+        if(item.children){
+          let key =  (topKey || '') + '-' + index;
+          return {
+            key: item.text + key,
+            title: item.text,
+            value: item.group,
+            selectable: false,
+            children: this.covertTreeData(item.children, key),
+          };
+        }else{
+          return {
+            key: item.key,
+            title: item.text,
+            value: item.value,
+            isLeaf: true
+          }
+        }
+      });
+    }
+  },
+};
+</script>
+<style lang='less'>
+.dict-select-popup-panel{
+  .dict-group-label {
+    color: fade(@black, 85%);
+    font-size: @font-size-base;
+    font-weight: bold;
+  }
+  .ant-select-dropdown-menu-item-group-title{
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    cursor:default;
+  }
+}
+.ant-select{
+  width: 100%;
+}
+</style>

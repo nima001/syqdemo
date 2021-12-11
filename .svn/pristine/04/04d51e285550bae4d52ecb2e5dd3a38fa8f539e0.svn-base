@@ -1,0 +1,20 @@
+<template>
+  <div class="kpiLine">
+    <div class="cityKpi">
+      <city-kpi></city-kpi>
+    </div>
+  </div>
+</template>
+
+<script>
+import CityKpi from "../kpiline/CityKpi";
+export default {
+  components: { CityKpi },
+  data() {
+    return {};
+  },
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+</style>

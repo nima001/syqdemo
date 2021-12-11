@@ -1,0 +1,191 @@
+<template>
+  <div class="home-body">
+    <a-row>
+      <a-col :span="6">
+        <a-row class="cell">
+          <a-col :span="24" class="left-top">
+            <content-module :showBtn="true" title="机构分布情况">
+              <template v-slot:chart="{unittype}">
+                <circle-chart :unittype="unittype"></circle-chart>
+              </template>
+            </content-module>
+          </a-col>
+          <a-col :span="24" class="left-bottom">
+            <content-module :showBtn="true" title="编制分布情况">
+              <template v-slot:chart="{unittype}">
+                <circle-chart-two :unittype="unittype"></circle-chart-two>
+              </template>
+            </content-module>
+          </a-col>
+        </a-row>
+      </a-col>
+      <a-col :span="12" class="middle">
+        <a-row class="cell">
+          <a-col :span="24" class="middle-top">
+            <content-module title="全市机构设置情况">
+              <template v-slot:chart>
+                <a-map></a-map>
+              </template>
+            </content-module>
+          </a-col>
+          <a-col :span="24" class="middle-bottom">
+            <a-row class="cell top-cell">
+              <a-col :span="8">
+                <content-module :showBtn="true" :btnList="thingsAdjust" title="机构编制事项调整">
+                  <template v-slot:chart="{unittype}">
+                    <matters-adjust :unittype='unittype'></matters-adjust>
+                  </template>
+                </content-module>
+              </a-col>
+              <a-col :span="8">
+                <content-module :showBtn="true" :btnList="legalPerson" title="法人登记赋码">
+                  <template v-slot:chart="{unittype}">
+                    <faren-register :unittype='unittype'></faren-register>
+                  </template>
+                </content-module>
+              </a-col>
+              <a-col :span="8">
+                <content-module :showBtn="true" :btnList="personChange" title="人员变动情况">
+                  <template v-slot:chart="{unittype}">
+                    <user-change :unittype='unittype'></user-change>
+                  </template>
+                </content-module>
+              </a-col>
+            </a-row>
+          </a-col>
+        </a-row>
+      </a-col>
+      <a-col :span="6">
+        <a-row class="cell">
+          <a-col :span="24" class="right-top">
+            <content-module title="全市机构编制问题整改情况排行">
+              <template v-slot:chart>
+                <rever-bar-chart></rever-bar-chart>
+              </template>
+            </content-module>
+          </a-col>
+          <a-col :span="24" class="right-middle">
+            <content-module :showBtn="true" title="全市近五年预计退休人数">
+              <template v-slot:chart="{unittype}">
+                <line-chart :unittype="unittype"></line-chart>
+              </template>
+            </content-module>
+          </a-col>
+          <a-col :span="24" class="right-bottom">
+            <content-module :showBtn="true" :btnList="outInterface" title="外部接口调用情况">
+              <template v-slot:chart="{unittype}">
+                <bar-chart :unittype='unittype'></bar-chart>
+              </template>
+            </content-module>
+          </a-col>
+        </a-row>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+<script>
+import { Row, Col } from "ant-design-vue";
+import ContentModule from "./components/ContentModule";
+import LimitAuthorized from "./components/LimitAuthorized";
+import AMap from "./components/AMap";
+import RadarChart from "./components/RadarChart";
+import RadarChartZs from "./components/RadarChartZs";
+import BarChart from "./components/BarChart";
+import ReverBarChart from "./components/ReverBarChart";
+import LineChart from "./components/LineChart";
+import CircleChart from './components/CircleChart';
+import CircleChartTwo from './components/CircleChartTwo';
+import UserChange from './components/UserChange';
+import MattersAdjust from './components/MattersAdjust';
+import FarenRegister from './components/FarenRegister';
+export default {
+  components: {
+    ARow: Row,
+    ACol: Col,
+    ContentModule,
+    LimitAuthorized,
+    RadarChart,
+    RadarChartZs,
+    BarChart,
+    ReverBarChart,
+    LineChart,
+    AMap,
+    CircleChart,
+    CircleChartTwo,
+    UserChange,
+    MattersAdjust,
+    FarenRegister
+  },
+  data() {
+    return {
+      outInterface: [
+        { name: "接口调用", value: 1 },
+        { name: "校检数据", value: 2 }
+      ],
+      thingsAdjust: [
+        { name: "年度", value: 1 },
+        { name: "月度", value: 2 }
+      ],
+      legalPerson: [
+        { name: "年度", value: 1 },
+        { name: "月度", value: 2 }
+      ],
+      personChange: [
+        { name: "年度", value: 1 },
+        { name: "月度", value: 2 }
+      ]
+    };
+  }
+};
+</script>
+<style lang='less' scoped>
+.home-body {
+  padding: @layout-space-base;
+  height: 100%;
+  min-height: 795px;
+  .ant-row {
+    height: 100%;
+    .ant-col-6,
+    .ant-col-12 {
+      height: 100%;
+      .cell {
+        display: flex;
+        flex-direction: column;
+        &.top-cell {
+          flex-direction: row;
+        }
+        .ant-col-24 {
+          flex: 1;
+        }
+        .left-top,
+        .right-top,
+        .right-middle {
+          padding-bottom: @layout-space-base / 2;
+        }
+        .left-bottom,
+        .right-middle,
+        .right-bottom {
+          padding-top: @layout-space-base / 2;
+        }
+        .middle-top {
+          flex: 1;
+          padding-bottom: @layout-space-base / 2;
+        }
+        .middle-bottom {
+          flex: none;
+          padding-top: @layout-space-base / 2;
+        }
+        .ant-col-8 {
+          padding-right: @layout-space-base ;
+          &:last-child{
+            padding-right: 0px;
+          }
+        }
+      }
+    }
+    .middle {
+      padding: 0 @layout-space-base;
+    }
+  }
+}
+</style>

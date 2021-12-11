@@ -1,0 +1,61 @@
+
+/**
+ * 账号管理模块路由
+ */
+// import { component } from 'vue/types/umd'
+import Layout from '../../views/Layout'
+
+export const indexRoutes = {
+    path: '/idm',
+    component: Layout,
+    redirect: '/idm/index',
+    children: [
+        {
+            path: 'index',
+            component: () => import('../../views/home/index.vue'),
+            name: 'Index',
+            meta: { access: 'login' }
+        },
+        {
+            path: 'callin',
+            component: () => import('../../views/home/CallIn.vue'),
+            name: 'CallIn',
+            meta: {
+                access: 'login',
+                path: [ 
+                    { name: '首页', path: '/idm/index', },
+                    { name: '调入', path: '/idm/callin', }
+                ]
+            }
+        },
+        {
+            path: 'parttime',
+            component: () => import('../../views/home/PartTime.vue'),
+            name: 'PartTime',
+            meta: {
+                access: 'login',
+                path: [ 
+                    { name: '首页', path: '/idm/index', },
+                    { name: '兼职', path: '/idm/parttime', }
+                ]
+            }
+        },
+        {
+            path: 'personalaccount',
+            component: () => import('../../views/home/setAccount/setPersonalAccount.vue'),
+            name: 'personalAccont',
+            meta: {
+                access: 'login',
+                path: [ 
+                    { name: '首页', path: '/idm/index', },
+                    { name: '入职', path: '/idm/personalaccount', }
+                ]
+            }
+        },
+        {
+            path: 'setorgmanager',
+            component: () => import('../../views/home/components/SetOrgManager'),
+            name: 'setOrgManager',     
+        }
+    ]
+}

@@ -1,0 +1,274 @@
+<template>
+  <a-layout class="monitorstrategy">
+    <div class="panel">
+      <div class="toolbar">
+        <div class="left">
+          <a-button type="primary" @click="addStrategy">新增</a-button>
+        </div>
+        <div class="right">
+          <a-select class="search-item" v-model="selectStatus" @change="changeStatus">
+            <a-select-option :value="0" >全部状态</a-select-option>
+            <a-select-option :value="1">已启用</a-select-option>
+            <a-select-option :value="2">未启用</a-select-option>
+          </a-select>
+          <a-input class="search-item" placeholder="请输入关键词" v-model="searchCondition.searchkey" />
+          <div class="selectBtn">
+            <a-button type="primary" @click="onSearch">查询</a-button>
+            <a-button class="resetBtn" @click="onReset">重置</a-button>
+          </div>
+        </div>
+      </div>
+      <div class="tablecontent">
+        <a-table
+          rowKey="id"
+          :loading="loading"
+          :columns="columns"
+          :dataSource="pagination.rows"
+          :pagination="false"
+        >
+        <span slot="action" class="operation" slot-scope="text, record">
+          <a href="javascript:;" @click="editStrategy(record.id)">编辑</a>
+          <a-popconfirm
+            title="确认删除?"
+            @confirm="() => onDelete(record.id)"
+          >
+            <a href="javascript:;">删除</a>
+          </a-popconfirm>
+        </span>
+        </a-table>
+      </div>
+      <div class="footer">
+        <a-pagination
+          v-if="pagination.rows && pagination.rows.length"
+          showSizeChanger
+          :showTotal="total => `总共：${total}条`"
+          @showSizeChange="onShowSizeChange"
+          :total="pagination.total"
+          :pageSize="pagination.pagesize"
+          v-model="pagination.pagenum"
+          @change="onPageChange"
+        >
+        </a-pagination>
+      </div>
+    </div>
+  </a-layout>
+</template>
+<script>
+import {Layout, Table, Button, Select, Input, Popconfirm, Pagination} from "ant-design-vue"
+import {listMonitorStrategy, deleteMonitorStrategy} from "@/person-shaoxing/api/monitor"
+import { showError } from "@/framework/utils/index";
+export default {
+  name: "MonitorStrategy",
+  components: {
+    ALayout: Layout,
+    AButton: Button,
+    ATable: Table,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInput: Input,
+    APopconfirm: Popconfirm,
+    APagination: Pagination
+  },
+  data(){
+    return {
+      selectStatus: 0,
+      searchCondition: {
+        runstatus: null,
+        searchkey: null
+      },
+      columns:[
+        {
+          title: "策略名称",
+          dataIndex: "name",
+          width: "10%"
+        },
+        {
+          title: "数据类别",
+          dataIndex: "datatype",
+          width: "10%",
+          customRender: this.dictRender("person.shaoxing.monitor.datatype")
+        },
+        {
+          title: "策略类型",
+          dataIndex: "strategytype",
+          width: "10%",
+          customRender: this.dictRender("person.shaoxing.monitor.strategytype")
+        },
+        {
+          title: "策略描述",
+          dataIndex: "description",
+          width: "20%",
+          customRender: text => <span title={text}>{text}</span>
+        },
+        {
+          title: "运行状态",
+          dataIndex: "runstatus",
+          width: "5%",
+          customRender: this.dictRender("person.shaoxing.monitor.runstatus")
+        },
+        {
+          title: "操作",
+          width: "10%",
+          scopedSlots: { customRender: 'action' },
+        }
+      ],
+      loading: false,
+      pagination: {
+        rows: null,
+        pagesize: 20,
+        pagenum: 1,
+        total: 0
+      }
+    }
+  },
+  created(){
+    this.refresh();
+  },
+  methods: {
+    refresh(){
+      let { pagenum, pagesize } = this.pagination;
+      this.loadData(pagenum, pagesize);
+    },
+    loadData(pagenum, pagesize) {
+      let params = {
+        ...this.searchCondition,
+        needtotal: true,
+        pagenum,
+        pagesize
+      };
+      this.loading = true;
+      listMonitorStrategy(params)
+        .then(resp =>{
+          this.loading = false;
+          this.pagination = resp.result;
+        })
+        .catch(err => {
+          this.loading = false;
+          showError(err);
+        })
+    },
+    onSearch(){
+      this.loadData(1, this.pagination.pagesize);
+    },
+    onReset(){
+      this.selectStatus = 0;
+      this.searchCondition = {};
+      this.loadData(1, this.pagination.pagesize);
+    },
+    changeStatus(val){
+      if(val == 0){
+        this.searchCondition.runstatus = null;
+      }else{
+        this.searchCondition.runstatus = val;
+      }
+    },
+    addStrategy(){
+      this.$router.push({name: 'MonitorStrategyInfo'});
+    },
+    editStrategy(id){
+      this.$router.push({name: 'MonitorStrategyInfo',query: {id: id}});
+    },
+    onDelete(id) {
+      deleteMonitorStrategy(id)
+        .then(resp => {
+          this.$message.success("删除成功");
+          this.refresh();
+        })
+        .catch(err => {
+          showError(err);
+        })
+    },
+    dictRender(key) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key, text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    onPageChange(page, pagesize){
+      this.loadData(page, pagesize);
+    },
+    onShowSizeChange(current, pagesize) {
+      this.loadData(current,pagesize)
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.monitorstrategy{
+  height: 100%;
+  padding: @layout-space-base;
+  .panel{
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    width: 100%;
+    background-color: white;
+    padding-top: @layout-space-base;
+    border-radius: @border-radius-base;
+    .toolbar{
+      padding: @content-padding-v @content-padding-h;
+      width: 100%;
+      height: auto;
+      .left{
+        float: left;
+      }
+      .right{
+        float: right;
+        display: flex;
+        .search-item{
+          width: 180px;
+          margin: 0 8px 0 0;
+        }
+        .selectBtn{
+          .resetBtn{
+            margin-left: 8px;
+          }
+          
+        }
+      }
+    }
+    .tablecontent{
+      padding: 0 @content-padding-h;
+      flex-shrink: 1;
+      min-height: 0;
+      overflow-y: auto;
+      /deep/table{
+        table-layout: fixed;
+        td,th{
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis; 
+        }
+      }
+      .operation {
+        a {
+          margin-right: 20px;
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
+    }
+    .footer{
+      padding: @content-padding-v @content-padding-h;
+      .ant-pagination{
+        float: right;
+        margin-bottom: 10px;
+      }
+    }
+  }
+  /deep/.ant-table-thead {
+    tr {
+      th {
+        border-right: 1px solid #e8e8e8;
+        &:last-child {
+          border-right: none;
+        }
+      }
+    }
+  }
+}
+</style>

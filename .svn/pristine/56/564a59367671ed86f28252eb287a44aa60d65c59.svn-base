@@ -1,0 +1,259 @@
+<template>
+  <a-layout class="processwrap">
+    <a-layout-content class="edit-sign">
+      <div class="edit-content">
+        <a-form :form="form" @submit="SaveModel">
+          <a-form-item
+            label="签章名称"
+            :label-col="{ span: 5 }"
+            :wrapper-col="{ span: 12 }"
+            prop="name"
+          >
+            <a-input
+              @change="change"
+              v-decorator="[`name`,{rules: [{ required:true, message:`请输入签章名称!` }], initialValue: sealList.name}
+        ]"
+            ></a-input>
+          </a-form-item>
+          <a-form-item
+            label="证书名称"
+            :label-col="{ span: 5 }"
+            :wrapper-col="{ span: 12 }"
+            prop="certificate"
+          >
+            <a-input
+              v-decorator="[`certificate`,
+                {rules: [{ required:true, message: `请输入证书名称!` }], initialValue: sealList.certificate}]"
+            ></a-input>
+          </a-form-item>
+          <a-form-item
+            label="签章ID"
+            :label-col="{ span: 5 }"
+            :wrapper-col="{ span: 12 }"
+            prop="tgsealid"
+          >
+            <a-input-number
+              @change="change"
+              style="width:100%"
+              v-decorator="[
+           `tgsealid`,
+          {rules: [{ required:false}],initialValue: sealList.tgsealid}]"
+            ></a-input-number>
+          </a-form-item>
+          <a-form-item
+            label="签章秘钥"
+            :label-col="{ span: 5 }"
+            :wrapper-col="{ span: 12 }"
+            prop="signkey"
+          >
+            <a-input
+              @change="change"
+              v-decorator="[
+           `signkey`,
+          {rules: [{ required:true, message:`签章秘钥不符合规范`, pattern:'^[a-zA-Z0-9]{0,50}$' }],
+          initialValue: sealList.signkey
+          }
+        ]"
+            ></a-input>
+          </a-form-item>
+          <a-form-item
+            label="UKEY证书"
+            :label-col="{ span: 5 }"
+            :wrapper-col="{ span: 12 }"
+            prop="ukey"
+          >
+            <a-input
+              v-decorator="[
+           `ukey`,
+          {rules: [{ required:false, message:  `请输入签章名称!` }],initialValue: sealList.ukey
+          }
+        ]"
+            ></a-input>
+          </a-form-item>
+          <a-form-item
+            label="签章预览"
+            :label-col="{ span: 5 }"
+            :wrapper-col="{ span: 12 }"
+            prop="pdfname"
+          >
+            <div class="imgstyle" v-if="stampSrc">
+              <img :src="stampSrc" />
+            </div>
+            <p class="notice" @click="getPic">点击校验</p>
+          </a-form-item>
+          <a-form-item>
+            <a-button class="btn" html-type="submit" type="primary">{{id?'确定':'确认添加'}}</a-button>
+          </a-form-item>
+        </a-form>
+      </div>
+    </a-layout-content>
+  </a-layout>
+</template>
+<script>
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { showError } from "@/framework/utils/index";
+import {
+  getStampPic,
+  addStamp,
+  getSingleStamp,
+  updateStamp
+} from "@/workflow/api/stamplist";
+import "@/workflow/style/process.css";
+import {
+  Layout,
+  Breadcrumb,
+  Form,
+  Input,
+  InputNumber,
+  Button
+} from "ant-design-vue";
+export default {
+  name: "SignatureEdit",
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      id: parseInt(this.$route.query.id),
+      sealList: {
+        name: null,
+        certificate: null,
+        tgsealid: null,
+        signkey: null,
+        ukey: null
+      },
+      form: this.$form.createForm(this),
+      stampSrc: null,
+      pictureurl: undefined
+    };
+  },
+  components: {
+    ALayout: Layout,
+    ALayoutHeader: Layout.Header,
+    ALayoutContent: Layout.Content,
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    AInputNumber: InputNumber,
+    AButton: Button
+  },
+  created() {
+    if (this.id) {
+      this.getStampInfo();
+    }
+  },
+  methods: {
+    //获取单条签章数据
+    getStampInfo() {
+      getSingleStamp(this.id)
+        .then(res => {
+          this.sealList.name = res.result.name;
+          this.sealList.certificate = res.result.certificate;
+          this.sealList.tgsealid = res.result.tgsealid;
+          this.sealList.signkey = res.result.signkey;
+          this.sealList.ukey = res.result.ukey;
+          this.stampSrc =
+            this.uiConfigs["api.url"] +
+            "/file/v1/download/" +
+            "?uri=" +
+            encodeURIComponent(res.result.pictureurl);
+          this.pictureurl = res.result.pictureurl;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //获取签章图片
+    getPic() {
+      let query = this.form.getFieldsValue();
+      getStampPic(query.name, query.signkey, query.tgsealid)
+        .then(res => {
+          this.stampSrc =
+            this.uiConfigs["api.url"] +
+            "/file/v1/download/" +
+            "?uri=" +
+            encodeURIComponent(res.result);
+          this.pictureurl = res.result;
+          this.$message.success("校验成功！");
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //修改信息需重新校验
+    change() {
+      this.stampSrc = null;
+      this.pictureurl = undefined;
+    },
+    SaveModel(e) {
+      e.preventDefault();
+      if (this.stampSrc) {
+        this.form.validateFields((err, values) => {
+          if (!err) {
+            values.pictureurl = this.pictureurl;
+            if (this.id) {
+              values.id = this.id;
+              updateStamp(values)
+                .then(res => {
+                  this.$message.success("签章信息修改成功！");
+                })
+                .catch(err => {
+                  showError(err);
+                });
+            } else {
+              addStamp(values)
+                .then(res => {
+                  this.$message.success("签章新增成功！");
+                })
+                .catch(err => {
+                  showError(err);
+                });
+            }
+          }
+        });
+      } else {
+        this.$message.error("请先校验签章，校验通过后才能保存！");
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.edit-sign {
+  height: calc(100% - 64px);
+  margin: 12px;
+  background-color: white;
+  display: flex;
+  .edit-content {
+    margin: auto;
+    .ant-form {
+      width: 800px;
+    }
+    .btn {
+      display: block;
+      margin: 20px auto;
+      margin-bottom: 0;
+    }
+    .imgstyle {
+      text-align: center;
+      img {
+        width: 200px;
+        height: 200px;
+      }
+    }
+    .notice {
+      font-size: 15px;
+      margin-top: 10px;
+      cursor: pointer;
+      text-align: center;
+    }
+    .sort {
+      span {
+        cursor: pointer;
+        display: inline-block;
+        margin-left: 10px;
+      }
+    }
+  }
+}
+</style>

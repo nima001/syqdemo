@@ -1,0 +1,281 @@
+<template>
+  <div class="dict-section-panel">
+    <div class="header">
+      <a-button type="primary" @click="onItemAdd"><a-icon type="plus"/>添加分组</a-button>
+    </div>
+    <div class="body">
+      <div class="transfer-data">
+        <DictTree :dict="dict" v-model="checked" :disableKeys="disableKeys"/>
+      </div>
+      <div class="transfer-operation">
+        <a-dropdown overlayClassName="dict-group-menu" :trigger="['click']" 
+          :disabled="!useableChecked.length || !(section.items && section.items.length)">
+          <a-button><a-icon type="right"/></a-button>
+          <a-menu slot="overlay" @click="onAddToGroup">
+            <a-menu-item v-for="(item, index) in section.items" :key="index">{{item.name}}</a-menu-item>
+          </a-menu>
+        </a-dropdown>
+      </div>
+      <div class="transfer-selected">
+        <ul class="body">
+          <li v-for="(item, index) in section.items" :key="index">
+            <div class="title">
+              <div class="name">{{item.name}}</div>
+              <div class="opts">
+                <a @click="editItem(item, index)">编辑</a>
+                <a @click="clearItem(item, index)">清空</a>
+                <a @click="deleteItem(item, index)">删除</a>
+              </div>
+            </div>
+            <div class="values">
+              <tags v-model="item.values" :text="(key) => dictTextMap.get(key) || key" @remove="removeCheck" />
+            </div>
+          </li>
+        </ul>
+        <div class="footer">
+          <a-checkbox v-model="section.other">未分组的值分到</a-checkbox>
+          <a-input v-model="section.otherName" size="small" placeholder="其它" style="width:150px"/>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <a-button @click="onCancel" style="margin-right:10px">确定</a-button>
+      <a-button type="primary" @click="onOk">确定</a-button>
+    </div>
+    <a-modal v-model="optItem.show" title="分组名称" @ok="onItemEdited">
+      <a-input v-model="optItem.name" placeholder="分组名称" ref="nameInput" />
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Icon, Button, Checkbox, Input, Dropdown, Menu, Modal } from 'ant-design-vue'
+import Tags from '@framework/components/Tags'
+import DictTree from './DictTree'
+import cloneDeep from 'lodash/cloneDeep'
+
+export default {
+  components: {
+    AModal: Modal,
+    AIcon: Icon,
+    AButton: Button,
+    ACheckbox: Checkbox,
+    AInput: Input,
+    ADropdown: Dropdown,
+    AMenu: Menu,
+    AMenuItem: Menu.Item,
+    Tags, DictTree,
+  },
+  props: {
+    value: {
+      type: Object,
+      default: () => ({
+        items: [],
+        other: true,
+        otherName: undefined
+      })
+    },
+    dict: {
+      type: String
+    }
+  },
+  data(){
+    return {
+      section: undefined,
+      checked: [],
+      disableKeys: [],
+      showItemEdit: false,
+      optItem: {
+        show: false,
+        name: undefined,
+        item: undefined,
+      }
+    }
+  },
+  created(){
+    this.initData();
+  },
+  computed: {
+    useableChecked(){
+      return this.checked.filter(key => this.disableKeys.indexOf(key) < 0);
+    },
+    dictTextMap(){
+      let map = new Map();
+      (this.$store.getters.dict(this.dict) || []).forEach(item => {
+        map.set(item.key, item.text);
+      })
+      return map;
+    }
+  },
+  watch: {
+    value(newVal){
+      if(newVal !== this.section){//当触发input事件导致值变更，不执行initData
+        this.initData();
+      }
+    }
+  },
+  methods: {
+    initData(){
+      this.section = Object.assign({ items: [], other: true, otherName: undefined }, cloneDeep(this.value));
+      let keys = [];
+      (this.section.items || []).forEach(item => {
+        if(item.values){
+          keys = [...keys, ...item.values];
+        }
+      })
+      this.checked = keys;
+      this.disableKeys = [...keys];
+    },
+    onCancel(){
+      this.$emit('cancel');
+    },
+    onOk(){
+      let {items, other, otherName} = this.section;
+      if(!items || !items.length){
+        this.$message.error("请添加分组")
+        return;
+      }
+      let emptyItem = items.find(item => !item.values || !item.values.length);
+      if(emptyItem){
+        this.$message.error("分组“" + emptyItem.name + "”未添加数据");
+        return;
+      }
+      if(!otherName){
+        this.section.otherName = '其它';
+      }
+      this.$emit('input', this.section);
+    },
+    onItemAdd(){
+      this.optItem = {name: undefined, show: true};
+      this.$nextTick(() => {
+        this.$refs.nameInput.focus();
+      });
+    },
+    onAddToGroup(e){
+      let index = e.key;
+      let values = this.section.items[index].values;
+      this.useableChecked.forEach(key => {
+        this.disableKeys.push(key);
+        values.push(key)
+      });
+    },
+    onItemEdited(){
+      if(!this.optItem.name){
+        this.$message.error("请输入分组名称")
+        return;
+      }
+      if(this.optItem.item){//编辑
+        this.optItem.item.name = this.optItem.name;
+      }else{//新增
+        this.section.items.push({name: this.optItem.name, values: []});
+      }
+      this.optItem.show = false;
+    },
+    removeCheck(item){
+      let index = this.disableKeys.indexOf(item);
+      if(index >= 0){
+        this.disableKeys.splice(index, 1);
+        this.checked.splice(index, 1);
+      }
+    },
+    editItem(item, index){
+      this.optItem = {
+        show: true,
+        name: item.name,
+        item
+      };
+      this.$nextTick(() => {
+        this.$refs.nameInput.focus();
+      });
+    },
+    clearItem(item, index){
+      item.values.forEach(key => {
+        this.removeCheck(key);
+      })
+      item.values = [];
+    },
+    deleteItem(item, index){
+      this.clearItem(item, index);
+      this.section.items.splice(index, 1);
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.dict-section-panel{
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  & > .header{
+    padding: @content-padding-v @content-padding-h;
+    text-align: right;
+  }
+  & > .body{
+    flex: auto;
+    min-height: 0;
+    display: flex;
+    padding: 0 @content-padding-h;
+    .transfer-data{
+      flex: 1 1 50%;
+      border: 1px solid @border-color-base;
+      border-radius: @border-radius-base;
+    }
+
+    .transfer-operation{
+      flex: none;
+      padding: 5px;
+      align-self: center;
+    }
+
+    .transfer-selected{
+      flex: 1 1 50%;
+      padding-bottom: 34px;
+      border: 1px solid @border-color-base;
+      border-radius: @border-radius-base;
+      & > .body{
+        height: 100%;
+        overflow-y: auto;
+        margin: 0;
+        li{
+          .title {
+            background-color: @primary-1;
+            display: flex;
+            padding: 4px 10px;       
+            .name{
+              flex: auto;
+              
+            }
+            .opts{
+              flex: none;
+              a{
+                margin-left: 5px;
+              }
+            }
+          }
+          .values{
+            padding: 4px 6px;
+          }
+        }
+      }
+      & > .footer{
+        height: 34px;
+        line-height: 34px;
+        padding: 0 10px;
+      }
+    }
+  }
+  & > .footer{
+    flex: none;
+    height: 54px;
+    line-height: 54px;
+    text-align: right;
+    padding: 0 @content-padding-h;
+  }
+}
+</style>
+<style lang="less">
+.dict-group-menu{
+  .ant-dropdown-menu{
+    min-width: 120px;
+  }
+}
+</style>

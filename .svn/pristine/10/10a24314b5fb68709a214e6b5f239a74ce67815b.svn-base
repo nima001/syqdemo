@@ -1,0 +1,81 @@
+<template>
+  <ScreenPane :width="1440" :height="900">
+    <div class="contaner">
+      <Header title="浙编汇"/>
+      <div class="body">
+        <div class="left">
+          <OrgAnalysis/>
+          <StaffingAnalysis style="margin-right: 30px"/>
+        </div>
+        <div class="center">
+          <StaffingMap @select="onSelect"/>
+          <PostionDistribution/>
+        </div>
+        <div class="right">
+          <RetirePlan />
+          <PersonStruct/>
+        </div>
+      </div>
+    </div>
+  </ScreenPane>
+</template>
+<script>
+import ScreenPane from './components/ScreenPane'
+import Header from './components/Header'
+import OrgAnalysis from './components/OrgAnalysis'
+import StaffingAnalysis from './components/StaffingAnalysis'
+import PostionDistribution from './components/PostionDistribution'
+import RetirePlan from './components/RetirePlan'
+import PersonStruct from './components/PersonStruct'
+import StaffingMap from './components/StaffingMap'
+
+export default {
+  components: {
+    ScreenPane,
+    Header,
+    OrgAnalysis,
+    StaffingAnalysis,
+    PostionDistribution,
+    RetirePlan,
+    PersonStruct,
+    StaffingMap
+  },
+  data(){
+    return {
+      districtCode: undefined,
+    }
+  },
+  methods: {
+    onSelect(district){
+      this.districtCode = district.adcode;
+      console.log(district.title)
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.contaner{
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .body{
+    flex: auto;
+    display: flex;
+    height: 100%;
+    min-height: 1px;
+    padding: 16px 24px 0 24px;
+    & > .left{
+      width: 31.25%;
+      flex: none;
+    }
+    & > .center{
+      flex: auto;
+      margin: 0 10px;
+    } 
+    & > .right{
+      width: 30%;
+      flex: none;
+    }
+  }
+}
+</style>

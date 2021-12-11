@@ -1,0 +1,151 @@
+<template>
+  <ul class="fields-wrap">
+    <li
+      class="fields-list"
+      :class="{active:item.active}"
+      v-for="(item,index) in fields"
+      :key="index+Math.random()"
+      :position="`${position}_${index}`"
+      @click.stop="toggle($event)"
+    >
+      <div class="sort" v-if="item.sort">
+        <span>
+          <a-icon :type="item.active?'caret-down':'caret-right'" />
+        </span>
+        <span class="text-item">{{item.sort}}</span>
+      </div>
+      <ul class="menu">
+        <li
+          class="menu-list"
+          v-for="(lg,k) in item.children"
+          :key="k+Math.random()"
+          :position="`${position}_${index}_${k}`"
+          @click.stop="handleChange(lg,$event)"
+          :class="{active:lg.active}"
+        >
+          <span v-if="lg.datatype == 3 && unincludes(lg.key)">
+            <a-icon :type="lg.active?'caret-down':'caret-right'" />
+          </span>
+          <span class="text-item">{{lg.name}}</span>
+          <field-one
+            v-if="lg.children"
+            :fields="lg.children"
+            :position="`${position}_${index}_${k}`"
+            :searchObj="searchObj"
+          ></field-one>
+        </li>
+      </ul>
+    </li>
+  </ul>
+</template>
+<script>
+import { queryfields } from "@/person/api/integratedquery";
+import { sortArrByKey } from "@/person/utils/index";
+import { showError } from "@/framework/utils/index";
+import {Icon} from 'ant-design-vue';
+export default {
+  name: "FieldOne",
+  components:{
+    AIcon:Icon
+  },
+  props: {
+    fields: {
+      type: Array,
+      required: true
+    },
+    position: [String, Number],
+    value: {
+      type: String
+    },
+    searchObj: {
+      type: String,
+      required: true
+    }
+  },
+  inject: ["setField"],
+  methods: {
+    handleChange(data, e) {
+      this.setField(data);
+      let position = e.currentTarget.getAttribute("position");
+      if (data.datatype == 3 && this.unincludes(data.key)) {
+        let json = {
+          key: data.key,
+          modelNs: this.searchObj
+        };
+        queryfields(json)
+          .then(res => {
+            let result = sortArrByKey(res.result);
+            this.$store.commit({
+              type: "UPDATE_FIELDS",
+              data: result,
+              position
+            });
+            this.$nextTick(function() {
+              let arr = position.split("_");
+              let obj = this.fields[parseInt(arr[1])].children[
+                parseInt(arr[2])
+              ];
+              let tag = !obj.active;
+              this.$set(obj, "active", tag);
+            });
+          })
+          .catch(err => {
+            showError(err);
+          });
+      }
+    },
+    unincludes(str) {
+      return !str.includes("@");
+    },
+    toggle(e) {
+      let position = e.currentTarget.getAttribute("position");
+      let index = parseInt(position.split("_").pop());
+      for (let i = 0; i < this.fields.length; i++) {
+        let obj = this.fields[i];
+        if (index != i) {
+          obj.active = false;
+        } else {
+          obj.active = !obj.active;
+        }
+        this.$set(this.fields, i, obj);
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.fields-list {
+  overflow: hidden;
+  line-height: 25px;
+  &.active {
+    > .menu {
+      height: auto;
+    }
+  }
+}
+.sort {
+  cursor: pointer;
+}
+.menu {
+  padding-left: 15px;
+  height: 0px;
+}
+.menu-list {
+  overflow: hidden;
+  line-height: 25px;
+  text-indent: 5px;
+  cursor: pointer;
+  .fields-wrap {
+    height: 0px;
+    padding-left: 15px;
+  }
+  &.active {
+    .fields-wrap {
+      height: auto;
+    }
+  }
+}
+.text-item {
+  margin-left: 2px;
+}
+</style>

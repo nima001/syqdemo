@@ -1,0 +1,52 @@
+<template>
+  <div class="wrapper">
+    <div class="item" v-for="(item, index) in list" :key="index">
+      {{item.name}}
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {},
+  components: {},
+  data() {
+    return {
+      list: [
+        { name: '入职（开设个人账号）' },
+        { name: '开设单位账号' },
+        { name: '导入个人账号' },
+        { name: '导入单位账号' },
+        { name: '调入' },
+        { name: '兼职' },
+        { name: '离职' },
+        { name: '账号批量转移' },
+      ]
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.wrapper{
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  .item{
+    width: calc(~'25% - 18px');
+    height: 60px;
+    background-color: rgb(240,242,245);
+    text-align: center;
+    line-height: 60px;
+    margin: @padding-xs @padding-lg @padding-xs 0;
+    cursor: pointer;
+    &:nth-child(4n){
+      margin-right: 0;
+    }
+  }
+}
+</style>

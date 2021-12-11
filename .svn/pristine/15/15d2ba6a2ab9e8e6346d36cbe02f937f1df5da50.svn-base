@@ -1,0 +1,495 @@
+<template>
+  <!-- 月发放记录 -->
+  <div class="monthsalary">
+    <a-layout>
+      <a-layout-content class="contentHistory">
+        <div>
+          <div class="someBtnhistory">
+            <div style="width:100%;">
+              <a-input-group size="default">
+                <!-- 月时间选择器 -->
+                <a-month-picker
+                  :disabledDate="disabledDate"
+                  allowClear
+                  :value="date"
+                  @change="chooseTime"
+                  style="width:13%;margin-right: 0px;float: right;"
+                />
+                <a-input
+                  style="width: 13%;margin-right: 10px;float: right;"
+                  allowClear
+                  read-only
+                  @click="OrgModelShow"
+                  @change="resetRange"
+                  v-model="node.nodename"
+                  placeholder="请选择组织范围"
+                />
+              </a-input-group>
+            </div>
+          </div>
+          <div class="timeAndTable">
+            <a-table
+              class="HistoryTableCls"
+              :columns="columns"
+              :loading="loading"
+              :dataSource="datasource"
+              :pagination="pagationShow"
+              :bordered="true"
+            >
+              <span
+                @click="showDetail(record)"
+                slot-scope="val,record"
+                slot="operate"
+                class="spancss"
+              >查看详情</span>
+            </a-table>
+            <!-- <div v-if="noData" style="width: 100%;text-align:center;padding:20px;">无数据</div> -->
+          </div>
+          <div class="footer" v-if="pagationvisiable">
+            <a-pagination
+              class="pagation"
+              showSizeChanger
+              size="middle"
+              :pageSize.sync="pagination.pageSize"
+              @showSizeChange="onShowSizeChange"
+              @change="onChange"
+              :total="pagination.total"
+              v-model="pagination.current"
+              :showTotal="total => `共${total} 条`"
+            />
+          </div>
+        </div>
+        <!--组织选择-->
+        <a-modal
+          title="选择组织"
+          v-model="orgVisible"
+          :footer="null"
+          :width="500"
+          :bodyStyle="{ height: '600px', padding: '0'}"
+        >
+          <org-user-select
+            mode="orgtree"
+            :defaultTree="catalogid"
+            :root-selectable="true"
+            @finish="selectOrg"
+          />
+        </a-modal>
+      </a-layout-content>
+    </a-layout>
+  </div>
+</template>
+<script>
+import moment from "moment";
+import { treeroot } from "@/salary/api/org";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import {
+  Layout,
+  Breadcrumb,
+  Input,
+  Select,
+  Table,
+  Modal,
+  DatePicker,
+  Pagination,
+} from "ant-design-vue";
+import {
+  salaryoverMonth,
+  salaryResult,
+  salarydetail,
+} from "@/salary/api/salaryManage";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: "monthsalary",
+  components: {
+    ALayout: Layout,
+    ALayoutHeader: Layout.Header,
+    ALayoutContent: Layout.Content,
+    AInputGroup: Input.Group,
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    ASelect: Select,
+    AInput: Input,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    AMonthPicker: DatePicker.MonthPicker,
+    APagination: Pagination,
+    AModal: Modal,
+    OrgUserSelect,
+  },
+  data: function () {
+    return {
+      node: {
+        nodeid: null,
+        nodename: null,
+        orgid: null,
+      },
+      orgVisible: false,
+      catalogid: undefined,
+      noData: false,
+      nowDate: [],
+      nowOrg: "",
+      nowTime: "",
+      keepTime: "",
+      loading: false,
+      columns: [],
+      // 数据项
+      datasource: [],
+      pagationShow: false, // 关闭table自己的分页器
+      pagationvisiable: true,
+      pagination: {
+        pageSize: 10,
+        current: 1,
+        total: 10,
+      },
+    };
+  },
+  computed: {
+    //月记录   日期
+    date() {
+      if (this.nowTime) {
+        return moment(this.nowTime, "YYYY-MM");
+      }
+    },
+  },
+  created() {
+    this.getorg();
+  },
+  destroyed() {
+    clearInterval(this.myInterval);
+  },
+  methods: {
+    // 请求组织
+    getorg() {
+      treeroot()
+        .then((res) => {
+          this.node.nodeid = res.result.children[0].id;
+          this.node.nodename = res.result.children[0].data.name;
+          this.node.orgid = res.result.children[0].data._id;
+          this.nowOrgId = this.node.orgid;
+          this.getsalaryoverMonth(this.nowOrgId);
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok" && list.length) {
+        this.node.nodename = list[0].name;
+        this.node.nodeid = list[0].id;
+        this.node.orgid = list[0].data._id;
+        this.nowOrgId = this.node.orgid;
+        this.getsalaryoverMonth(this.nowOrgId);
+      }
+    },
+    OrgModelShow() {
+      this.orgVisible = true;
+    },
+    resetRange() {
+      if (!this.node.nodename && this.node.nodeid) {
+        this.node.nodeid = "";
+      }
+    },
+    // 改变 pageSize
+    onShowSizeChange(current, pageSize) {
+      this.pagination.current = current;
+      this.pagination.pageSize = pageSize;
+      this.myRequest(this.pagination.current, this.nowOrgId, this.nowTime);
+    },
+    // 改变 页数
+    onChange(current, pageSize) {
+      this.pagination.current = current;
+      this.pagination.pageSize = pageSize;
+      this.myRequest(this.pagination.current, this.nowOrgId, this.nowTime);
+    },
+    disabledDate(current) {
+      if (this.nowDate) {
+        let time = this.nowDate;
+        return current && current > moment(time);
+      }
+    },
+    // 请求月份
+    getsalaryoverMonth(id) {
+      salaryoverMonth(id)
+        .then((res) => {
+          this.nowDate = res.result;
+          if (!this.nowDate) {
+            this.loading = false;
+            this.datasource = [];
+            this.columns = [];
+            this.nowTime = "";
+            this.pagationvisiable = false;
+          } else {
+            this.nowTime = this.nowDate;
+            // 请求详情信息
+            this.myRequest(
+              this.pagination.current,
+              this.nowOrgId,
+              this.nowTime
+            );
+          }
+        })
+        .catch((err) => {
+          this.loading = false;
+          this.noData = true;
+          this.datasource = [];
+          this.columns = [];
+          showError(err);
+        });
+    },
+    chooseTime(val) {
+      if (val) {
+        this.loading = true;
+        this.nowTime = moment(val).format("YYYY-MM");
+        //获取数据
+        this.myRequest(1, this.nowOrgId, this.nowTime);
+      } else {
+        return;
+      }
+    },
+    showDetail(record) {
+      let data = {
+        date: this.nowTime,
+        userid: record.userid,
+      };
+      salarydetail(data)
+        .then((res) => {
+          res.result.onlyUserId = record.userid; //人员id
+          res.result.onlytime = this.nowTime;
+          this.$router.push({
+            name: "monthsalarydetail",
+            params: res.result,
+          });
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    //请求方法 current（当前页数）
+    //请求方法 current（当前页数）
+    myRequest(current, orgid, time) {
+      this.loading = true;
+      //工资结果详情
+      let data = {
+        date: time, //时间
+        needtotal: true,
+        pagenum: this.pagination.current,
+        orgid: orgid, //组织id
+        pagesize: this.pagination.pageSize,
+        usertype: 1,
+        ischange: 0,
+      };
+      salaryResult(data)
+        .then((res) => {
+          if (!res.result) {
+            this.noData = true;
+            this.loading = false;
+            this.datasource = [];
+            this.columns = [];
+            this.pagationvisiable = false;
+          } else {
+            let index = 0;
+            let fatherIndex = 0;
+            let arr = []; //最终的行数据 数组
+            //表格列数据
+            for (let i = 0; i < res.result.thead.length; i++) {
+              if (i == 0) {
+                res.result.thead[i].width = "6%";
+                res.result.thead[i].dataIndex = "username";
+                res.result.thead[i].key = "username";
+                res.result.thead[i].align = "center";
+                //宽度 暂时不考虑
+              } else {
+                if (res.result.thead[i].children) {
+                  for (
+                    let j = 0;
+                    j < res.result.thead[i].children.length;
+                    j++
+                  ) {
+                    res.result.thead[i].children[j].dataIndex = index;
+                    res.result.thead[i].children[j].key = index;
+                    index++;
+                    res.result.thead[i].children[j].align = "center";
+                  }
+                  //父类表头
+                  res.result.thead[i].dataIndex = fatherIndex; //用不到的
+                  res.result.thead[i].key = `father${fatherIndex}`;
+                  fatherIndex++;
+                  res.result.thead[i].align = "center";
+                } else {
+                  res.result.thead[i].dataIndex = index;
+                  res.result.thead[i].key = index;
+                  index++;
+                  res.result.thead[i].align = "center";
+                }
+              }
+            }
+            res.result.thead.push({
+              dataIndex: "operate",
+              title: "操作",
+              key: "operate",
+              align: "center",
+              width: "6%",
+              scopedSlots: { customRender: "operate" }, //插槽
+            });
+            this.columns = res.result.thead; //列 数据
+            //表格行数据
+            let datasourceArr = res.result.salaryResultVo.rows;
+
+            for (let m = 0; m < datasourceArr.length; m++) {
+              let obj = {};
+              obj.username = datasourceArr[m].username;
+              obj.key = `datasource${m}`;
+              obj.userid = datasourceArr[m].userid;
+              for (let n = 0; n < datasourceArr[m].detail.length; n++) {
+                obj[n] = datasourceArr[m].detail[n];
+              }
+              arr.push(obj);
+              this.datasource = arr;
+            }
+            this.pagationvisiable = true;
+            this.pagination.total = res.result.salaryResultVo.total;
+            this.loading = false;
+            this.noData = false;
+          }
+        })
+        .catch((err) => {
+          this.loading = false;
+          this.noData = true;
+          this.datasource = [];
+          this.columns = [];
+          showError(err);
+        });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+@media screen and (max-width: 1500px) {
+  .ant-table-tbody tr td {
+    padding: 10px 2px;
+  }
+}
+.monthsalary {
+  height: 100%;
+  .ant-layout {
+    height: 100%;
+  }
+  /* now */
+  .someBtn {
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .someBtn .btn {
+    outline: none;
+    border: none;
+    background-color: @primary-color;
+    color: white;
+    border-radius: 5px;
+    height: 32px;
+    width: 100px;
+    cursor: pointer;
+  }
+  .spancss {
+    cursor: pointer;
+    color: @primary-color;
+  }
+  /* 修改表头 编辑 */
+  .ant-table-thead tr th {
+    font-size: 15px;
+    /* 没有实际高度 设置padding */
+    padding: 8px 8px;
+  }
+  .someBtn .btn:nth-of-type(2) {
+    margin-left: 10px;
+  }
+  /* 更多历史 btn */
+  .someBtnhistory {
+    width: 100%;
+    padding: 12px 24px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: flex-end;
+  }
+  /* 当前 表格 */
+  .tableCls {
+    margin: 0 auto;
+  }
+
+  /* 更多历史 */
+  .contentHistory {
+    height: 100%;
+    padding: 12px;
+  }
+  .contentHistory > div {
+    background-color: white;
+    height: 100%;
+    overflow: hidden;
+    position: relative;
+    // padding: 12px 24px;
+  }
+  /* 返回按钮 */
+  .quitBtn {
+    height: 32px;
+    width: 100px;
+    background-color: @primary-color;
+    color: white;
+    outline: none;
+    border: none;
+    border-radius: 5px;
+    position: absolute;
+    left: 50%;
+    margin-left: -50px;
+    bottom: 24px;
+    cursor: pointer;
+  }
+  .quitBtn:hover {
+    background-color: #d60004b6;
+  }
+  /* 当前 */
+  .contentNow {
+    padding: 12px;
+  }
+  .contentNow > div {
+    background-color: white;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    padding: 12px 24px;
+  }
+  .HistoryTableCls {
+    height: 100%;
+    width: 100%;
+    overflow-x: auto;
+  }
+  .ant-calendar-picker-clear {
+    display: none;
+  }
+  /* 查看历史 表格样式 */
+  .timeAndTable {
+    // height:95%;
+    width: 100%;
+    max-height: 537px;
+    padding: 0px 24px;
+    overflow: auto;
+  }
+  .footer {
+    display: flex;
+    justify-content: flex-end;
+    height: 32px;
+    margin-top: 12px;
+    padding: 0 14px;
+    .pagation {
+      height: 100%;
+    }
+  }
+  /deep/.ant-input-group
+    > .ant-input-affix-wrapper:not(:first-child)
+    .ant-input {
+    border-top-left-radius: 4px;
+    border-bottom-left-radius: 4px;
+  }
+}
+</style>

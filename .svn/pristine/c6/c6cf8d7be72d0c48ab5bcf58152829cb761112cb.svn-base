@@ -1,0 +1,74 @@
+<template>
+  <div class="group">
+    <span class="name">党委</span>
+    <ul class="chart">
+      <li class="capsule">
+        <div class="cell">
+          <capsule-chart :showNum="100" :maxNum="200"></capsule-chart>
+        </div>
+        <div class="num">100</div>
+      </li>
+      <li class="capsule">
+        <div class="cell">
+          <capsule-chart :showNum="100" :maxNum="200" :accent="true"></capsule-chart>
+        </div>
+        <div class="num">100</div>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+import CapsuleChart from "./CapsuleChart";
+export default {
+  components: {
+    CapsuleChart
+  },
+  data() {
+    return {};
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+.group {
+  display: flex;
+  align-items: center;
+  .name {
+    width: 32px;
+    height: 21px;
+    font-size: 16px;
+    font-family: Microsoft YaHei;
+    font-weight: 400;
+    line-height: 21px;
+    color: #ffffff;
+    opacity: 0.6;
+  }
+  .chart {
+    margin-left: 25px;
+    margin-bottom: 0px;
+    .capsule {
+      display: flex;
+      margin-top: 2px;
+      &:first-child {
+        margin-top: 0px;
+      }
+      .cell {
+        display: flex;
+        align-items: center;
+      }
+      .num {
+        height: 18px;
+        font-size: 16px;
+        font-family: Arial;
+        font-weight: 400;
+        line-height: 18px;
+        color: #ffffff;
+        opacity: 0.6;
+        margin-left: 32px;
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,405 @@
+<template>
+  <div :class="{'carousel-container': true, 'loading': initTimer}" ref="container">
+    <slot />
+  </div>
+</template>
+<script>
+/**
+ * 旋转木马提供以下事件
+ * loaded 页面初始化完成时响应
+ * toward 开始朝着某一项旋转（注意：该事件并不能判断定位到某一项，在旋转过过程中意图可以被改变）
+ * changed 动画完成定位后响应
+ */
+
+//
+// Detect CSS transform support
+//
+const transform = (function() {
+  var vendors = ['webkit', 'moz', 'ms'];
+  var style   = document.createElement( "div" ).style;
+  var trans   = 'transform' in style ? 'transform' : undefined;
+
+  for( var i = 0, count = vendors.length; i < count; i++ ) {
+    var prop = vendors[i] + 'Transform';
+    if( prop in style ) {
+      trans = prop;
+      break;
+    }
+  }
+
+  return trans;
+})();
+
+//
+// Detect requestAnimationFrame() support
+//
+// Support legacy browsers:
+//   http://www.paulirish.com/2011/requestanimationframe-for-smart-animating/
+//
+const frame = undefined; //(function() {
+//   var cancelFrame = window.cancelAnimationFrame || window.cancelRequestAnimationFrame;
+//   var requestFrame = window.requestAnimationFrame;
+
+//   var vendors = ['webkit', 'moz', 'ms'];
+
+//   for( var i = 0, count = vendors.length; i < count && !cancelFrame; i++ ) {
+//     cancelFrame = window[vendors[i]+'CancelAnimationFrame'] || window[vendors[i]+'CancelRequestAnimationFrame'];
+//     requestFrame = requestFrame && window[vendors[i]+'RequestAnimationFrame'];
+//   }
+//   if(cancelFrame){
+//     return {
+//       cancelFrame, requestFrame
+//     }
+//   }
+// })();
+
+function Item( element, options ) {
+  element.item = this;
+  this.element = element;
+
+  if( element.tagName === 'IMG' ) {
+    this.fullWidth = element.width;
+    this.fullHeight = element.height;
+  } else {
+    element.style.display = "inline-block";
+    this.fullWidth = element.offsetWidth;
+    this.fullHeight = element.offsetHeight;
+  }
+
+  element.style.position = 'absolute';
+
+  if( transform && options.transforms )
+    this.element.style[transform + "Origin"] = "0 0";
+
+  this.moveTo = function( x, y, scale ) {
+    this.width = this.fullWidth * scale;
+    this.height = this.fullHeight * scale;
+    this.x = x;
+    this.y = y;
+    this.scale = scale;
+
+    var style = this.element.style;
+    style.zIndex = "" + (scale * 100) | 0;
+
+    if( transform && options.transforms ) {
+      style[transform] = "translate(" + x + "px, " + y + "px) scale(" + scale + ")";
+    } else {
+      style.width = this.width + "px";
+      style.left = x + "px";
+      style.top = y + "px";
+    }
+  }
+}
+
+export default {
+  props: {
+    xOrigin: Number,        // null: calculated automatically
+    yOrigin: Number,
+    xRadius: Number,
+    yRadius: Number,
+    farScale: {// scale of the farthest item
+      type: Number,
+      default: 0.5
+    },        
+    transforms: {    // enable CSS transforms
+      type: Boolean,
+      default: true,
+    }, 
+    smooth: {// enable smooth animation via requestAnimationFrame()
+      type: Boolean,
+      default: true
+    },
+    fps: {   // fixed frames per second (if smooth animation is off)
+      type: Number,
+      default: 30
+    }, 
+    speed: {   // positive number
+      type: Number,
+      default: 4
+    },
+    initIndex: { //
+      type: Number,
+      default: 0,
+    },       
+    autoPlay: {// [ 0: off | number of items (integer recommended, positive is clockwise) ]
+      type: Number,
+      default: 0
+    },          
+    autoPlayDelay: {
+      type: Number,
+      default: 4000,
+    },
+    bringToFront: {
+      type: Boolean,
+      default: false
+    },
+    // frontItemClass: String,//FIXME 好像没用
+  },
+  data(){
+    return {
+      origin: {x: undefined, y: undefined},
+      radius: {x: undefined, y: undefined},
+      itemOptions: {},
+      items: [],
+      rotation: undefined,
+      destRotation: undefined,
+      lastTime: undefined,
+      timer: 0,
+      autoPlayTimer: 0,
+      autoPlayAmount: undefined,
+      initTimer: 0,
+    }
+  },
+  mounted(){
+    let $container = this.$refs.container;
+    let cWidth = $container.offsetWidth, cHeight = $container.offsetHeight;
+    this.origin = {
+      x: (this.xOrigin || this.xOrigin === 0) ? this.xOrigin : cWidth * 0.5,
+      y: (this.yOrigin || this.yOrigin === 0) ? this.yOrigin : cHeight * 0.382
+    }
+    this.radius = {
+      x: (this.xRadius || this.xRadius === 0) ? this.xRadius : cWidth / 2.3,
+      y: (this.yRadius || this.yRadius === 0) ? this.yRadius : cHeight / 6 
+    };
+    this.rotation = this.destRotation = Math.PI/2; // start with the first item positioned in front
+    
+    this.autoPlayAmount = this.autoPlay;
+
+    this.itemOptions = { transforms: this.transforms }
+
+    this.initTimer = setInterval( () => { this.finishInit() }, 50 );
+  },
+  methods: {
+    // Rotation:
+    //  *      0 : right
+    //  *   Pi/2 : front
+    //  *   Pi   : left
+    //  * 3 Pi/2 : back
+    renderItem( itemIndex, rotation ) {
+      var item = this.items[itemIndex];
+      var sin = Math.sin(rotation);
+      var farScale = this.farScale;
+      var scale = farScale + ((1-farScale) * (sin+1) * 0.5);
+      
+      item.moveTo(
+        this.origin.x + (scale * ((Math.cos(rotation) * this.radius.x) - (item.fullWidth * 0.5))),
+        this.origin.y + (scale * sin * this.radius.y),
+        scale
+      );
+
+      return item;
+    },
+    render() {
+      var count = this.items.length;
+      var spacing = 2 * Math.PI / count;
+      var radians = this.rotation;
+      var nearest = this.nearestIndex();
+
+      for( var i = 0; i < count; i++ ) {
+        var item = this.renderItem( i, radians );
+
+        // if( i === nearest )
+        //   $(item.element).addClass( this.frontItemClass );
+        // else
+        //   $(item.element).removeClass( this.frontItemClass );
+
+        radians += spacing;
+      }
+    },
+    finishInit() {
+      
+      var items = this.$refs.container.children;
+      //
+      // Wait until all images have completely loaded
+      //
+      for( var i = 0; i < items.length; i++ ) {//TODO FIMXE 图片处理
+        var item = items[i];
+        if( (item.tagName === 'IMG') &&
+            ((item.width === undefined) || ((item.complete !== undefined) && !item.complete)) )
+          return;
+      }
+
+      clearInterval( this.initTimer );
+      this.initTimer = 0;
+
+      if(this.initIndex > 0){
+        let radians = this.rotation + (2 * Math.PI / items.length) * (items.length - this.initIndex);
+        this.rotation = this.destRotation = radians;
+      }
+
+      // Init items
+      for( i = 0; i < items.length; i++ )
+        this.items.push( new Item( items[i], this.itemOptions ) );
+
+      // Disable click-dragging of items
+      // $container.bind( 'mousedown onselectstart', function() { return false } );
+
+      if( this.autoPlayAmount !== 0 ) this.enableAutoPlay();
+      this.bindControls();
+      this.render();
+      
+      this.$emit('loaded', this);
+    },
+    playFrame() {
+      var rem = this.destRotation - this.rotation;
+      var now = this.time();
+      var dt = (now - this.lastTime) * 0.002;
+      this.lastTime = now;
+
+      if( Math.abs(rem) < 0.003 ) {
+        this.rotation = this.destRotation;
+        this.pause();
+        
+        this.$emit('changed',  this.nearestIndex());
+      } else {
+        // Asymptotically approach the destination
+        this.rotation = this.destRotation - rem / (1 + (this.speed * dt));
+        this.scheduleNextFrame();
+      }
+
+      this.render();
+    },
+    scheduleNextFrame() {
+      this.lastTime = this.time();
+      this.timer = this.smooth && frame ?
+        frame.requestFrame( this.playFrame ) :
+        setTimeout( this.playFrame, 1000 / this.fps );
+    },
+    itemsRotated() {
+      return this.items.length * ((Math.PI/2) - this.rotation) / (2*Math.PI);
+    },
+    floatIndex() {
+      var count = this.items.length;
+      var floatIndex = this.itemsRotated() % count;
+
+      // Make sure float-index is positive
+      return (floatIndex < 0) ? floatIndex + count : floatIndex;
+    },
+    nearestIndex() {
+      return Math.round( this.floatIndex() ) % this.items.length;
+    },
+    nearestItem() {
+      return this.items[this.nearestIndex()];
+    },
+    play() {
+      if( this.timer === 0 ){
+        this.scheduleNextFrame();
+      }
+    },
+    pause() {
+      this.smooth && frame ? frame.cancelFrame( this.timer ) : clearTimeout( this.timer );
+      this.timer = 0;
+    },
+    //
+    // Spin the carousel by (+-) count items
+    //
+    go( count ) {
+      this.destRotation += (2 * Math.PI / this.items.length) * count;
+      this.$emit('toward')
+      this.play();
+    },
+    goTo( index ) {
+      var count = this.items.length;
+
+      // Find the shortest way to rotate item to front
+      var diff = index - (this.floatIndex() % count);
+
+      if( 2 * Math.abs(diff) > count )
+        diff -= (diff > 0) ? count : -count;
+      // Halt any rotation already in progress
+      this.destRotation = this.rotation;
+
+      // Spin the opposite way to bring item to front
+      this.go( -diff );
+
+      // Return rotational distance (in items) to the target
+      return diff;
+    },
+    deactivate() {
+      this.pause();
+      clearInterval( this.autoPlayTimer );
+      //TODO 添加前后切换按钮的slot
+      // if( this.buttonLeft ) this.buttonLeft.unbind( 'click' );
+      // if( this.buttonRight ) this.buttonRight.unbind( 'click' );
+      // $container.unbind( '.cloud9' );
+    },
+    playAuto() {
+      this.autoPlayTimer = setInterval(() => {
+        this.go( this.autoPlayAmount )
+      }, this.autoPlayDelay);
+    },
+    enableAutoPlay() {
+      // Stop auto-play on mouse over
+      let $container = this.$refs.container;
+      if($container){//FIXME 销毁事件移除
+        $container.addEventListener( 'mouseover', () => {
+          clearInterval( this.autoPlayTimer );
+        } );
+
+        // Resume auto-play when mouse leaves the container
+        $container.addEventListener( 'mouseout', () => {
+          this.playAuto();
+        } );
+      }
+      this.playAuto();
+    },
+    bindControls() {
+      let $container = this.$refs.container;
+      // if( this.buttonLeft ) {
+      //   options.buttonLeft.bind( 'click', function() {
+      //     self.go( -1 );
+      //     return false;
+      //   } );
+      // }
+
+      // if( this.buttonRight ) {
+      //   options.buttonRight.bind( 'click', function() {
+      //     self.go( 1 );
+      //     return false;
+      //   } );
+      // }
+
+      // if( this.mouseWheel ) {
+      //   $container.bind( 'mousewheel.cloud9', function( event, delta ) {
+      //     self.go( (delta > 0) ? 1 : -1 );
+      //     return false;
+      //   } );
+      // }
+
+      if( this.bringToFront ) {
+        $container.addEventListener( 'click', ( event ) => {
+          //TODO 查询点击目标的所在的item
+          var hit = event.target;
+          if( hit.item ) {
+            var diff = this.goTo( this.items.indexOf( hit.item ) );
+
+            // Suppress default browser action if the item isn't roughly in front
+            if( Math.abs(diff) > 0.5 )
+              event.preventDefault();
+          }
+        } );
+      }
+    },
+    time(){
+      if(!window.performance || !window.performance.now){
+        return +new Date();
+      }else{
+        return window.performance.now();
+      }
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.carousel-container{
+  position: 'relative';
+  overflow: 'hidden';
+
+  & > *{
+    -webkit-box-reflect: below 15px -webkit-linear-gradient(transparent 10%, rgba(255, 255, 255, 0.3));
+  }
+  &.loading > *{
+    display: none;
+  }
+}
+</style>

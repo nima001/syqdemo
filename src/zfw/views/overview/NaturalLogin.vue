@@ -1,0 +1,211 @@
+<template>
+  <div class="wrapper">
+    <div class="layout_header">
+      <SelectCondition @handleData="getData" :title="'用户' + title"></SelectCondition>
+    </div>
+    <div :style="{ margin: '16px', overflow: 'initial' }">
+      <div class="main">
+
+        <TrendChart 
+          title="登录"
+          :time="time"
+          :loading="loading"
+          :pageData="loginData">
+        </TrendChart>
+
+        <TrendChart 
+          title="活跃"
+          :time="time"
+          :loading="loading"
+          :pageData="activeData">
+        </TrendChart>
+
+        <PercentChart 
+          title="登录"
+          :time="time"
+          :loading="loading"
+          :axisName="['name', 'count']"
+          :userRoleType="userRoleType"
+          :pageData="percentData">
+        </PercentChart>
+
+
+        <div class="relevance">
+          <div class="title">账号关联数</div>
+          <div class="date">{{time}}</div>
+          <ul>
+            <li>
+              <div class="num">10</div>
+              <div class="name">微信小程序账号</div>
+            </li>
+            <li>
+              <div class="num">10</div>
+              <div class="name">微信小程序账号</div>
+            </li>
+            <li>
+              <div class="num">10</div>
+              <div class="name">微信小程序账号</div>
+            </li>
+            <li>
+              <div class="num">10</div>
+              <div class="name">微信小程序账号</div>
+            </li>
+          </ul>
+        </div>
+
+        <AttributeChart 
+          v-if="JSON.stringify(pageData) !== '{}'"
+          title="登录"
+          :time="time"
+          :loading="loading"
+          :pageData="attributeData">
+        </AttributeChart>
+
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { loginReportDate } from "@/zfw/api/naturalRegister";
+import { showError } from '../../../framework/utils';
+import { getDate } from "../../utils/index";
+import SelectCondition from '@/zfw/components/overview/SelectCondition';
+import TrendChart from '@/zfw/views/overview/TrendChart';
+import PercentChart from '@/zfw/views/overview/PercentChart';
+import AttributeChart from '@/zfw/views/overview/AttributeChart';
+
+import CustomIcon from "@framework/components/CustomIcon";
+
+export default {
+  props: {},
+  components: { SelectCondition, TrendChart, PercentChart, AttributeChart, CustomIcon },
+  data() {
+    return {
+      loading: false,
+      title: '登陆',
+      activeData: {},
+      loginData: {},
+      percentData: [],
+      attributeData: {},
+      pageData: {},
+      userRoleType: 0,
+      params: {
+        startTime: getDate('lastThreeMonth').startTime,
+        endTime: getDate('lastThreeMonth').endTime,
+        resources: [],
+        appIds: []
+      }
+    };
+  },
+  watch: {},
+  computed: {
+    time: {
+      get() {
+        return this.params.startTime + "-" + this.params.endTime;
+      },
+      set() {
+        let time = this.params.startTime == this.params.endTime 
+                   ? this.params.startTime
+                   : this.params.startTime + "-" + this.params.endTime;
+        return time;
+      }
+    }
+  },
+  created() {
+    //  默认加载近三个月
+    // this.getData(this.params);
+    this.getData({
+      startTime: '2020/12/08',
+      endTime: '2021/03/07',
+      resources: [],
+      appIds: []
+    })
+  },
+  mounted() {
+  },
+  methods: {
+    getData(data) {
+      this.loading = true;
+      loginReportDate(data)
+      .then(({attr}) => {
+        this.loading = false;
+        this.pageData = attr;
+        this.userRoleType = attr.userRoleType;
+        //  构造趋势图数据
+        this.loginData = this.handleData(attr.timelist, attr.loginList);
+        this.activeData = this.handleData(attr.timelist, attr.activeList);
+        this.percentData = [attr.applicationScale, attr.departmentScale, attr.resourceScale];
+        //  排序 获取前十
+        let maplist = JSON.parse(JSON.stringify(attr.mapseriesdataList));
+        let topList = maplist.sort((a, b) => {
+          return b.value - a.value;
+        })
+        this.pageData.topList = topList.slice(0, 10);
+        this.attributeData.ringDatas = [attr.regwaydataList, attr.agedataList, attr.sexdataList];
+        this.attributeData.mapseriesdataList = attr.mapseriesdataList;
+        this.attributeData.maptotalusernum = attr.maptotalusernum;
+      })
+      .catch(err => {
+        this.loading = false;
+        showError(err);
+      })
+    },
+    handleData(times, dates) {
+      let chartArr = [], totalArr = [], obj = {};
+      dates.forEach((item, index) => {
+        let totalObj = {};
+        totalObj.name = item.name;
+        totalObj.value = item.num;
+        totalArr.push(totalObj);
+        item.data.forEach((v, num) => {
+          let chartObj = {};
+          chartObj.name = item.name;
+          chartObj.year = times[num];
+          chartObj.value = v;
+          chartArr.push(chartObj);
+        })
+      })
+      obj.chartArr = chartArr;
+      obj.totalArr = totalArr;
+      return obj;
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.wrapper{
+  .main{
+
+    >div{
+      padding: @padding-lg;
+      background-color: @white;
+      margin-top: 16px;
+      border-radius: 5px;
+      -moz-box-shadow:0px 0px 10px #E7E7E7; 
+      -webkit-box-shadow:0px 0px 10px #E7E7E7; 
+      box-shadow:0px 0px 10px #E7E7E7;
+      .title{
+        color: black;
+        font-size: 20px;
+        font-weight: bold;
+      }
+    }
+
+    .relevance{
+      ul{
+        display: flex;
+        li{
+          text-align: center;
+          width: 25%;
+          .num{
+            font-size: 30px;
+            color: @primary-color;
+          }
+        }
+      }
+    }
+
+  }
+}
+</style>

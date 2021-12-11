@@ -1,0 +1,298 @@
+<template>
+  <div class="analyze">
+    <div class="panel template">
+      <div class="title">常用模板</div>
+      <ul>
+        <li v-if="setting.show">
+          <div @click="setting.show=false">
+            <div class="icon"><a-icon type="arrow-left"/></div>
+            <div class="title">返回</div>
+            <div class="desc"></div>
+          </div>
+        </li>
+        <li>
+          <div @click="eidt()">
+            <div class="icon"><a-icon type="plus"/></div>
+            <div class="title">新建报告</div>
+            <div class="desc"></div>
+          </div>
+        </li>
+        <li v-for="item in tempList" :key="item.id">
+          <div @click="eidt(item.id)">
+            <div class="icon"><a-icon type="file"/></div>
+            <v-clamp tag="div" class="title" :max-lines="2">{{item.name}}</v-clamp>
+            <div class="desc">{{item.updatetime && item.updatetime.substring(0, 10)}}</div>
+            <div class="delete"><a-icon type="delete"/></div>
+          </div>
+        </li>
+        <li v-if="!setting.show && setting.list.length > 5">
+          <div @click="setting.show = true">
+            <div class="icon"><a-icon type="arrow-right"/></div>
+            <div class="title">更多模板</div>
+            <div class="desc"></div>
+          </div>
+        </li>
+      </ul>
+    </div>
+    <div class="panel report" v-show="!setting.show">
+      <div class="title">已保存</div>
+      <div class="header">
+        <a-input v-model="report.searchkey" allowClear style="width: 480px"/>
+        <a-button type="primary" @click="doSearch">查询</a-button>
+      </div>
+      <div class="body">
+        <a-table 
+          rowKey="id"
+          :columns="report.columns"
+          :dataSource="report.page.rows"
+          :customRow="customRow"
+          :rowClassName="(row) => report.selected && report.selected.id == row.id ? 'selected': ''"
+          :pagination="{
+            current: report.page.pagenum,
+            total: report.page.total,
+            pageSize: report.page.pagesize,
+            showSizeChanger: true,
+            showTotal: total => `总共：${total}条`
+          }"
+          @change="onTableChange"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Icon, Button, Input, Table } from 'ant-design-vue'
+import VClamp from 'vue-clamp';
+import { querySetting, queryReport } from '@person/api/statistics'
+import { showError } from '../../../../framework/utils';
+
+
+/**
+ * 分析指引页面
+ */
+export default {
+  components:{
+    AIcon: Icon,
+    AInput: Input,
+    AButton: Button,
+    ATable: Table,
+    VClamp,
+  },
+  data(){
+    return {
+      setting: {
+        show: false,
+        hasNext: false,
+        list: []
+      },
+      report: {
+        columns: [
+          { title: '报告名称', dataIndex: 'name'},
+          { title: '保存时间', dataIndex: 'createtime', width: 150, customRender: text => text && text.substr(0, 10)},
+        ],
+        page: {
+          rows: [],
+          pagenum: 1,
+          pagesize: 10,
+          total: 0,
+        },
+        searchkey: undefined,
+      }
+    }
+  },
+  computed: {
+    tempList(){
+      let { show, list } = this.setting;
+      if(!show && list.length >5){
+        return list.slice(0, 4);
+      }else{
+        return list;
+      }
+    },
+  },
+  created(){
+    //加载模板数据6条
+    this.loadSetting({count: 10});
+    this.loadReport(1, 10);
+  },
+  methods: {
+    eidt(id){
+      this.$router.push({name: 'statisticsAnalysisEdit', query: {id: id}})
+    },
+    onTableChange({current, pageSize}){
+      let { pagesize } = this.report.page;
+      if(pagesize != pageSize){
+        current = 1;//切换页面条数重新定位到第一页
+      }
+      this.loadReport(current, pageSize);
+    },
+    customRow(row){
+      return {
+        on: {
+          click: () => {
+            this.$set(this.report, 'selected', row);
+          },
+          dblclick: (event) => {
+            this.$router.push({name: 'analysisReportView', query: { id: row.id }});
+          },
+        }
+      };
+    },
+    doSearch(){
+      this.loadReport(1, this.report.pagesize);
+    },
+    loadNext(){
+      let { hasNext, list } = this.setting;
+      if(hasNext){//存在数据
+        this.loadSetting({
+          searchkey: undefined,
+          from: list[list.length-1].updatetime,
+          count: 12,
+        }).then(({result}) => {
+          if(result.length == 13){
+            this.setting.list = this.setting.list.concat(result.splice(0, 12));
+            this.setting.hasNext = true;
+          }else{
+            this.setting.list = this.setting.list.concat(result);
+            this.setting.hasNext = false;    
+          }
+        }).catch((error) => {
+          showError();
+        })
+      }
+    },
+    loadSetting({searchkey, form, count}){
+      let len = count + 1;//多加载一条用于判断是否有下一页
+      return querySetting({
+        searchkey, 
+        form, 
+        count: len
+      }).then(({result}) => {
+        if(result.length == len){
+          result.pop();
+          this.setting.hasNext = true;
+        }else{
+          this.setting.hasNext = false;    
+        }
+        this.setting.list = this.setting.list.concat(result);
+      })
+    },
+    loadReport(pagenum, pagesize){
+      queryReport({
+        searchkey: this.report.searchkey,
+        pagenum, pagesize,
+        needtotal: true
+      }).then(({result}) => {
+        console.log(result);
+        this.report.page = result;
+      }).catch(error => {
+        showError(error);
+      })
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.analyze{
+  .panel{
+    width: 1200px;
+    margin: @padding-lg auto;
+    & > .title{
+      margin: @padding-sm 0;
+      font-weight: bold;
+      font-size: 1.4em;
+    }
+  }
+  .template{
+    ul{
+      overflow: hidden;
+      margin: -12px;
+    }
+    li{
+      float: left;
+      padding: 12px;
+      width: 16.66%;
+      & > div{
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        height: 240px;
+        padding: 15px;
+        border: 1px solid white;
+        border-radius: @border-radius-base;
+        box-shadow: 0 0 10px -2px #dad9d9;
+        background: white;
+        transition: all .2s cubic-bezier(.645,.045,.355,1);
+        text-align: center;
+        cursor: pointer;
+        .icon{
+          flex: auto;
+          font-size: 80px;
+          color: fade(#4e86ff, 40%);
+        }
+        .title{
+          margin-top: 10px;
+          height: 2.4em;
+          line-height: 1.2em;
+        }
+        .desc{
+          height: 1.5em;
+          line-height: 1.5em;
+          margin-top: 10px;
+          color: @disabled-color;
+          white-space: nowrap;
+          overflow: hidden;
+        }
+        .delete{
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          margin: -1px;
+          line-height: 30px;
+          background: rgba(0, 0, 0, 25%);
+          color: white;
+          font-size: 18px;
+          display: none;
+          &:hover{
+            color: @error-color;
+          }
+        }
+        &:hover{
+          box-shadow: 0 0 15px -7px #1B5293;
+          border-color: fade(#37a2ea, 40%);
+          .delete{
+            display: block;
+          }
+        }
+      }
+    }
+  }
+  .report{
+    .header{
+      margin-bottom: 20px;
+      .ant-btn{
+        vertical-align: top;
+        margin-left: 10px;
+      }
+    }
+    .body{
+      /deep/ .ant-table-thead > tr > th{
+        background: unset;
+        color: @disabled-color;
+      }
+      /deep/ .ant-table-tbody > tr{
+        & > td{
+          padding: 12px 6px;
+        }
+        &.selected{
+          background: @primary-2;
+        }
+      }
+      /deep/ .ant-table-placeholder{
+        background: unset;
+      }
+    }
+  }
+}
+</style>

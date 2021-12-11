@@ -1,0 +1,109 @@
+<template>
+  <div class="line-chart">
+    <div ref="lineChartContainer">
+    </div>
+  </div>
+</template>
+<script>
+import { Line } from '@antv/g2plot';
+import { problemmonitorCount } from "@/person-shaoxing/api/monitor";
+import { showError } from "@/framework/utils/index";
+export default {
+  props: {
+    areatype: {
+      type: Number,
+      defalut: undefined
+    },
+    title: {
+      type: String
+    }
+  },
+  name: 'LineChart',
+  watch: {
+    areatype: {
+      handler() {
+        this.getData();
+      },
+      immediate: true
+    }
+  },
+  data() {
+    return {
+      linePlot: null,
+      isCreated: false
+    }
+  },
+  created() {
+  },
+  mounted() {
+  },
+  methods: {
+    getData() {
+      let params = {
+        areatype: this.areatype,
+        querytype: 3
+      };
+      problemmonitorCount(params)
+      .then(({result}) => {
+        if(this.isCreated) {
+          // this.linePlot.changeData(result);
+          this.linePlot.updateConfig({
+            title: {
+              text: `${this.title}月新增处理问题情况`,
+            },
+            data: result
+          })
+          this.linePlot.render();
+        }else{
+          this.donutInit(result);
+          this.isCreated = true;
+        }
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    systype(key){
+      let d = this.$store.getters.dictKey("person.shaoxing.monitor.datatype", key);
+      return d && d.text;
+    },
+    donutInit(data) {
+      this.linePlot = new Line(this.$refs.lineChartContainer, {
+        height: 400,
+        title: {
+          visible: true,
+          text: `${this.title}月新增处理问题情况`,
+          alignTo: 'middle'
+        },
+        padding: 'auto',
+        forceFit: true,
+        data,
+        xField: 'xname',
+        yField: 'value',
+        point: {
+          visible: true,
+        },
+        label: {
+          visible: true,
+          type: 'point',
+        },
+        tooltip: {
+          visible: true
+        },
+        legend: {
+          position: 'bottom-center',
+          offestY: 20
+        },
+        seriesField: 'fieldname',
+        color: ['#D15456', '#5488D1', '#D1BF3D'],
+        responsive: true,
+      });
+
+      this.linePlot.render();
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+
+</style>

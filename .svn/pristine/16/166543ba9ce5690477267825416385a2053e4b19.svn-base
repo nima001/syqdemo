@@ -1,0 +1,261 @@
+<template>
+  <div style="margin:20px;">
+  <FormProvider :form="form">
+    <SchemaField :schema="schema">
+    </SchemaField>
+  </FormProvider>
+  <Button @click="click">提交</Button> 
+  </div>
+</template>
+
+<script>
+import { Button } from 'ant-design-vue'
+import { createForm, isVoidField, createEffectHook } from '@formily/core'
+import { FormProvider, createSchemaField, connect, mapProps, observer, useForm, useField, useFieldSchema } from '@formily/vue'
+import { defineComponent, h } from '@vue/composition-api'
+import * as formComponents from '../components/index'
+
+// const GridLayout1 = observer(defineComponent({
+//   setup (props, x) {
+//     debugger
+//     const form = useForm().value;
+//     const schema = useFieldSchema().value
+//     return () => {
+//       const cols = x.slots.default();
+//       // if(this.children){
+//       //   this.children.forEach(item => {
+//       //     if(!item.components || item.components.length == 0){//FIXME sunwen 编辑时还未添加组件
+//       //       cols.push(h(Col, {
+//       //         class: 'cmpt-panel',
+//       //         props: {span: item.span || 0},
+//       //       }))
+//       //     }else{
+//       //       let cmptList = this.createCmptList(item.components, createElement);
+//       //       if(cmptList.length ){
+//       //         cols.push(createElement(Col, {
+//       //           class: 'cmpt-panel',
+//       //           props: {span: item.span || 0},
+//       //         }, cmptList))
+//       //       }
+//       //     }
+//       //   })
+//       // }
+//       return h(Row, { 
+//         class: 'wrapper', 
+//         nativeOn: {
+//           click: (e) => {
+//             //选中schema
+//           }
+//         },
+//         props: {gutter: 16, type: 'flex'} 
+//       }, cols)
+//       // return h(Form.Item, {
+//       //   props: {
+//       //     label: field.title,
+//       //     help: field.errors?.length ? field.errors : undefined,
+//       //     extra: field.description,
+//       //     validateStatus: field.validateStatus,
+//       //   }
+//       // }, slots?.default())
+//     }
+//   }
+// })) 
+
+const { SchemaField } = createSchemaField({
+  components: formComponents,
+})
+
+const onCustomEvent = createEffectHook(
+  'schemaChange',
+  (payload, form) => (listener) => {
+    listener(payload, form)
+  }
+)
+
+export default {
+  components: { 
+    FormProvider, 
+    SchemaField,
+    Button
+  },
+  data() {
+    return {
+      form: createForm({
+        effects: () => {
+          onCustomEvent((payload, ss) => {
+            console.log(payload, ss);
+            console.log(JSON.stringify(payload))
+            this.schema = payload;
+          })
+        },
+      }),
+      schema: {
+        type: 'object',
+        properties: {
+          user: {
+            type: 'object',
+            'x-component': 'GridLayout',
+            'x-component-props': {
+              gutter: 15
+            },
+            properties: {
+              item1: {
+                type: 'void',
+                'x-component': 'GridLayout.Grid',
+                'x-component-props': {
+                  span: 18,
+                },
+                properties: {
+                  row: {
+                    type: 'void',
+                    'x-component': 'GridLayout',
+                    'x-component-props': {
+                      gutter: 15
+                    },
+                    properties: {
+                      item1: {
+                        type: 'void',
+                        'x-component': 'GridLayout.Grid',
+                        'x-component-props': {
+                          span: 8,
+                        },
+                        properties: {
+                          name: {
+                            type: 'string',
+                            title: '姓名',
+                            required: false,
+                            'x-decorator': 'FieldDecorator',
+                            'x-component': 'TextInput',
+                          },
+                        }
+                      },
+                      item2: {
+                        type: 'void',
+                        'x-component': 'GridLayout.Grid',
+                        'x-component-props': {
+                          span: 8,
+                        },
+                        properties: {
+                          sex: {
+                            type: 'string',
+                            title: '性别',
+                            required: false,
+                            disabled: true,
+                            dataSource: [1, 2],
+                            'x-decorator': 'FieldDecorator',
+                            'x-component': 'DictSelect',
+                            'x-component-props': {
+                              dict: 'usermanage.user.sex',
+                              multiple: true
+                            },
+                          },
+                        }
+                      },
+                      item3: {
+                        type: 'void',
+                        'x-component': 'GridLayout.Grid',
+                        'x-component-props': {
+                          span: 8,
+                        },
+                        properties: {
+                          nation: {
+                            type: 'string',
+                            title: '名族',
+                            required: false,
+                            'x-decorator': 'FieldDecorator',
+                            'x-component': 'TextInput',
+                          },
+                        }
+                      },
+                      item4: {
+                        type: 'void',
+                        'x-component': 'GridLayout.Grid',
+                        'x-component-props': {
+                          span: 12,
+                        },
+                        properties: {
+                          'idcard.num': {
+                            type: 'string',
+                            title: '身份证号',
+                            required: false,
+                            'x-decorator': 'FieldDecorator',
+                            'x-component': 'TextInput',
+                          },
+                        }
+                      },
+                      item5: {
+                        type: 'void',
+                        'x-component': 'GridLayout.Grid',
+                        'x-component-props': {
+                          span: 12,
+                        },
+                        properties: {
+                          worktime: {
+                            type: 'string',
+                            title: '参加工作时间',
+                            required: false,
+                            'x-decorator': 'FieldDecorator',
+                            'x-component': 'TextInput',
+                          },
+                        }
+                      },
+                    }
+                  }
+                }
+              },
+              item2: {
+                type: 'void',
+                'x-component': 'GridLayout.Grid',
+                'x-component-props': {
+                  span: 6
+                },
+                properties: {
+                  head: {
+                    type: 'string',
+                    required: false,
+                    'x-component': 'TextInput',
+                  }
+                }
+              }
+            }
+          },
+          input: {
+            type: 'string',
+            title: '哈哈',
+            required: true,
+            'x-decorator': 'FieldDecorator',
+            'x-component': 'TextInput',
+          },
+          input2: {
+            type: 'string',
+            title: '哈哈',
+            'x-component': 'TextInput',
+            'x-decorator': 'FieldDecorator',
+          },
+          'user.post[0]': {
+            type: 'string',
+            title: '职务',
+            'x-component': 'TextInput',
+            'x-decorator': 'FieldDecorator',
+          },
+          'user.post[2]': {
+            type: 'string',
+            title: '职务1',
+            'x-component': 'TextInput',
+            'x-decorator': 'FieldDecorator',
+          },
+        },
+      }
+    }
+  },
+  methods: {
+    click(){
+      this.form.submit((values) => {
+        console.log(values)
+      }).catch(error => {
+        console.log(error)
+      })
+    }
+  }
+}
+</script>

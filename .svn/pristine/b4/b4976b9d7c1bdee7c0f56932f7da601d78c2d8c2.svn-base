@@ -1,0 +1,109 @@
+<template>
+  <div class="staffing-map">
+    <div class="btns">
+      <a v-if="location" :class="['location', {'location-active': isActive(location.adcode)}]" @click="onBack">{{location.title}}</a>
+      <a v-if="top" :class="['star', {'star-active': isActive(top.adcode)}]" @click="selected=top">{{top.title}}</a>
+    </div>
+    <AreaMap v-model="selected" :locationPath.sync="path"/>
+  </div>
+</template>
+<script>
+import AreaMap from '../map'
+
+export default {
+  props: {
+    districtCode: {
+      type: String
+    }
+  },
+  components: {
+    AreaMap
+  },
+  data(){
+    return {
+      path: [],
+      location: undefined,
+      selected: undefined,
+    }
+  },
+  computed: {
+    top(){
+      if(this.location){
+        let {adcode, title} = this.location;
+        return {
+          adcode: +adcode + 1 + '',
+          title: title.substr(title.length - 1) + '本级'
+        }
+      }
+    }
+  },
+  watch: {
+    districtCode(val) {
+      return val;
+    },
+    path(path){
+      let index = path.length  - 1;
+      if(index >= 0 && this.location != path[index]){//定位发生变更时，修改定位及选区
+        this.location = path[index];
+        this.selected = this.location;
+      }
+    },
+    selected(v, oldV){
+      if(!v || !oldV || v.adcode != oldV.adcode){
+        this.$emit('select', v);
+      }
+    }
+  },
+  methods: {
+    onBack(){
+      let len = this.path.length;
+      if(len > 1){
+        this.location = this.path[len - 2];
+        this.selected = this.path.pop();
+      }else{
+        this.selected = this.path[0]
+      }
+    },
+    isActive(val) {
+      if(val == this.selected.adcode) {
+        return true;
+      }
+      return false;
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.staffing-map{
+  height: 100%;
+  position: relative;
+  .btns{
+    position: absolute;
+    top: 0;
+    z-index: 1;
+    a{
+      display: block;
+      height: 36px;
+      line-height: 36px;
+      padding-left: 32px;
+      color: rgba(255, 255, 255, .8);
+      font-size: 16px;
+      &:hover{
+        color: #fff;  
+      }
+    }
+    .location{
+      background: url('../../../assets/img/screen/map-location.png') left center no-repeat;
+    }
+    .location-active {
+      background: url('../../../assets/img/screen/map-location-active.png') left center no-repeat;
+    }
+    .star{
+      background: url('../../../assets/img/screen/icon-star.png') left center no-repeat;
+    }
+    .star-active{
+      background: url('../../../assets/img/screen/icon-star-active.png') left center no-repeat;
+    }
+  }
+}
+</style>

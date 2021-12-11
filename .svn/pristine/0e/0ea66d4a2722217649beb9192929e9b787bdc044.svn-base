@@ -1,0 +1,169 @@
+<template>
+  <div>
+    <dialog-box 
+      v-model="show"
+      :title="title"
+    >
+        <div class="container">
+            <div class="ring" v-for="item in data">
+                <RingChart
+                    :data="item.data"
+                    :settings="{
+                    canvas: { width: 300, height: 400 },
+                    padding: [-90,0,0,-50],
+                    radius: 0.6,
+                    innerRadius: 0.8,
+                    color: ['#F2A54D','#60B4F5','#F84848','#DF6EA3','#6EDF75','#A66DF5','#C3F1CE','#A0A4F5'],
+                    infoText: {
+                        title: item.data.rows[0].k0,
+                        offsetY: -20,
+                        style: { fontSize: 18, fill: '#fff', textAlign: 'center' },
+                    },
+                    contentStyle: {
+                        offsetY: 10,
+                        fontSize: 25, fill: '#fff', textAlign: 'center'
+                    }
+                    }"
+                >
+                <template v-slot:customLegend="props">
+                  <div class="legend">
+                    <p class="title">
+                        {{item.settings.name}}
+                    </p>
+                    <ul>
+                      <li v-for="(row, index) in item.data.rows">
+                        <span class="left">
+                            <span :style="{background: props[index]}" class="spot"></span>
+                            <span>{{row.k0}}</span>
+                        </span>
+                        <span>{{row.v}}</span>
+                      </li>
+                    </ul>
+                  </div>
+                </template>
+              </RingChart>
+            </div>
+        </div>
+    </dialog-box>
+    <TableList v-model="showList"/>
+  </div>
+</template>
+<script>
+import DialogBox from '../components/DialogBox'
+import TableList from './TableList';
+import RingChart from "@person/components/chart/RingChart";
+
+export default {
+  components: {
+    DialogBox,
+    RingChart,
+    TableList
+  },
+  props: {
+    value: Boolean,
+    title: String,
+    dataList: {
+      type: Array,
+    }
+  },
+  data(){
+    return {
+      showList: false,
+      show: false,
+      data: undefined,
+    }
+  },
+  computed: {
+  },
+  watch: {
+    value(value){
+      this.show = value;
+    },
+    show(show){
+      this.$emit('input', show);
+    },
+    dataList(val) {
+      this.data = val;
+    }
+  },
+  methods: {
+  }
+}
+</script>
+<style lang="less" scoped>
+.container {
+    height: 90%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    .ring {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        /deep/.ring-chart {
+            height: 300px;
+            .chart {
+                width: 60%;
+            }
+        }
+        .title {
+            margin-bottom: 20px;
+            font-size: 1.4em;
+            font-weight: 600;
+        }
+        .legend {
+            width: 50%;
+            height: 500px;
+            padding: @padding-lg;
+            text-align: left;
+            position: absolute;
+            top: 50%;
+            left: 45%;
+            transform: translateY(-50%);
+            color: fade(#fff, 80%);
+            display: flex;
+            flex-direction: column;
+            ul {
+                width: 100%;
+                height: 500px;
+                padding: @padding-md @padding-xs @padding-md 50px;
+                margin: 0;
+                margin-left: auto;
+                background: url('../../../assets/img/screen/age-education-bg.png') no-repeat;
+                background-size: cover;
+                overflow-y: scroll;
+                li {
+                    width: 100%;
+                    margin-bottom: 20px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    font-size: 1.2em;
+                    cursor: pointer;
+                    user-select: none;
+                    .left {
+                        width: 70%;
+                        margin-right: 10px;
+                        white-space: nowrap;
+                        text-overflow: ellipsis;
+                        overflow: hidden;
+                        .spot {
+                            width: 10px;
+                            height: 10px;
+                            margin-right: 10px;
+                            border-radius: @border-radius-base;
+                            display: inline-block;
+                        }
+                    }
+                    &:hover {
+                        color:#fff;
+                    }
+                    span:last-child {
+                        text-align: right;
+                    }
+                }
+            }
+        }
+    }
+}
+</style>

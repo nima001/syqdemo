@@ -1,0 +1,67 @@
+<template>
+  <div class="capsule" :style="{width:width+'px'}">
+    <div class="showCapsule" :class="{accent}" :style="{width:showLength +'px'}"></div>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {
+    maxNum: {
+      type: Number,
+      required: true
+    },
+    showNum: {
+      type: Number,
+      required: true
+    },
+    accent: {
+      type: Boolean
+    }
+  },
+  data() {
+    return {
+      // 胶囊图默认宽度
+      width: 140
+    };
+  },
+  computed: {
+    showLength() {
+      return parseInt((this.showNum / this.maxNum) * 140);
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.capsule {
+  height: 8px;
+  background: #343434;
+  border: 1px solid rgba(0, 0, 0, 0);
+  opacity: 1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  .showCapsule {
+    height: 6px;
+    border: 1px solid rgba(0, 0, 0, 0);
+    margin-left: -1px;
+    background: linear-gradient(
+      270deg,
+      #8fd2ff 0%,
+      rgba(87, 140, 246, 0.66) 49%,
+      #5d4ef4 100%
+    );
+    opacity: 1;
+    border-radius: 8px;
+    &.accent {
+      background: linear-gradient(
+        270deg,
+        #fcb75b 0%,
+        rgba(240, 150, 81, 0.66) 49%,
+        #f26e52 100%
+      );
+    }
+  }
+}
+</style>

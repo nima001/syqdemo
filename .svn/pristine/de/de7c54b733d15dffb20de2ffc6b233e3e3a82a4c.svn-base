@@ -1,0 +1,1165 @@
+<template>
+  <div class="functional-design" ref="functionalBody">
+    <div class="functional">
+      <a-affix :offset-top="0" :target="() => $refs.functionalBody" id="header-top">
+        <div class="sticky">
+          <div class="content-header" :class="orgdata ? '' : 'contentbox'">
+            <div class="header">
+              <div class="search-right">
+                <a-input
+                  placeholder="请输入关键字"
+                  style="flex: 1; margin-right: 15px"
+                  allow-clear
+                  v-model="searchkey"
+                />
+                <a-button type="primary" style="margin-right: 15px" @click="searchOrg">搜索</a-button>
+                <a-button @click="resetOrg">重置</a-button>
+                <span class="filter" @click="showFilter"><a-icon type="filter" />筛选</span>
+              </div>
+            </div>
+          </div>
+          <div :class="['filter-content', { showfilter: filterVisible }]">
+            <div class="filter-left">
+              <div>范围选择：</div>
+              <div class="left-content">
+                <div class="mechanism" @click="orgModelShow">
+                  <ul>
+                    <li v-if="orgValue.length === 0" class="placehold">
+                      请选择地区或机构
+                    </li>
+                    <li v-for="(item, index) in orgValue">
+                      {{ item.name }}
+                      <span @click.stop="deleteItem(index)" class="delete">
+                        <a-icon type="close"/>
+                      </span>
+                    </li>
+                  </ul>
+                  <span
+                    class="clear"
+                    v-if="orgValue.length !== 0"
+                    @click.stop="resetRange"
+                  >
+                    <a-icon
+                      type="close-circle"
+                      theme="filled"
+                      :style="{ fontSize: '12px', color: '#666' }"
+                    />
+                  </span>
+                </div>
+                <div class="editicon" @click="orgModelShow">
+                  <span class="icon">
+                    <a-icon slot="addonAfter" type="select" class="left-icon" />
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div class="filter-right">
+              <div class="right-content">
+                <span>内容选择：</span>
+                <ul>
+                  <li
+                    v-for="item in type"
+                    :key="item.value"
+                    :class="{ active: typeActive(item.value) }"
+                    @click="changeType(item.value)"
+                  >
+                    {{ item.title }}
+                  </li>
+                </ul>
+              </div>
+            </div>
+            <div class="filter-bottom" v-show="filterVisible">
+              <a-icon type="up" @click="showFilter" />
+            </div>
+          </div>
+        </div>
+      </a-affix>
+      <a-spin :spinning="this.spinning" class="loading" />
+      <!--机构全部内容-->
+      <div class="functional-content details" v-if="orgdata">
+        <div class="content-left">
+          <a-affix
+            :offset-top="80"
+            :style="{ width: '100%' }"
+            :target="() => $refs.functionalBody"
+          >
+            <div class="header">
+              相关机构
+              <a-icon :type="flag ? 'up' : 'down'" @click="changeArrow" />
+            </div>
+            <div class="content" v-if="orgdata">
+              <div
+                class="ul-content"
+                :style="{ height: leftHeight + 'px', overflow: flag ? 'auto' : 'hidden' }"
+                ref="content"
+              >
+                <ul>
+                  <li
+                    v-for="(item, index) in orgdata"
+                    :class="{ active: isActive(item) }"
+                    :key="index"
+                    @click="active(index, item)"
+                  >
+                    <p>
+                      <span class="orgname" :title="item.orgname">
+                        {{ item.orgname }}
+                      </span>
+                      <span>
+                        <span class="span-tag" v-if="(item.type & 8) == 8">
+                          &nbsp;<img src="../../../assets/img/functional-duty.jpg" >&nbsp;
+                        </span>
+                        <span class="span-tag" v-if="(item.type & 4) == 4">
+                          &nbsp;<img src="../../../assets/img/functional-powerlist.jpg"/>&nbsp;
+                        </span>
+                        <span class="span-tag" v-if="(item.type & 2) == 2">
+                          &nbsp;<img src="../../../assets/img/functional-sanding.jpg"/>&nbsp;
+                        </span>
+                        <span class="span-tag" v-if="(item.type & 1) == 1">
+                          &nbsp;<img src="../../../assets/img/functional-annualreport.jpg"/>&nbsp;
+                        </span>
+                      </span>
+                    </p>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </a-affix>
+        </div>
+        <div class="content-middle">
+          <div class="header">
+            <div class="mechanism-name">
+              <h2 v-if="orgMuster">{{ orgMuster.orgname }}</h2>
+              <span style="float: right">
+                <span class="span-tag" v-if="(orgMuster.type & 8) == 8">
+                  &nbsp;机构职责&nbsp;
+                </span>
+                <span class="span-tag" v-if="(orgMuster.type & 4) == 4">
+                  &nbsp;权力清单&nbsp;
+                </span>
+                <span class="span-tag" v-if="(orgMuster.type & 2) == 2">
+                  &nbsp;定岗定员定责&nbsp;
+                </span>
+                <span class="span-tag" v-if="(orgMuster.type & 1) == 1">
+                  &nbsp;事业单位年报&nbsp;
+                </span>
+              </span>
+            </div>
+          </div>
+          <div class="content">
+            <!--机构职责-->
+            <div id="mechanism-one">
+              <!--主管单位-->
+              <div class="main-mechanism">
+                <div class="mechanism-div">
+                  <div class="small-div"></div>
+                  <div class="small-p">机构职责</div>
+                </div>
+                <div :class="['mechanism-tree', { main: !dutieslist.length }]">
+                  <p v-if="orgMuster">主管单位: {{ orgMuster.orgname }}</p>
+                  <tree-list
+                    v-if="dutieslist.length"
+                    :orgtitle="orgMuster.orgname"
+                    :dutieslist="dutieslist"
+                    :inputvalue="keywords"
+                    :typearr="typearr"
+                  ></tree-list>
+                  <div v-else>
+                    <img src="../../../assets/img/functional-empty.jpg" />
+                  </div>
+                </div>
+              </div>
+              <!--下设机构-->
+              <div class="under-mechanism">
+                <div :class="['mechanism-tree', { main: !childrenlist.length }]">
+                  <p>下设机构</p>
+                  <tree-list
+                    v-if="childrenlist.length"
+                    :childrenlist="childrenlist"
+                    :inputvalue="keywords"
+                    :typearr="typearr"
+                  ></tree-list>
+                  <div v-else>
+                    <img src="../../../assets/img/functional-empty.jpg" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!--权力清单-->
+            <div id="list-two">
+              <!--主管单位-->
+              <div class="main-mechanism">
+                <div class="mechanism-div">
+                  <div class="small-div"></div>
+                  <div class="small-p">权力清单</div>
+                </div>
+                <div :class="['mechanism-tree', { main: !qlsx.length }]">
+                  <h1 v-if="qlsx.length">主管单位: {{ qlsx[0].orgname }}</h1>
+                  <tree-list
+                    v-if="qlsx.length"
+                    :qlsxtitle="qlsx[0].orgname"
+                    :qlsxlist="qlsx[0]"
+                    :inputvalue="keywords"
+                  ></tree-list>
+                  <div v-else>
+                    <img src="../../../assets/img/functional-empty.jpg" />
+                  </div>
+                </div>
+              </div>
+              <!--下设机构-->
+              <div class="under-mechanism">
+                <div :class="['mechanism-tree', { main: !qlsxchild.length }]">
+                  <p>下设机构</p>
+                  <tree-list
+                    v-if="qlsxchild.length"
+                    :qlsxlist="qlsxchild"
+                    :qlsxchildlist="qlsxchild"
+                    :inputvalue="keywords"
+                  ></tree-list>
+                  <div v-else>
+                    <img src="../../../assets/img/functional-empty.jpg" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- 事业单位年报 -->
+            <div id="work-four">
+              <div class="list-power main-mechanism">
+                <div class="mechanism-div">
+                  <div class="small-div"></div>
+                  <div class="small-p">事业单位年报</div>
+                </div>
+                <div :class="['mechanism-tree', { main: !yearReports.length }]">
+                  <div v-if="yearReports.length">
+                    <ul class="yearreport" v-for="(item, iex) in yearReports" :key="iex">
+                      <h2>【{{ item.orgname }}】</h2>
+                      <span style="font-weight: 700"
+                        >{{ item.year }}事业单位法人年度报告书</span
+                      >
+                      <li class="work-li">
+                        <span
+                          v-if="item.purpose && item.purpose.indexOf(keywords) !== -1"
+                          style="width: 91%; color: rgba(0, 0, 0, 0.5)"
+                          v-html="brightenKeyword(item.purpose)"
+                        ></span>
+                        <span
+                          v-else
+                          style="width: 91%; color: rgba(0, 0, 0, 0.5)"
+                          v-html="brightenKeyword(item.content)"
+                        ></span>
+                        <div class="ul-a-button">
+                          <a-button @click="yearReportswatch(item)">查看详情</a-button>
+                        </div>
+                      </li>
+                    </ul>
+                  </div>
+                  <div v-else>
+                    <img src="../../../assets/img/functional-empty.jpg" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- 定岗定员定责 -->
+            <div id="people-three" class="list-power main-mechanism" v-if="dinggang">
+              <div class="mechanism-div">
+                <div class="small-div"></div>
+                <div class="small-p">定岗定员定责</div>
+              </div>
+              <div :class="['mechanism-tree', { main: !dinggang.length }]">
+                <div v-if="dinggang.length">
+                  <ul class="dinggang" v-for="(item, iex) in dinggang" :key="iex">
+                    <h2>【{{ item.orgname }}】</h2>
+                    <ul v-for="(item, index) in item.dingGdingYdingZ">
+                      <span style="font-weight: 700; display: block"
+                        >{{ item.postname }}{{ item.deptname }}</span
+                      >
+                      <li class="work-li">
+                        <span
+                          v-if="item.duty && item.duty.indexOf(keywords) !== -1"
+                          style="width: 91%; color: rgba(0, 0, 0, 0.5)"
+                          v-html="brightenKeyword(item.duty)"
+                        ></span>
+                        <span
+                          v-else
+                          style="width: 91%; color: rgba(0, 0, 0, 0.5)"
+                          v-html="brightenKeyword(item.duty)"
+                        ></span>
+                        <div class="ul-a-button">
+                          <a-button @click="dinggangwatch(item)">查看详情</a-button>
+                        </div>
+                      </li>
+                    </ul>
+                  </ul>
+                </div>
+                <div v-else>
+                  <img src="../../../assets/img/functional-empty.jpg" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="content-right">
+          <a-anchor :offsetTop="100" :getContainer="() => $refs.functionalBody">
+            <a-anchor-link href="#header-top" title="顶部" />
+            <a-anchor-link href="#mechanism-one" title="机构职责" />
+            <a-anchor-link href="#list-two" title="权力清单" />
+            <a-anchor-link href="#work-four" title="事业单位年报" />
+            <a-anchor-link href="#people-three" title="定岗定员定责" />
+          </a-anchor>
+        </div>
+      </div>
+      <div class="main-image" v-else="!orgdata">
+        <empty-data :tips="warningtext" />
+      </div>
+    </div>
+    <!--组织选择-->
+    <a-modal
+      title="单位名称选择"
+      v-model="orgVisible"
+      :width="800"
+      :bodyStyle="{ height: '600px', padding: '0' }"
+      :footer="null"
+    >
+      <org-user-select
+        mode="org"
+        :showDept="true"
+        :max-select="100"
+        :root-selectable="true"
+        :selected.sync="selected"
+        @finish="selectOrg"
+      />
+    </a-modal>
+
+    <a-modal
+      title="查看详情"
+      :visible="yearReportsvisible"
+      @cancel="yearReportsclose"
+      v-if="yearReportsData"
+      :footer="null"
+      width="800px"
+      :bodyStyle="{ padding: '15px', height: '500px', overflow: 'auto' }"
+    >
+      <div class="detailsmodal">
+        <div class="details-top" style="margin-bottom: 5px">
+          <div>
+            <p class="detailspcss">{{ yearReportsData.orgname }}</p>
+            <div style="padding-top: 5px">
+              【{{ yearReportsData.year }}|事业单位法人年度报告书】
+            </div>
+          </div>
+        </div>
+        <div>
+          <span style="color: #c9c9c9">宗旨和业务范围</span>
+          <p
+            v-html="
+              this.brightenAllKeyword(transformationContent(yearReportsData.purpose))
+            "
+            style="line-height: 25px; text-indent: 2em"
+          ></p>
+        </div>
+        <div>
+          <span style="color: #c9c9c9">开展业务活动情况</span>
+          <p
+            v-html="
+              this.brightenAllKeyword(transformationContent(yearReportsData.content))
+            "
+            style="line-height: 25px; text-indent: 2em"
+          ></p>
+        </div>
+      </div>
+    </a-modal>
+    <a-modal
+      title="查看详情"
+      :visible="dinggangvisible"
+      @cancel="dinggangclose"
+      v-if="dinggangData"
+      :footer="null"
+      width="800px"
+      :bodyStyle="{ padding: '15px', height: '500px', overflow: 'auto' }"
+    >
+      <div class="detailsmodal">
+        <div class="details-top" style="margin-bottom: 5px">
+          <div>
+            <p class="detailspcss">{{ dinggangData.title }}</p>
+            <div style="color: #c9c9c9; padding-top: 5px">
+              {{ dinggangData.deptname }}|{{ dinggangData.postname }}
+            </div>
+          </div>
+        </div>
+        <div>
+          <p
+            v-html="brightenAllKeyword(transformationContent(dinggangData.duty))"
+            style="line-height: 25px; text-indent: 2em"
+          ></p>
+        </div>
+      </div>
+    </a-modal>
+  </div>
+</template>
+<script>
+import {
+  Input,
+  Icon,
+  Button,
+  Modal,
+  Anchor,
+  Card,
+  Spin,
+  Divider,
+  Affix,
+} from "ant-design-vue";
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+import { orgfuncdescPost, orgfuncdescSearch } from "@/person-shaoxing/api/analysis";
+import { cloneDeep } from "lodash";
+import treeList from "./components/treeList";
+import { showError } from "@/framework/utils/index";
+import EmptyData from "@/framework/components/EmptyData";
+export default {
+  name: "",
+  components: {
+    ASpin: Spin,
+    AInput: Input,
+    AIcon: Icon,
+    ACard: Card,
+    AButton: Button,
+    AModal: Modal,
+    AAnchor: Anchor,
+    AAnchorLink: Anchor.Link,
+    OrgUserSelect,
+    treeList,
+    EmptyData,
+    ADivider: Divider,
+    AAffix: Affix,
+  },
+  data() {
+    return {
+      leftHeight: 120,
+      filterVisible: false,
+      dutieslist: [],
+      childrenlist: [],
+      type: [
+        { title: "机构职责", value: 8 },
+        { title: "权力清单", value: 4 },
+        { title: "定岗定员定责", value: 2 },
+        { title: "事业单位年报", value: 1 },
+      ],
+      choosetype: undefined,
+      qlsx: [],
+      qlsxchild: [],
+      dinggang: [],
+      flag: false,
+      yearReports: [],
+      currentSort: 0,
+      orgdata: null,
+      orgValue: [],
+      orgVisible: false,
+      nodelist: [],
+      selected: [],
+      searchkey: "",
+      keywords: "",
+      orgMuster: null,
+      warningtext: "请选择机构或进行关键字搜索",
+      spinning: false,
+      yearReportsvisible: false,
+      dinggangvisible: false,
+      yearReportsData: null,
+      dinggangData: null,
+    };
+  },
+  computed: {
+    //职责
+    typearr() {
+      return this.$store.getters.dict("person.orgfuncdesctype");
+    },
+  },
+  mounted() {
+    if (this.$route.params.val) {
+      this.searchkey = this.$route.params.val;
+      this.searchOrg();
+    }
+  },
+  methods: {
+    isActive(val) {
+      if (val.orgid === this.orgMuster.orgid) {
+        return true;
+      }
+    },
+    typeActive(val) {
+      if (val === this.choosetype) {
+        return true;
+      }
+      return false;
+    },
+    changeType(val) {
+      if (val === this.choosetype) {
+        this.choosetype = undefined;
+      } else {
+        this.choosetype = val;
+      }
+    },
+    showFilter() {
+      this.filterVisible = !this.filterVisible;
+    },
+    //清空
+    resetRange() {
+      this.selected = [];
+      this.nodelist = [];
+      this.orgValue = [];
+    },
+    //单个删除
+    deleteItem(index) {
+      this.selected.splice(index, 1);
+      this.orgValue.splice(index, 1);
+    },
+    yearReportswatch(item) {
+      this.yearReportsData = item;
+      this.yearReportsvisible = true;
+    },
+    yearReportsclose() {
+      this.yearReportsvisible = false;
+    },
+    dinggangwatch(item) {
+      this.dinggangData = item;
+      this.dinggangvisible = true;
+    },
+    dinggangclose() {
+      this.dinggangvisible = false;
+    },
+    transformationContent(content) {
+      //原始字符串
+      let string = content;
+      //替换所有的换行符
+      string = string.replace(/\r\n/g, "<br>");
+      string = string.replace(/\n/g, "<br>");
+      string = string.replace(/(\r\n)|(\n)/g, "<br>");
+      //替换所有的空格（中文空格、英文空格都会被替换）
+      string = string.replace(/\s/g, " ");
+      //输出转换后的字符串
+      return string;
+    },
+    searchOrg() {
+      if (this.searchkey == "") {
+        this.$notification.warning({
+          message: "提示",
+          description: "请输入查询内容!",
+          duration: 3,
+        });
+      } else {
+        this.spinning = true;
+        let orgids = [];
+        this.nodelist.forEach(function (item) {
+          orgids.push(item.orgid);
+        });
+        let data = {
+          orgids: orgids,
+          searchkey: this.searchkey,
+          type: this.choosetype,
+        };
+        orgfuncdescPost(data)
+          .then((res) => {
+            this.spinning = false;
+            if (res.result && res.result.length > 0) {
+              this.orgdata = res.result;
+              //清空数据，防止搜索后数据未刷新
+              this.currentSort = 0;
+              this.keywords = this.searchkey;
+              this.searchlist(this.orgdata[0], this.searchkey);
+              this.orgMuster = this.orgdata[0];
+              this.$refs.functionalBody.scrollTop = 0;
+            } else {
+              this.$message.warning("暂无内容！");
+              this.orgdata = null;
+            }
+          })
+          .catch((err) => {
+            this.spinning = false;
+            showError(err);
+          });
+      }
+    },
+    resetOrg() {
+      this.resetRange();
+      this.searchkey = "";
+      this.warningtext = "请选择机构或进行关键字搜索";
+    },
+    async searchlist(data, searchkey) {
+      this.spinning = true;
+      let list = {
+        orgid: data.orgid,
+        type: data.type,
+        searchkey: searchkey,
+      };
+      await orgfuncdescSearch(list)
+        .then((res) => {
+          this.spinning = false;
+          if (res.result.orgfuncdesc) {
+            if (res.result.orgfuncdesc.length === 1) {
+              this.dutieslist = res.result.orgfuncdesc;
+              this.childrenlist = [];
+            } else if (res.result.orgfuncdesc.length > 1) {
+              this.dutieslist = cloneDeep(res.result.orgfuncdesc[0]);
+              res.result.orgfuncdesc.splice(0, 1);
+              this.childrenlist = cloneDeep(res.result.orgfuncdesc);
+            }
+          } else {
+            this.dutieslist = [];
+            this.childrenlist = [];
+          }
+          if (res.result.qlsx) {
+            if (res.result.qlsx.length === 1) {
+              this.qlsx = res.result.qlsx;
+              this.qlsxchild = [];
+            } else if (res.result.qlsx.length > 1) {
+              this.qlsx = cloneDeep(res.result.qlsx[0]);
+              res.result.qlsx.splice(0, 1);
+              this.qlsxchild = cloneDeep(rres.result.qlsx);
+            }
+          } else {
+            this.qlsx = [];
+            this.qlsxchild = [];
+          }
+          if (res.result.dinggang) {
+            this.dinggang = res.result.dinggang;
+          } else {
+            this.dinggang = [];
+          }
+          if (res.result.yearReport) {
+            this.yearReports = res.result.yearReport.yearReports;
+          } else {
+            this.yearReports = [];
+          }
+        })
+        .catch((err) => {
+          this.spinning = false;
+          showError(err);
+        });
+    },
+    brightenAllKeyword(content) {
+      let inputvalue = this.keywords;
+      let index = content.indexOf(inputvalue);
+      const Reg = new RegExp(inputvalue, "g");
+      let res = "";
+      res = content.replace(Reg, `<span style="color: #d60002;">${inputvalue}</span>`);
+      return res;
+    },
+    //判断搜索记录是否包含某个关键字
+    brightenKeyword(content) {
+      // inputvalue为搜索框中的value
+      let inputvalue = this.keywords;
+      let index = content.indexOf(inputvalue);
+      if (content.length < 200) {
+        const Reg = new RegExp(inputvalue, "g");
+        let res = "";
+        res = content.replace(Reg, `<span style="color: #d60002;">${inputvalue}</span>`);
+        return res;
+      } else if (index < 20) {
+        let newtext = content.slice(index, index + 200);
+        let newcontent = `......${newtext}......`;
+        const Reg = new RegExp(inputvalue);
+        let res = "";
+        res = newcontent.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+        return res;
+      } else {
+        let newtext = content.slice(index - 15, index + 185);
+        let newcontent = `......${newtext}......`;
+        const Reg = new RegExp(inputvalue);
+        let res = "";
+        res = newcontent.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+        return res;
+      }
+    },
+    //展开、收起筛选
+    changeArrow() {
+      this.flag = !this.flag;
+      if (this.flag) {
+        this.leftHeight = document.body.clientHeight - 252;
+      } else {
+        this.leftHeight = 120;
+      }
+      this.$refs.content.scrollTop = 0;
+    },
+    async active(index, item) {
+      this.currentSort = index;
+      this.orgMuster = item;
+      await this.searchlist(item, this.searchkey);
+      this.$refs.functionalBody.scrollTop = 0;
+    },
+    orgModelShow() {
+      this.orgVisible = true;
+    },
+    //确定选择的机构
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok") {
+        let orgarr = [];
+        list.forEach(function (item) {
+          orgarr.push({
+            orgid: item._id || item.orgid,
+            orgname: item.name,
+            name: item.name,
+          });
+        });
+        this.nodelist = orgarr;
+        this.orgValue = this.nodelist;
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.functional-design {
+  height: 100%;
+  overflow-y: auto;
+  .functional {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: @layout-space-base;
+    .sticky {
+      border-top-left-radius: 10px;
+      border-top-right-radius: 10px;
+      position: sticky;
+      top: 0;
+      background-color: #ffffff;
+      z-index: 999;
+      .content-header {
+        border-top-left-radius: 10px;
+        border-top-right-radius: 10px;
+        background: url("../../../assets/img/functional-head-bg.jpg") left bottom
+          no-repeat;
+        display: flex;
+        flex-direction: column;
+        height: 85px;
+        box-shadow: 1px 1px 3px 1px @primary-1;
+        .header {
+          display: flex;
+          justify-content: flex-end;
+          position: relative;
+          right: 3%;
+          margin: auto @layout-space-base;
+          .search-right {
+            display: flex;
+            align-items: center;
+            margin-right: 15%;
+            width: 50%;
+            .filter {
+              margin-left: 15px;
+              cursor: pointer;
+              color: @primary-color;
+              user-select: none;
+            }
+          }
+          .left-icon {
+            color: @primary-color;
+          }
+        }
+      }
+      .content-header::before {
+        content: "";
+        background: #efeff0;
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 85px;
+        height: 3px;
+        z-index: 999;
+      }
+      .filter-content {
+        height: 0;
+        transition: height 0.3s;
+        overflow: hidden;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        background: #fafbfc;
+        position: relative;
+        .filter-left {
+          display: flex;
+          align-items: center;
+          margin-left: 35px;
+          .left-content {
+            display: flex;
+            height: 32px;
+            .mechanism {
+              width: 70%;
+              border-radius: 4px 0 0 4px;
+              border: 1px solid #d9d9d9;
+              border-right: 0;
+              display: flex;
+              align-items: center;
+              overflow-x: auto;
+              position: relative;
+              padding: 1px 30px 0 11px;
+              background: white;
+              & ul {
+                width: 357px;
+                overflow-y: hidden;
+                overflow-x: auto;
+                display: flex;
+                margin: 0;
+                li {
+                  background: #e8e8e8;
+                  border-radius: 4px;
+                  padding: 0 4px;
+                  margin: 0 @padding-xs 0 0;
+                  white-space: nowrap;
+                  .delete {
+                    cursor: pointer;
+                  }
+                }
+                li.placehold {
+                  color: rgba(176, 176, 176, 0.8);
+                  background: transparent;
+                }
+              }
+              .clear {
+                position: absolute;
+                top: 50%;
+                right: 12px;
+                transform: translateY(-50%);
+                display: flex;
+                z-index: 2;
+                cursor: pointer;
+              }
+            }
+          }
+          .editicon {
+            margin-right: 15px;
+            .icon {
+              height: 100%;
+              text-align: center;
+              background-color: #fafafa;
+              margin-left: auto;
+              padding: 0 11px;
+              border: 1px solid #d9d9d9;
+              display: flex;
+              align-items: center;
+              border-radius: 0 4px 4px 0;
+              cursor: pointer;
+            }
+          }
+        }
+        .filter-right {
+          margin-left: 35px;
+          .right-content {
+            display: flex;
+            align-items: center;
+            ul {
+              display: flex;
+              align-items: center;
+              margin: 0;
+              li {
+                margin-right: 10px;
+                padding: 4px 10px;
+                border-radius: 50px;
+                border: 1px solid #e8e8e8;
+                cursor: pointer;
+                transition: all 0.3s;
+                user-select: none;
+              }
+              .active {
+                background: @primary-color;
+                color: white;
+              }
+            }
+          }
+        }
+        .filter-bottom {
+          width: 100%;
+          position: absolute;
+          bottom: 0;
+          text-align: center;
+          z-index: 0;
+          i.anticon.anticon-up {
+            color: @primary-color !important;
+            cursor: pointer;
+          }
+        }
+      }
+      .showfilter {
+        height: 85px;
+      }
+      .mechanism-h2 {
+        font-weight: 700;
+        color: #666666;
+        margin-top: 10px;
+        margin-left: 10px;
+      }
+    }
+    .loading {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 999;
+    }
+    .functional-content {
+      height: auto;
+      display: flex;
+      flex: 1;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      background: @white;
+      border-bottom-left-radius: 10px;
+      border-bottom-right-radius: 10px;
+      .content-left {
+        width: 15%;
+        flex-direction: column;
+        box-shadow: 0 0 5px 5px #f0f0f0;
+        /deep/.ant-affix {
+          z-index: 0;
+        }
+        .header {
+          text-align: center;
+          border-bottom: 2px solid #f6f6f6;
+          color: @primary-color;
+          font-size: 18px;
+          height: 50px;
+          line-height: 50px;
+          padding: 0 10px;
+          i.anticon.anticon-down,
+          i.anticon.anticon-up {
+            float: right;
+            cursor: pointer;
+            line-height: 55px;
+            transition: all 0.3s;
+          }
+        }
+        .content {
+          .ul-content {
+            width: 98%;
+            overflow: auto;
+            transition: height 0.3s;
+            ul {
+              margin-top: 10px;
+              li:hover,
+              li.active {
+                color: @primary-color;
+              }
+              li {
+                display: flex;
+                align-items: center;
+                position: relative;
+                min-height: 32px;
+                cursor: pointer;
+                white-space: nowrap;
+                user-select: none;
+                text-overflow: ellipsis;
+                p {
+                  display: flex;
+                  align-items: center;
+                  justify-content: space-between;
+                  flex: 1;
+                  width: 0;
+                  font-weight: bold;
+                  margin-bottom: 0;
+                  margin-left: 10px;
+                  padding: 0 0 0 10px;
+                  border-bottom: 1px solid #f0f0f0;
+                  line-height: 35px;
+                  .orgname {
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    max-width: 80%;
+                  }
+                }
+                p:before {
+                  content: "";
+                  background: @primary-color;
+                  width: 4px;
+                  height: 30px;
+                  position: absolute;
+                  left: 0;
+                  bottom: 0;
+                }
+              }
+            }
+          }
+          .ulcontentVisible {
+            height: 100%;
+          }
+        }
+      }
+      .content-middle {
+        width: 75%;
+        display: flex;
+        flex-direction: column;
+        .header {
+          .mechanism-name {
+            padding-right: @layout-space-base;
+            padding-left: 32px;
+            border-bottom: 2px solid #f6f6f6;
+            height: 50px;
+            h2 {
+              display: inline-block;
+              line-height: 50px;
+            }
+            span {
+              line-height: 50px;
+            }
+            .span-tag {
+              margin-right: @layout-space-base;
+              border: 1px solid #d9d9d9;
+              border-radius: 2px;
+            }
+          }
+        }
+        .content {
+          flex: 1;
+          padding: 10px 32px;
+          #mechanism-one .treeheader {
+            margin-top: 40px;
+          }
+          .main-mechanism,
+          .under-mechanism {
+            display: flex;
+            flex-direction: column;
+            .yearreport,
+            .dinggang li {
+              padding: 10px 0;
+              border-bottom: 2px solid #ededed;
+            }
+            .work-li {
+              display: flex;
+            }
+            .mechanism-div {
+              display: flex;
+              align-items: center;
+              margin: @layout-space-base 0;
+              .small-div {
+                width: 5px;
+                height: 20px;
+                background: @primary-color;
+              }
+              .small-p {
+                font-size: 20px;
+                margin-left: 5px;
+              }
+            }
+            .mechanism-tree {
+              position: relative;
+              padding: 12px 32px;
+              margin: 10px 0;
+              border: 2px solid #f0f0f0;
+              p {
+                position: absolute;
+                margin-left: 0;
+                left: 32px;
+                font-size: 18px;
+              }
+              .treeheader {
+                /deep/.details-tree .tree-ul .tree-ul-s .tree-ul-a {
+                  width: 70%;
+                }
+              }
+              .ul-a-button {
+                margin-left: 10px;
+              }
+            }
+            .main {
+              display: flex;
+              justify-content: center;
+            }
+          }
+        }
+      }
+      /deep/.content-right {
+        display: flex;
+        flex: 1;
+        padding-top: 10px;
+        justify-content: center;
+        background: #f0f0f0;
+        & .ant-anchor {
+          height: 330px;
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+        & .ant-affix {
+          height: auto;
+          z-index: 0;
+        }
+        & .ant-anchor-wrapper {
+          background-color: transparent;
+          .ant-anchor-ink {
+            left: 7px;
+            top: -3px;
+            .ant-anchor-ink-ball {
+              width: 18px;
+              height: 18px;
+              border-radius: 100%;
+              background: #f0f0f0;
+              border: 1px solid @primary-color;
+              z-index: 999;
+            }
+            .ant-anchor-ink-ball::before {
+              content: "";
+              position: absolute;
+              top: 2px;
+              left: 35%;
+              width: 5px;
+              height: 10px;
+              transform: rotate(45deg);
+              border-right: 2px solid @primary-color;
+              border-bottom: 2px solid @primary-color;
+              z-index: 999 !important;
+            }
+          }
+          .ant-anchor-ink::before {
+            top: 15px;
+            height: 92%;
+          }
+          .ant-anchor-link {
+            padding-left: 23px;
+            .ant-anchor-link-title {
+              user-select: none;
+            }
+          }
+          .ant-anchor-link::before {
+            content: "";
+            position: absolute;
+            left: -1px;
+            width: 18px;
+            height: 18px;
+            border-radius: 100%;
+            border: 2px solid #e8e8e8;
+            background: #f0f0f0;
+          }
+        }
+      }
+    }
+    .main-image {
+      position: absolute;
+      left: @layout-space-base;
+      right: @layout-space-base;
+      top: 96px;
+      bottom: @layout-space-base;
+      background: white;
+    }
+  }
+}
+.detailsmodal {
+  .details-top {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: @layout-space-base;
+    .detailspcss {
+      font-weight: 700;
+      font-size: 16px;
+      width: 600px;
+      overflow: hidden;
+      margin: 0;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    p {
+      margin-bottom: 0;
+    }
+  }
+}
+</style>

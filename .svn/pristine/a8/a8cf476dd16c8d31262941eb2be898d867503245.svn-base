@@ -1,0 +1,375 @@
+<!-- 业务管理 -->
+<template>
+  <div>
+    <div class="body">
+      <a-row>
+        <a-col :span="6">
+          <div class="body_2">
+            <a-button icon="plus">创建业务</a-button>
+            <a-button @click="deletes" icon="delete">删除</a-button>
+            <!-- <a-button @click="reset" icon="undo">刷新</a-button> -->
+          </div>
+        </a-col>
+        <a-col :span="18">
+          <div class="body_1">
+            <a-select class="antdxk" defaultValue="状态" @change="ceis">
+              <a-select-option value="null">全部</a-select-option>
+              <a-select-option value="0">默认</a-select-option>
+              <a-select-option value="1">待提交</a-select-option>
+              <a-select-option value="2">审核中</a-select-option>
+              <a-select-option value="3">审核通过</a-select-option>
+              <a-select-option value="4">审核失败</a-select-option>
+              <a-select-option value="5">已上架</a-select-option>
+              <a-select-option value="6">已下架</a-select-option>
+            </a-select>
+            <a-select style="width: 160px" defaultValue="业务名称">
+              <a-select-option value="1">全部</a-select-option>
+              <a-select-option value="name">业务名称</a-select-option>
+            </a-select>
+            <a-input style="width: 160px;margin:0 10px" v-model="val" />
+            <a-button @click="search" type="primary">搜索</a-button>
+            <a-button @click="reset">重置</a-button>
+          </div>
+        </a-col>
+      </a-row>
+      <a-table
+        :rowSelection="rowSelection"
+        :columns="columns"
+        :dataSource="data"
+        :pagination="false"
+        :locale="loca"
+      >
+        <span slot="state" slot-scope="state">
+          <span v-html="statejudge(state)"></span>
+        </span>
+        <span slot="id" slot-scope="id, record">
+          <a-button type="link" @click="operation(record)">管理</a-button>
+          <a-button type="link" @click="serviceauth(record)">权限配置</a-button>
+          <a-button type="link">申请发布</a-button>
+          <a-button
+            type="link"
+            v-if="!(record.state == 3)"
+            @click="putaway(record)"
+            v-text="sxjstate(record)"
+          ></a-button>
+        </span>
+      </a-table>
+      <a-pagination
+        :total="total"
+        :showSizeChanger="true"
+        @showSizeChange="onShowSizeChange"
+        :page-size-options="pageSizeOptions"
+        :pageSize="pagination.pagesize"
+        v-model="pagination.pagenum"
+        @change="onPageChange"
+        :showTotal="(total) => `总共：${total}条`"
+      />
+    </div>
+  </div>
+</template>
+
+<script>
+import {
+  Select,
+  Table,
+  Button,
+  Tag,
+  Input,
+  notification,
+  Pagination,
+  Row,
+  Col,
+} from "ant-design-vue";
+import { bizlist, bizdel, bizupdateState } from "@/dev/api/biz";
+export default {
+  data() {
+    return {
+      columns,
+      data,
+      val: "",
+      selectedRows: [],
+      selectedRowKeys: [],
+      pageSizeOptions: ["10", "20", "30", "40", "50"],
+      pagination: {
+        pagesize: 10, // 默认每页显示数量
+        pagenum: 1,
+      },
+      total: 10,
+      loca: {
+        emptyText: "暂无数据",
+      },
+    };
+  },
+  created() {
+    this.refresh();
+  },
+  components: {
+    AInput: Input,
+    AInputGroup: Input.Group,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    AButton: Button,
+    notification,
+    APagination: Pagination,
+    ARow: Row,
+    ACol: Col,
+  },
+  methods: {
+    serviceauth(record) {
+      this.$router.push({
+        path: "/dev/serviceauthority",
+        query: record,
+      });
+    },
+    operation(record) {
+      this.$router.push({
+        path: "/dev/operationcontrol",
+        query: record,
+      });
+    },
+    onShowSizeChange(current, size) {
+      this.pagination.pagesize = size;
+      this.refresh(current);
+    },
+    ceis(value) {
+      this.refresh(1, "", value);
+    },
+    // 修改业务上下架状态
+    putaway(obj) {
+      let a;
+      if (obj.state == 5) {
+        a = 6;
+      } else {
+        a = 5;
+      }
+      let data = {
+        bizId: obj.id,
+        state: a,
+      };
+      bizupdateState(data).then((res) => {
+        if (res.code == "success") {
+          this.refresh();
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.message,
+            duration: 1.5,
+          });
+        }
+      });
+    },
+    // 分页条件查询业务列表
+    refresh(x = 1, y = "", z = null) {
+      let params = {
+        appid: this.$store.state.appinfo.appInfo.id,
+        name: y,
+        needtotal: true,
+        orders: [
+          {
+            orderby: "updatetime",
+            ordertype: "DESC",
+          },
+        ],
+        pagenum: x,
+        pagesize: this.pagination.pagesize,
+        state: z,
+      };
+      bizlist(params).then((res) => {
+        if (res.code == "success") {
+          this.total = res.result.total;
+          this.pagination.pagenum = res.result.pagenum;
+          let data = res.result.rows;
+          let serial = (x - 1) * 10;
+          if (res.result.total < 11) {
+            serial = 0;
+          }
+          data.forEach(function(i, n) {
+            i.key = n + 1 + serial;
+          });
+          this.data = data;
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.message,
+            duration: 1.5,
+          });
+        }
+      });
+    },
+    onPageChange(current, pagesize) {
+      this.refresh(current);
+    },
+    //业务状态
+    statejudge(state) {
+      let a;
+      switch (state) {
+        case 0:
+          a = "默认";
+          break;
+        case 1:
+          a = "待提交";
+          break;
+        case 2:
+          a = "审核中";
+          break;
+        case 3:
+          a = "审核通过";
+          break;
+        case 4:
+          a = "审核失败";
+          break;
+        case 5:
+          a = "已上架";
+          break;
+        case 6:
+          a = "已下架";
+          break;
+        default:
+          a = "默认";
+      }
+      return a;
+    },
+    // 搜索
+    search() {
+      this.refresh(1, this.val);
+    },
+    // 重置
+    reset() {
+      this.refresh();
+      this.val = "";
+    },
+    // 删除
+    deletes() {
+      if (this.selectedRows.length <= 0) {
+        return;
+      }
+      let selectedRows = this.selectedRows;
+      let arr = [];
+      selectedRows.forEach(function(i) {
+        arr.push(i.id);
+      });
+      this.selectedRowKeys = [];
+
+      bizdel(arr).then((res) => {
+        if (res.code == "success") {
+          this.refresh(this.pagination.pagenum);
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.message,
+            duration: 1.5,
+          });
+        }
+      });
+    },
+    // 上下架状态
+    sxjstate(i) {
+      if (i.state == 5) {
+        return "下架";
+      } else {
+        return "上架";
+      }
+    },
+  },
+  computed: {
+    rowSelection() {
+      const { selectedRowKeys } = this;
+      return {
+        onChange: (selectedRowKeys, selectedRows) => {
+          this.selectedRows = selectedRows;
+          this.selectedRowKeys = selectedRowKeys;
+        },
+        selectedRowKeys: selectedRowKeys,
+      };
+    },
+  },
+};
+var data = [
+  {
+    name: "业务22",
+    state: 1,
+    key: 1,
+    id: "1",
+  },
+  {
+    name: "业务11",
+    state: 2,
+    key: 2,
+    id: "2",
+  },
+  {
+    name: "业务66",
+    state: 3,
+    key: 3,
+    id: "3",
+  },
+];
+const columns = [
+  {
+    title: "序号",
+    dataIndex: "key",
+    key: "key",
+    width: "5%",
+  },
+  {
+    title: "业务名称",
+    dataIndex: "name",
+    key: "name",
+    width: "20%",
+  },
+  {
+    title: "状态",
+    dataIndex: "state",
+    key: "state",
+    width: "15%",
+    scopedSlots: { customRender: "state" },
+  },
+  {
+    title: "操作",
+    key: "id",
+    dataIndex: "id",
+    scopedSlots: { customRender: "id" },
+  },
+];
+</script>
+<style lang="less" scoped>
+.ant-pagination {
+  margin-top: 30px;
+  text-align: right;
+}
+.body_1 {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 25px;
+  span {
+    margin-right: 20px;
+  }
+  .antdxk {
+    width: 160px;
+    margin-right: 10px;
+  }
+  .ant-btn {
+    width: 60px;
+    height: 32px;
+    margin-right: 13px;
+  }
+}
+.body {
+  width: 100%;
+}
+.body_2 {
+  margin-top: 25px;
+  .ant-btn {
+    color: @primary-color;
+    border: 1px solid @primary-color;
+    margin-right: 22px;
+  }
+}
+.abq {
+  margin-right: 36px;
+}
+.ant-table-wrapper {
+  margin-top: 25px;
+}
+</style>

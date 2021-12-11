@@ -1,0 +1,297 @@
+<template>
+  <div>
+    <Title title="人员结构" />
+    <div class="container">
+      <SwiperChart>
+        <div slot="content">
+          <div class="title">
+            <div class="top">行政人员结构</div>
+            <div class="bottom">
+              <span>平均年龄</span>
+              <span>{{parseInt(data.xzrypjnl).toFixed(2)||0}}</span>
+            </div>
+          </div>
+          <div class="chart-detail">
+            <div class="chart-content" v-for="(item, dataIndex) in dataXz">
+              <RingChart
+                :data="item"
+                :settings="{
+                  canvas: { width: 400, height: 145 },
+                  padding: [20,0,0,-160],
+                  radius: 0.9,
+                  innerRadius: 0.8,
+                  color: ['#F2A54D','#60B4F5','#F84848','#DF6EA3','#6EDF75','#A66DF5','#C3F1CE','#A0A4F5'],
+                  infoText: {
+                    title: item.rows[0].k0,
+                    offsetY: -10,
+                    style: { fontSize: 15, fill: '#fff', textAlign: 'center' },
+                  },
+                  contentStyle: {
+                    offsetY: 10,
+                    fontSize: 13, fill: '#fff', textAlign: 'center'
+                  }
+                }"
+              >
+                <template v-slot:customLegend="props">
+                  <div class="legend">
+                    <ul v-if="item.rows">
+                      <li v-for="(row, index) in item.rows" @click="showModal(row, dataIndex)">
+                        <span :style="{background: props[index]}" class="spot"></span>
+                        <span>{{row.k0}}</span>
+                      </li>
+                    </ul>
+                  </div>
+                </template>
+              </RingChart>
+            </div>
+            
+          </div>
+        </div>
+        <div slot="content">
+          <div class="title">
+            <div class="top">事业人员结构</div>
+            <div class="bottom">
+              <span>平均年龄</span>
+              <span>{{parseInt(data.syrypjnl).toFixed(2)||0}}</span>
+            </div>
+          </div>
+          <div class="chart-detail">
+            <div class="chart-content" v-for="(item, dataIndex) in dataXz">
+              <RingChart
+                :data="item"
+                :settings="{
+                  canvas: { width: 400, height: 145 },
+                  padding: [20,0,0,-160],
+                  radius: 0.9,
+                  innerRadius: 0.8,
+                  color: ['#F2A54D','#60B4F5','#F84848','#DF6EA3','#6EDF75','#A66DF5','#C3F1CE','#A0A4F5'],
+                  infoText: {
+                    title: item.rows[0].k0,
+                    offsetY: -10,
+                    style: { fontSize: 15, fill: '#fff', textAlign: 'center' },
+                  },
+                  contentStyle: {
+                    offsetY: 10,
+                    fontSize: 13, fill: '#fff', textAlign: 'center'
+                  }
+                }"
+              >
+                <template v-slot:customLegend="props">
+                  <div class="legend">
+                    <ul v-if="item.rows">
+                      <li v-for="(row, index) in item.rows" @click="showModal(row, dataIndex)">
+                        <span :style="{background: props[index]}" class="spot"></span>
+                        <span>{{row.k0}}</span>
+                      </li>
+                    </ul>
+                  </div>
+                </template>
+              </RingChart>
+            </div>
+            
+          </div>
+        </div>
+      </SwiperChart>
+    </div>
+    <chartDetail v-model="show" :dataList="dataList" :title="title"/>
+  </div>
+</template>
+
+<script>
+import Title from "./Title";
+import SwiperChart from './SwiperChart'
+import RingChart from "@person/components/chart/RingChart";
+import chartDetail from './chartDetail';
+import { keys } from 'lodash';
+import { areaStatistics } from '@/person-shaoxing/api/orgStaffReport';
+import { PersonAnalyzeXz, PersonAnalyzeSy, personChild } from '../../../api/analyze';
+import { showError } from '../../../../framework/utils';
+
+export default {
+  props: {
+    districtCode: {
+      type: String,
+    },
+  },
+  components: {
+    Title,
+    RingChart,
+    SwiperChart,
+    chartDetail
+  },
+  data() {
+    return {
+      show: false,
+      data: {},
+      dataXz: [],
+      dataSy: [],
+      dataList: [],
+      title: '',
+    };
+  },
+  watch: {
+    districtCode(val) {
+      this.getAge(val);
+      this.loadData(val);
+      return val;
+    },
+  },
+  mounted() {
+  },
+  methods: {
+    loadData(val) {
+      PersonAnalyzeXz(val).then(({result})=>{
+        this.dataXz = this.handerData(result);
+      }).catch(error=>{
+        showError(error);
+      })
+      PersonAnalyzeSy(val).then(({result})=>{
+        this.dataSy = this.handerData(result);
+      }).catch(error=>{
+        showError(error);
+      });
+    },
+    getAge(district){
+      areaStatistics(district, [
+        'xzrypjnl', 'syrypjnl'
+      ]).then(({result}) => {
+        this.data = result;
+      }).catch(error => {
+        showError(error)
+      });
+    },
+    handerData(result) {
+      let rows = [];
+      let data = [];
+      result.forEach((item, itemIndex)=>{
+        item.keyCols.forEach(col=>{
+          if(item.rows[0][col.key]) {
+            rows.push({'k0': col.showname, 'v': item.rows[0][col.key], 'code': col.key})
+          }
+        })
+        result[itemIndex].keyCols = [{
+          "column": "k0",
+          "showname": ""
+        }];
+        data.push({keyCols: result[itemIndex].keyCols, rows: rows, valueCols: [{ "column":"v", "showname":"" }] });
+        rows = [];
+      })
+      return data;
+    },
+    showModal(item, index) {
+      let type = undefined;
+      if(index===0) {
+        type = 1;
+      }else{
+        type = 2;
+      }
+      this.title = item.k0;
+      personChild(this.districtCode, item.code, type).then(({result}) => {
+        this.dataList = result;
+        this.show = true;
+      }).catch(error => {
+        showError(error)
+      });
+    }
+  }
+};
+</script>
+
+<style scoped lang="less">
+@font-face {
+  font-family: LESLIEB;
+  src: url("../../../assets/img/screen/LESLIEB_.TTF") format("truetype");
+}
+.container {
+  /deep/.ant-carousel {
+    display: flex;
+    justify-content: center;
+    .slick-slider {
+      width: 95%;
+      padding: 0 @layout-space-base;
+      .slick-slide {
+        padding: @layout-space-base 0;
+        background: fade(#000, 30%);
+      }
+    }
+  }
+  .title {
+    font-size: 1em;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    color: #fff;
+    .bottom {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      span:first-child {
+        font-weight: 500;
+      }
+      span:last-child {
+        font-size: 1.5em;
+        font-family: LESLIEB;
+        color: fade(#01e3fc, 95%);
+      }
+    }
+  }
+  .chart-detail {
+    height: 320px;
+    padding-top: @layout-space-base;
+    background: url('../../../assets/img/screen/icon-division.png') no-repeat;
+    .chart-content {
+      height: 50%;
+      margin-bottom: @layout-space-base;
+      display: flex;
+      flex-direction: column;
+      background: url("../../../assets/img/screen/legend-bg.png") no-repeat;
+      background-position: 100% 50%;
+      /deep/.ring-chart {
+        height: 100%;
+      }
+      .legend {
+        width: 48%;
+        text-align: left;
+        white-space: nowrap;
+        position: absolute;
+        top: 50%;
+        right: 0;
+        transform: translateY(-50%);
+        color: #fff;
+        z-index: 999;
+        ul {
+          width: 100%;
+          display: flex;
+          flex-wrap: wrap;
+          margin: 0;
+          margin-left: auto;
+          li {
+            width: 50%;
+            display: flex;
+            align-items: center;
+            font-size: 0.8em;
+            cursor: pointer;
+            user-select: none;
+            .spot {
+              width: 10px;
+              height: 10px;
+              margin-right: @layout-space-base;
+              border-radius: @border-radius-base;
+              display: inline-block;
+            }
+            span:last-child {
+              text-overflow: ellipsis;
+              overflow: hidden;
+            }
+            &:hover {
+              color: fade(#fff, 60%);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</style>

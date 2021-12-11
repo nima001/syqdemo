@@ -1,0 +1,247 @@
+import request from '@/framework/utils/request'
+
+/**
+ * 超编超值机构监测
+ */
+export function orgCountErrortReport (district) {
+  return request({
+    url: '/person/sx/orgstaffreport/orgcount/error',
+    method: 'get',
+    params: {
+      district
+    }
+  })
+}
+
+/**
+ * 超空编按系统类别统计
+ * @param {String} district 区域编码
+ * @param {Boolean} xz 是否行政
+ * @param {String} type 类型 bz:编制 ld:领导职数 zcld:中层领导职数
+ */
+export function systypeReport (district, xz, type) {
+  return request({
+    url: '/person/sx/orgstaffreport/systype',
+    method: 'get',
+    params: {
+      district,
+      xz: xz ? 1 : 0,
+      type
+    }
+  })
+}
+
+/**
+ * 超空编按系统类别统计
+ * @param {String} district 区域编码
+ * @param {Boolean} xz 是否行政
+ * @param {String} type 类型 bz:编制 ld:领导职数 zcld:中层领导职数
+ */
+export function orgCountKong (district, xz, type) {
+  return request({
+    url: '/person/sx/orgstaffreport/orgcount/kong',
+    method: 'get',
+    params: {
+      district,
+      xz: xz ? 1 : 0,
+      type
+    }
+  })
+}
+
+/**
+ * 近5年退休人数
+ */
+export function orgOverRetireReport (district) {
+  return request({
+    url: '/person/sx/orgstaffreport/retire/report',
+    method: 'get',
+    params: {
+      district
+    }
+  })
+}
+
+/**
+ * 未按时退休人数
+ */
+// export function orgOverRetireReport(district){
+//   return request({
+//     url: '/person/sx/orgstaffreport/retire/report',
+//     method: 'get',
+//     params: {
+//       district
+//     }
+//   })
+// }
+
+/**
+ * 编制/职数超空单位查询
+ * @param {Object} data {
+ *  xz, //是否行政
+ *  district, //区域编码
+ *  systype, //系统类别（text）
+ *  cktype, //超空编类型 0 满 -1 超 1 空
+ *  type, //类型 bz:编制 ld:领导职数 zcld:中层领导职数 ldyc:领导配置异常 zcldyc:中层领导配置异常
+ *  searchkey
+ * }
+ */
+export function ckOrgQuery (data) {
+  return request({
+    url: '/person/sx/orgstaffreport/orgquery',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 职数配置错误统计
+ * @param {String} type 类型 zcld 中层领导
+ * @param {Number} unittype 单位类型
+ * @param {String} district 区域编码
+ */
+export function orgPostErrorReport (type, unittype, district) {
+  return request({
+    url: '/person/sx/orgstaffreport/posterror',
+    method: 'get',
+    params: {
+      type,
+      unittype,
+      district
+    }
+  })
+}
+
+/**
+ * 单位职数查询
+ * @param {Object} data {unittype, district, systype, searchkey}
+ */
+export function orgPostQuery (data) {
+  return request({
+    url: '/person/sx/orgstaffreport/post/query',
+    method: 'post',
+    data
+  })
+}
+
+/**
+ * 查询配置信息
+ * @param {String} district 区域编码
+ * @param {Number} id  配置id
+ *   201 : 实有机构分布情况
+ *   202 : 按编制类型查看行政编制核定数
+ *   203 : 按行业领域查看事业编制核定数
+ */
+export function getChart (district, id) {
+  return request({
+    url: '/person/chart/aggregate/' + `${id}`,
+    method: 'post',
+    data: { district }
+  })
+}
+
+/**
+ * 区域统计数据
+ * @param {Number} district 区域编码
+ * @param {Array} field 字段数组
+ */
+export function areaStatistics (district, field) {
+  return request({
+    url: '/person/sx/orgstaffreport/district',
+    method: 'get',
+    params: {
+      district,
+      field
+    }
+  })
+}
+
+/**
+ * 告警信息
+ * @param {String} district 区域编码
+ */
+export function alarmMsg (district) {
+  return request({
+    url: '/person/sx/v1/alarmmsg/pagelist',
+    method: 'post',
+    data: { district }
+  })
+}
+
+/**
+ * 近五年退休
+ * @param {String} district 区域编码
+ */
+export function retire (district) {
+  return request({
+    url: '/person/sx/orgstaffreport/retire/report',
+    method: 'get',
+    params: {
+      district
+    }
+  })
+}
+
+/**
+ * 未按时退休
+ * @param {String} district 区域编码
+ */
+export function retireError (district) {
+  return request({
+    url: '/person/sx/orgstaffreport/retire/error',
+    method: 'get',
+    params: {
+      district
+    }
+  })
+}
+
+/**
+ * 机构编制问题数
+ * @param {String} district 区域编码
+ */
+export function question (district) {
+  return request({
+    url: '/person/sx/problemmonitor/total',
+    method: 'get',
+    params: {
+      district
+    }
+  })
+}
+
+/**
+ * 业务通知
+ * @param {String} district 区域编码
+ */
+export function notice (district) {
+  return request({
+    url: '/person/sx/worktask/total',
+    method: 'get',
+    params: {
+      district
+    }
+  })
+}
+
+/**
+ * 权力事项
+ */
+export function powerChange () {
+  return request({
+    url: '/person/qlsx/district/change',
+    method: 'get'
+  })
+}
+
+/**
+ * 重点任务
+ * @param {String} district 区域编码
+ */
+export function keyTask (district, pagination) {
+  return request({
+    url: '/person/sx/worktask/listtask',
+    method: 'post',
+    data: { district, ...pagination }
+  })
+}

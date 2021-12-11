@@ -1,0 +1,313 @@
+<template>
+  <div class="data-quality">
+    <div class="main">
+      <div class="main-top">
+        <div class="tabs">
+          <a 
+            v-for="(item, index) in tabs" 
+            :key="index"
+            :class="{active: active && active.text == item.text}"
+            @click="active = item"
+          >
+            {{item.text}}
+          </a>
+        </div>
+        <div class="org-select">
+          <a-input
+            style="width: 200px"
+            :value="orgValue && orgValue.name"
+            :read-only="true"
+            placeholder="请选择机构"
+            @click="showOrgSelect"
+          >
+            <a-icon slot="addonAfter" type="select" @click="showOrgSelect"/>
+          </a-input>
+        </div>
+      </div>
+      <div class="main-chart">
+        <div v-show="showChart" class="g2-chart">
+          <div class="g2-chart-top">
+            <div class="left">
+              <pie-chart
+                :data="pieoneData"
+                :loading="loading"
+                :title="title + '问题总数分类情况'"
+                :type="'ring'"
+                :axisName="{fieldname:'类别', value:'问题数'}"
+                :scaleConfig="scaleLegend"
+                style="height: 400px;"
+              >
+              </pie-chart>
+              <pie-chart
+                :data="pietwoData"
+                :loading="loading"
+                :title="title + '现有问题分类情况'"
+                :type="'ring'"
+                :axisName="{fieldname:'类别', value:'问题数'}"
+                :scaleConfig="scaleLegend"
+                style="height: 400px;"
+              >
+              </pie-chart>
+            </div>
+            <div class="right">
+              <column-chart
+                :loading="loading"
+                :title="title + '各区县问题总数'"
+                :type="'fold'"
+                :isRotate="true"
+                :data="columnData"
+                :axisName="{xname:'年份', value:'GDP(亿美元)', fieldname: '类型'}"
+                :tooltipConfig="{showCrosshairs: false, shared: true}"
+                :scaleConfig="columnScale"
+                style="height: 800px;"
+              >
+              </column-chart>
+            </div>
+          </div>
+          <div class="g2-chart-bottom" style="margin-top: 10px;">
+              <line-chart
+                :loading="loading"
+                :data="lineData"
+                :title="title + '月新增处理问题情况'"
+                :isSmooth="false"
+                :axisName="{xname:'年份', value:'GDP(亿美元)', fieldname:'国家'}"
+                :tooltipConfig="{showCrosshairs: true, shared: true}"
+                style="height: 400px;"
+                >
+              </line-chart>
+          </div>
+        </div>
+        <table-list
+          ref="tableList"
+          :district="district"
+          :orgid="orgValue && orgValue._id"
+          >
+        </table-list>
+      </div>  
+    </div>
+    <!-- 机构选择弹框 -->
+    <a-modal
+      :footer="null"
+      v-model="orgvisible"
+      :width="500"
+      title="选择单位"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select mode="org" 
+        @finish="orgOk" 
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Row, Col, Input, Icon, Table, Pagination, Button, Modal } from "ant-design-vue";
+import { Donut, Line, StackedBar } from '@antv/g2plot';
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import PieChart from '@/person-shaoxing/views/monitor/components/PieChart';
+import ColumnChart from '@/person-shaoxing/views/monitor/components/ColumnChart';
+import LineChart from '@/person-shaoxing/views/monitor/components/LineChart';
+import TableList from "./TableList";
+import { dataqualityList } from "@/person-shaoxing/api/monitor";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: 'dataQuality',
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    AIcon: Icon,
+    ATable: Table,
+    AButton: Button,
+    APagination: Pagination,
+    AModal: Modal,
+    OrgUserSelect,
+    LineChart,
+    TableList,
+    PieChart,
+    ColumnChart
+  },
+  data() {
+    return {
+      active: undefined,
+      orgValue: undefined,
+      orgvisible: false,
+      district: undefined,
+      title: '绍兴市',
+      showChart: true,
+      pieoneData: [],
+      pietwoData: [],
+      columnData: [],
+      lineData: [],
+      scaleLegend: {
+        fieldname: {
+          formatter:(v)=>{
+            return this.systype(v);
+          }
+        },
+      },
+      columnScale: {
+        xname: {
+          nice: true,
+          formatter:(v)=>{
+            if(this.district) {
+              return this.area(v);
+            }else{
+              return this.areaCity(v);
+            }
+          }
+        },
+        value: {
+          nice: true
+        }
+      }
+    }
+  },
+  computed: {
+    tabs() {
+      let arr = [{ key: 'shaoxingshi', text: '绍兴市', value: undefined }],
+          d = this.$store.getters.dict("usermanage.org.district");
+      return arr.concat(d || []);
+    },
+  },
+  watch: {
+    active: {
+      handler(val) {
+        this.district = val.value;
+        this.orgValue = undefined;
+        if(!this.showChart) {
+          this.showChart = true;
+        }
+        switch(val.text) {
+          case '市本级': this.title = "市本级"; break;
+          case '越城区': this.title = "越城区"; break;
+          case '上虞区': this.title = "上虞区"; break;
+          case '和桥区': this.title = "和桥区"; break;
+          case '诸暨市': this.title = "诸暨市"; break;
+          case '嵊州市': this.title = "嵊州市"; break;
+          case '新昌县': this.title = "新昌县"; break;
+          default: this.title = "绍兴市"
+        }
+        this.getData(val.value);
+      },
+    }
+  },
+  created() {
+    this.active = this.tabs[0];
+    this.getData(this.district);
+  },
+  mounted() {
+  },
+  methods: {
+    getData(district) {
+      this.loading = true;
+      let orgquery = JSON.stringify({ district });
+      let groupbyorgfield = district ? 'systype' : 'district';
+      Promise.all([
+        dataqualityList({ orgquery, querytype: 1 })
+          .then(({result}) => result).catch((err) => Promise.resolve([])),
+        dataqualityList({ orgquery, handlestatus: 0, querytype: 1 })
+          .then(({result}) => result).catch((err) => Promise.resolve([])),
+        dataqualityList({ orgquery, groupbyorgfield, querytype: 2 })
+          .then(({result}) => result).catch((err) => Promise.resolve([])),
+        dataqualityList({ orgquery, querytype: 3 })
+          .then(({result}) => result).catch((err) => Promise.resolve([])),
+      ])
+      .then(([pieoneData, pietwoData, columnData, lineData]) => {
+        this.loading = false;
+        pieoneData.forEach(item => {
+          item.fieldname = item.fieldname + ''
+        })
+        pietwoData.forEach(item => {
+          item.fieldname = item.fieldname + ''
+        })
+        this.pieoneData = pieoneData;
+        this.pietwoData = pietwoData;
+        this.columnData = columnData;
+        this.lineData = lineData;
+      })
+      .catch(err => {
+        this.loading = false;
+        showError(err);
+      })
+    },
+    showOrgSelect() {
+      this.orgvisible = true;
+    },
+    orgOk(type, list) {
+      this.orgvisible = false;
+      this.showChart = false;
+      if(type == "ok" && list.length > 0) {
+        this.orgValue = list[0];
+      } 
+    },
+    systype(key){
+      let d = this.$store.getters.dictKey("person.monitor.strategytype", key);
+      return (d && d.text) || '';
+    },
+    areaCity(key){
+      let d = this.$store.getters.dictKey("usermanage.org.district", key);
+      return (d && d.text) || '';
+    },
+    area(key){
+      let d = this.$store.getters.dictKey("usermanage.org.systype", key);
+      return (d && d.text) || '';
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.data-quality{
+  padding: 10px;
+  height: 100%;
+  .main{
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    overflow: hidden;
+    background: @white;
+    height: 100%;
+    .main-top{
+      margin-top: 10px;
+      padding: 0 @content-padding-h;
+        .tabs{
+          padding: @content-padding-v 0;
+          a{
+            display: inline-block;
+            height: 26px;
+            line-height: 26px;
+            padding: 0 12px;
+            margin-left: 6px;
+            border-radius: @border-radius-base;
+            &:first-child{
+              margin-left: 0;
+            }
+            &:hover{
+              background: @primary-1;
+            }
+          }
+          a.active{
+            background-color: @primary-color;
+            color: white;
+            &:hover{
+              background: lighten(@primary-color, 5%);
+            }
+          }
+        }
+    }
+    .main-chart{
+      flex-shrink: 1;
+      overflow-y: auto;
+      .g2-chart{
+        .g2-chart-top{
+          display: flex;
+          > div{
+            width: 50%;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

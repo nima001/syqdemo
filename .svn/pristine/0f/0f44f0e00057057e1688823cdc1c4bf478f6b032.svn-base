@@ -1,0 +1,393 @@
+<template>
+  <div class="form-panel">
+    <div class="top">
+      <div class="card" v-for="(item, index) in list" :key="index">
+        <card
+          :src="src[index]"
+          :title="item['title']"
+          :num="item['num']"
+          @click.native="showModal(item['title'])"
+        ></card>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="title">
+        <span>问题清单</span>
+        <a class="icon" @click="showModal()"
+          ><img src="../../../assets/img/icon_more.png" alt=""
+        /></a>
+      </div>
+      <div class="bottom_table">
+        <a-table
+          class="antd-table-con"
+          :rowKey="Math.random().toString(16).substring(2)"
+          :columns="columns"
+          :dataSource="dataSource"
+          :rowSelection="rowSelection"
+          :pagination="false"
+          :loading="loading"
+        >
+          <span class="operation" slot="operation" slot-scope="text, record">
+            <a
+              @click="record.blackliststatus == 0 && onAddBlacklist(record.id)"
+              :style="record.blackliststatus == 0 ? '' : 'color:gray'"
+            >
+              加入黑名单
+            </a>
+            <a @click="record.defer == 0 && onAddDefer(record.id)">
+              加入暂缓
+            </a>
+            <a @click="onShowDetail(record.description)"
+              ><img src="../../../assets/img/icon_details.png" alt=""
+            /></a>
+          </span>
+          <span class="handlestatus" slot="handlestatus">
+            <img src="../../../assets/img/icon_suc.png" alt="" />
+          </span>
+        </a-table>
+      </div>
+    </div>
+    <a-modal
+      :footer="null"
+      v-model="visible"
+      :width="1000"
+      :title="title"
+      :bodyStyle="{ height: '500px', padding: '0' }"
+    >
+      <table-list :district="district"> </table-list>
+    </a-modal>
+    <a-modal centered v-model="detailVisible" title="详情" :footer="null">
+      <p>{{ detailContent }}</p>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Table, Modal } from "ant-design-vue";
+import Card from "@/person-shaoxing/views/orgStaffReport/components/Card";
+import { question } from "@/person-shaoxing/api/orgStaffReport";
+import TableList from "@/person-shaoxing/views/orgStaffReport/components/TableList";
+import { Listproblem, orgBlacklist, problemblackList, addblackList, addDefer, removeBlacklist, batchremove, problemmonitorMsg, removeDefer } from "@/person-shaoxing/api/monitor";
+import { showError } from "@/framework/utils/index";
+
+/**
+ * 周转编制数监测
+ */
+export default {
+  props: {
+    district: {
+      type: String,
+    },
+  },
+  components: {
+    ATable: Table,
+    AModal: Modal,
+    Card,
+    TableList,
+  },
+  watch: {
+    district: {
+      handler() {
+        this.getBlack(this.page, 2);
+        this.getNotResolve(this.page, 0);
+        this.getResolved(this.page, 1);
+        this.getWait(this.page, 3);
+        this.getOrgQuestion(this.page);
+      },
+      immediate: true,
+    },
+  },
+
+  data() {
+    return {
+      detailContent: null,
+      detailVisible: null,
+      visible: false,
+      loading: false,
+      title:'',
+      pagination: {
+        total: 0,
+        pagenum: 1,
+        pagesize: 10,
+      },
+      list: [
+        { title: "行政编制现存问题数", num: 0 },
+        { title: "暂缓解决问题数量", num: 0 },
+        { title: "已处理问题", num: 0 },
+        { title: "未处理问题", num: 0 },
+        { title: "黑名单机构数量", num: 0 },
+      ],
+      src: [
+        "icon_report_blue",
+        "icon_report_hourgalass",
+        "icon_report_smile",
+        "icon_report_info",
+        "icon_report_page",
+      ],
+      columns: [
+        {
+          title: "类别",
+          dataIndex: "businesstype",
+          customRender: this.dictRender("person.shaoxing.monitor.businesstype"),
+          width: "10%",
+        },
+        { title: "相关部门", dataIndex: "orgname", width: "15%" },
+        { title: "问题或异动情况描述", dataIndex: "description", width: "40%" },
+        {
+          title: "发现时间",
+          dataIndex: "discovertime",
+          customRender: (text) => text && text.substr(0, 10),
+          width: "7.5%",
+        },
+        {
+          title: "状态",
+          scopedSlots: { customRender: "handlestatus" },
+          width: "7.5%",
+        },
+        {
+          title: "操作",
+          scopedSlots: { customRender: "operation" },
+          width: "20%",
+        },
+      ],
+      dataSource: [],
+      rowSelection: {
+        onChange: (selectedRowKeys, selectedRows) => {
+          this.selectedRows = selectedRows;
+          this.selectedRowKeys = selectedRowKeys;
+        },
+      },
+    };
+  },
+  computed: {},
+  created() {},
+  methods: {
+    getNotResolve(page, handlestatus) {
+      this.loading = true;
+      let params = {
+        ...page,
+        needtotal: true,
+        district: this.district,
+        handlestatus: handlestatus,
+      };
+      Listproblem(params)
+        .then(({ result }) => {
+          this.loading = false;
+          this.list[3].num = result.total;
+          this.dataSource = result.rows;
+          this.pagination = result;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    getResolved(page, handlestatus) {
+      this.loading = true;
+      let params = {
+        ...page,
+        needtotal: true,
+        district: this.district,
+        handlestatus: handlestatus,
+      };
+      Listproblem(params)
+        .then(({ result }) => {
+          this.loading = false;
+          this.list[2].num = result.total;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    getWait(page, handlestatus) {
+      this.loading = true;
+      let params = {
+        ...page,
+        needtotal: true,
+        district: this.district,
+        handlestatus: handlestatus,
+        defer: 1,
+      };
+      Listproblem(params)
+        .then(({ result }) => {
+          this.loading = false;
+          this.list[1].num = result.total;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    getOrgQuestion(page) {
+      this.loading = true;
+      let params = {
+        ...page,
+        needtotal: true,
+        district: this.district,
+        defer: 0,
+      };
+      Listproblem(params)
+        .then(({ result }) => {
+          this.loading = false;
+          this.list[0].num = result.total;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    getBlack(page, handlestatus) {
+      this.loading = true;
+      let params = {
+        ...page,
+        needtotal: true,
+        district: this.district,
+        handlestatus: handlestatus,
+      };
+      orgBlacklist(params)
+        .then(({ result }) => {
+          this.loading = false;
+          this.list[4].num = result.total;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    dictRender(key, attr) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    showModal(title) {
+      this.visible = true;
+      this.title = title
+    },
+    onAddBlacklist(id) {
+      if (id) {
+        let that = this;
+        that.$confirm({
+          title: "确认加入黑名单?",
+          onOk() {
+            addblackList(id)
+              .then((res) => {
+                that.$notification.warning({
+                  message: "提示",
+                  description: "加入黑名单成功!",
+                  duration: 3,
+                });
+                that.getNotResolve(
+                  {
+                    pagenum: that.pagination.pagenum,
+                    pagesize: that.pagination.pagesize,
+                  },
+                  0
+                );
+              })
+              .catch((error) => {
+                showError(error);
+              });
+          },
+          onCancel() {},
+        });
+      }
+    },
+    onAddDefer(id) {
+      if (id) {
+        let that = this;
+        that.$confirm({
+          title: "确认加入暂缓?",
+          onOk() {
+            addDefer(id)
+              .then((res) => {
+                that.$notification.warning({
+                  message: "提示",
+                  description: "加入暂缓成功!",
+                  duration: 3,
+                });
+                that.getNotResolve(
+                  {
+                    pagenum: that.pagination.pagenum,
+                    pagesize: that.pagination.pagesize,
+                  },
+                  0
+                );
+              })
+              .catch((error) => {
+                showError(error);
+              });
+          },
+          onCancel() {},
+        });
+      }
+    },
+    onShowDetail(content) {
+      this.detailVisible = true;
+      this.detailContent = content;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.form-panel {
+  padding: @content-padding-v @content-padding-h;
+  .top {
+    display: flex;
+    padding: 15px 0 24px 0;
+    justify-content: space-between;
+  }
+  .bottom {
+    padding: 24px 0 10px 0;
+    .title {
+      font-weight: bold;
+      line-height: 30px;
+      margin-bottom: 30px;
+      .icon {
+        float: right;
+      }
+    }
+    .antd-table-con {
+      /deep/table {
+        table-layout: fixed;
+        thead {
+          tr {
+            th {
+              color: @text-color-secondary;
+            }
+          }
+        }
+        td,
+        th {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          a {
+            color: @text-color;
+          }
+        }
+      }
+      .operation {
+        a {
+          margin-right: 15px;
+          img {
+            width: 22px;
+            height: 22px;
+          }
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
+      .handlestatus {
+        img {
+          margin-left: 5px;
+          width: 22px;
+          height: 22px;
+        }
+      }
+    }
+  }
+}
+</style>

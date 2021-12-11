@@ -1,0 +1,342 @@
+<template>
+  <a-layout style="height:100%;">
+    <a-layout-header class="breadcrumb">
+      <header>
+        <a-breadcrumb separator=">">
+          <a-breadcrumb-item>
+            <router-link :to="{path:'/business'}">业务中心</router-link>
+          </a-breadcrumb-item>
+          <a-breadcrumb-item>
+            <router-link :to="{name:'creatprocess'}">在线办理</router-link>
+          </a-breadcrumb-item>
+          <a-breadcrumb-item>{{this.$route.query.name}}</a-breadcrumb-item>
+        </a-breadcrumb>
+      </header>
+      <a-button @click="chooseOrg">在线办理</a-button>
+    </a-layout-header>
+    <a-layout-content class="body">
+      <div style="margin-top:20px;">
+        <h3>申请材料</h3>
+        <ul class="catalog">
+          <li class="title">
+            <span>类别</span>
+            <span>材料名称</span>
+            <span>审核单位</span>
+            <span>盖章单位</span>
+            <span>联系方式</span>
+            <span>备注</span>
+            <span>操作</span>
+          </li>
+          <li v-if="!approvalList.length && !evdienceList.length" class="noData">
+            <a-icon type="frown" />暂无数据
+          </li>
+          <template v-else>
+            <li v-if="approvalList.length">
+              <span class="listTitle">审批材料</span>
+              <ul class="listContent">
+                <li v-for="(item,index) in approvalList" :key="index">
+                  <span>{{item.name}}</span>
+                  <span>{{item.approvalunit}}</span>
+                  <span>{{item.signunit}}</span>
+                  <span>{{item.contactinfo}}</span>
+                  <span>{{item.memo}}</span>
+                  <span
+                    class="operation"
+                    :style="item.fileurl?'':'color:gray'"
+                    @click="download(item.fileurl)"
+                  >下载模板</span>
+                </li>
+              </ul>
+            </li>
+            <li v-if="evdienceList.length">
+              <span class="listTitle">佐证材料</span>
+              <ul class="listContent">
+                <li v-for="(item,index) in evdienceList" :key="index">
+                  <span>{{item.name}}</span>
+                  <span>{{item.approvalunit}}</span>
+                  <span>{{item.signunit}}</span>
+                  <span>{{item.contactinfo}}</span>
+                  <span>{{item.memo}}</span>
+                  <span
+                    class="operation"
+                    :style="item.fileurl?'':'color:gray'"
+                    @click="download(item.fileurl)"
+                  >下载模板</span>
+                </li>
+              </ul>
+            </li>
+          </template>
+        </ul>
+      </div>
+      <div class="picture">
+        <h3>流程图</h3>
+        <img :src="imageUrl" alt />
+      </div>
+    </a-layout-content>
+    <a-modal
+      class="pc_org"
+      :visible="visiblePc"
+      title="请选择发起单位"
+      @cancel="visiblePc=false"
+      :footer="null"
+      width="450px"
+      :bodyStyle="tStyle"
+    >
+      <org mode="org" @finish="orgOk" :rootSelectable="true"></org>
+    </a-modal>
+  </a-layout>
+</template>
+
+<script>
+import { getListMaterial, getV2Start, getOrgStart } from "@/workflow/api/catalog";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import Org from "@/framework/components/OrgUserSelect";
+import { showError, guid } from "@/framework/utils/index";
+import { Layout, Breadcrumb, Icon, Modal, Button } from "ant-design-vue";
+export default {
+  name: "ProcessGuide",
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      approvalList: [],
+      evdienceList: [],
+      id: this.$route.query.id,
+      imageUrl: "",
+      visiblePc: false,
+      tStyle: {
+        padding: "5px 3px 5px 10px",
+        width: "100%",
+        height: "550px",
+        color: "black"
+      }
+    };
+  },
+  components: {
+    ALayout: Layout,
+    ALayoutHeader: Layout.Header,
+    ALayoutContent: Layout.Content,
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    AIcon: Icon,
+    AModal: Modal,
+    AButton: Button,
+    Org
+  },
+  created() {
+    this.getListMaterials(this.id);
+  },
+  methods: {
+    getListMaterials(id) {
+      getListMaterial(id)
+        .then(res => {
+          this.approvalList = [];
+          this.evdienceList = [];
+          res.result.modelMaterials.forEach(item => {
+            if (item.type == 1) {
+              this.approvalList.push(item);
+            } else {
+              this.evdienceList.push(item);
+            }
+          });
+          this.imageUrl =
+            this.uiConfigs['api.url'] + '/file/v1/download' +
+            "?uri=" +
+            encodeURIComponent(res.result.pictureurl);
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    createProcess(id, orgid) {
+      const modelinstanceid = id;
+      const flowname = this.$route.query.name;
+      const orgId = orgid || "";
+      // const uuid=guid();
+      const { href } = this.$router.resolve({
+        name: "workflowform",
+        query: {
+          modelinstanceid,
+          flowname,
+          orgId
+          // uuid
+        }
+      });
+      window.open(href, "_blank");
+    },
+    //判断有没有机构选择
+    chooseOrg() {
+      getV2Start(this.id, true)
+        .then(res => {
+          if (res.code == "success") {
+            if (res.result.chooseOrg) {
+              this.visiblePc = true;
+            } else {
+              this.createProcess(res.result.modelinstanceid, res.result.orgid);
+            }
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //确定选择的机构
+    orgOk(type, list) {
+      if (type == "ok" && list.length > 0) {
+        let org = list[0];
+        this.visiblePc = false;
+        getOrgStart(this.id, true, org._id)
+          .then(res => {
+            this.createProcess(res.result.modelinstanceid, res.result.orgid);
+          })
+          .catch(err => {
+            showError(err);
+          });
+      }else if(type == "cancel"){
+        this.visiblePc=false;
+      }
+    },
+    //下载
+    download(url) {
+      if (url) {
+        this.downurl =
+          this.uiConfigs['api.url'] + '/file/v1/download' + "?uri=" + encodeURIComponent(url);
+        let a = document.createElement("a");
+        a.href = this.downurl;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-layout {
+  .ant-layout-header {
+    height: auto;
+    padding: 0;
+    background-color: #fff;
+    display: flex;
+    justify-content: space-between;
+    header {
+      flex: 1;
+      .ant-breadcrumb {
+        padding: 12px 24px;
+      }
+    }
+    button {
+      display: inline-block;
+      margin: 6px 20px;
+    }
+  }
+}
+.body {
+  height: calc(100% - 68px);
+  overflow: auto;
+  margin: 12px;
+  padding: 10px 30px;
+  background: #fff;
+  h3 {
+    color: #d60003;
+    font-weight: bold;
+    position: relative;
+    padding-left: 15px;
+    &::before {
+      position: absolute;
+      content: "";
+      width: 5px;
+      height: 20px;
+      top: 2px;
+      left: 0;
+      background: #d60003;
+      transform: skewY(-25deg);
+    }
+  }
+  /deep/ .ant-table-small > .ant-table-content > .ant-table-body {
+    margin: 0;
+  }
+  .catalog {
+    width: 90%;
+    margin: 15px auto 45px;
+    border: 1px solid #ddd;
+    border-bottom: none;
+    li {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      line-height: 2.5;
+      &.title {
+        background: #efefefa3;
+        span {
+          border-right: 1px solid #ddd;
+          padding-left: 5px;
+          width: 16%;
+          &:first-child {
+            width: 10%;
+          }
+          &:last-child {
+            width: 10%;
+            border-right: none;
+          }
+        }
+      }
+      .listTitle {
+        width: 10%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-right: 1px solid #ddd;
+        background: #efefef5c;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .listContent {
+        width: 90%;
+        color: #000;
+        li {
+          display: flex;
+          &:last-child {
+            border-bottom: none;
+          }
+          span {
+            padding-left: 5px;
+            width: 17.8%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border-right: 1px solid #ddd;
+            &:last-child {
+              width: 11.11%;
+              border-right: none;
+            }
+          }
+          .operation {
+            color: #1890ff;
+            cursor: pointer;
+          }
+        }
+      }
+    }
+  }
+  .noData {
+    justify-content: center;
+    padding: 15px 0;
+    font-size: 16px;
+    color: gray;
+    i {
+      line-height: 43px;
+      font-size: 23px;
+      padding-right: 10px;
+    }
+  }
+}
+.picture {
+  img {
+    display: block;
+    margin-left: 80px;
+    height: 100%;
+    width: 800px;
+  }
+}
+</style>

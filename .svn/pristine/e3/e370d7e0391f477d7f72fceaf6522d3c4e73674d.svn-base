@@ -1,0 +1,21 @@
+<template>
+  <ScreenPane>
+    <Header></Header>
+  </ScreenPane>
+</template>
+
+<script>
+import ScreenPane from "./components/ScreenPane";
+import Header from "./components/Header";
+export default {
+  components: { ScreenPane, Header },
+  data() {
+    return {};
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+//@import url(); 引入公共css类
+</style>

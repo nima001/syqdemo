@@ -1,0 +1,102 @@
+import FormItem from './FormItem'
+import { isVoidField } from '@formily/core'
+import { connect, mapProps } from '@formily/vue'
+import { inject } from '@vue/composition-api'
+import { defaults, get, pickBy} from 'lodash'
+
+
+
+const Decorator = connect(
+  FormItem,
+  mapProps(
+    { validateStatus: true, title: 'label', required: true },
+    (props, field) => {
+      const context = inject('context');
+      const inheritProps = get(context, 'decorators.FieldDecorator');
+      return {
+        help: !isVoidField(field) ? (field.errors.length ? field.errors[0] : undefined) : undefined,
+        extra: field.description,
+        ...defaults(pickBy(props, (v) => v || v === false || v === 0), inheritProps),
+      }
+    }
+  )
+)
+
+export default Decorator;
+
+export const Meta = {
+  name: 'FieldDecorator',
+  type: 'decorator',
+  title: '输入框装饰器',
+  icon: 'dict',
+  component: Decorator,
+  props: {
+    showLabel: {
+      title: '显示标签',
+      type: 'boolean',
+      defaultValue: true,
+    },
+    labelLayout: {
+      title: '标签布局',
+      type: 'enum',
+      defaultValue: 'vertical',
+      attrs: {
+        options: [
+          { value: 'vertical', label: '垂直' },
+          { value: 'horizontal', label: '水平' },
+          { value: 'inset', label: '内嵌' },
+        ],
+      }
+    },
+    lableAlign: {
+      title: '标签对齐方式',
+      type: 'enum',
+      defaultValue: 'left',
+      attrs: {
+        options: [
+          { value: 'left', label: '靠左' },
+          { value: 'right', label: '靠右' },
+        ],
+      }
+    },
+    lableMinWidth: {
+      title: '标签最小宽度',
+      type: 'number',
+      attrs: {
+        min: 0,
+        max: 1000,
+        placeholder: '字宽'
+      }
+    },
+    lableMaxWidth: {
+      title: '标签最大宽度',
+      type: 'number',
+      attrs: {
+        min: 0,
+        max: 1000,
+        placeholder: '字宽'
+      }
+    },
+    colon: {
+      title: '是否有冒号',
+      type: 'boolean',
+      defaultValue: true,
+    },
+    feedbackLayout: {
+      title: '反馈布局',
+      type: 'enum',
+      defaultValue: 'loose',
+      attrs: {
+        options: [
+          { value: 'loose', label: '宽松' },
+          { value: 'terse', label: '紧凑' },
+          { value: 'popover', label: '弹层' },
+        ],
+      }
+    },
+    noBorder: {
+      title: '无边框',
+      type: 'boolean',
+    },
+  }
+};

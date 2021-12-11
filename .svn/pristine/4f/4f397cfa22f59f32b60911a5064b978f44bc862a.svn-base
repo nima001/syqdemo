@@ -1,0 +1,167 @@
+<template>
+  <div class="con">
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <a-table 
+          :rowKey="generateRowKey"
+          :columns="columns" 
+          :dataSource="tableData" 
+          :pagination="false"
+          >
+        </a-table>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**  行政周转编制使用分析评估情况
+*/
+import { Row, Col, Table } from "ant-design-vue";
+export default {
+  props: {
+    data: Object
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+    ATable: Table
+  },
+  data() {
+    return {
+      columns: [
+        { 
+          title: '内容', 
+          dataIndex: 'content',
+          colSpan: 3,
+          customRender: (value, row, index) => {
+            const obj = {
+              children: value,
+              attrs: {},
+            };
+            if (index === 0) {
+              obj.attrs.rowSpan = 3;
+            }
+            if (index === 1) {
+              obj.attrs.rowSpan = 0;
+            }
+            if (index === 2) {
+              obj.attrs.colSpan = 0;
+            }
+            if (index === 3) {
+              obj.attrs.rowSpan = 2;
+            }
+            if (index === 4) {
+              obj.attrs.colSpan = 0;
+            }
+            if (index === 5) {
+              obj.attrs.rowSpan = 3;
+            }
+            if (index === 6) {
+              obj.attrs.colSpan = 0;
+            }
+            if (index === 7) {
+              obj.attrs.rowSpan = 0;
+            }
+            return obj;
+          }
+        },
+        { 
+          title: 'name', 
+          dataIndex: 'name', 
+          colSpan: 0,
+        },
+        { 
+          title: 'percent', 
+          dataIndex: 'percent', 
+          colSpan: 0,
+        },
+        { 
+          title: '备注', 
+          scopedSlots: { customRender: "operation" },
+        }
+      ],
+      tableData: [
+        {
+          key: 'under',
+          content: '年龄结构分析',
+          name: '35岁以下人员占比',
+          percent: ''
+        },
+        {
+          key: 'between',
+          content: '年龄结构分析',
+          name: '35-50岁人员占比',
+          percent: ''
+        },
+        {
+          key: 'up',
+          content: '年龄结构分析',
+          name: '50岁以上人员占比',
+          percent: ''
+        },
+        {
+          key: 'turnoverCompileNum',
+          content: '存在不予使用情况',
+          name: '已核定周转编制',
+          percent: ''
+        },
+        {
+          key: 'departmentLeaderEmptyNum',
+          content: '存在不予使用情况',
+          name: '部门领导控制数',
+          percent: ''
+        },
+        {
+          key: 'residueCompileNum',
+          content: '周转期限分析',
+          name: '全市周转编制剩余量',
+          percent: ''
+        },
+        {
+          key: 'retireInTwoYear',
+          content: '周转期限分析',
+          name: '2年内退休人数',
+          percent: ''
+        },
+        {
+          key: 'retireInFiveYear',
+          content: '周转期限分析',
+          name: '5年内退休人数',
+          percent: ''
+        },
+      ]
+    };
+  },
+  watch: {},
+  computed: {
+  },
+  created() {
+    let all = this.data.up + this.data.between + this.data.under;
+    if(all) {//不为0
+      this.data.up = (Math.floor(this.data.up / all * 10000) / 100.00)+"%";
+      this.data.between = (Math.floor(this.data.between / all * 10000) / 100.00)+"%";
+      this.data.under = (Math.floor(this.data.under / all * 10000) / 100.00)+"%";
+    }
+    this.tableData.forEach(item => {
+      if(this.data.hasOwnProperty(item.key)) {
+        item.percent = this.data[item.key]
+      }
+    })
+  },
+  mounted() {},
+  methods: {
+    generateRowKey() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.con{  
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

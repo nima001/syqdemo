@@ -1,0 +1,127 @@
+<template>
+  <div class="org-comp">
+    <table class="body" v-if="!loading">
+      <thead>
+        <tr>
+          <td class="name tag"></td>
+          <td v-for="item in orgs" :key="item.orgid">{{item.orgname}}</td>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(c, index) in table.header" :key="c.column" :class="{odd: index%2 != 1}">
+          <td class="name">{{c.showname}}</td>
+          <td v-for="item in orgs" :key="item.orgid">{{getOrgByid(item.orgid)[c.column]}}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</template>
+<script>
+import { listOrgDistrItem } from "@person/api/org";
+import { showError } from "@framework/utils/index";
+import { orglinedetail } from "@/person-shaoxing/api/information";
+import { query } from "@/person/api/integratedquery";
+
+export default {
+  props: {
+    lineid: Number
+  },
+  data(){
+    return {
+      loading: false,
+      orgs: [],
+      table: {
+        header: [],
+        rows: []
+      }
+    }
+  },
+  computed: {
+    orgMap(){
+      let map = {};
+      this.table.rows.forEach(item => {
+        map[item._id] = item;
+      })
+      return map;
+    }
+  },
+  created(){
+    if(this.lineid){
+      this.loadData(this.lineid);
+    }
+  },
+  methods: {
+    getOrgByid(id){
+      return this.orgMap[id] || {}
+    },
+    async loadData(lineid){
+      try {
+        this.loading = true;
+        let {result: { orgs }} = await orglinedetail(lineid); 
+        let orgids = orgs.map((item) => item.orgid);
+        let { result } = await query({
+          target: { id: 1 },
+          filter: {
+            op: "and",
+            criteria: [
+              { field: { key: "_id" }, op: "in", value: orgids }
+            ]
+          },
+          fields: [
+            { key: "politicallevel", showname: "机构级别" },
+            { key: "_id@organization.statistic.zgbzzl", showname: "机关编制总数（行政编制加工勤编制）" },
+            { key: "_id@organization.statistic.jgbzsyzj", showname: "实有人数" },
+            { key: "_id@organization.statistic.hdldzszj", showname: "部门领导职数" },
+            { key: "_id@organization.statistic.hdldzszj_sy", showname: "实有部门领导职数" },
+            { key: "_id@organization.statistic.zcldzs_hd", showname: "中层领导职数" },
+            { key: "_id@organization.statistic.zcldzs_sy", showname: "实有中层领导职数" },
+            { key: "_id@organization.statistic.bwkzs", showname: "编外用工控制数" }
+          ],
+          pagenum: 1,
+          pagesize: orgs.length
+        });
+        this.orgs = orgs;
+        this.table = result
+        this.loading = false;
+      } catch (error) {
+        showError(error);
+      }
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.org-comp{
+  overflow: auto;
+  height: 100%;
+}
+.body{
+  width: 100%;
+  margin-top: 20px;
+  table-layout: fixed;
+  font-size: 16px;
+  color: #fff;
+  thead{
+    background: linear-gradient(to right, rgba(65, 126, 220, .6), rgba(8, 126, 127, .06));
+    padding-bottom: 10px;
+    .tag{
+      border-left: 2px solid #2a89c4;
+    }
+  } 
+  td{
+    padding: 9px 9px;
+    text-align: center;
+    line-height: 1.4em;
+    min-height: 40px;
+    &.name{
+      width: 200px;
+      text-align: left;
+      padding-left: 20px;
+    }
+  }
+  & .odd{
+    background-color: #111c31;
+  }
+
+}
+</style>

@@ -1,0 +1,129 @@
+<template>
+  <div class="content">
+    <a-spin :spinning="this.loading">
+      <slot name="detail" v-if="!this.loading" class="detail"></slot>
+      <div class="spin-content">
+        <components class="chart"
+          v-if="this.queryData"
+          :is="this.chartType"
+          :dataTable="queryData.data"
+          :active="this.active"
+          :settings="this.setting"
+        >
+        </components>
+        <EmptyData v-else-if="!this.queryData&&!this.loading" />
+      </div>
+    </a-spin>
+  </div>
+</template>
+
+<script>
+import { Spin } from 'ant-design-vue';
+import { components } from "@person/components/chart";
+import EmptyData from "@/framework/components/EmptyData";
+export default {
+  props: {
+    loading: {
+      type: Boolean,
+    },
+    queryData: {
+      //图形数据
+      type: Object,
+    },
+    chartType: {
+      //图形类型
+      type: String,
+    },
+    active: {
+      //左侧菜单选中下标
+      type: Number,
+    },
+    setting: {
+      //图形配置
+      type: Object,
+      required: false,
+			default: () => {}
+    }
+  },
+  components: {
+    EmptyData,
+    ASpin: Spin,
+    ...components,
+  },
+  data() {
+    return {};
+  },
+};
+</script>
+<style scoped lang="less">
+.content {
+  height: 100%;
+  display: flex;
+  .ant-spin-nested-loading {
+    width: 100%;
+    flex: 1;
+    /deep/.ant-spin-container {
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      .header {
+        .detail {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          text-align: right;
+          font-size: @font-size-base;
+          margin-bottom: 10px;
+          i.anticon.anticon-file-text {
+            color: @primary-3;
+          }
+          .text {
+            color: @primary-color;
+            margin-left: @padding-xs / 2;
+          }
+          span {
+            cursor: pointer;
+          }
+        }
+        .title {
+          text-align: center;
+          margin-bottom: 0;
+        }
+        ul.screen {
+          display: flex;
+          li {
+            margin-right: 8px;
+            padding: 2px 16px;
+            border-radius: 50px;
+            cursor: pointer;
+            user-select: none;
+          }
+          .active {
+            color: #ffffff;
+            background-color: @primary-color;
+          }
+        }
+        .desc {
+          display: flex;
+          justify-content: center;
+          li:first-child {
+            margin-right: 8px;
+          }
+          li {
+            user-select: none;
+            span {
+              color: @primary-color;
+            }
+          }
+        }
+      }
+      .spin-content {
+        flex: 1;
+        .chart {
+          height: 100%;
+        }
+      }
+    }
+  }
+}
+</style>

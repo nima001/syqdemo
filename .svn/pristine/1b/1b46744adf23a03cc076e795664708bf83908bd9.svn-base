@@ -1,0 +1,125 @@
+<template>
+	<a-tabs defaultActiveKey="1" :animated="false" class="org-info-panel" type="card" @tabClick="onTabClick">
+		<a-tab-pane tab="机构情况" key="1" >
+			<org-info :org="orgData" :orgid="orgData._id" />
+		</a-tab-pane>
+		<a-tab-pane tab="主要职责" key="2" v-if="isUnit">
+			<org-main-duty :orgid="org._id"/>
+		</a-tab-pane>
+		<a-tab-pane tab="编制情况" key="3" v-if="(isUnit || org.unittype == 22) && hasPermit('/person/org/orgStaffDistr/staff')">
+			<org-staff-distr :orgid="org._id" category="staff"/>
+		</a-tab-pane>
+    <template v-if="org.orgtype == 3"><!-- FXIME 余杭区添加一览表单独授权 -->
+      <a-tab-pane tab="编制情况" key="3-1" v-if="hasPermit('/person/org/orgStaffDistr/staff/total')">
+        <org-staff-distr :orgid="org._id" category="staff"/>
+      </a-tab-pane>
+      <a-tab-pane tab="编制情况" key="3-2" v-if="hasPermit('/person/org/orgStaffDistrReport')">
+        <OrgStaffDistrReport :orgid="org._id"/>
+      </a-tab-pane>
+    </template>
+		<a-tab-pane tab="职数情况" key="4" v-if="isUnit && hasPermit('/person/org/orgStaffDistr/post')">
+			<org-staff-distr :orgid="org._id" category="post"/>
+		</a-tab-pane>
+    <a-tab-pane tab="岗位设置" key="5" v-if="org.unittype == 3 && hasPermit('/person/org/orgStaffDistr/job')"><!-- 事业单位显示岗位 -->
+			<org-staff-distr :orgid="org._id" category="job"/>
+		</a-tab-pane>
+		<a-tab-pane tab="用编计划" key="6" v-if="isUnit && hasPermit('/person/org/planList')">
+			<plan-list :org="org"/>
+		</a-tab-pane>
+		<a-tab-pane tab="编外计划" key="7" v-if="isUnit && hasPermit('/person/org/planBwList')">
+			<planbw-list :org="org"/>
+		</a-tab-pane>
+	</a-tabs>
+</template>
+<script>
+import {Tabs} from 'ant-design-vue';
+import OrgMainDuty from './OrgMainDuty';
+import OrgStaffDistr from './OrgStaffDistr';
+import OrgInfo from "./OrgInfo";
+import PlanList from "./quotaplan/PlanList"
+import PlanbwList from "./quotaplan/PlanbwList"
+import OrgStaffDistrReport from './OrgStaffDistrReport'
+import { organization } from "@/person/api/org";
+export default {
+	props: ['org'],
+	components:{
+    ATabs:Tabs,
+    ATabPane:Tabs.TabPane,
+    OrgInfo,
+		OrgMainDuty,
+		OrgStaffDistr,
+		PlanList,
+    PlanbwList,
+    OrgStaffDistrReport
+  },
+  data(){
+    return {
+      orgData:{}
+    }
+  },
+	computed:{
+		isUnit(){
+			return [1,2,3,5].indexOf(this.org.unittype) >= 0;
+    },
+  },
+  methods:{
+    onTabClick(key){},
+    getOrgData(){
+      if(this.org._id){
+        organization(this.org._id).then(res=>{
+          this.orgData = res.result;
+        }).catch(err=>{})
+      }
+    }
+  },
+  watch:{
+    org(org){
+      this.getOrgData();
+    }
+  },
+  mounted(){
+    this.getOrgData();
+  }
+}
+</script>
+<style lang="less">
+.org-info-panel.ant-tabs.ant-tabs-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: auto;
+  min-height: 0;
+
+  & > .ant-tabs-card-bar {
+    margin: 0;
+    padding: 0 24px;
+    border: none;
+    background-image: linear-gradient(to right, #fcfcfc, @primary-1);
+    .ant-tabs-nav-container {
+      height: 42px;
+    }
+    .ant-tabs-tab {
+      line-height: 26px;
+      padding: 0 14px;
+      margin: 8px 4px 8px 0;
+      border: none !important;
+      background: none;
+      border-radius: 3px;
+      &:hover {
+        background-color: @primary-1;
+      }
+      &.ant-tabs-tab-active {
+        background-color: @primary-2;
+      }
+    }
+  }
+  & > .ant-tabs-content {
+    flex: auto;
+    min-height: 0;
+    height: 100%;
+    & .ant-tabs-tabpane {
+      height: 100%;
+    }
+  }
+}
+</style>

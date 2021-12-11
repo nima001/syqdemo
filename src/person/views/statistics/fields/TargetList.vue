@@ -1,0 +1,258 @@
+<template>
+  <a-layout :style="{ height: '100%' }">
+    <a-layout-content class="layoutcontent">
+      <div class="contentbox">
+        <div class="topbox">
+          <div class="leftbox">
+            <a-button icon="plus" type="primary" @click="newadd">新增</a-button>
+            <a-button icon="delete" type="primary" :style="{ marginLeft:'8px' }" @click="fielddelete">删除</a-button>
+          </div>
+        </div>
+        <div class="tablecount">
+          <a-table rowKey="id" :row-selection="{selectedRowKeys,onChange:onSelectChange}" :customRow="customRow" :loading="loading" :columns="columns" :dataSource="pagination.rows" :pagination="false">
+            <span slot="action" class="operation" slot-scope="text, record">
+              <a @click.stop="edit(record)">编辑</a>
+              <a @click.stop="toRules(record)">规则管理</a>
+            </span>
+          </a-table>
+        </div>
+        <div class="footer">
+          <a-pagination v-if="pagination.rows && pagination.rows.length" showSizeChanger :showTotal="(total) => `总共：${total}条`"
+            @showSizeChange="onShowSizeChange" :total="pagination.total" :page-size="pagination.pagesize" v-model="pagination.pagenum" @change="onPageChange"
+          />
+        </div>
+      </div>
+    </a-layout-content>
+    <target-change v-model="visible" :record="record" :targetlist="pagination.rows" :modelList="modelList" @finish="onEditFinish"></target-change>
+  </a-layout>
+</template>
+<script>
+import { Layout, Pagination, Select, Table, Button, Input} from "ant-design-vue";
+import TargetChange from "./components/TargetChange";
+import { fieldsearch, fieldtarget,fieldtargets,fieldmodel ,deleteTarget } from "@/person/api/field";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: "TargetList",
+  components: {
+    ALayout: Layout,
+    ALayoutContent: Layout.Content,
+    APagination: Pagination,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    AButton: Button,
+    AInput: Input,
+    TargetChange,
+  },
+  data() {
+    return {
+      visible: false,
+      record: {},
+      selectedRowKeys: [],
+      searchdata: {
+        type: undefined,
+        targetid: undefined,
+        searchKey: null,
+      },
+      showEditTemp: false,
+      columns: [
+        {
+          title: "序号",
+          width: "50px",
+          customRender: (text, record, index) => `${index + 1}`,
+        },
+        {
+          title: "对象名称",
+          dataIndex: "title"
+        },
+        {
+          title: "统计模型",
+          dataIndex: "namespace",
+          customRender: (target) => {
+            let t = this.modelList.find((item) => item.namespace == target);
+            return t && t.name;
+          },
+        },
+        {
+          title: "依赖",
+          dataIndex: "depends",
+          customRender: this.getDepends
+        },
+        {
+          title: "操作",
+          width: "145px",
+          scopedSlots: { customRender: "action" },
+        },
+      ],
+      loading: false,
+      pagination: {
+        rows: null,
+        pagesize: 20,
+        pagenum: 1,
+        total: 0,
+      },
+      targetlist: [],
+      modelList: []
+    };
+  },
+  created() {
+    this.loadData();
+    this.getModel();
+  },
+  methods: {
+    onSelectChange(selectedRowKeys){
+      this.selectedRowKeys = selectedRowKeys;
+    },
+    // 点击行选中
+    customRow(row,index){
+      return {
+        on: {
+          click: () => {
+            let rowKeys = this.selectedRowKeys
+            if(rowKeys.length>0 && rowKeys.includes(row.id)){
+              rowKeys.splice(rowKeys.indexOf(row.id),1)
+            }else{
+              rowKeys.push(row.id)
+            }
+            this.selectedRowKeys = rowKeys; 
+          }
+        }
+      };
+    },
+    //删除
+    fielddelete() {
+      let that = this;
+      if (this.selectedRowKeys.length > 0) {
+        let id = this.selectedRowKeys;
+        this.$confirm({
+          title: "确认删除该行数据?",
+          onOk() {
+            deleteTarget(id)
+              .then((res) => {
+                that.$notification.success({
+                  message: "提示",
+                  description: "删除成功!",
+                  duration: 3,
+                });
+                that.selectedRowKeys = [];
+                that.loadData();
+              })
+              .catch((err) => {
+                showError(err);
+              });
+          },
+        });
+      } else {
+        this.$notification.warning({
+          message: "提示",
+          description: "请选择要删除的内容!",
+          duration: 3,
+        });
+      }
+    },
+    edit(record) {
+      this.record = record;
+      this.visible = true;
+    },
+    getDepends(values){
+      if(values){
+        let arr =  values.map(item=>{
+          return item.title
+        })
+        return arr.join(',')
+      }
+    },
+    onPageChange(page, pagesize) {
+      this.pagination.pagenum = page;
+      this.loadData();
+    },
+    onShowSizeChange(current, pagesize) {
+      this.pagination.pagenum = 1;
+      this.pagination.pagesize = pagesize;
+      this.loadData();
+    },
+    loadData() {
+      fieldtargets({pagenum:this.pagination.pagenum,pagesize:this.pagination.pagesize,needtotal:true})
+        .then((res) => {
+          this.pagination = res.result;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    getModel(){
+      fieldmodel().then(res=>{
+        this.modelList = res.result
+      }).catch((err) => {
+          showError(err);
+      });
+    },
+    newadd() {
+      this.record = {};
+      this.visible = true;
+    },
+    onreset() {
+      this.searchdata = { input: {} };
+      this.loadData(this.pagination.pagenum, this.pagination.pagesize);
+    },
+    onEditFinish(data) {
+      this.visible = false;
+      this.loadData();
+    },
+    toRules(target){
+      this.$router.push({name: "RulesList",params:{ target }});
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.layoutcontent {
+  height: 100%;
+  padding: @layout-space-base;
+  .contentbox {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    width: 100%;
+    background-color: white;
+    padding-top: @layout-space-base;
+    .topbox {
+      padding: @content-padding-v @content-padding-h;
+      width: 100%;
+      height: auto;
+      .leftbox {
+        float: left;
+      }
+    }
+  }
+  .tablecount {
+    padding: 0 @content-padding-h;
+    flex-shrink: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin-top: @layout-space-base;
+    /deep/.ant-table-body{
+      tr{
+        cursor: pointer;
+      }
+    }
+    .operation {
+      a {
+        margin-right: 15px;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+  .footer {
+    padding: @content-padding-v @content-padding-h;
+    .ant-pagination {
+      float: right;
+      margin-bottom: 10px;
+    }
+  }
+}
+</style>

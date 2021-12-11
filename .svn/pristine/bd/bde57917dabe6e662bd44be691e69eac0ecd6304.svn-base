@@ -1,0 +1,603 @@
+<template>
+  <a-layout>
+    <div class="chat-list">
+      <div class="search">
+        <div class="left">
+          <div @click="changeIcon">
+            <a-icon :type="icontype" class="Iconcss" />
+          </div>
+        </div>
+        <div class="right">
+          <a-select
+            allowClear
+            v-model="search.onepage"
+            placeholder="报表类型"
+            style="width: 165px;margin-left:5px;"
+          >
+            <a-select-option :value="0">统计册</a-select-option>
+            <a-select-option :value="1">统计表</a-select-option>
+          </a-select>
+          <a-input
+            placeholder="报表名称"
+            allowClear
+            v-model="search.searchkey"
+            style="width: 165px;margin-left:8px;"
+          />
+          <a-month-picker
+            style="margin-left:8px;"
+            :allowClear="false"
+            placeholder="请选择日期"
+            :disabledDate="disabledDate"
+            v-model="search.date"
+            @change="onSearch"
+          />
+          <a-button type="primary" style="margin-left:8px;" @click="onSearch">查询</a-button>
+        </div>
+      </div>
+      <div class="box">
+        <a-spin tip="Loading..." :spinning="search.loading" class="spin"></a-spin>
+        <ul class="in-box" v-show="page.total && icontype === 'appstore'">
+          <li class="li-content" v-for="(item,index) in page.rows" :key="index">
+            <img src="../../../assets/img/icon-report-book.png" v-if="!item.src&&!item.onepage" />
+            <img src="../../../assets/img/icon-report-table.png" v-if="!item.src&&item.onepage" />
+            <div class="iframebox" @click="!item.onepage?toCatalogue(item):fullscreenCover(item)">
+              <div class="right" v-if="item.src"></div>
+              <iframe
+                frameborder="0"
+                :src="item.src"
+                class="coverimg"
+                scrolling="no"
+                :key="index"
+                v-if="item.src"
+              ></iframe>
+            </div>
+            <div class="li-div">
+              <div class="catalogue">
+                <div class="colordiv"></div>
+                <span class="boxspan">{{item.name}}</span>
+              </div>
+              <div class="downdiv">
+                <span class="fullscreenspan" @click="fullscreenCover(item)">
+                  <a-icon type="fullscreen" class="fullscreen" />
+                  <span>{{!item.onepage? '查看封面' :'查看表格'}}</span>
+                </span>
+                <span
+                  class="downspan"
+                  @click="!item.onepage?downloadBook(item):downloadCover(item.id)"
+                >
+                  <a-icon type="download" class="download" />
+                  <span>导出</span>
+                </span>
+              </div>
+            </div>
+          </li>
+        </ul>
+        <div v-show="page.total && icontype === 'bars'">
+          <div class="ulbox">
+            <div
+              v-for="(item,index) in page.rows"
+              :key="index"
+              :class="(page.rows.length % 2 == 0) ? 'licontentdivone' : 'licontentdivtwo'"
+            >
+              <div class="licontent">
+                <div
+                  style="width:80%;"
+                  @click="!item.onepage?toCatalogue(item):fullscreenCover(item)"
+                >
+                  <img
+                    src="../../../assets/img/icon-report-book-accent.png"
+                    width="32px"
+                    height="32px"
+                    v-if="!item.onepage"
+                    style="margin-left:15px;"
+                  />
+                  <img
+                    style="margin-left:15px;"
+                    src="../../../assets/img/icon-report-table-accent.png"
+                    width="32px"
+                    height="32px"
+                    v-else
+                  />
+                  <span style="margin-left:10px;vertical-align: middle;">{{item.name}}</span>
+                </div>
+                <div
+                  style="width:20%;text-align:end;height:32px;line-height:32px;margin-right:15px;"
+                >
+                  <a @click="fullscreenCover(item)">{{!item.onepage? '查看封面' :'查看表格'}}</a>
+                  <span class="soliddiv"></span>
+                  <a @click="!item.onepage?downloadBook(item):downloadCover(item.id)">导出</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <empty-data style="padding-top: 10%" v-if="!page.total && !search.loading " />
+      </div>
+      <div class="footer" v-if="page.rows && page.rows.length">
+        <a-pagination
+          v-model="page.pagenum"
+          showSizeChanger
+          :showTotal="total => `总共：${total}条`"
+          @showSizeChange="onShowSizeChange"
+          :total="page.total"
+          @change="onPageChange"
+        />
+      </div>
+    </div>
+    <!-- 查看封面 -->
+    <a-modal v-model="coverModel.visible"
+      wrapClassName="cus-modal-wrapper"
+      :footer="null"
+      :closable="false"
+      :width="coverModel.rotate ? '1123px' : '794px'"
+      :bodyStyle="{ height: coverModel.rotate ? '794px' : '1123px', padding: '0'}"
+    >
+      <span class="spanmodal">
+        <div class="onebutton">
+          <a-icon type="close" class="oneicon" @click="coverModel.visible=false" />
+        </div>
+        <div class="onebutton twobutton">
+          <a-icon type="retweet" class="oneicon" @click="refreshCover" />
+        </div>
+        <div class="onebutton twobutton">
+          <a-icon type="arrow-down" class="oneicon" @click="downloadCover(coverModel.id)" />
+        </div>
+      </span>
+      <iframe frameborder="0" :src="coverModel.src" class="iframemodalOne"></iframe>
+    </a-modal>
+    <!-- 导出提示 -->
+    <a-modal title="提示" 
+      :visible="downModel.visible"
+      @cancel="downModel.visible = false"
+    >
+      <div>
+        <p style="font-size:18px">{{downModel.text}}</p>
+        <p v-if="!downModel.history">
+          设置截止时间：<a-month-picker v-model="downModel.date" :allowClear="false"/>
+        </p>
+      </div>
+      <template slot="footer">
+        <a-button @click="downModel.visible = false">取消</a-button>
+        <a-button type="primary" @click="handleOk">确定</a-button>
+      </template>
+    </a-modal>
+    <TaskProgress v-if="downModel.taskid" :taskid="downModel.taskid" defaultInfo="正在导出" @finish="onProgressFinish"/>
+  </a-layout>
+</template>
+<script>
+import { Layout, Modal, Spin, Input, Select, DatePicker, Button, Pagination, Icon } from "ant-design-vue";
+import EmptyData from "@/framework/components/EmptyData";
+import TaskProgress from "@/framework/components/TaskProgress";
+import moment from "moment";
+import { showError } from "@/framework/utils/index";
+import { listReportDisplay, exportList, getCover } from "@/person/api/booklet";
+import { download } from "@/framework/api/file";
+
+export default {
+  data() {
+    return {
+      icontype: "appstore",
+      search: {
+        loading: false,
+        searchkey: undefined,
+        date: moment(),
+        onepage: undefined
+      },
+      page: {
+        rows: [],
+        pagesize: 10,
+        pagenum: 1,
+        total: 0
+      },
+      downModel: {
+        visible: false,
+        id: undefined,
+        text: undefined,
+        history: false,
+        taskid: undefined,
+        date: undefined,
+      },
+      coverModel: {
+        visible: false,
+        id: undefined,
+        src: undefined,
+        rotate: undefined,
+      },
+    };
+  },
+  components: {
+    ALayout: Layout,
+    AModal: Modal,
+    ASpin: Spin,
+    AIcon: Icon,
+    AInput: Input,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AMonthPicker: DatePicker.MonthPicker,
+    AButton: Button,
+    APagination: Pagination,
+    EmptyData,
+    TaskProgress
+  },
+  created() {
+    this.statistical(this.page);
+  },
+  computed: {
+    apiUrl(){
+      return this.$store.getters.getConfig('api.url');
+    }
+  },
+  methods: {
+    moment,
+    changeIcon() {
+      if (this.icontype === "appstore") {
+        this.icontype = "bars";
+      } else {
+        this.icontype = "appstore";
+      }
+    },
+    //获取文件列表
+    onPageChange(page, pagesize) {
+      this.statistical({pagenum: page, pagesize: pagesize});
+    },
+    onShowSizeChange(current, size) {
+      this.statistical({pagenum: 1, pagesize: size});
+    },
+    statistical({ pagenum, pagesize }) {
+      this.search.loading = true;
+      listReportDisplay({
+        ...this.search,
+        namespace: "report",
+        needtotal: true,
+        pagenum,
+        pagesize
+      }).then(({result}) => {
+        this.search.loading = false;
+        this.page = result;
+        this.loadCover();
+      }).catch(error => {
+        this.search.loading = false;
+        showError(error);
+      });
+    },
+    onSearch() {
+      this.statistical({pagenum: 1, pagesize: this.page.pagesize});
+    },
+    toCatalogue(item) {//跳转
+      this.$router.push({ name: "Catalogue", query: { id: item.id }});
+    },
+    onProgressFinish(uri) {
+      this.downModel.taskid = undefined;
+      download(uri);
+    },
+    fullscreenCover(item) {
+      if (!item.src) {
+        this.$message.info('暂无封面');
+      } else {
+        this.coverModel = { visible: true, ...item };
+      }
+    },
+    refreshCover() {//刷新封面
+      let bookid = this.coverModel.id;
+      getCover(bookid, true).then(({ result }) => {
+        let html = `javascript:void(function(){document.open();document.write('${result.content}');document.close();}())`;
+        this.$nextTick(() => this.coverModel.src = html);
+        let item = this.page.rows.find(item => item.id == bookid);
+        if(item){
+          this.$set(item, "src", html);
+        }
+        this.$message.success("刷新成功");
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    downloadCover(id) {//下载封面
+      download(this.apiUrl + "/person/report/book/cover/export?id=" + id);
+    },
+    downloadBook(item) {//导出
+      this.downModel = {
+        visible: true,
+        id: item.id,
+        history: item.history,
+        date: moment(),
+        text: item.history ? '确定导出该册历史报表吗？' : '当月报表需实时生成，确定导出该册报表吗？'
+      }
+    },
+    handleOk() { //确定导出
+      let { history, id, date } = this.downModel;
+      if (history) {
+        download(this.apiUrl + "/person/report/book/download?bookid=" + id);
+        this.downModel.visible = false;
+      } else {
+        exportList(id, date.format("YYYY-MM")).then(res => {
+          this.downModel.taskid = res.result;
+          this.downModel.visible = false;
+        }).catch(error => {
+          showError(error);
+        });
+      }
+    },
+    disabledDate(current) {//禁用部分日期
+      return current && current > moment().endOf("day");
+    },
+    loadCover() {
+      if(this.page.rows){
+        this.page.rows.forEach(item => {
+          getCover(item.id).then(({result}) => {
+            let html = `javascript:void(function(){document.open();document.write('${result.content}');document.close();}())`
+            this.$set(item, "src", html);
+            this.$set(item, "rotate", result.rotate);
+          });
+        });
+      }
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-layout {
+  padding: @layout-space-base;
+  height: 100%;
+  .chat-list {
+    height: 100%;
+    flex-direction: column;
+    display: flex;
+    background: @white;
+    border-radius: @border-radius-base;
+    .search {
+      padding: @content-padding-v @content-padding-h;
+      margin-top: 10px;
+      border-bottom: 1px solid @border-color-split;
+      .right {
+        float: right;
+      }
+      .left {
+        cursor: pointer;
+        float: left;
+        margin: 3px 0;
+        .Iconcss {
+          font-size: 25px;
+          color: @primary-color;
+        }
+      }
+    }
+    .box {
+      background: white;
+      width: 100%;
+      flex: 0 1 auto;
+      overflow: auto;
+      padding: 10px 24px;
+      ul:after {
+        content: "";
+        width: 469.2px;
+      }
+      .in-box {
+        margin-bottom: 0;
+        justify-content: space-between;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        overflow: hidden;
+        .li-content {
+          box-shadow: 1px 1px 10px #dad9d9;
+          float: left;
+          margin: @layout-space-base;
+          height: 317.6px;
+          width: 449.2px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          .coverimg {
+            min-width: 1123px;
+            min-height: 794px;
+            background: white;
+          }
+          .li-div {
+            display: none;
+            width: 100%;
+            height: 60px;
+            position: absolute;
+            z-index: 10;
+            bottom: 0px;
+            background-image: linear-gradient(to bottom, #f5f7fa, #656d78);
+            .catalogue {
+              width: 75%;
+              display: flex;
+              .colordiv {
+                background: #f8a700;
+                width: 10px;
+                height: 20px;
+                border-radius: 3px;
+                margin: 20px 12px;
+              }
+              .boxspan {
+                font-size: 20px;
+                margin: 15px 0px;
+                color: white;
+              }
+            }
+          }
+          .downdiv {
+            width: 35%;
+            display: flex;
+            .downspan {
+              cursor: pointer;
+              color: white;
+              margin: 20px 8px;
+              .download {
+                margin-right: 5px;
+              }
+            }
+            .fullscreenspan {
+              cursor: pointer;
+              color: white;
+              margin: 20px 0px;
+              .fullscreen {
+                margin-right: 5px;
+              }
+            }
+          }
+          &:hover .li-div {
+            display: flex;
+          }
+          .iframebox {
+            // height: 794px;
+            transform: scale(0.4);
+            .right {
+              position: absolute;
+              width: 1123px;
+              height: 794px;
+              // opacity: 0.6;
+            }
+          }
+        }
+        .name {
+          line-height: 32px;
+          padding-right: 5px;
+          // vertical-align: initial;
+        }
+        .ant-input-group.ant-input-group-compact {
+          display: inline-block;
+          vertical-align: super;
+        }
+        /deep/ .ant-input-group {
+          top: 0.8px;
+        }
+        /deep/.ant-select-selection--multiple {
+          padding-bottom: 0px;
+        }
+      }
+      .ulbox {
+        margin-bottom: 0;
+        //justify-content: flex-start;
+        justify-content: space-between;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        overflow: hidden;
+        .licontentdivone {
+          height: auto;
+          width: 50%;
+          display: flex;
+          align-items: center;
+          border-right: 1px solid @border-color-split;
+          &:last-child {
+            div {
+              border-bottom: none;
+            }
+          }
+          &:nth-last-child(2) {
+            div {
+              border-bottom: none;
+            }
+          }
+          &:nth-child(even) {
+            border-right: none;
+          }
+          .licontent {
+            width: 95%;
+            margin: auto;
+            border-bottom: 1px solid @border-color-split;
+            height: auto;
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            .soliddiv {
+              margin: 0 5px;
+              height: 15px;
+            }
+            &:hover {
+              background: @primary-1;
+            }
+          }
+        }
+        .licontentdivtwo {
+          height: auto;
+          width: 50%;
+          display: flex;
+          align-items: center;
+          border-right: 1px solid @border-color-split;
+          &:last-child {
+            div {
+              border-bottom: none;
+            }
+          }
+          &:nth-child(even) {
+            border-right: none;
+          }
+          .licontent {
+            width: 95%;
+            margin: auto;
+            border-bottom: 1px solid @border-color-split;
+            height: auto;
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            .soliddiv {
+              margin: 0 5px;
+              height: 15px;
+            }
+            &:hover {
+              background: @primary-1;
+            }
+          }
+        }
+      }
+      .spin {
+        position: absolute;
+        top: 50%;
+        left: 48%;
+      }
+      @media screen and(min-width: 1000px) and(max-width:1409px) {
+        .in-box {
+          justify-content: space-evenly;
+        }
+      }
+    }
+    .footer {
+      border-top: 1px solid @border-color-split;
+      padding: @content-padding-v 0;
+      margin: 0 @content-padding-h;
+      .ant-pagination {
+        float: right;
+        margin-bottom: 10px;
+      }
+    }
+  }
+}
+.cus-modal-wrapper {
+  width: 1123px;
+  .spanmodal {
+    position: absolute;
+    flex-direction: column;
+    right: 16px;
+    top: 16px;
+    display: flex;
+    .onebutton {
+      width: 40px;
+      height: 40px;
+      background: #8f908f;
+      border-radius: 50%;
+      opacity: 0.6;
+      cursor: pointer;
+      .oneicon {
+        font-size: 24px;
+        color: white;
+        margin: 8px;
+      }
+    }
+    .twobutton {
+      margin-top: 10px;
+    }
+  }
+  .iframemodalOne {
+    width: 1123px;
+    height: 794px;
+  }
+  .iframemodalTwo {
+    width: 794px;
+    height: 1123px;
+  }
+}
+</style>

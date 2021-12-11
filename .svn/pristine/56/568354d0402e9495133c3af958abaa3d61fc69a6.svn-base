@@ -1,0 +1,424 @@
+<template>
+  <div class="document-query">
+    <div class="panel">
+      <div class="toolbar">
+        <a-form class="ant-advanced-search-form" :form="form">
+          <div class="box">
+            <ul class="in-box">
+              <li class="li-content">
+                <div>
+                  <span class="name">批准文号:</span>
+                  <a-input-group compact class="pzwh">
+                    <a-input
+                      type="text"
+                      style="width: 30%"
+                      v-model="searchCondition.zihao"
+                    />
+                    <a-input
+                      addonBefore="〔"
+                      addonAfter="〕"
+                      type="text"
+                      style="width: 40%"
+                      v-model="searchCondition.year"
+                    />
+                    <a-input
+                      addonAfter="号"
+                      type="text"
+                      style="width: 30%"
+                      v-model="searchCondition.ordinal"
+                    />
+                  </a-input-group>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">发文时间:</span>
+                  <a-input-group compact>
+                    <a-date-picker
+                      placeholder="开始时间"
+                      v-model="startValue"
+                      :disabled-date="disabledStartDate"
+                      style="width: 50%"
+                    />
+                    <a-date-picker
+                      placeholder="结束时间"
+                      v-model="endValue"
+                      :disabled-date="disabledEndDate"
+                      style="width: 50%"
+                    />
+                  </a-input-group>
+                </div>
+              </li>
+              <li class="li-content" style="width: 180px">
+                <div>
+                  <span class="name">文件类型:</span>
+                  <a-select
+                    v-model="searchCondition.type"
+                    placeholder="请选择文件类型"
+                    @change="typeChange"
+                  >
+                    <a-select-option
+                      v-for="(item, index) in typeList"
+                      :key="index"
+                      :value="item.value"
+                      >{{ item.text }}</a-select-option
+                    >
+                  </a-select>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">关键字:</span>
+                  <a-input
+                    placeholder="请输入关键字"
+                    v-model="searchCondition.keywords"
+                  />
+                </div>
+              </li>
+              <li class="li-content" style="width: 200px">
+                <div>
+                  <span class="name">相关机构:</span>
+                  <a-input
+                    v-model="searchCondition._orgname"
+                    placeholder="请选择机构"
+                  >
+                    <a-icon
+                      slot="addonAfter"
+                      type="select"
+                      class="left-icon"
+                      @click="orgModelShow"
+                    />
+                  </a-input>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </a-form>
+        <a-row>
+          <a-col class="colcss">
+            <a-button
+              type="primary"
+              @click="onSearch"
+              style="margin-right: 10px"
+              >查询</a-button
+            >
+            <a-button @click="onreset">重置</a-button>
+          </a-col>
+        </a-row>
+      </div>
+    </div>
+    <div class="document-main"></div>
+    <div class="document-list">
+      <div class="document-content">
+        <h3 class="document-h3">查询结果:</h3>
+        <div class="list-content">
+          <span class="title-span">【{{ one }}】{{ two }}</span>
+          <span class="time-span"
+            >批准文号:{{ three }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;发文时间:{{
+              four
+            }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;相关单位:{{ five }}</span
+          >
+          <div class="listthree">
+            <div class="listthree-div">{{ six }}</div>
+            <a-button>下载文件</a-button>
+          </div>
+        </div>
+      </div>
+      <!-- <div class="main-image" v-else>
+        <empty-data :tips="warningtext" />
+      </div> -->
+    </div>
+    <!--组织选择-->
+    <a-modal
+      title="单位名称选择"
+      v-model="orgVisible"
+      :width="800"
+      :bodyStyle="{ height: '600px', padding: '0' }"
+      :footer="null"
+    >
+      <org-user-select
+        mode="org"
+        :max-select="100"
+        :root-selectable="true"
+        :selected="selected"
+        @finish="selectOrg"
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import moment from "moment";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import { showError } from "@/framework/utils/index";
+import EmptyData from "@/framework/components/EmptyData";
+import {
+  Form,
+  Row,
+  Col,
+  Input,
+  Button,
+  Select,
+  DatePicker,
+  Icon,
+  Modal,
+} from "ant-design-vue";
+export default {
+  name: "Documentquery",
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ADatePicker: DatePicker,
+    AIcon: Icon,
+    AModal: Modal,
+    OrgUserSelect,
+    EmptyData,
+  },
+  data() {
+    return {
+      one: "我是机构",
+      two: "我是title",
+      three: "我是文号",
+      four: "我是时间",
+      five: "我是单位",
+      six:
+        "我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容我是内容",
+      warningtext: "请选择机构或进行关键字搜索",
+      typeList: [],
+      dateFormat: "YYYY-MM-DD",
+      expand: false,
+      node: {
+        id: null,
+        name: null,
+      },
+      form: this.$form.createForm(this, { name: "advanced_search" }),
+      searchCondition: {
+        zihao: null,
+        year: null,
+        ordinal: null,
+        starttime: null,
+        endtime: null,
+        keywords: null,
+        orgid: undefined,
+        _orgname: undefined,
+      },
+      startValue: null,
+      endValue: null,
+      selectedRowKeys: [],
+      selectedRows: [],
+      orgVisible: false,
+      nodelist: [],
+      selected: [],
+      typevalue: null,
+    };
+  },
+  created() {
+    this.dictList();
+  },
+  watch: {
+    startValue(val) {
+      this.searchCondition.starttime = val;
+    },
+    endValue(val) {
+      this.searchCondition.endtime = val;
+    },
+    selected: {
+      handler(newValue, oldValue) {
+        for (let i = 0; i < newValue.length; i++) {
+          if (oldValue[i] != newValue[i]) {
+          }
+        }
+      },
+      deep: true,
+    },
+  },
+  methods: {
+    dictList() {
+      this.typeList = this.$store.getters.dict("library.doctype");
+    },
+    disabledStartDate(startValue) {
+      const endValue = this.endValue;
+      if (!startValue || !endValue) {
+        return false;
+      }
+      return startValue.valueOf() > endValue.valueOf();
+    },
+    disabledEndDate(endValue) {
+      const startValue = this.startValue;
+      if (!endValue || !startValue) {
+        return false;
+      }
+      return startValue.valueOf() >= endValue.valueOf();
+    },
+    //时间
+    onSelectChange(selectedRowKeys, selectedRows) {
+      this.selectedRowKeys = selectedRowKeys;
+      this.selectedRows = selectedRows;
+    },
+    typeChange(value) {
+      this.typevalue = value;
+    },
+    //带参查询
+    onSearch() {},
+    onreset() {
+      this.searchCondition = { input: {} };
+      this.startValue = null;
+      this.endValue = null;
+    },
+    orgModelShow() {
+      this.orgVisible = true;
+    },
+    //确定选择的机构
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok") {
+        let orgarr = [];
+        list.forEach(function (item) {
+          orgarr.push({
+            orgid: item._id,
+            orgname: item.name,
+            name: item.name,
+          });
+        });
+        this.nodelist = orgarr;
+        //监听选择的组织
+        this.selected = this.nodelist;
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.document-query {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    .colcss {
+      padding: @layout-space-base;
+    }
+    .toolbar {
+      padding: 10px 12px;
+      width: 100%;
+      margin: 0 auto;
+      .ant-advanced-search-form {
+        .box {
+          width: 100%;
+          .in-box {
+            margin-bottom: 0;
+            overflow: hidden;
+            // margin: 5px;
+            .li-content {
+              float: left;
+              padding: 10px;
+            }
+            .name {
+              line-height: 32px;
+              padding-right: 5px;
+              // vertical-align: initial;
+            }
+            .ant-input-group.ant-input-group-compact {
+              display: inline-block;
+              vertical-align: super;
+            }
+            /deep/ .ant-input-group {
+              top: 0.8px;
+            }
+            /deep/.ant-select-selection--multiple {
+              padding-bottom: 0px;
+            }
+            @media screen and(max-width:1410px) {
+              .li-content {
+                width: 33%;
+              }
+            }
+            @media screen and (min-width: 1410px) and(max-width:1750px) {
+              .li-content {
+                width: 25%;
+              }
+            }
+            @media screen and (min-width: 1750px) {
+              .li-content {
+                width: 20%;
+              }
+            }
+          }
+        }
+      }
+      .pzwh {
+        width: auto;
+        border: 1px solid #d9d9d9;
+        border-radius: 4px;
+        &:hover {
+          border-color: @primary-color;
+        }
+        &:focus-within {
+          border-color: @primary-color;
+          box-shadow: 0 0 0 2px fade(@primary-color, 20%);
+        }
+        /deep/.ant-input {
+          border: none;
+          height: 30px;
+        }
+        /deep/.ant-input-group-addon {
+          border: none;
+          background: none;
+        }
+      }
+    }
+  }
+  .document-main {
+    background: #f3f7fa;
+    height: 10px;
+    width: 100%;
+  }
+  .document-list {
+    flex: 1;
+    padding: 10px 24px;
+    .document-h3 {
+      font-weight: 700;
+      color: #666666;
+    }
+    .main-image {
+      position: relative;
+      top: 40%;
+    }
+    .document-content {
+      .list-content {
+        padding-bottom: 10px;
+        border-bottom: 1px dashed rgb(222, 222, 222);
+        display: flex;
+        flex-direction: column;
+        span {
+          margin-bottom: 5px;
+        }
+        .title-span {
+          font-size: 18px;
+        }
+        .time-span {
+          color: #cccccc;
+        }
+        .listthree {
+          min-height: 32px;
+          display: flex;
+          justify-content: space-between;
+          .listthree-div {
+            width: 88%;
+            color: rgba(0, 0, 0, 0.5);
+          }
+        }
+      }
+    }
+  }
+}
+</style>

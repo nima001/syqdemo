@@ -1,0 +1,182 @@
+<template>
+  <a-collapse v-model="activeKey" :bordered="false" style="background-color: unset">
+    <a-collapse-panel key="11" header="图形属性">
+      <div
+        class="exchange"
+        v-show="chartData.settings.chartType == 'pie-chart' || chartData.settings.chartType == 'ring-chart'"
+      >
+        <span>翻转</span>
+        <a-switch @click="(check, e) => { e.stopPropagation(); } " v-model="chartData.settings.gemo.exchange"/>
+      </div>
+      <a-collapse v-model="activeKey" :bordered="false" style="background-color: unset">
+        <a-collapse-panel class="label" key="11-1" header="标签" :disabled="chartData.settings.gemo.label.visible == false">
+          <template v-slot:extra>
+            <a-switch @click=" (check, e) => {e.stopPropagation();open('11-1');}" v-model="chartData.settings.gemo.label.visible"/>
+          </template>
+          <div class="label-color">
+            <span>颜色</span>
+            <ColorPicker :color.sync="labelColor"/>
+          </div>
+        </a-collapse-panel>
+      </a-collapse>
+      <a-collapse v-model="activeKey" :bordered="false" style="background-color: unset">
+        <a-collapse-panel class="label" key="11-2" header="色卡">
+          <template v-slot:extra>
+            <ColorPopover v-model="chooseColor" :colorArray="colorArray"/>
+          </template>
+          <EditColor v-model="colors"/>
+        </a-collapse-panel>
+      </a-collapse>
+      <div v-show="chartData.settings.chartType == 'bar-chart' || chartData.settings.chartType == 'stack-bar-chart'">
+        <div class="size">
+          <span>条宽度</span>
+          <a-input-number v-model="chartData.settings.gemo.size" allowClear :min="0" />
+        </div>
+        <div class="background">
+          <span>添加背景颜色</span>
+          <a-switch @click="(check, e) => {e.stopPropagation();}" v-model="chartData.settings.gemo.background"/>
+        </div>
+        <div class="annotation">
+          <span>标注</span>
+          <a-switch
+            @click="(check, e) => {e.stopPropagation();}" v-model="chartData.settings.gemo.annotation"/>
+        </div>
+      </div>
+      <div
+        class="slider"
+        v-show="
+          chartData.settings.chartType == 'line-chart' ||
+          chartData.settings.chartType == 'bar-chart' ||
+          chartData.settings.chartType == 'stack-bar-chart'
+        "
+      >
+        <span>滑块</span>
+        <a-switch @click="(check, e) => {e.stopPropagation();}" v-model="chartData.settings.gemo.slider"/>
+      </div>
+    </a-collapse-panel>
+  </a-collapse>
+</template>
+
+<script>
+import { Collapse, Switch, Button, Icon, InputNumber, Checkbox } from 'ant-design-vue';
+import ColorPicker from "./ColorPicker";
+import ColorPopover from './ColorPopover';
+import EditColor from './EditColor';
+import { concat } from 'lodash';
+export default {
+  props: {
+    value: {
+      type: Object,
+    },
+  },
+  components: {
+    EditColor,
+    ColorPicker,
+    AIcon: Icon,
+    ColorPopover,
+    ASwitch: Switch,
+    AButton: Button,
+    ACheckbox: Checkbox,
+    ACollapse: Collapse,
+    ACollapsePanel: Collapse.Panel,
+    AInputNumber: InputNumber,
+  },
+  data() {
+    return {
+      colors: [],
+      labelColor: undefined,
+      activeKey: undefined,
+      chartData: this.value,
+      chooseColor: [],
+      colorArray: [
+        ["#4c84ff", "#72c2ff", "#82e1fc", "#1dbb8a", "#8fe94e", "#fbc800", "#ed9421", "#f25f93", "#ef8bcf", "#c562f1"],
+        ["#D15456", "#5488D1", "#EDBA55", "#D48265", "#91C7AE", "#749F83", "#BDA29A", "#6E7074", "#585470", "#706254"]
+      ],
+    };
+  },
+  watch: {
+    chartData: {
+      deep: true,
+      handler(val) {
+        this.$emit("input", val);
+      },
+    },
+    labelColor: {
+      deep: true,
+      handler(val) {
+        this.$set(this.chartData.settings.gemo.label,'color',val[0]);
+      }
+    },
+    gemoColor: {
+      deep: true,
+      handler(val) {
+        this.$set(this.chartData.settings.gemo,'color',val);
+      }
+    }
+  },
+  computed: {
+    gemoColor() {
+      let colors = concat(this.chooseColor, this.colors);
+      return colors;
+    }
+  },
+  mounted() {
+    this.chooseColor = this.colorArray[0]
+  },
+  methods: {
+    open(key) {
+      if (this.activeKey && this.activeKey.length) {
+        let index = this.activeKey.indexOf(key);
+        if (index >= 0) {
+          this.activeKey.splice(index, 1);
+        }
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.color,
+.background,
+.slider,
+.exchange,
+.size,
+.annotation {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+/deep/.label.ant-collapse-item {
+  border-bottom: 0;
+  & .ant-collapse-header {
+    padding-right: 0;
+  }
+  & .ant-collapse-content-box {
+    padding-right: 2px;
+  }
+}
+.label-color {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  span {
+    display: inline-block;
+    margin-left: 24px;
+    margin-right: 24px;
+  }
+  /deep/.colorPicker {
+    flex: 1;
+    & .color_con {
+      margin-bottom: 0;
+    }
+  }
+}
+.background,
+.slider,
+.exchange,
+.size,
+.annotation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+</style>

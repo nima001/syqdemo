@@ -1,0 +1,30 @@
+{
+  "id": "2588172",
+  "name": "idm",
+  "font_family": "iconfont",
+  "css_prefix_text": "icon-",
+  "description": "",
+  "glyphs": [
+    {
+      "icon_id": "566086",
+      "name": "客服",
+      "font_class": "kefu",
+      "unicode": "e63f",
+      "unicode_decimal": 58943
+    },
+    {
+      "icon_id": "3834478",
+      "name": "手机",
+      "font_class": "shouji",
+      "unicode": "e61b",
+      "unicode_decimal": 58907
+    },
+    {
+      "icon_id": "14929694",
+      "name": "邮箱 (5)",
+      "font_class": "youxiang5",
+      "unicode": "e679",
+      "unicode_decimal": 59001
+    }
+  ]
+}

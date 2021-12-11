@@ -1,0 +1,114 @@
+<template>
+  <a-layout>
+    <AnalysisList
+      @sort="sort"
+      @search="search"
+      @save="this.save"
+      @delete="this.delete"
+      :data="data"
+    />
+  </a-layout>
+</template>
+<script>
+import { Layout } from "ant-design-vue";
+import AnalysisList from "./AnalysisList";
+import {
+  analysisquery,
+  analysissave,
+  analysisdel,
+  analysisorderby,
+} from "@/person/api/statistics";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  components: {
+    ALayout: Layout,
+    AnalysisList,
+  },
+  data() {
+    return {
+      data: [],
+      keyword: "",
+    };
+  },
+  mounted() {
+    this.getData();
+  },
+  methods: {
+    save(data) {
+      if (data.id > 0) {
+        //修改
+        analysissave({
+          name: data.name,
+          scopetype: data.scopetype,
+          subject: data.subject,
+          type: data.anslyzetype,
+          id: data.id,
+        })
+          .then((res) => {
+            if (res.code === "success") {
+              this.getData(this.keyword);
+            }
+          })
+          .catch((error) => {
+            showError(error);
+          });
+      } else {
+        analysissave({
+          name: data.name,
+          scopetype: data.scopetype,
+          subject: data.subject,
+          type: data.anslyzetype,
+        })
+          .then((res) => {
+            if (res.code === "success") {
+              this.getData(this.keyword);
+            }
+          })
+          .catch((error) => {
+            showError(error);
+          });
+      }
+    },
+    delete(id) {
+      analysisdel(id)
+        .then((res) => {
+          if (res.code === "success") {
+            this.getData(this.keyword);
+          }
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    //查询
+    search(keyword) {
+      this.getData(keyword);
+    },
+    getData(keyword) {
+      analysisquery({ searchkey: keyword })
+        .then((res) => {
+          this.data = res.result;
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    sort(data) {
+      analysisorderby(data)
+        .then((res) => {
+          console.log(res.code);
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.ant-layout {
+  height: 100%;
+  padding: @layout-space-base;
+}
+</style>

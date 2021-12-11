@@ -1,0 +1,73 @@
+<template>
+  <draggable class="item-list"
+    v-model="propValue" 
+    tag="ul"
+    handle='.drag-handle'
+    :animation="200"
+    ghost-class="ghost"
+  >
+    <transition-group>
+      <li v-for="(item, index) in propValue" :key="item.name">
+        <a-icon type="menu" class="drag-handle"/>
+        <number-prop :schema="item" :property="{
+          name: 'span', attrs: {min: 1, max: 24, precision: 0, placeholder: '占位格数'}
+        }"/>
+        <a v-if="propValue.length > 1" 
+          @click="deleteItem(item, index)"
+          class="delete"
+        ><a-icon type="minus-circle"/></a>
+      </li>
+    </transition-group>
+  </draggable>
+</template>
+<script>
+import { Icon } from 'ant-design-vue'
+import draggable from 'vuedraggable'
+import NumberProp from '../../components/NumberProp'
+
+import SettingMixin from '../../mixin/setting'
+ 
+export default {
+  components: {
+    draggable,
+    AIcon: Icon,
+    NumberProp,
+  },
+  mixins: [SettingMixin],
+  data(){
+    return {
+      
+    }
+  },
+  computed: {
+  },
+  methods: {
+    deleteItem(item, idx){
+      this.propValue.splice(idx, 1);
+      this.propValue = [...this.propValue]//FIXME sunwen 数组操作响应性丢失 先简单处理下
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.item-list{
+  margin: 0;
+  li{
+    display: flex;
+    padding: 5px 0;
+    align-items: center;
+    .drag-handle{
+      cursor: move;
+    }
+    .ant-input-number{
+      width: 120px;
+      margin: 0 10px;
+    }
+    .delete{
+      &:hover{
+        color: @error-color;
+      }
+    }
+  }
+}
+</style>

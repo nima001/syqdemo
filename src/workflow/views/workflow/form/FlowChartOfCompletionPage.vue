@@ -1,0 +1,471 @@
+<template>
+  <div class="flowchartofcompletionpage">
+    <div class="header">{{$route.query.flowname}}</div>
+    <div class="body">
+      <div class="flow">
+        <h3 class="top">材料列表</h3>
+        <ul class="wrap">
+          <li class="title">
+            <span>材料名称</span>
+            <span>来源</span>
+            <span>操作</span>
+          </li>
+          <li v-if="flowList.length==0" class="noData">
+            <a-icon type="frown" />暂无数据
+          </li>
+          <li
+            v-for="(item,index) in flowList.slice((current-1)*pageSize,current*pageSize)"
+            :key="index"
+          >
+            <span :title="item.name" class="flow-title">{{item.name}}</span>
+            <span>{{item.type}}</span>
+            <span v-if="item.type=='电子表单'">
+              <a @click="previewForm(item)">预览</a>
+            </span>
+            <span v-else>
+              <a @click="preview(item.fileurls)">预览</a>
+              <a @click="download(item.fileurls)" class="download">下载</a>
+            </span>
+          </li>
+        </ul>
+        <div class="pagina">
+          <a-pagination v-model="current" :total="total" :pageSize="pageSize" />
+        </div>
+      </div>
+      <div class="flowchart">
+        <h3 class="top">
+          流程图
+          <a-button @click="open">流程图</a-button>
+        </h3>
+        <div class="wrap">
+          <time-line :businessinstanceid="businessinstanceid"></time-line>
+        </div>
+      </div>
+    </div>
+    <!-- 点击预览的窗口 -->
+    <a-modal
+      title="文件预览"
+      :visible="visible"
+      @cancel="visible=false"
+      width="900px"
+      :footer="null"
+      :bodyStyle="{'padding':'0'}"
+    >
+      <div style="text-align:center;margin:10px 0;">
+        <a :href="downUrl" v-if="type==1||type==2">点击下载</a>
+      </div>
+      <div class="preview">
+        <span v-if="index!==0" class="left" @click="go(prevIndex)">
+          <a-icon type="left" />
+        </span>
+        <div>
+          <div class="showpdf" v-if="type==1" style="height:630px;">
+            <pdf v-for="i in numPages" :key="i" :page="i" :src="url" style="width:100%"></pdf>
+          </div>
+          <img :src="url" alt="文件图片" v-else-if="type==2" />
+          <a :href="url" v-else>暂不支持预览，可点击下载...</a>
+        </div>
+        <span v-if="index!==listArr.length - 1" class="right" @click="go(nextIndex)">
+          <a-icon type="right" />
+        </span>
+      </div>
+    </a-modal>
+    <!-- 多个材料下载的窗口 -->
+    <a-modal title="下载材料" :visible="downvisible" :footer="null" @cancel="downvisible=false">
+      <a-table :columns="columns" :dataSource="data">
+        <template slot="operation" slot-scope="text, record">
+          <a href="javascript:;" @click="downloadFile(record.url)" style="color:blue;">下载</a>
+        </template>
+      </a-table>
+    </a-modal>
+    <!-- 流程图预览 -->
+    <a-modal
+      title="流程图"
+      :visible="imgvisible"
+      :footer="null"
+      @cancel="imgvisible=false"
+      width="1000px"
+      style="top:30px"
+      :bodyStyle="{'height':'600px','overflow':'auto'}"  
+    >
+      <div style="width:100%">
+        <img style="max-width:100%" :src="imgSrc" />
+      </div>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import { getApprovalRecords, getMaterial, getFlowChart } from "@/workflow/api/workflow";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { showError } from "@/framework/utils/index";
+import { parseQueryString } from "@/workflow/utils/index";
+import pdf from "vue-pdf-sign";
+import TimeLine from "./components/TimeLine";
+
+const columns = [
+  {
+    title: "材料名称",
+    dataIndex: "filename"
+  },
+  {
+    title: "操作",
+    dataIndex: "operation",
+    width: "20%",
+    scopedSlots: { customRender: "operation" }
+  }
+];
+import { Pagination, Modal, Icon, Button } from "ant-design-vue";
+export default {
+  name: "FlowChartOfCompletionPage",
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      businessinstanceid: this.$route.query.businessinstanceid,
+      imgSrc: "",
+      flowList: [],
+      visible: false,
+      listArr: [],
+      url: "",
+      downUrl: "",
+      type: null,
+      index: 0,
+      numPages: undefined,
+      arr: null,
+      length: 2,
+      nextarr: [],
+      prevarr: [],
+      current: 1,
+      total: null,
+      pageSize: 10,
+      //下载材料
+      downvisible: false,
+      columns,
+      data: [],
+      files: [],
+      //流程图
+      imgvisible: false
+    };
+  },
+  created() {
+    this.getAllPdf(this.businessinstanceid);
+  },
+  components: {
+    APagination: Pagination,
+    AModal: Modal,
+    AIcon: Icon,
+    AButton: Button,
+    pdf,
+    TimeLine
+  },
+  computed: {
+    //上一页
+    prevIndex() {
+      if (this.index == 0) {
+        return this.listArr.length - 1;
+      } else {
+        return this.index - 1;
+      }
+    },
+    //下一页
+    nextIndex() {
+      if (this.index == this.listArr.length - 1) {
+        return 0;
+      } else {
+        return this.index + 1;
+      }
+    }
+  },
+  methods: {
+    open() {
+      this.imgSrc =
+        this.uiConfigs["api.url"] +
+        "/workflow/v1/processpic?businessinstanceid=" +
+        this.businessinstanceid;
+      this.imgvisible = true;
+    },
+    //获取流程所生成的pdf和附件上传
+    getAllPdf(businessinstanceid) {
+      getMaterial(businessinstanceid).then(res => {
+        if (res.code == "success") {
+          this.flowList = [];
+          res.result.forEach(item => {
+            if (item.fileurls || item.type == "电子表单") {
+              this.flowList.push(item);
+            }
+          });
+          this.total = this.flowList.length;
+        }
+      });
+    },
+    //预览
+    preview(fileurls) {
+      this.listArr = [];
+      fileurls.forEach(item => {
+        let name = parseQueryString(item).filename;
+        let arr = name.split(".");
+        let type = arr[arr.length - 1];
+        this.listArr.push({
+          type: type,
+          src:
+            this.uiConfigs["api.url"] +
+            "/file/v1/download" +
+            "?uri=" +
+            encodeURIComponent(item)
+        });
+      });
+      this.url = this.listArr[0].src;
+      this.downUrl = this.listArr[0].src;
+      this.isType(this.listArr[0].type);
+      this.visible = true;
+    },
+    //预览表单
+    previewForm(item) {
+      const { href } = this.$router.resolve({
+        name: "workflowform",
+        query: {
+          flowname: item.name,
+          formId: item.formid,
+          businessInstanceId: item.businessinstanceid
+        }
+      });
+      window.open(href, "_blank");
+    },
+    //下载
+    download(fileurls) {
+      if (fileurls.length == 1) {
+        let a = document.createElement("a");
+        a.href =
+          this.uiConfigs["api.url"] +
+          "/file/v1/download" +
+          "?uri=" +
+          encodeURIComponent(fileurls[0]);
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        this.data = [];
+        fileurls.forEach((item, index) => {
+          this.data.push({
+            key: index,
+            filename: parseQueryString(item).filename,
+            url: item
+          });
+        });
+        this.downvisible = true;
+      }
+    },
+    downloadFile(url) {
+      let a = document.createElement("a");
+      a.href =
+        this.uiConfigs["api.url"] +
+        "/file/v1/download" +
+        "?uri=" +
+        encodeURIComponent(url);
+      a.style.display = "none";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    },
+    //判断后缀名
+    isType(value) {
+      value = value.toLowerCase();
+      if (
+        value == "psd" ||
+        value == "pdd" ||
+        value == "jpg" ||
+        value == "gif" ||
+        value == "png" ||
+        value == "jpeg"
+      ) {
+        this.type = 2;
+      } else if (value == "pdf") {
+        this.type = 1;
+        this.url = pdf.createLoadingTask(this.url);
+        this.url.promise.then(pdf => {
+          this.numPages = pdf.numPages;
+        });
+      } else {
+        this.type = 3;
+      }
+    },
+    go(idx) {
+      this.index = idx;
+      this.url = this.listArr[this.index].src;
+      this.downUrl = this.listArr[this.index].src;
+      this.isType(this.listArr[this.index].type);
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.flowchartofcompletionpage {
+  height: 100%;
+  .top {
+    text-align: left;
+    padding-left: 15px;
+    color: #d60003;
+    font-weight: bold;
+    position: relative;
+    margin: 20px 0;
+    &::before {
+      position: absolute;
+      content: "";
+      width: 5px;
+      height: 20px;
+      top: 2px;
+      left: 0;
+      background: #d60003;
+      transform: skewY(-25deg);
+    }
+  }
+  .header {
+    height: 45px;
+    line-height: 45px;
+    color: #555;
+    background-color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+    padding-left: 50px;
+  }
+  .body {
+    height: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    margin: 12px;
+    background: #fff;
+    padding: 20px 0;
+    position: relative;
+    .wrap {
+      width: 70%;
+      margin: 0 auto;
+    }
+    .flowchart {
+      text-align: center;
+      margin: 20px 40px;
+      img {
+        max-width: 1200px;
+        min-width: 500px;
+        cursor: pointer;
+      }
+      .top {
+        button {
+          margin-left: 30px;
+        }
+      }
+    }
+    .flow {
+      margin: 0 40px;
+      ul {
+        li {
+          &.title {
+            background: #dddddd57;
+          }
+          list-style: none;
+          display: flex;
+          line-height: 2;
+          padding: 7px 5px;
+          border-bottom: 1px solid #ddddddc7;
+          span {
+            &:nth-child(1) {
+              width: 40%;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              overflow: hidden;
+            }
+            &:nth-child(2) {
+              width: 20%;
+            }
+            &:nth-child(3) {
+              width: 40%;
+              a {
+                display: inline-block;
+                cursor: pointer;
+                text-decoration: none;
+                &.download {
+                  margin-left: 20px;
+                }
+              }
+            }
+          }
+          .flow-title{
+            min-width: 350px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+        }
+      }
+      .noData {
+        justify-content: center;
+        padding: 15px 0;
+        font-size: 16px;
+        color: gray;
+        border-bottom: none;
+        i {
+          line-height: 43px;
+          font-size: 23px;
+          padding-right: 10px;
+        }
+      }
+      .pagina {
+        text-align: center;
+        margin: 15px 0;
+      }
+    }
+    .openImg {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      background: #fff;
+    }
+  }
+}
+.preview {
+  display: flex;
+  align-items: center;
+  justify-items: center;
+  height: 650px;
+  overflow: auto;
+  img {
+    max-width: 100%;
+    max-height: 500px;
+  }
+  > div {
+    width: 90%;
+    margin: 0 auto 20px;
+    text-align: center;
+    padding: 0 10px;
+  }
+  span {
+    cursor: pointer;
+    display: inline-block;
+    border: 1px solid #ddd;
+    padding: 3px 8px;
+    font-size: 18px;
+    border-radius: 4px;
+    position: absolute;
+    &.left {
+      left: 10px;
+    }
+    &.right {
+      right: 10px;
+    }
+    &:hover {
+      box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.05),
+        -1px -1px 5px rgba(0, 0, 0, 0.05);
+    }
+  }
+  .showpdf {
+    span {
+      border-bottom: 1px solid #ddd;
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+  }
+}
+</style>

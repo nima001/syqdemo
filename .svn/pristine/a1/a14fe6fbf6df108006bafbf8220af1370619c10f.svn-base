@@ -1,0 +1,78 @@
+<template>
+  <div>
+    <Title title="近5年预计退休人数" />
+    <div style="height: 250px" class="container">
+      <AreaChart
+        v-if="data"
+        :data="data"
+        :settings="{
+          canvas: { width: 350, height: 255 },
+          padding: [20, 10, 0, -15],
+          legend: true,
+          color: ['#FF7C28', '#8FC7FF'],
+          slider: {
+            visible: true,
+            style: { textStyle: { fill: '#fff' }, padding: [0, 0, 10, -20] },
+          },
+          legend: { visible: true, position: 'top' },
+          yAxis: { grid: true },
+        }"
+      />
+    </div>
+  </div>
+</template>
+
+<script>
+import Title from "./Title";
+import AreaChart from "@person/components/chart/AreaChart";
+import { retireAnalyze } from "../../../api/analyze";
+import { showError } from "../../../../framework/utils";
+export default {
+  props: {
+    districtCode: {
+      type: String,
+    },
+  },
+  components: {
+    Title,
+    AreaChart,
+  },
+  data() {
+    return {
+      data: undefined,
+    };
+  },
+  watch: {
+    districtCode(val) {
+      this.loadData(val);
+      return val;
+    },
+  },
+  mounted() {
+    if(this.districtCode) {
+      this.loadData(this.districtCode);
+    }
+  },
+  methods: {
+    loadData(val) {
+      retireAnalyze(val)
+        .then(({ result }) => {
+          this.data = result;
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+  },
+};
+</script>
+
+<style scoped lang="less">
+.container {
+  margin: 0 20px;
+  background: fade(#000, 30%);
+  /deep/.chart {
+    flex: none;
+  }
+}
+</style>

@@ -1,0 +1,64 @@
+import { getCookie } from './utils/auth'
+import { removeStart } from './utils/index'
+import 'nprogress/nprogress.css'
+import NProgress from 'nprogress'
+import store from './store'
+
+
+let modules;
+function parseModule(url){
+  if(!modules){
+    modules = JSON.parse(process.env.VUE_APP_MODULES);
+  }
+  let name = removeStart(url, '/').split('/')[0];
+  if(name && modules[name]){
+    return name;
+  }
+  return ''
+}
+
+NProgress.configure({ easing: 'ease', speed: 500, showSpinner: false });
+export default function accessFilter(router){
+  router.beforeEach(function(to, from, next){
+    NProgress.start()
+    const fromModule = parseModule(from.path), toModule = parseModule(to.path);
+    // if( process.env.NODE_ENV == 'development'){
+      // console.log(from, to)
+    // }
+    if(from.matched.length && fromModule != toModule){//不是同一个模块 跳转到目标模块
+      window.location.href = router.resolve(to).href;
+    }else if(!to.matched.length){
+      window.location.replace(router.resolve('/error/404').href);
+    }else { // 鉴权
+      let access = to.meta && to.meta.access;
+      if(access != 'login' && access != 'auth'){
+        next()
+        NProgress.done()
+      }else if (!getCookie('X-Commnet-Token')){
+        //未登录 跳转登录页
+        if(fromModule == 'login'){
+          next({ path: '/login', query: { redirect: to.fullPath }, replace: true })
+          NProgress.done()
+        }else{
+          window.location.replace(router.resolve('/login').href + '?redirect=' + encodeURIComponent(to.fullPath));
+        }
+      }else if(access == 'login'){
+        //页面权限为登录
+        next()
+        NProgress.done()
+      }else{
+        store.getters.asyncPermit(to.matched.slice(-1)[0].path, 1).then((hasPermit) => {
+          if(hasPermit){ //验证授权通过
+            next()
+          }else{
+            window.location.replace(router.resolve('/error/403').href);
+          }
+        }).catch(error => {
+          window.location.replace(router.resolve('/error/403').href);
+        }).finally(() => {
+          NProgress.done()
+        })
+      }
+    }
+  });
+}

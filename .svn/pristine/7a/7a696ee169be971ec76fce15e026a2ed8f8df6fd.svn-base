@@ -1,0 +1,500 @@
+<template>
+  <div class="content">
+    <div class="panel">
+      <div class="toolbar">
+        <a-form :form="form" class="ant-advanced-search-form">
+          <div class="box">
+            <ul class="in-box">
+              <li class="li-content">
+                <div>
+                  <span class="name">文件类型：</span>
+                  <a-select v-if="this.$route.name==='regulations'" v-model="DocumentSubtype ? subtype : undefined"  @change="changetype" >
+                    <a-select-option v-for="item in DocumentSubtype" :key="item.value" >
+                      {{ item.text }}
+                    </a-select-option>
+                  </a-select>
+                  <a-tree-select
+                    v-else-if="this.$route.name==='organization'"
+                    tree-default-expand-all
+                    :getPopupContainer="triggerNode => triggerNode.parentNode"
+                    :allowClear="true"
+                    v-decorator="[ 'subtype' ]"
+                    v-model="subtype"
+                    :tree-data="DocumentSubtype"
+                    @change="changetype"
+                  />
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">批准文号：</span>
+                  <a-input-group compact class="pzwh">
+                    <a-input type="text" v-model="pagination.zihao" style="width: 28%" />
+                    <a-input
+                      v-model="pagination.year"
+                      addonBefore="〔"
+                      addonAfter="〕"
+                      type="text"
+                      style="width: 40%; top: 0"
+                    />
+                    <a-input
+                      v-model="pagination.ordinal"
+                      addonAfter="号"
+                      type="text"
+                      style="width: 32%; top: 0"
+                    />
+                  </a-input-group>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">发文时间：</span>
+                  <a-input-group compact style="top: 0">
+                    <a-date-picker
+                      placeholder="开始时间"
+                      style="width: 50%"
+                      v-model="startValue"
+                      :disabled-date="disabledStartDate"
+                    />
+                    <a-date-picker
+                      placeholder="结束时间"
+                      style="width: 50%"
+                      v-model="endValue"
+                      :disabled-date="disabledEndDate"
+                    />
+                  </a-input-group>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">关键字:</span>
+                  <div>
+                    <a-input
+                      v-model="pagination.searchkey"
+                      placeholder="标题或文件内容"
+                    />
+                  </div>
+                </div>
+              </li>
+              <li class="li-button">
+                <div>
+                  <span class="name"></span>
+                  <div>
+                    <a-button @click="search" type="primary" style="margin-right: 10px">搜索</a-button>
+                    <a-button @click="onreset">重置</a-button>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+          <a-divider />
+        </a-form>
+      </div>
+    </div>
+    <div class="tablelist">
+      <!-- <div style="margin-bottom: 16px">
+        <a-button
+          type="primary"
+          :disabled="!hasSelected"
+          :loading="loading"
+          @click="start"
+        >
+          划转
+        </a-button>
+        <span style="margin-left: 8px">
+          <template v-if="hasSelected">
+            {{ `Selected ${selectedRowKeys.length} items` }}
+          </template>
+        </span>
+      </div> -->
+      <a-table
+        :locale="{ filterConfirm: '确定' }"
+        :scroll="{ y: 380 }"
+        :loading="loading"
+        :rowKey="(row)=>row.id"
+        :pagination="false"
+        :form="form"
+        :data-source="tableData"
+        :columns="columns"
+      >
+        <template slot="action" slot-scope="text,record"> 
+          <span @click="downDoc(record)">下载</span>
+          <span v-if="hasPermit('/person/document/edit')" @click="showModal(record)">修改</span>
+        </template>
+      </a-table>
+      <a-pagination
+        v-if="tableData.length"  
+        showSizeChanger
+        :current="this.pagination.pagenum"
+        :pageSize="this.pagination.pagesize"
+        :total="this.pagination.total"
+        :showTotal="(total) => `总共：${total}条`"
+        @change="onChange"
+        @showSizeChange="onShowSizeChange"
+      />
+    </div>
+    <edit-content @documentList="this.documentList" :documentsubtype="documentsubtype" :DocumentSubtype="DocumentSubtype" :doctype="doctype" :visible.sync="visible" :record="record"/>
+  </div>
+</template>
+
+<script>
+import {
+  Form,
+  Input,
+  DatePicker,
+  Button,
+  Select,
+  Divider,
+  Modal,
+  Table,
+  Pagination,
+  Spin,
+  TreeSelect,
+} from "ant-design-vue";
+import EditContent from "./EditContent";
+import { includes, assign } from "lodash";
+import { documentlist } from "@/person-shaoxing/api/information";
+import { download } from "@/framework/api/file";
+import { showError } from '@/framework/utils';
+const columns = [
+  {
+    title: "序号",
+    dataIndex: "index",
+    key: "index",
+    width: '5%',
+    customRender: (text, record, index) => `${index + 1}`,
+  },
+  {
+    title: "文件标题",
+    dataIndex: "title",
+    key: "title",
+  },
+  {
+    title: "批准文号",
+    dataIndex: "num",
+    key: "num",
+    width: '20%',
+  },
+  {
+    title: "发文时间",
+    dataIndex: "dispatchdate",
+    key: "dispatchdate",
+    width: '15%',
+  },
+  {
+    title: "操作",
+    dataIndex: "action",
+    key: "action",
+    scopedSlots: { customRender: "action" },
+    width: '15%',
+  },
+];
+export default {
+  props: {
+    orgid: {
+      type: String,
+    },
+    type: {
+      type: Number,
+    }
+  },
+  components: {
+    AForm: Form,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    ADatePicker: DatePicker,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ADivider: Divider,
+    AModal: Modal,
+    ATable: Table,
+    APagination: Pagination,
+    EditContent,
+    ASpin: Spin,
+    ATreeSelect: TreeSelect,
+  },
+  data() {
+    return {
+      spinning: false,
+      record: {},
+      visible: false,
+      subtype: "all",
+      startValue: null,
+      endValue: null,
+      // selectedRowKeys: [],
+      loading: false,
+      pagination: {
+        statusIn:["1"],
+        type: undefined,
+        subtype: undefined,
+        orgid: undefined,
+        ordinal: undefined,
+        year: undefined,
+        zihao: undefined,
+        starttime: undefined,
+        endtime: undefined,
+        searchkey: undefined,
+        pagenum: 1,
+        pagesize: 10,
+        total: 0,
+        needtotal: true,
+        rows: [],
+      },
+      columns,
+      form: this.$form.createForm(this, { name: "docform" }),
+    };
+  },
+  computed: {
+    doctype() {
+      //发文类型 即文件归档
+      return this.$store.getters.dict("library.doctype");
+    },
+    documentsubtype() {
+      return this.$store.getters.dict("library.documentsubtype");
+    },
+    tableData: {
+      set(val) {
+        this.pagination.rows =val;
+        return this.pagination.rows;
+      },
+      get() {
+        return this.pagination.rows;
+      }
+    },
+    // hasSelected() {
+    //   return this.selectedRowKeys.length > 0;
+    // },
+    DocumentSubtype() {
+      if(this.documentsubtype){
+        let document = undefined;
+        if(this.$route.name==='organization'){
+          this.pagination.type = 1;
+          document = this.documentsubtype.filter(item=>includes(item.group,"机构编制"));
+          this.loadsubtype(document);
+          if(document.length){
+            document.unshift({title: "全部", value: 'all', key: 'all'});
+          }
+        }else if(this.$route.name==='regulations'){
+          this.pagination.type = 3;
+          document = this.documentsubtype.filter(item=>includes(item.group,"法律法规"));
+          if(document.length){
+            document.unshift({ group: "法律法规", text: "全部", value: "all" });
+          }
+        }
+        return document;
+      }
+    },
+  },
+  watch: {
+    startValue(val) {
+      this.pagination.starttime = val;
+    },
+    endValue(val) {
+      this.pagination.endtime = val;
+    },
+    orgid(val) {
+      this.pagination.orgid = val;
+      if(val){
+        this.documentList();
+      }
+    },
+    type(val) {
+      this.pagination.type = val;
+      return val;
+    },
+    subtype(val) {
+      if(val!=='all'){
+        this.pagination.subtype = val;
+      }else{
+        this.pagination.subtype = undefined;
+      }
+    },
+  },
+  methods: {
+    showModal(value){
+      this.record = value;
+      this.visible = true;
+    },
+    // onSelectChange(selectedRowKeys) {
+    //   console.log('selectedRowKeys changed: ', selectedRowKeys);
+    //   this.selectedRowKeys = selectedRowKeys;
+    // },
+    loadsubtype(document) {
+      document.forEach((item,index)=>{
+        if(item.group.split('/')[1]){
+          document[index] = {title: item.group.split('/')[1], selectable: false, key: `${item.value}${index}`, value: `${item.value}${index}`, children: [{ title: item.text , value: item.value,  key: item.value }]};
+        }else{
+          document[index]={title: item.text, value: item.value, key: index};
+        }
+      });
+    },
+    disabledStartDate(startValue) {
+      const endValue = this.endValue;
+      if (!startValue || !endValue) {
+        return false;
+      }
+      return startValue.valueOf() > endValue.valueOf();
+    },
+    changetype(val) {
+      this.subtype = val;
+    },
+    disabledEndDate(endValue) {
+      const startValue = this.startValue;
+      if (!endValue || !startValue) {
+        return false;
+      }
+      return startValue.valueOf() >= endValue.valueOf();
+    },
+    onreset() {
+      this.subtype = "all";
+      this.pagination.ordinal = undefined;
+      this.pagination.year = undefined;
+      this.pagination.zihao = undefined;
+      this.pagination.starttime = undefined;
+      this.pagination.endtime = undefined;
+      this.pagination.searchkey = undefined;
+      this.startValue = null;
+      this.endValue = null;
+    },
+    search() {
+      if (this.pagination.rows) {
+        this.pagination.rows = [];
+      }
+      this.documentList();
+    },
+    //翻页
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.documentList();
+    },
+    //pagesize改变回调
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagesize, pagenum: 1 });
+      this.documentList();
+    },
+    downDoc(record) {
+      if (record.fileuri) {
+        download(record.fileuri);
+      } else {
+        this.$notification.warning({
+          message: "提示",
+          description: "暂无可下载内容!",
+          duration: 3,
+        });
+      }
+    },
+    documentList() {
+      this.loading = true;
+      if(this.pagination.rows.length){
+        this.pagination.rows = [];
+      }
+      documentlist(this.pagination).then((res)=>{
+        this.loading = false;
+        if (res.result.rows.length) {
+            assign(this.pagination, res.result);
+          } else {
+            this.pagination.rows = [];
+            this.$notification.warning({
+              message: "提示",
+              description: "暂无数据!",
+              duration: 3,
+            });
+          }
+        }).catch((err)=>{
+          this.loading = false;
+          showError(err);
+        })
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+.content {
+  position: relative;
+  .ant-spin {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%,-50%);
+    z-index: 999;
+  }
+  .toolbar {
+    width: 100%;
+    margin: 0 auto;
+    .ant-advanced-search-form {
+      .in-box {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 0;
+      }
+      .li-content:not(:last-child) {
+        width: 20%;
+        min-width: 250px;
+      }
+      .li-content:nth-child(3),.li-content:nth-child(2),.li-content:nth-child(1) {
+        flex: 1;
+      }
+      /deep/.li-content {
+        padding: @layout-space-base;
+        padding-left: 0;
+        & .pzwh {
+          top: 0;
+          display: inline-block;
+          vertical-align: middle;
+        }
+        & .pzwh .ant-input {
+          border: none;
+          height: 30px;
+        }
+        & span.pzwh.ant-input-group {
+          border: 1px solid #d9d9d9;
+          border-radius: 4px;
+        }
+        & span.ant-input-group-addon {
+          border: none;
+          background: none;
+          padding: 0 4px;
+        }
+      }
+      .li-button {
+        padding: @layout-space-base;
+        padding-left: 0;
+      }
+      .name {
+        line-height: 32px;
+        padding-right: 5px;
+      }
+    }
+  }
+  .tablelist {
+    /deep/.ant-table-fixed-header .ant-table-scroll .ant-table-header {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      overflow-y: visible;
+    }
+    /deep/.ant-table-body {
+      overflow-y: auto !important;
+    }
+    margin-top: 10px;
+    & ul.ant-pagination {
+      float: right;
+      margin-top: 10px;
+    }
+    /deep/.ant-table-tbody {
+      & > tr > td {
+        max-width: 160px;
+        overflow: hidden;
+        word-break: keep-all;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      & tr td:last-child span {
+        margin-right: 8px;
+        cursor: pointer;
+        color: @primary-color;
+      }
+    }
+  }
+}
+</style>

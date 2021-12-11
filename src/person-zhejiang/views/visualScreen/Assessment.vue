@@ -1,0 +1,68 @@
+<template>
+  <ScreenPane :width="1440" :height="900">
+    <div class="container">
+      <Header title="绩效评估" />
+      <keep-alive>
+        <router-view />
+      </keep-alive>
+    </div>
+  </ScreenPane>
+</template>
+
+<script>
+import ScreenPane from "./components/ScreenPane";
+import Header from "./components/Header";
+export default {
+  components: {
+    ScreenPane,
+    Header,
+  },
+  data() {
+    return {
+    };
+  },
+  methods: {
+    onClick() {
+      this.$router.push('/person/screen/assessmentlist');
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .body {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    .circular {
+      width: 18em;
+      height: 18em;
+      margin: 3em auto 0;
+      position: relative;
+      cursor: pointer;
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+      path {
+        fill: none;
+      }
+      svg {
+        display: block;
+        overflow: visible;
+        text {
+          color: #fff;
+        }
+      }
+    }
+  }
+}
+</style>

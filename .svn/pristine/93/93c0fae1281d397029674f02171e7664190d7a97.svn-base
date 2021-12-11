@@ -1,0 +1,547 @@
+<template>
+  <li class="dimen-item" :class="{fold: dimen.fold}">
+    <a-dropdown :trigger="['click']" overlayClassName="chat-console-axis-menu" :overlayStyle="{'min-width': '180px'}">
+      <span class="title">
+        {{title}}<a-icon type="close" class="remove" @click.stop="onDimensionMenuClick('remove')"/>
+      </span>
+      <a-menu slot="overlay" @click="onDimensionMenuClick($event.key)">
+        <!-- 时间维度菜单 -->
+        <template v-if="fieldType == 'date'">
+          <a-menu-item key="date-year" :class="{selected: dimen.type == 'date' && dateFormatType == 'year'}">
+            <span class="icon">●</span>按年
+          </a-menu-item>
+          <a-menu-item key="date-month" :class="{selected: dimen.type == 'date' && dateFormatType == 'month'}">
+            <span class="icon">●</span>按月
+          </a-menu-item>
+          <a-menu-item key="date-date" :class="{selected: dimen.type == 'date' && dateFormatType == 'date'}">
+            <span class="icon">●</span>按日
+          </a-menu-item>
+          <a-menu-divider/>
+          <a-sub-menu :disabled="dimen.type != 'date'">
+            <span slot="title"><a-icon class="icon show" type="clock-circle" />时间格式</span>
+            <a-menu-item v-for="f in dateformats[dateFormatType]" :key="'date:' + f" :class="{selected: dimen.dateformat == f}">
+              <span class="icon">●</span>{{f + '（' + formatNow(f) +'）'}}
+            </a-menu-item>
+          </a-sub-menu>
+          <a-menu-item key="date-serial" 
+            :disabled="dimen.type != 'date'"
+            :class="{selected: dimen.type == 'date' && hasFilter}"
+            :title="hasFilter ? dimen.filters[0] + ' ~ ' +  dimen.filters[1] : ''"
+          >
+            <a-icon class="icon" type="check" />显示连续时间
+          </a-menu-item>
+          <a-menu-divider/>
+          <a-menu-item key="section-date" :class="{selected: dimen.type == 'section'}">
+            <span class="icon">●</span>按区间分组
+          </a-menu-item>
+          <template v-if="dimen.type == 'section'" >
+            <a-menu-item key="fold" :class="{selected: dimen.fold }">
+              <a-icon class="icon" type="check" />拆分成指标
+            </a-menu-item>
+            <a-menu-divider/>
+          </template>
+          <a-menu-divider/>
+        </template>
+        <!-- 数字维度菜单 -->
+        <template v-else-if="fieldType == 'number'">
+          <a-menu-item key="section-number"><span class="icon">●</span>设置区间分组</a-menu-item>
+          <a-menu-divider/>
+          <a-menu-item key="fold" :class="{selected: dimen.fold }">
+            <a-icon class="icon" type="check" />拆分成指标
+          </a-menu-item>
+          <a-menu-divider/>
+        </template>
+        <!-- 字典维度菜单 -->
+        <template v-else-if="field">
+          <a-menu-item key="section-dict" :class="{selected: dimen.type == 'section'}">
+            <span class="icon">●</span>分组
+          </a-menu-item>
+          <a-menu-item key="filters" :class="{selected: dimen.type == 'value' && hasFilter }">
+            <span class="icon">●</span>筛选
+          </a-menu-item>
+          <a-menu-divider/>
+          <template v-if="dimen.type == 'section' || (dimen.type == 'value' && hasFilter)" >
+            <a-menu-item key="fold" :class="{selected: dimen.fold }">
+              <a-icon class="icon" type="check" />拆分成指标
+            </a-menu-item>
+            <a-menu-divider/>
+          </template>
+        </template>
+        <!-- 指标名称维度菜单 -->
+        <template v-else-if="dimen.type == 'field'">
+          <a-menu-item key="section-field" :class="{selected: !!dimen.section}">
+            <span class="icon">●</span>分组
+          </a-menu-item>
+          <a-menu-item key="field-key" :class="{selected: !!dimen.key}">
+            <span class="icon">●</span>列名{{dimen.key && `(${dimen.key})`}} 
+          </a-menu-item>
+          <a-menu-divider/>
+        </template>
+        <!-- 公共菜单 -->
+        <template v-if="dimen.type == 'field' || field">
+          <a-menu-item key="alias" :class="{selected: !!alias}">
+            <span class="icon">●</span>别名{{alias && `(${alias})`}} 
+          </a-menu-item>
+          <a-menu-divider/>
+        </template>
+        <a-menu-item key="remove"><a-icon type="delete" />删除</a-menu-item>
+      </a-menu>
+    </a-dropdown>
+    <!-- 常量过滤 -->
+    <a-modal v-model="dictFilter.show" title="字典筛选设置"
+      width="450px" :bodyStyle="{padding:'10px', height: '500px'}"
+      @ok="onDictFilter"
+    >
+      <dict-tree :dict="dictFilter.key" v-model="dictFilter.selected"/>
+    </a-modal>
+    <!-- 常量分组 -->
+    <a-modal v-model="dictSection.show" title="分组设置" :destroyOnClose="true"
+      width="800px" :bodyStyle="{padding:'0', height: '600px'}" :footer="null"
+    >
+      <dict-section 
+        v-model="dictSection.section" 
+        :dict="dictSection.dict" 
+        @cancel="dictSection.show=false"
+        @input="onDictSection"
+      />
+    </a-modal>
+    <!-- 数值区间设置 -->
+    <a-modal v-model="numberSection.show" title="区间分组设置" :destroyOnClose="true"
+      width="700px" :bodyStyle="{padding:'0', height: '600px'}" :footer="null"
+    >
+      <number-section 
+        v-model="numberSection.section"
+        :is-date="numberSection.isDate"
+        @cancel="numberSection.show=false"
+        @input="onNumberSection"
+      />
+    </a-modal>
+    <!-- 时间连续区间设置 -->
+    <a-modal v-if="dateSerial" :visible="true" title="时间连续区间设置" width="420px" 
+      @cancel="dateSerial=undefined"
+      @ok="onDateSerial"
+    >
+      <a-date-picker 
+        v-model="dateSerial[0].value"
+        :mode="dateFormatType"
+        placeholder="开始时间(包含)"
+        :format="datePickerFormat" 
+        :open="dateSerial[0].open"
+        @openChange="onOpenChange($event, 0)" 
+        @panelChange="onPanelChange($event, 0)"
+        style="width: 175px"
+      />
+      <span style="font-size:18px;padding:0 4px">~</span>
+      <a-date-picker 
+        v-model="dateSerial[1].value"
+        :mode="dateFormatType" 
+        placeholder="结束时间(包含)"
+        :format="datePickerFormat" 
+        :open="dateSerial[1].open"
+        @openChange="onOpenChange($event, 1)" 
+        @panelChange="onPanelChange($event, 1)"
+        style="width: 175px"
+      />
+    </a-modal>
+    <input-modal v-model="nameSetter.show" v-bind="nameSetter" />
+  </li>
+</template>
+<script>
+import { Modal, Icon, Dropdown, Menu, DatePicker, Input } from 'ant-design-vue'
+import DictTree from '@framework/components/DictTree'
+import DictSection from './DictSection'
+import NumberSection from './NumberSection'
+import { dateFormat } from '@framework/utils';
+import InputModal from '@framework/components/InputModal'
+
+const TYPE_DICT = 2, TYPE_INPUT = 4, TYPE_INT = 1, TYPE_FLOAT = 2, TYPE_DATE = 3, TYPE_BOOL = 4;
+/**
+ * 维度
+ */
+export default {
+  components: {
+    AModal: Modal,
+    AIcon: Icon,
+    ADropdown: Dropdown,
+    AMenu: Menu,
+    AMenuItem: Menu.Item,
+    ASubMenu: Menu.SubMenu,
+    AMenuDivider: Menu.Divider,
+    ADatePicker: DatePicker,
+    AMonthPicker: DatePicker.MonthPicker,
+    AInput: Input,
+    DictTree, DictSection, NumberSection,
+    InputModal
+  },
+  props: {
+    value: {
+      type: Object,
+      required: true
+    },
+    field: Object,
+    measures: {//指标列表（按指标名称分组时需要用到）
+      type: Array,
+      default: () => []
+    }
+  },
+  data(){
+    return {
+      dimen: {
+        showname: undefined,
+        type: undefined,
+        dateformat: undefined,
+        filters: undefined,
+        section: undefined,
+        fold: undefined, //维度转换指标
+      },
+      dateformats: {
+        year: ['yyyy', 'yyyy年'],
+        month: ['yyyy-MM', 'yyyy/MM', 'yyyy年MM月'],
+        date: ['yyyy-MM-dd', 'yyyy/MM/dd', 'yyyy年MM月dd日']
+      },
+      dictFilter: {//字典过滤设置
+        show: false,
+        key: undefined,
+        selected: [],
+      },
+      dictSection: {//字典分组设置
+        show: false,
+        dict: undefined,
+        section: undefined,//{items, other, otherName }
+      },
+      numberSection: {//区间分组设置
+        show: false,
+        isDate: false,//是否是时间区间
+        section: undefined//{items, other, otherName }
+      },
+      dateSerial: undefined,//时间连续 { open: false, value: undefined }
+      nameSetter: {
+        show: false,
+        title: undefined,
+        value: undefined,
+        placeholder: undefined,
+      }
+    }
+  },
+  computed: {
+    dimenName(){
+      let {type, showname} = this.dimen;
+      if(type == 'field'){
+        return '指标名称'
+      }else{
+        if(this.field){
+          showname = this.field.showname;
+        }
+        return showname
+      }
+    },
+    title(){
+      let name = this.dimenName;
+      switch(this.dimen.type){
+        case 'value': 
+          name += '(值)';
+          break;
+        case 'date':{
+          let type = this.dateFormatType;
+          if(type == 'year'){
+            name += '(年)'
+          }else if(type == 'month'){
+            name += '(月)'
+          }else if(type == 'date'){
+            name += '(日)'
+          }
+          break;
+        };
+        case 'section': {
+          if(this.fieldType == 'number' || this.fieldType == 'date'){
+            name += '(区间)'
+          }else{
+            name += '(分组)'
+          }
+          break;
+        };
+      }
+      return name;
+    },
+    alias: {//showname 和字段名称不相同时，说明单独设置了别称
+      get(){
+        let {showname} = this.dimen;
+        if(showname != this.dimenName){
+          return showname
+        }
+      },
+      set(v){
+        this.dimen.showname = v || this.dimenName;//删除别名时设置为指标名称
+        this.$emit('input', this.dimen);
+      }
+    },
+    dateFormatType(){
+      let format = this.dimen.dateformat;
+      if(!format){
+        //empty
+      }else if(format.indexOf('d') >= 0){
+        return 'date';
+      }else if(format.indexOf('M') >= 0){
+        return 'month';
+      }else if(format.indexOf('y') >= 0){
+        return 'year';
+      }
+      return 'date';
+    },
+    fieldType(){
+      let field = this.field;
+      if(field && field.datatype == TYPE_INPUT){
+        if(field.inputtype == TYPE_DATE){
+          return 'date'
+        }else if(field.inputtype == TYPE_INT || field.inputtype == TYPE_FLOAT){
+          return 'number'
+        }
+      }
+    },
+    datePickerFormat(){
+      return this.dimen.dateformat.toUpperCase()
+    },
+    hasFilter(){
+      return !!(this.dimen.filters && this.dimen.filters.length);
+    }
+  },
+  watch: {
+    value: {
+      immediate: true,
+      handler(v){
+        Object.assign(this.dimen, v);
+      }
+    }
+  },
+  created(){
+    //初始化按时间分组的时间格式
+    if(this.dimen.type == 'date'){
+      if(!this.dimen.dateformat){
+        this.dimen.dateformat = this.dateformats['date'][0];
+        this.$emit('input', this.dimen);
+      }
+    }
+  },
+  methods: {
+    onDimensionMenuClick(key){
+      if(key == 'remove'){
+        this.$emit('remove');
+      }else if(['date-year', 'date-month', 'date-date'].indexOf(key) >= 0){
+        this.dimen.type = 'date',
+        this.dimen.dateformat = this.dateformats[key.substr(5)][0];
+        this.dimen.filters = undefined;
+        this.dimen.section = undefined;
+        this.$emit('input', this.dimen);
+      }else if(key.startsWith('date:')){//时间
+        this.dimen.type = 'date',
+        this.dimen.dateformat = key.substr(5);
+        this.dimen.filters = undefined;
+        this.dimen.section = undefined;//设为按时间清空区间数据
+        this.$emit('input', this.dimen);
+      }else if(key == 'date-serial'){//时间连续
+        if(this.hasFilter){//存在时点击取消
+          this.dimen.filters = undefined;
+          this.$emit('input', this.dimen);
+        }else{
+          this.dateSerial = [
+            { open: false, value: undefined},
+            { open: false, value: undefined}
+          ];
+        }
+      }else if(key == 'filters'){//字典过滤
+        if(this.field && this.field.datatype == TYPE_DICT){
+          this.dictFilter = { 
+            show: true,
+            key: this.field.datasource, 
+            selected: this.dimen.filters ? [...this.dimen.filters] : [],
+          }
+        }else{
+          //TODO 其它类型数据过滤
+        }
+      }else if(key == 'section-dict'){//字典分组
+        this.dictSection = {
+          show: true,
+          dict: this.field.datasource, 
+          section: this.dimen.section,
+        }
+      }else if(key == 'section-number'){//数值区间
+        this.numberSection = {
+          show: true,
+          isDate: false,
+          section: this.dimen.section,
+        };
+      }else if(key == 'section-date'){//时间区间
+        this.numberSection = {
+          show: true,
+          isDate: true,
+          section: this.dimen.section,
+        };
+      }else if(key == 'section-field'){//指标分组
+        let items = []
+        let dict = this.measures.map((m, index) => {
+          let sort = m.value.sort;//指标数据获取考虑解耦
+          if(sort){
+            let item = items.find(ele => ele.name == sort);
+            if(item){
+              item.values.push(index);
+            }else{
+              items.push({name: sort, values: [index]});
+            }
+          }
+          return { key: index, text: m.title, value: index};
+        });
+        let section = this.dimen.section || {};
+        section.items = items;
+        this.dictSection = {
+          show: true,
+          dict, section,
+        }
+      }else if(key == 'fold'){
+        this.dimen.fold = !this.dimen.fold;
+        this.$emit('input', this.dimen);
+      }else if(key == 'alias'){
+        this.nameSetter = { 
+          show: true, 
+          title: '设置别名',
+          value: this.alias || this.dimenName,//为设置别名时初始化成指标名称
+          placeholder: this.dimenName,
+          callback: (value)=>{
+            this.alias = value;
+          }
+        };
+      }else if(key = 'field-key'){
+        this.nameSetter = { 
+          show: true, 
+          title: '设置指标列名',
+          value: this.dimen.key,
+          placeholder: '',
+          callback: (value) => {
+            this.dimen.key = value;
+            this.$emit('input', this.dimen);
+          }
+        };
+      }
+    },
+    onDictFilter(){
+      this.dimen.type = 'value';
+      this.dimen.filters =  this.dictFilter.selected;
+      this.dimen.section = undefined;//删除区间
+      this.dictFilter.show = false;
+      this.$emit('input', this.dimen);
+    },
+    onDictSection(section){
+      if(this.dimen.type == 'field'){//字段区间分组
+        this.dimen.section = section;
+        if(section && section.items && section.items.length){
+          section.items.forEach(item => {
+            (item.values || []).forEach(index => {
+              this.measures[index].setSort(item.name);
+            })
+          })
+          section.items = undefined;
+          this.dimen.section = section;
+        }else{
+          this.dimen.section = undefined;
+          this.measures.forEach(item => {
+            item.setSort();
+          })
+        }
+      }else{
+        if(section){
+          this.dimen.type = 'section';
+        }else{
+          this.dimen.type = 'value';
+        }
+        this.dimen.section = section;
+        this.dimen.filters = undefined;//删除过滤
+      }
+      this.dictSection.show = false;
+      this.$emit('input', this.dimen);
+    },
+    onNumberSection(section){
+      this.dimen.type = 'section',
+      this.dimen.section = section;
+      this.numberSection.show = false;
+      this.$emit('input', this.dimen);
+    },
+    onDateSerial(){
+      if(!this.dateSerial[0].value || !this.dateSerial[1].value){
+        this.$message.info('请输入开始时间和结束时间')
+        return
+      }
+      this.dimen.filters = this.dateSerial.map(item => {
+        return item.value.format(this.datePickerFormat);
+      });
+      this.dateSerial = undefined;
+      this.$emit('input', this.dimen);
+    },
+    onOpenChange(status, index){
+      this.dateSerial[index].open = status;
+    },
+    onPanelChange(value, index){
+      this.$set(this.dateSerial, index, { open: false, value });
+    },
+    formatNow(format){
+      return dateFormat(new Date(), format);
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.dimen-item{
+  display: inline-block;
+  position: relative;
+  line-height: 1.8em;
+  margin-left: 6px;
+  background: @primary-1;
+  border-radius: 10px 0 10px 0;
+  cursor: pointer;
+  &.fold{
+    background: fade(#5ad8a6, 25%);
+    &:hover{
+      background: fade(#5ad8a6, 50%);
+    }
+  }
+  &:hover{
+    background: @primary-2;
+    .remove{
+      display: block;
+    }
+  }
+  .title{
+    padding: 0 10px;
+  }
+  .remove{
+    display: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: 10px;
+    padding: 1px 1px 3px 3px;
+    border-top-right-radius: @border-radius-base;
+    border-bottom-left-radius: 10px;
+    // background-color: #cfcfcf;
+    &:hover{
+      color: red;
+    }
+  }
+}
+.chat-console-axis-menu{
+  .selected{
+    color: @primary-color;
+    & .icon{
+      visibility: visible;
+    }
+  }
+  .icon{
+    visibility: hidden;
+    display: inline-block;
+    width: 14px;
+    margin-right: 8px;
+    text-align: center;
+  }
+  .icon.show{
+    visibility: visible;
+  }
+}
+</style>

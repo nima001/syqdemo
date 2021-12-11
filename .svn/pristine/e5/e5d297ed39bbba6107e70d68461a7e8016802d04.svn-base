@@ -1,0 +1,733 @@
+<template>
+  <accordion-layout :resizeable="false" :right="true" :defaultNavWidth="250">
+    <vue-ueditor-wrap v-if="inited"
+      class="report-temp-content"
+      mode="listener"
+      v-model="tempalteData.template"
+      :config="uEditorConfig"
+      @beforeInit="beforeUEditorInit"
+      @ready="afterUEditorInit"
+    />
+    <a-spin v-else style="width: 100%;margin-top: 25%"/>
+    <a-tabs slot="nav" class="tools-tabs" v-model="activeTab">
+      <a-tab-pane tab="属性" key="property">
+        <property-comp v-model="tempalteData" :mergeRule="mergeRule" @editmergerule="onEditMergeRule"/>
+      </a-tab-pane>
+      <a-tab-pane tab="数据" key="datasource">
+        <data-source v-model="tempalteData.fields" />
+      </a-tab-pane>
+    </a-tabs>
+    
+    <equation-editor v-if="expr.show" 
+      namespace='report' 
+      v-model="tempalteData.datasets"
+      :selfFields='tempalteData.fields' 
+      :fnData="expr.data[expr.command]" 
+      :foreach="expr.foreach" 
+      @finish="onExprFinish">
+    </equation-editor>
+    
+    <set-page v-model="setPageModal" :margins="tempalteData.margins" @finish='setPageFinish'/>
+
+    <a-modal v-model="showInput"
+      title="设置自定义数据"
+      :width="500"
+      :destroyOnClose="true"
+      @ok="filedInputFinish"
+      :bodyStyle="{paddingTop: '5px'}"
+    >
+      <prop-value-form :properties="tempalteData.fields" ref="propValueForm"/>
+    </a-modal>
+  </accordion-layout>
+</template>
+<script>
+import { Tabs, Modal, Spin } from "ant-design-vue";
+import AccordionLayout from '@/framework/components/AccordionLayout'
+import VueUeditorWrap from "vue-ueditor-wrap";
+import SetPage from './components/SetPage';
+import PropertyComp from "./components/PropertyComp";
+import DataSource from "../components/DataSource";
+import PropValueForm from "@person/components/PropValueForm";
+import EquationEditor from "../../../components/EquationEditor/index";
+import { showError, closeWindowDelay } from "@/framework/utils/index";
+import { getTemplate, addTemplate, updateTemplate, preview } from "@/person/api/booklet";
+
+//body的border-top为了消除内容和body的margin重叠问题
+const pageDefaultCss = 
+  "body{margin:0;border-top: 1px solid transparent;font-family:宋体,SimSun,sans-serif;font-size:14px;word-break:break-word;text-align:justify;}"+
+  "p{margin:5px 0;}" + 
+  "table{border-collapse:collapse;}" + 
+  "table td, table th{border:1px solid;padding:2px 6px;word-break:break-word;}" +
+  "h1,h2,h3,h4,h5,h6{margin-top: 15px;margin-bottom: 15px;font-weight:bold;}" + 
+  "h1{font-size:28px;font-family:宋体,SimSun}" + 
+  "h2{font-size:22px;font-family:黑体,SimHei}" + 
+  "h3{font-size:22px;font-family:宋体,SimSun}" + 
+  "h4{font-size:18px;font-family:黑体,SimHei}" + 
+  "h5{font-size:18px;font-family:宋体,SimSun}" + 
+  "h6{font-size:16px;font-family:黑体,SimHei}";
+
+/**
+ * 报表模板编辑器
+ */
+export default {
+  name: "TemplateDesign",
+  components: {
+    AModal: Modal,
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    ASpin: Spin,
+    AccordionLayout,
+    VueUeditorWrap,
+    DataSource,
+    PropertyComp,
+    EquationEditor,
+    SetPage,
+    PropValueForm
+  },
+  data() {
+    return {
+      activeTab: "property",
+      inited: false,
+      tempalteData: {
+        name: undefined,
+        sort: undefined,
+        css: pageDefaultCss,
+        pagesize: 'A4',//页面大小 
+        rotate: false,//是否旋转
+        margins: [96,120,96,120],//页边距
+        template: "",
+        datasets: [],
+        fields: []
+      },
+      setPageModal:false,
+      showInput: false,
+      ueditor: undefined,
+      uEditorConfig: {
+        UEDITOR_HOME_URL: process.env.BASE_URL + 'static/UEditor/',
+        iframeCssUrl: process.env.BASE_URL + "static/report-temp.css",
+        initialFrameHeight: 1123,
+        initialFrameWidth: 794,
+        enableAutoSave: false,
+        autoHeightEnabled: true,
+        toolbars: [
+          [
+            "save", "report", "source", "|", "undo", "redo", "|","pagemargin", "pagerote","|", "bold", "italic", "underline", "fontborder", "strikethrough", "superscript", "subscript", "removeformat", "formatmatch", "autotypeset", "blockquote", "pasteplain", "|",
+            "forecolor", "backcolor", "insertorderedlist", "insertunorderedlist", "selectall", "cleardoc", "|",
+            "rowspacingtop", "rowspacingbottom", "lineheight", "|", "paragraph", "fontfamily", "fontsize", "|",
+            "directionalityltr", "directionalityrtl", "indent", "|", "justifyleft", "justifycenter", "justifyright", "justifyjustify", "|",
+            "touppercase", "tolowercase", "|", "pagebreak", "horizontal", "spechars", "|",
+            "inserttable", "deletetable",  "insertparagraphbeforetable", "setthead", "insertrow", "deleterow", "insertcol", "deletecol", "mergecells", "mergeright", "mergedown", "splittocells", "splittorows", "splittocols", "|",
+            "foreach", "databind",
+          ]
+        ],
+        removeFormatTags:'b,big,code,del,dfn,em,font,i,ins,kbd,q,samp,small,span,strike,strong,sub,sup,tt,u'
+      },
+      expr: {
+        show: false,
+        command: undefined,
+        data: {},//表达式
+        node: undefined,//操作节点
+        foreach: undefined,//指令所在的循环
+      },
+      mergeRule: undefined, // { show: Boolean, node: element, data: Object, foreach: String }
+      callback: undefined,//feedback的回调函数
+    };
+  },
+  created() {
+    this.initFn();
+  },
+  methods: {
+    async initFn() {
+      try{
+        let { templateId, feedback } = this.$route.query;
+        let template, contextFields;
+        if(feedback && window.opener){//需要返回保存信息
+          let { type, data, context, callback } = window.opener.paramsBridge;
+          if(type == 'template'){
+            templateId = data;
+            contextFields = { fields: context },
+            this.callback = callback;
+          }
+        }
+        if(templateId){
+          let {result} = await getTemplate(templateId);
+          template = result;
+        }
+        Object.assign(this.tempalteData, template, contextFields);
+      }catch(err){
+        showError(err);
+      }
+      this.inited = true;
+    },
+    initUEPage(ue){
+      let { css, margins: [top, right, bottom,left], pagesize, rotate} = this.tempalteData;
+      window.UE.utils.cssRule('base', css, ue.document);
+      window.UE.utils.cssRule('page', `body{margin: ${top}px ${right}px ${bottom}px ${left}px;} @page{size: ${pagesize} ${rotate ? 'landscape' : 'portrait'};}`, ue.document);
+
+      let {initialFrameHeight, initialFrameWidth} = ue.options;
+      if(this.tempalteData.rotate ? initialFrameHeight > initialFrameWidth : initialFrameWidth > initialFrameHeight){
+        ue.options.initialFrameHeight = ue.options.minFrameHeight = initialFrameWidth;
+        ue.options.initialFrameWidth = ue.options.minFrameWidth = initialFrameHeight;
+        ue.enableAutoHeight();
+      }
+      if(parseInt(ue.iframe.style.width) != ue.options.initialFrameWidth){
+        ue.iframe.style.width = ue.options.initialFrameWidth + "px";
+      }
+    },  
+    registerSave(id) {
+      //保存添加保存按钮到工具栏  
+      window.UE.registerUI("save", (editor, uiName) => {
+        return new window.UE.ui.Button({
+          name: uiName,
+          title: '保存',
+          cssRules: "background-position: -480px -20px;cursor:pointer;",
+          onclick: () => {
+            this.save();
+          }
+        })
+      }, undefined, id);
+    },
+    registerReport(id) {
+      //预览报表 添加预览按钮到工具栏
+      window.UE.registerUI("report", (editor, uiName) => {
+        return new window.UE.ui.Button({
+          name: uiName,
+          title: "预览",
+          cssRules: "background-position: -420px -20px;",
+          onclick: () => {
+            this.previewReport();
+          }
+        });
+      }, undefined, id);
+    },
+    registerDatabind(id) {
+      //数据绑定
+      window.UE.registerUI("databind", (editor, uiName) => {
+        let btn = new window.UE.ui.Button({
+          name: uiName,
+          title: "绑定数据",
+          cssRules: `background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAACAUlEQVQ4T7WUMWhTURhGz3/zQoeWJHVqa3kJ6KLugiJSxw5CrNRFdBXRFHVyK10cuiiNg4KbulhsOiou3R2cKo7xYWpBlCR0aJOX+8mjKpqUJpR615977nfP/bjGIS87ZB49wMlieVrOzgmfd7JQpjxYCESgSFiEiJx4+2W1tNYd6B/g0ZnyO+CEGY+TTR25iKAdfV2+E43PPgqJCc1SoROhjPsyvdh4PXf7b2g3UIibtUrpyX4q8jNPx2PaD0DF2kppdH8g9hx0DaiD1THV8dRx5JDlQDkgJ+wN0vBGpXR+X2BtpWTHp5eGtkbIpNtkYueyKa9Mx1kz8L7RTtMc2aK5PWRnZMzXKqULfYGDvPxksTwl02KtMne6n8N7Jj7ExNXN1bvVbvhY8WEhICjIcR241NehYNEg8ZJUZQKsilTFrAAqABu7FbJPko4N5PBPqqn5IDySDb1Ph861o+hHI2JtIU7mu1c+dIcDAIWeOW8vlXb1GN9I027ErWDMpeyVwalup4J1n9KVzeW5j8mst9hwQ3DVxChG0rlRwWdSncsdUq007ZYPhne23U4rk/7equZpsbDgfx/UA0x62POys0snXeeACfcCDtLLPRNOzJTfG6oKrSOLMCKTizreBwdy+KsOyfd1VihrkDWzrLyyrcBd/LZ8a6tf2v//wfZL0G/+ExpaCiSxcoi6AAAAAElFTkSuQmCC") !important;`,
+          onclick: () => {
+            let node = editor.selection.getStart();
+            this.expr = {
+              show: true,
+              command: "bind",
+              data: {
+                bind: node.getAttribute("bind")
+              },
+              node,
+              foreach: this.findForeach(node)
+            };
+          }
+        });
+        editor.addListener("selectionchange", function(type, causeByUi, uiReady) {
+          var state = editor.queryCommandState(uiName);
+          if (state == -1) {
+            btn.setDisabled(true);
+            btn.setChecked(false);
+          } else {
+            if (!uiReady) {
+              btn.setDisabled(false);
+              btn.setChecked(state);
+            }
+          }
+        });
+        return btn;
+      }, undefined, id);
+    },
+    registerPageMargin(id) {
+      window.UE.registerUI("pagemargin", (editor, uiName) => {
+        let btn = new window.UE.ui.Button({
+          name: uiName,
+          title: "页边距",
+          cssRules: `background-image: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABjElEQVRYR2NkGGDAOMD2MwxOB/RNmJ7DysrMTM3Q+fPn/5/C/PSp6GZiDQEP39D/CvJyDNzc3Ax//v4F62Eh0T3I+r5+/crw4OEjhh2bV2PYh9MBTfVVDDramgwrV61juPfwIUNlaSFJAdLe3c+gJC/PEB4WxHDl6nWGusY28h1w5doNhuaGKpIcUNvQxqCjpUG+A0iyjUjFREeBu0/o/6SEaAZFBXmG/QcOM9x/8JAhKSGGSGsgyuYtWALW7+hgC9Y/b8FShp1byEwDAxIFyIlw1AGjITAaAqMhMBoCoyFA9xBw9w35D2rNcHNzMbx6/Ybh67dvDIryciRVx/cfPmLg5uJiEBMVYfj69RvDvQcPGXZuWUNck2y0PQBqFSfFxzAoKsox7Nt/iAEUnMkktojmglpE8nIMTo52DPfvP2KYt3AJ8Y3SjJySN8zMjOB+wecvX1n//P7DJCjI/5OURPD+/Ud2FlaWf7w83L9B+v7+/fd3xpReEaL6BaRYRKnawdk1o9RXpOgf8BAAAC3wvzC7r7zSAAAAAElFTkSuQmCC") !important;background-size: contain`,
+          onclick: () => {
+            this.setPageModal = true;
+          }
+        });
+        editor.addListener("selectionchange", function(type, causeByUi, uiReady) {
+          var state = editor.queryCommandState(uiName);
+          if (state == -1) {
+            btn.setDisabled(true);
+            btn.setChecked(false);
+          } else {
+            if (!uiReady) {
+              btn.setDisabled(false);
+              btn.setChecked(state);
+            }
+          }
+        });
+        return btn;
+      }, undefined, id);
+    },
+    registerPageRote(id){
+      UE.registerUI('pagerote', (editor, uiName)=> {
+        let val = [{label:'横向',value:1},{label:'纵向',value:0}]
+        let _this = this;
+        for (var i = 0, ci, items = []; (ci = val[i++]); ) {
+          items.push({
+            label: ci.label,
+            value: ci.value,
+            theme: editor.options.theme,
+            onclick: function() {
+              _this.tempalteData.rotate = this.value== 0? false:true;
+              _this.initUEPage(editor);
+              ui.setValue(this.value);
+            }
+          });
+        }
+        var btn = new UE.ui.MenuButton({
+          editor: editor,
+          className: "edui-for-rotepage",
+          title:'页面旋转',
+          items: items,
+          onbuttonclick: () =>{
+            this.tempalteData.rotate = !this.tempalteData.rotate;
+            let num = this.tempalteData.rotate?1:0;
+            this.initUEPage(editor);
+            btn.setValue(num);
+          }
+        });
+        btn.setValue(this.tempalteData.rotate?1:0)
+        editor.addListener("selectionchange", function(type, causeByUi, uiReady) {
+          var state = editor.queryCommandState(uiName);
+          if (state == -1) {
+            btn.setDisabled(true);
+            btn.setChecked(false);
+          } else {
+            if (!uiReady) {
+              btn.setDisabled(false);
+              btn.setChecked(state);
+            }
+          }
+        });
+        return btn;
+      },undefined, id);
+    },
+    registerForeach(id) {
+      //设置循环，选中表的一整行触发设置循环
+      window.UE.registerUI("foreach", (editor, uiName) => {
+        var btn = new window.UE.ui.Button({
+          name: uiName,
+          title: "设置循环",
+          disabled: true,
+          cssRules:
+            "background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAUCAYAAACNiR0NAAABGElEQVQ4T6XUMW7CMBQG4P+5t0h6kk6RuACNaKfunVyYukJHxihqb8BCpHAEeplwDL/qoZI6xTh+kC2K/fn3e3YIyiebfT6Qc4uutc+hqaT0kJXVimCWAJoQqgYlQAw9gvfTunDGFZfTGgact7i8AwSs/iftQTbYa7fvje+3PwAZ7sM4850C8x0sGGU0oYCHdi7biD5ZWa8JeA815izhGJjUZWmK1DAlYT6tJjDmNXoONeBYOa46hyc0f6z3IBRda3snCOZlvQWj6Xa2iSVKAo8Y8HTpavkLjIIaTOAo6GPk8DVWfPnOhGWwhh6W4pyNCTblhMpZ1Kr+ZRh0uU/KqLqdXWjh3z/QcNpfUt4c2rcXLXrTOQwt9gMc2KEVZdGdJAAAAABJRU5ErkJggg==') !important;",
+          onclick: () => {
+            this.expr.show = this.expr.command == 'foreach';
+          }
+        });
+        editor.addListener("selectionchange", (type, causeByUi, uiReady) => {
+          var state = editor.queryCommandState(uiName);
+          if (state == -1) {
+            btn.setDisabled(true);
+            btn.setChecked(false);
+            return;
+          } else {
+            if (!uiReady) {
+              btn.setDisabled(false);
+              btn.setChecked(state);
+            }
+          }
+          let {getTableItemsByRange, getUETable} = window.UE.UETable;
+          let tableItems = getTableItemsByRange(editor);
+          if(tableItems.table){
+            let ut = getUETable(tableItems.table);
+            let {beginColIndex, beginRowIndex, endColIndex, endRowIndex} = ut.cellsRange;
+            if(endRowIndex - beginRowIndex == 0 && endColIndex - beginColIndex + 1 == ut.colsNum){//选中一整行
+              let tr = tableItems.tr;
+              if(tr.parentNode.nodeName.toLowerCase() == 'tbody'){//暂定只有body中的行才能设置循环
+                btn.setDisabled(false);
+                this.expr = {
+                  show: false,
+                  command: "foreach",
+                  data: {
+                    foreach: tr.getAttribute("foreach"),
+                    item: tr.getAttribute('foreach-item'),
+                    index: tr.getAttribute('foreach-index')
+                  },
+                  node: tr
+                }
+                return
+              }
+            }
+          }
+          btn.setDisabled(true);
+        });
+        return btn;
+      }, undefined, id);
+    },
+    beforeUEditorInit(id, config) {
+      this.registerSave(id);
+      this.registerReport(id);
+      this.registerDatabind(id);
+      this.registerForeach(id);
+      this.registerPageMargin(id);
+      this.registerPageRote(id);
+    },
+    afterUEditorInit(editor) {
+      this.ueditor = editor;
+      this.initUEPage(editor)
+      let prepareBindClick;
+      // editor.addListener("mouseover", (type, e) => {
+      //   prepareBindClick = undefined;
+      // });
+      editor.addListener("mousedown", (type, e) => {
+        if(!e.button){//模拟鼠标左键点击事件（click事件鼠标拖动后仍然响应）
+          let node = e.target;
+          if (node.hasAttribute("bind")) {
+            prepareBindClick = {x: e.x, y: e.y}
+          }
+        }
+      });
+      editor.addListener("mouseup", (type, e) => {
+        if(!e.button){
+          if(prepareBindClick && e.x == prepareBindClick.x && e.y == prepareBindClick.y){
+            let node = e.target;
+            if (node.hasAttribute("bind")) {
+              this.expr = {
+                show: true,
+                command: "bind",
+                data: {
+                  bind: node.getAttribute("bind")
+                },
+                node,
+                foreach: this.findForeach(node)
+              };
+            }
+          }
+          prepareBindClick = undefined;
+        }
+      });
+      editor.addListener("selectionchange", () => {
+        let {getTableItemsByRange, getUETable} = window.UE.UETable;
+        let tableItems = getTableItemsByRange(editor);
+        if(tableItems.table && tableItems.cell){
+          let ut = getUETable(tableItems.table);
+          if (ut.selectedTds.length == 0){//未选中
+            let td = tableItems.cell;
+            // if(td.parentNode.parentNode.tagName.toLowerCase() == 'tbody'){//body内的单元格才允许添加合并规则
+              this.mergeRule = {
+                show: true,
+                node: td,
+                data: {
+                  ['merge-left']: td.getAttribute('merge-left'),
+                  ['merge-right']: td.getAttribute('merge-right'),
+                  ['merge-top']: td.getAttribute('merge-top'),
+                  ['merge-bottom']: td.getAttribute('merge-bottom'),
+                },
+                foreach: this.findForeach(td)
+              }
+              return
+            // }
+          }
+        }
+        this.mergeRule = {};
+      });
+      editor.addListener('beforeexeccommand', (_, cmd, args) => {
+        if(cmd == 'setthead'){//设置表头指令拦截（检查tr是否存在循环）
+          let {getTableItemsByRange, getUETable} = window.UE.UETable;
+          let {table, tr} = getTableItemsByRange(editor);
+          if(table && tr){
+            let ut = getUETable(table);
+            let {endRowIndex} = ut.cellsRange;
+            let moveBodyTrSize = 0;
+            if(tr.parentNode.tagName.toLowerCase() == 'thead'){//如果已经有表头 判断选中行是否是表头的所有行
+              let headTrArr = tr.parentNode.children;
+              if(headTrArr.length < endRowIndex + 1){//表头长度小于选中的行数 将body中选中的行移入head
+                moveBodyTrSize = endRowIndex + 1 - headTrArr.length;
+              }
+            }else{
+              moveBodyTrSize = endRowIndex + 1;
+            }
+            if(moveBodyTrSize > 0){
+              let tbody = table.getElementsByTagName('tbody')[0];
+              let childNodes = tbody.childNodes;
+              for(let i = 0; i < moveBodyTrSize; i++){
+                if(childNodes[i].hasAttribute('foreach')){
+                  this.$message.error('存在设为循环的行无法设置为表头');
+                  return true;
+                }
+              }
+            }
+          }
+        }else if(cmd == 'mergedown'){//向下合并不能存在循环
+          let {getTableItemsByRange, getUETable} = window.UE.UETable;
+          let {cell} = getTableItemsByRange(editor);
+          if(cell){
+            let hasForeach = cell.parentNode.hasAttribute('foreach');
+            if(!hasForeach){
+              let ut = getUETable(cell);
+              let bottomCell = ut.getVSideCell(cell, true);
+              if(bottomCell && bottomCell.parentNode.hasAttribute('foreach')){
+                hasForeach = true;
+              }
+            }
+            if(hasForeach){
+              this.$message.error('存在设为循环的行无法合并单元格');
+              return true;
+            }
+          }
+        }else if(cmd == 'mergecells'){//上下合并单元格不能存在循环
+          let ut = window.UE.UETable.getUETableBySelected(editor);
+          if(ut){
+            let {beginRowIndex, endRowIndex} = ut.cellsRange;//选中多行校验行是否有有循环
+            if(endRowIndex != beginRowIndex && ut.selectedTds.find(cell => cell.parentNode.hasAttribute('foreach'))){
+              this.$message.error('存在设为循环的行无法合并单元格');
+              return true;
+            }
+          }
+        }
+      })
+      editor.focus();
+    },
+    onExprFinish(type, expression) {
+      this.expr.show = false;
+      if (type == "ok") {
+        let {node, command} = this.expr;
+        this.expr.data[command] = expression;
+        if(command == 'bind'){
+          if(node.hasAttribute(command)){
+            if(expression){
+              node.setAttribute(command, expression);
+            }else{
+              var next = node.nextSibling;
+              window.UE.dom.domUtils.remove(node);
+              if(next){//删除节点后 光标放到下一个节点上
+                let rng = this.ueditor.selection.getRange();
+                if (next.nodeType == 3) {//下一个节点是文本
+                  rng.setStartBefore(next);
+                } else {
+                  rng.setStart(next, 0);
+                }
+                rng.setCursor(false, true);
+              }
+            }
+            //保存当前场景，1触发模板数据的v-model(setAttribute无法触发内容更新事件) 2支持撤销
+            this.ueditor.fireEvent("saveScene");
+          }else if(expression){
+            this.ueditor.execCommand("inserthtml", `<var bind="${UE.utils.unhtml(expression)}">0</var>`);
+          }
+        }else if(expression){
+          node.setAttribute(command, expression);
+          this.ueditor.fireEvent("saveScene");
+        }else{
+          node.removeAttribute(command);
+          this.ueditor.fireEvent("saveScene");
+        }
+      }
+      this.ueditor.focus();
+    },
+    onEditMergeRule(key){
+      this.expr = this.mergeRule;
+      this.expr.command = key;
+    },
+    setPageFinish(type, margins){
+      if(type == 'ok'){
+        this.tempalteData.margins = margins;
+        this.initUEPage(this.ueditor);
+      }
+      this.setPageModal = false;
+    },
+    findForeach(node){
+      let {isBody} = window.UE.dom.domUtils;
+      while(!isBody(node)){
+        let parent = node.parentNode;
+        if(node.tagName.toLowerCase() == 'td'){//目前只有tr上可添加foreach
+          if(parent.hasAttribute('foreach')){
+            return {
+              expr: parent.getAttribute('foreach'),
+              item: parent.getAttribute('foreach-item') || 'item',
+              index: parent.getAttribute('foreach-index') || 'index',
+            }
+          }
+          break;
+        }else{
+          node = parent;
+        }
+      }
+    },
+    save() {
+      let data = this.tempalteData;
+      if (!data.name) {
+        this.$message.error("请输入报表名称");
+        this.activeTab = "property";
+        return;
+      }
+      let request = data.id ? updateTemplate(data, data.id) : addTemplate(data);
+      request.then(({result}) => {
+        if(!data.id){
+          data.id = result;
+        }
+        this.showSave = false;
+        if(typeof(this.callback) == 'function'){
+          try{
+            let rt = this.callback(data);
+            if(rt === true){
+              closeWindowDelay(3, "保存成功")
+              return;
+            }
+          }catch(e){
+            //ignore
+          }
+        }
+        this.$message.info("保存成功");
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    filedInputFinish(){
+      this.$refs.propValueForm.getFieldsValue().then((context) => {
+        this.showInput = false
+        this.previewReport(context)
+      }).catch((error) => {
+        this.$message.error(error);
+      });
+    },
+    previewReport(context) {
+      //设置数据，提供预览时需数据
+      if(this.tempalteData.fields && this.tempalteData.fields.length && !context){
+        this.showInput = true;
+        return;
+      }
+      preview({...this.tempalteData, context})
+        .then(({ result }) => {
+          window.paramsBridge = { type: 'templete.preview', data: result };
+          const { href } = this.$router.resolve({ name: "preview" });
+          window.open(href, "_blank");
+        })
+        .catch(error => {
+          showError(error);
+        });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.report-temp-content{
+  height: 100%;
+  /deep/ & > .edui-default {
+    height: 100%;
+    .edui-editor {
+      width: 100% !important;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      border: none;
+      .edui-editor-toolbarbox {
+        box-shadow: 0px 5px 10px -5px #dad9d9;
+        z-index: 1000;
+        .edui-editor-toolbarboxouter {
+          background: white;
+          border: none;
+          box-shadow: none;
+        }
+      }
+      .edui-default .edui-toolbar .edui-for-save {
+        float: right;
+      }
+      .edui-default .edui-toolbar .edui-for-report {
+        float: right;
+      }
+      .edui-editor-iframeholder {
+        width: 100% !important;
+        overflow: auto !important;
+        background: #eee;
+        flex: 1 1 100%;
+        & > iframe {
+          background: white;
+          width: 0;//先设置宽度为0 不显示iframe 当前初始化完成后通过js修改
+          height: inherit;
+          margin: 20px auto;
+          display: block;
+          box-shadow: 1px 1px 20px #dad9d9;
+        }
+        pre{
+          overflow: unset;//纠正vue 默认添加的样式
+        }
+      }
+    }
+    .edui-editor-bottomContainer td {
+      border-top: 1px solid @border-color-split;
+    }
+  }
+}
+//工具栏
+.tools-tabs {
+  height: calc(~"100% + 40px");
+  width: 250px; //设置成和容器宽度一致防止收缩后tab显示不下，触发Tabs组件收起tab
+  display: flex;
+  flex-direction: column;
+  margin-top: -40px;
+  /deep/ & > .ant-tabs-bar {
+    margin-bottom: 0;
+    .ant-tabs-nav .ant-tabs-tab{
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+  }
+  /deep/ & > .ant-tabs-content {
+    flex: auto;
+    min-height: 0;
+    .ant-tabs-tabpane-active {
+      height: 100%;
+    }
+  }
+}
+</style>
+<style lang="less">
+.edui-default{
+  * { 
+    box-sizing: unset;//修正vue默认样式影响到ueditor
+  }
+  .edui-for-rotepage .edui-default .edui-default > .edui-icon {
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACIAAAAgCAYAAAB3j6rJAAAB00lEQVRYR2NkGCSAcZC4g2HUIegxgREifROm53z59iWY1ChjZWG7UVmWn4muz8MnpIGBgeE/sviOLWsaCTqkvqlj9+Wr110UFeSJdsurV68ZeHi4306f3COCrMkhIECA/S/LAkYGRgGQ+P//DAKMjAz6OzavxggADAGQQ758/ebS3FBFtENWrlrHcOrMOQyHYAkdBwZGxv2jDoGFjIdPyCAJEY8Ahf/MLAE7t66ZQFRipVUawZfo6JpYRx1CdP5nYMCsa4gpR0AF2Os3b+D2nD9/ieHRk6dfxUVFqomxPDc7bSJVEiuoAFu5Zj0xdmJVQ7UCDeSQK9duMJBS+oJcdOXqdYa6xjaGUYfA4ofkEHn1+o1LUkI0zjRw4uQZhgcPH9M+ak6ePuuCLyWqq6kwsLCw0tYhU6fOs/r7/7cZPoe8f/8h49OXr+o0TayuXqEGzMwMBjs2r16AyzF1jW27vn774UpTh4CbdoyMDjs2r3YYdQgoBAZViPxnZMhn/M9wAR41jIwLkdMMKI1cvX7TVVFejqRi/uu37wz3HzwkrmQFN+cYGNDTx4EdW9YcgNnaP3Fa9qcvX0JJcgVUMeN/xv91NaWOBCs9cgynhp7RLuegjRoAYTSVMJoMqTQAAAAASUVORK5CYII=') !important;
+    background-repeat: no-repeat;
+    background-size: contain;
+  }
+  /** 段落设置菜单样式改写 */
+  .edui-popup.edui-for-paragraph .edui-listitem-label {
+    font-family: Tahoma, Verdana, Arial, Helvetica;
+    .edui-for-p {
+      font-size: 14px;
+      line-height: 26px;
+    }
+    .edui-for-h1 {
+      font-weight: bold;
+      font-size: 28px;
+      line-height: 1.2em;
+      font-family: 宋体, SimSun;
+    }
+    .edui-for-h2 {
+      font-weight: bold;
+      font-size: 22px;
+      line-height: 26px;
+      font-family: 黑体, SimHei;
+    }
+    .edui-for-h3 {
+      font-weight: bold;
+      font-size: 22px;
+      line-height: 26px;
+      font-family: 宋体, SimSun;
+    }
+    .edui-for-h4 {
+      font-weight: bold;
+      font-size: 18px;
+      line-height: 26px;
+      font-family: 黑体, SimHei;
+    }
+    .edui-for-h5 {
+      font-weight: bold;
+      font-size: 18px;
+      line-height: 26px;
+      font-family: 宋体, SimSun;
+    }
+    .edui-for-h6 {
+      font-weight: bold;
+      font-size: 16px;
+      line-height: 26px;
+      font-family: 黑体, SimHei;
+    }
+  }
+}
+</style>

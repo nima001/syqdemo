@@ -1,0 +1,194 @@
+<template>
+  <div>
+    <a-modal title="公式编辑器" :width="1060" :visible='true' :destroyOnClose='true' @cancel="onFinish('cancel')">
+      <template slot="footer">
+        <a-button type="primary" @click="onFinish('ok')">确定</a-button>
+        <a-button @click="onFinish('cancel')">取消</a-button>
+      </template>
+      <p class="tip">
+        <span>请输入公式</span>
+        <span @click="validate">检查合法性</span>
+      </p>
+      <textarea class="ant-input" id="textArea" ref="textArea" 
+        v-model="params" 
+        v-focus
+        @keydown.tab="onTabInput"
+        :rows="4" 
+        placeholder="请输入表达式"
+        :style="{resize:'none'}"
+      ></textarea>
+      <a-row :gutter="8">
+        <!--函数-->
+        <a-col :span="span">
+          <function-list :namespace="namespace" v-model="params" :dom="dom"></function-list>
+        </a-col>
+        <!--作用域数据-->
+        <a-col :span="span">
+          <scoped-data :namespace="namespace" v-model="params" :dom="dom" :contextParams="contextParams" :selfFields="selfFields" :foreach="foreach" :dataSource="dataSource"></scoped-data>
+        </a-col>
+        <!--数据集-->
+        <a-col :span="8" v-if="havaDataSource">
+          <data-source :namespace="namespace" :dom="dom" v-model="params" :dataSource="dataSource" @sourceCall="sourceUpdate"></data-source>
+        </a-col>
+      </a-row>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Modal, Row,Col, Input, Icon ,Button,Divider } from "ant-design-vue";
+import  FunctionList from './components/FunctionList';
+import ScopedData from './components/ScopedData';
+import DataSource from './components/DataSource';
+import {randomStr,showError} from "@framework/utils/index";
+import {validateEXpr} from "@person/api/booklet";
+import cloneDeep from "lodash/cloneDeep";
+
+export default {
+  components: {
+    AButton:Button,
+    AModal: Modal,
+    ATextarea: Input.TextArea,
+    ARow: Row,
+    ACol: Col,
+    ADivider:Divider, 
+    FunctionList,
+    ScopedData,
+    DataSource
+  },
+  props: {
+    //数据集 可选
+    value: {
+      type: Array,
+      required: false 
+    },
+    //作用域数据(外部传入)
+    selfFields:{
+      type: Array,
+      required: false
+    },
+    /** 
+     * 指令所在的循环
+     * TODO
+     * 根据数据集获取数据(foreach=> undefind 不操作/Object 获取)
+    */
+    foreach:{
+      required: false
+    },
+    // 公式编辑器初始值
+    fnData:{
+      type: String
+    },
+    // 命名空间
+    namespace:{
+      type: String,
+      required: true
+    },
+    //公式上下文参数
+    contextParams: {
+      type: Object
+    }
+  },
+  data() { 
+    return {
+      // 编辑的公式
+      params:"",
+      // 数据集
+      dataSource: cloneDeep(this.value),
+      //
+      dom:undefined
+    };
+  },
+  mounted(){
+    this.initFn();
+  },
+  watch: {
+    value(v) {
+      this.dataSource = cloneDeep(v);
+    }
+  },
+  computed: {
+    span() {
+      return this.dataSource ? 8 : 12;
+    },
+    havaDataSource() {
+      return this.dataSource ? true : false;
+    }
+  },
+  directives:{
+    focus:{
+      inserted(el){
+        el.focus();
+      }
+    }
+  },
+  methods: {
+    initFn(){
+      this.$nextTick(() => {
+        this.dom = this.$refs.textArea;
+      })
+      if( this.fnData && this.fnData.indexOf('${') != -1){
+        let length = this.fnData.length;
+        this.params = this.fnData.substring(2,length-1);
+      }else{
+        this.params = this.fnData == undefined ? '': this.fnData;
+      }
+    },
+    // 验证表达式是否合法
+    validate(){
+      validateEXpr(this.params).then(res=>{
+        this.$notification.success({
+          message: "提示",
+          description: "验证通过",
+          duration: 3,
+        });
+      }).catch(err=>{
+        showError(err);
+      });
+    },
+    onFinish(type){
+      if (type == "ok") {
+        if(this.params == ''){
+          this.$emit("finish", type, this.params);
+        }else{
+          validateEXpr(this.params).then(res=>{
+            this.$emit("finish", type, this.params);
+          }).catch(err=>{
+            showError(err);
+          });
+        }
+      } else {
+        this.$emit("finish", type);
+      }
+    },
+    // 更新数据源
+    sourceUpdate(dataSource){
+      this.$emit('input',dataSource)
+    },
+    onTabInput(e){
+      e.preventDefault();
+      let start = this.dom.selectionStart, end = this.dom.selectionEnd;
+      let text = this.params || '';
+      this.params = text.substr(0, start) + '\t' + text.substr(end);
+      this.$nextTick(() => {
+        this.dom.setSelectionRange(start + 1, start + 1);
+      })
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.tip {
+  display: flex;
+  justify-content: space-between;
+  span {
+    &:last-child {
+      color: @primary-color;
+      cursor: pointer;
+    }
+  }
+}
+textarea{
+  font-size: 15px;
+  color: @black;
+}
+</style>

@@ -1,0 +1,142 @@
+<template>
+  <div class="input-group-panel">
+    <template v-if="list && list.length">
+      <div class="group-item" v-for="(item,index) in list" :key="index">
+        <div v-if="edit && !property.disable" class="remove">
+          <a-icon type="close" @click="removeItem(item, index)"/>       
+        </div>
+        <form-group :edit="edit" :properties="property.properties" :data="item" ref="groupItem"/>
+      </div>
+    </template>
+    <div v-else class="empty">暂无数据</div>
+    <a-button v-if="edit && !property.disable" type="dashed" @click="addGroup" style="width: 100%;margin: 6px 0;">
+      <a-icon type="plus" /> 添加
+    </a-button>
+  </div>
+</template>
+<script>
+import {Button, Icon} from 'ant-design-vue';
+import cloneDeep from 'lodash/cloneDeep';
+import get from 'lodash/get';
+import set from 'lodash/set';
+
+export default {
+  props: {
+    edit: {
+      type: Boolean,
+      default: false,
+    },
+    property: {
+      type: Object,
+    },
+    data: {
+      type: Object,
+    }
+  },
+  components: {
+    AButton: Button,
+    AIcon: Icon,
+    FormGroup: () => import('./FormGroup.vue')
+  },
+  data(){
+    return {
+      list: undefined,
+    }
+  },
+  computed:{
+    propValue:{
+      get(){
+        return get(this.data, this.property.code);
+      },
+      set(value){
+        set(this.data, this.property.code, value)
+      }
+    },
+  },
+  created(){
+    let list = this.propValue;
+    if(list && list.length){
+      list.forEach(item => {
+        this.checkProperty(item)
+      })
+      this.list = list
+    }
+  },
+  watch:{
+    propValue(list){
+      if(list && list.length){
+        list.forEach(item => {
+          this.checkProperty(item)
+        })
+        this.list = list
+      }
+    }
+  },
+  methods: {
+    validateField(obj){
+      let list = this.propValue;
+      return Promise.all((this.$refs.groupItem || []).map((item, index) => {
+        return item.validateFields(list[index]);
+      })).then(() => {
+        set(obj, this.property.code, list || null)//设置为null 才会序列化 需要传key 服务器识别情况数据
+        return
+      });
+    },
+    removeItem(item, index) {
+      this.list.splice(index, 1);
+    },
+    addGroup() {
+      if(this.list === undefined){
+        this.list = [];
+        this.propValue = this.list;
+      }
+      this.list.push(this.checkProperty({}));
+    },
+    checkProperty(data){
+      this.property.properties.forEach(p => {
+        if(get(data, p.code) === undefined){
+          set(data, p.code, undefined);
+        }
+      })
+      return data;
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.input-group-panel {
+  .group-item{
+    position: relative;
+    &:hover{
+      outline: 1px dashed @primary-2;
+      .remove{
+        display: block;
+      }
+    }
+    .remove{
+      position: absolute;
+      right: 0;
+      top: 0;
+      z-index: 100;
+      width: 16px;
+      height: 16px;
+      padding-left: 4px;
+      padding-bottom: 4px;
+      line-height: 12px;
+      font-size: 12px;
+      border-bottom-left-radius: 12px;
+      background: fade(#666, 10%);
+      color: #666;
+      display: none;
+      &:hover{
+        color: @error-color;
+      }
+    }
+  }
+  .empty{
+    line-height: 40px;
+    text-align: center;
+    color: fade(@disabled-color, 50%);
+  }
+}
+</style>

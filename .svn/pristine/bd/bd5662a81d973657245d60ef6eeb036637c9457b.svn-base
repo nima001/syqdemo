@@ -1,0 +1,76 @@
+<template>
+  <Row :class="{layout: true, focus: selected}" type="flex"
+    :gutter="gutter"
+    :draggable="selected"
+    @click.native="onClick"
+  >
+    <slot/>
+  </Row>
+</template>
+<script>
+import { Row, Icon } from 'ant-design-vue'
+import { useForm, useFieldSchema } from '@formily/vue'
+
+export default {
+  components: {
+    Row,
+  },
+  props: {
+    gutter: Number,
+  },
+  data(){
+    return {
+      selected: false,
+    }
+  },
+  setup(){
+    const form = useForm().value;
+    const schema = useFieldSchema().value
+    return {
+      _isFormComponent: true,
+      form,
+      schema
+    }
+  },
+  created(){
+    // console.log(this)
+  },
+  methods:{
+    onClick(){
+      // this.selected = true;
+      // console.log('gridLayout is click', JSON.stringify(this.schema))
+      if(this.schema.name == 'row'){
+        // this.schema.addProperty('item6', {
+        //   type: 'void',
+        //   'x-component': 'GridLayout.Grid',
+        //   'x-component-props': {
+        //     span: 12,
+        //   },
+        //   properties: {
+        //     worktime2: {
+        //       type: 'string',
+        //       title: '参加工作时间2',
+        //       required: false,
+        //       'x-decorator': 'FormItem',
+        //       'x-component': 'TextInput',
+        //     },
+        //   }
+        // })
+        // let parent = this.schema;
+        // while(true){
+        //   if(parent.parent){
+        //     parent = parent.parent;
+        //   }else{
+        //     break;
+        //   }
+        // }
+        // this.form.notify('schemaChange', parent);
+      }
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.layout{
+}
+</style>

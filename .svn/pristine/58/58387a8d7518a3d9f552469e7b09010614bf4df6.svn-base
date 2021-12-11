@@ -1,0 +1,63 @@
+import Vue from 'vue'
+import Router from 'vue-router'
+import Layout from '../views/Layout.vue'
+Vue.use(Router)
+export default new Router({
+  mode: 'history',
+  base: process.env.BASE_URL,
+  routes: [
+    {
+      path: '/hall',
+      component: Layout,
+      meta: {access: 'login'},
+      children: [
+        {
+          path: 'usermanage',
+          component: () =>import('../views/usermanage/roster/components/RosterLayout'),
+          meta: {access: 'login'},
+          children: [
+            {
+              path: 'roster',
+              component: () => import('../views/usermanage/roster/index'),
+              meta: {access: 'login', path: [{ name: '首页', path: '/main/home' }] }
+            },
+            {
+              path: 'userinfo',
+              component: () => import('../views/usermanage/roster/UserInfo'),
+              meta: {access: 'login', path: [{ name: '人员花名册', path: '/hall/usermanage/roster' }] }
+            }
+          ]
+        },
+        {
+          path: 'usermanage/attendance',
+          component: () => import('../views/usermanage/attendance/index'),
+          meta: {access: 'login', path: [{ name: '首页', path: '/main/home' }] }
+        },
+        {
+          path: 'usermanage/onduty',
+          component: () => import('../views/usermanage/onduty/index'),
+          meta: {access: 'login', path: [{ name: '首页', path: '/main/home' }] }
+        },
+        {
+          path: 'usermanage/personcount',
+          component: () => import('../views/usermanage/personcount/index'),
+          meta: {access: 'login', path: [{ name: '首页', path: '/main/home' }] }
+        },
+        {
+          path: 'usermanage/workovertime',
+          component: () => import('../views/usermanage/workovertime/index'),
+          meta: {access: 'login', path: [{ name: '首页', path: '/main/home' }] }
+        },
+        {
+          path: 'usermanage/quit',
+          component: () => import('../views/usermanage/quit/index'),
+          meta: {access: 'login', path: [{ name: '首页', path: '/main/home' }] }
+        },
+      ]
+    },
+    {
+      path:'/hall/visualscreen',
+      component: () => import('../views/visualscreen/index')
+    }
+  ]
+})

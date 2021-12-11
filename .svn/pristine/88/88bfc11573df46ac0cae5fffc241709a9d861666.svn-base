@@ -1,0 +1,105 @@
+<template>
+  <svg class="icon" aria-hidden="true">
+    <use :xlink:href="`#${iconName}`" />
+  </svg>
+</template>
+<script>
+import "../assets/custom-icons";
+/**
+ * 组织/用户等自定义图标（可通过服务端配置）
+ */
+export default {
+  name: "CustomIcon",
+  props: {
+    type: {//图标类型
+      type: String,
+    },
+    object: {//对象数据
+      type: Object
+    },
+  },
+  data() {
+    return {
+      config: {
+        user: {
+          usertype: {
+            '1': {
+              identitytype: {
+                '1': 'user-gong',
+                '2': 'user-qin',
+                '3': 'user-can',
+                '4': 'user-shi',
+                '11': 'user-yuan',
+                '13': 'user-guo'
+              }
+            },
+            '2': 'user-wai',
+            '3': 'user-gu',
+          },
+          _default: 'user'
+        },
+        org: {
+          orgtype: {
+            '3': 'org-yu'
+          },
+          unittype: {
+            '1': 'org-xing',
+            '2': 'org-can',
+            '3': 'org-shi',
+            '5': 'org-xing',
+            '9': 'org-nei',
+            '20': 'org-zhen',
+            '21': 'org-jie',
+            '22': 'org-she',
+            '23': 'org-cun',
+            '24': 'org-gang'
+          },
+          _default: 'org'
+        },
+        dept: 'org-nei',
+        _default: 'group'
+      },
+    };
+  },
+  computed:{
+    iconName(){ 
+      let c = this.$store.getters.getConfig('custom.icon')
+      if(c){
+        try{
+          c = JSON.parse(c);
+        }catch(e){
+          c = undefined;
+        }
+      }
+      return this.getIcon(this.type, this.object, c || this.config);
+    },
+  },
+  methods: {
+    getIcon(key, obj = {}, config){
+      let c = config[key + ''];
+      let icon;
+      if(typeof(c) == 'string'){
+        icon = c;
+      }else if(c){
+        for(let name in c){
+          if(name == '_default'){
+            icon = c[name];
+            continue;
+          }
+          let i = this.getIcon(obj[name], obj, c[name]);
+          if(i){//未找到继续找下一个
+            icon = i;
+            break
+          }
+        }
+      }
+      return icon || config['_default'];
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.icon {
+  vertical-align: -0.28em;
+}
+</style>

@@ -1,0 +1,284 @@
+<template>
+  <a-layout style="height: 100%">
+    <div class="org-tree-bar">
+      <!-- <div class="search-input">
+        <a-input
+          placeholder="输入组织名称搜索"
+        >
+          v-model="search.key"
+          @change="onSearch"
+          @pressEnter="onSearch"
+          <a-icon
+            slot="suffix"
+            :type="search.key ? 'close-circle' : 'search'"
+          />
+            @click="clearSearch"
+        </a-input>
+      </div> -->
+      <!-- <div class="search-data-panel" v-if="search.key">
+        <a-spin v-if="search.data == null" key="search-data" class="searching">
+          <a-icon slot="indicator" type="loading" />
+        </a-spin>
+        <div v-else-if="search.data.length" key="search-data" class="datalist">
+          <ul>
+            <li
+              v-for="item in search.data"
+              :key="item.id"
+              @click="_searchSelect(item.id)"
+              :title="item.name"
+            >
+              <org-icon :org="item.data" />
+              <span class="text">{{ item.name }}</span>
+            </li>
+          </ul>
+        </div>
+        <div v-else key="search-data" class="empty">
+          <img class="icon" src="@/framework/assets/img/search-empty.png" alt />
+          <div class="text">无搜索结果</div>
+        </div>
+      </div> -->
+    </div>
+    <a-layout-content class="org-tree-body">
+      <a-tree
+        :expandedKeys="expandedKeys"
+        :selectedKeys="selectedKeys"
+        :tree-data="treeData"
+        @expand="onExpand"
+        @select="onSelect"
+      >
+        <template slot="title" slot-scope="{ title }">
+          <span v-if="title.indexOf(searchValue) > -1">
+            {{ title.substr(0, title.indexOf(searchValue)) }}
+            <span style="color: #f50">{{ searchValue }}</span>
+            {{ title.substr(title.indexOf(searchValue) + searchValue.length) }}
+          </span>
+          <span v-else>{{ title }}</span>
+        </template>
+      </a-tree>
+    </a-layout-content>
+  </a-layout>
+</template>
+<script>
+import { Layout, Input, Spin, Icon, Tree } from "ant-design-vue";
+export default {
+  components: {
+    ALayout: Layout,
+    ALayoutContent: Layout.Content,
+    AInput: Input,
+    ASpin: Spin,
+    AIcon: Icon,
+    ATree: Tree,
+    ATreeNode: Tree.TreeNode,
+    ADirectoryTree: Tree.DirectoryTree
+  },
+  data() {
+    return {
+      treeData: [
+        {
+          key: "0-0",
+          scopedSlots: {title: "title"},
+          title: "编制类",
+          children: [
+            {
+              key: "0-0-0",
+              scopedSlots: {title: "title"},
+              title: "编制和实有人员变化情况",
+              pagetype: 1
+            },
+            {
+              key: "0-0-1",
+              scopedSlots: {title: "title"},
+              title: "编外控制数和实有人员变化情况",
+              pagetype: 2
+            },
+            {
+              key: "0-0-2",
+              scopedSlots: {title: "title"},
+              title: "编制增加(减少)机构情况",
+              pagetype: 3
+            }
+          ]
+        },
+        {
+          key: "0-1",
+          scopedSlots: {title: "title"},
+          title: "职数类",
+          children: [
+            {
+              key: "0-1-0",
+              scopedSlots: {title: "title"},
+              title: "职数增加(减少)机构情况",
+              pagetype: 4
+            }
+          ]
+        },
+        {
+          key: "0-2",
+          scopedSlots: {title: "title"},
+          title: "机构类",
+          children: [
+            {
+              key: "0-2-0",
+              scopedSlots: {title: "title"},
+              title: "机构职责调整情况",
+              pagetype: 5
+            }
+          ]
+        },
+        {
+          key: "0-3",
+          scopedSlots: {title: "title"},
+          title: "业务类",
+          children: [
+            {
+              key: "0-3-0",
+              scopedSlots: {title: "title"},
+              title: "用编计划审批和实际使用情况",
+              pagetype: 8
+            },
+            {
+              key: "0-3-1",
+              scopedSlots: {title: "title"},
+              title: "入编业务办理情况",
+              pagetype: 6
+            },
+            {
+              key: "0-3-2",
+              scopedSlots: {title: "title"},
+              title: "出编业务办理情况",
+              pagetype: 7
+            },
+          ]
+        },
+        // {
+        //   key: "0-4",
+        //   scopedSlots: {title: "title"},
+        //   title: "其他类",
+        //   children: [
+        //     {
+        //       key: "0-4-0",
+        //       scopedSlots: {title: "title"},
+        //       title: "超正常范围的系统数据异动",
+        //     }
+        //   ]
+        // }
+      ],
+      expandedKeys: ['0-0','0-1','0-2','0-3','0-4'],
+      selectedKeys: ['0-0-0'],
+      true: true,
+      searchValue: '',
+      search: {
+        key: null,
+        data: null
+      }
+    };
+  },
+  created() {
+    this.$emit('select', {
+      pagetype: 1,
+      title: '编制和实有人员变化情况'
+    });
+  },
+  mounted() {
+  },
+  updated() {
+
+  },
+  destroyed() {
+
+  },
+  methods: {
+    onExpand(expandedKeys) {
+      this.expandedKeys = expandedKeys;
+    },
+    onSelect(selectedKeys, info) {
+      if (selectedKeys.length > 0) {
+        this.selectedKeys = selectedKeys;
+        let nodeData = info.node.dataRef;
+        this.$emit('select', nodeData);
+      }
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-layout {
+  background: none;
+}
+.org-tree-bar {
+  position: relative;
+  .search-input {
+    margin: 12px 20px 0 20px;
+  }
+  .search-data-panel {
+    position: absolute;
+    z-index: 1000;
+    width: 100%;
+    margin-top: 5px;
+    padding: 10px 0;
+    background-color: white;
+    box-shadow: 0px 4px 8px #e5e5e5;
+    .datalist {
+      min-height: 140px;
+      max-height: 490px;
+      overflow: auto;
+      ul {
+        margin: 0;
+      }
+      li {
+        padding: 2px 20px;
+        line-height: 1.8em;
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        &:hover {
+          background-color: @primary-1;
+        }
+        .icon {
+          margin-right: 2px;
+        }
+        .text {
+          vertical-align: middle;
+        }
+      }
+    }
+    .searching {
+      display: block;
+      text-align: center;
+      line-height: 140px;
+    }
+    .empty {
+      text-align: center;
+      height: 140px;
+      .icon {
+        margin-top: 40px;
+      }
+      .text {
+        line-height: 26px;
+        color: #c5c5c5;
+      }
+    }
+  }
+}
+.org-tree-body {
+  margin: 5px 5px;
+  overflow: auto;
+}
+</style>
+<style lang="less">
+.org-tree-body .ant-tree {
+  margin-left: 12px;
+}
+.org-tree-body .ant-tree li span.ant-tree-iconEle {
+  width: 18px;
+  height: 20px;
+  line-height: 20px;
+  margin-right: 2px;
+}
+.org-tree-body .ant-tree li span.ant-tree-switcher {
+  width: 16px;
+  height: 20px;
+  line-height: 20px;
+}
+</style>

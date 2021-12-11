@@ -1,0 +1,22 @@
+<template>
+  <BusinessMonitor></BusinessMonitor>
+</template>
+
+<script>
+import BusinessMonitor from "./BusinessMonitor";
+import EffectiveAnalyse from "./EffectiveAnalyse";
+import ScreenPane from "./components/ScreenPane";
+export default {
+  components: { BusinessMonitor, EffectiveAnalyse },
+  data() {
+    return {
+      activeCmpt: "BusinessMonitor"
+    };
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+
+</style>

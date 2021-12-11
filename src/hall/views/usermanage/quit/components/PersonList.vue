@@ -1,0 +1,218 @@
+<template>
+  <div class="layout">
+    <div class="content">
+      <div class="top">
+        <div>
+          <template v-if="!isOrg">
+            <span class="title">离岗人数:<span class="num">{{counts.number || 0}}</span></span>
+            <span class="title">离岗次数:<span class="num">{{counts.departTime || 0}}</span></span>
+          </template>
+          <a v-if="isOrg" @click="$emit('finish',{cmpt:'DepartmentList'})">返回上一级</a>
+        </div>
+        <div>
+          <a-month-picker :style="{width:'200px'}" v-model="query.date" @change="dateChange"></a-month-picker>
+          <a-input-search :style="{width:'250px',marginLeft:'10px'}" allowClear placeholder="请输入人员姓名"
+            enter-button v-model="query.searchkey" @search="onSearch">
+          </a-input-search>
+        </div>
+      </div>
+      <div class="middle">
+        <a-table rowKey="id" :loading="loading" :customRow="customRow" :columns="columns" :data-source="dataSource" :pagination="false"></a-table>
+      </div>
+      <div class="bottom">
+        <a-pagination  show-size-changer :total="pagination.total" :page-size="pagination.pagesize"
+          v-model="pagination.pagenum" :show-total="(total) => `共 ${total} 条`"  @change="onChange"
+           @showSizeChange="onShowSizeChange">
+        </a-pagination>
+      </div>
+    </div>
+    <count-info v-if="showModal" v-model="showModal" :user="user"></count-info>
+  </div>
+</template>
+<script>
+import { DatePicker, Input, Table, Pagination, Select } from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+import { showError } from "@/framework/utils/index";
+import CountInfo from "./CountInfo";
+import {quitByUser,quitByOrg} from "@/hall/api/quit";
+import moment from "moment";
+export default {
+  components: {
+    AMonthPicker: DatePicker.MonthPicker,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    APagination: Pagination,
+    AInputSearch: Input.Search,
+    CountInfo
+  },
+  data() {
+    return {
+      showModal: false,
+      loading: true,
+      dataSource: [],
+      counts:{},
+      user:{},
+      query: {
+        searchkey:undefined,
+        date:moment(new Date().toLocaleDateString()).format('YYYY-MM')
+      },
+      pagination: {
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+        needtotal: true
+      }
+    };
+  },
+  props:{
+    nodeid:{
+      required:false
+    },
+    isOrg:{
+      required:false
+    }
+  },
+  computed: {
+    columns() {
+      return [
+        {
+          title: "姓名",
+          dataIndex: "usernme"
+        },
+        {
+          title: "所属组织",
+          dataIndex: "orgname"
+        },
+        {
+          title: "联系电话",
+          dataIndex: "phone"
+        },
+        {
+          title: "离岗次数",
+          dataIndex: "departtime"
+        }
+      ];
+    }
+  },
+  mounted(){
+    this.getDate();
+    this.count();
+  },
+  methods: {
+    count(){
+      let query = {
+        nodeid:null,
+        starttime:this.query.date ?moment(this.query.date).startOf('month').format("YYYY-MM-DD") :undefined,
+        endtime:this.query.date ? moment(this.query.date).endOf('month').format("YYYY-MM-DD") :undefined,
+        ...this.pagination
+      }
+      quitByOrg(query).then(res=>{
+        let {pagenum,pagesize,total,rows} = res.result;
+        this.counts = rows[0];
+      }).catch(err=>{
+        showError(err)
+      })
+    },
+    getDate(){
+      this.loading = true;
+      let query = {
+        searchkey:this.query.searchkey,
+        starttime:this.query.date ? moment(this.query.date).startOf('month').format("YYYY-MM-DD"): undefined ,
+        endtime:this.query.date ? moment(this.query.date).endOf('month').format("YYYY-MM-DD") :undefined,
+        nodeid:this.nodeid,
+        ...this.pagination
+      }
+      quitByUser(query).then(res=>{
+        let {pagesize,pagenum,total,rows} = res.result;
+        assign(this.pagination,{pagesize,pagenum,total});
+        this.dataSource = rows;
+      }).catch(err=>{
+        showError(err)
+      }).finally(()=>{
+        this.loading = false;
+      })
+    },
+    customRow(row, index) {
+      return {
+        on: {
+          click: () => {
+            this.user = {
+              username:row.usernme,
+              userid:row.userid,
+              nodeid:row.nodeid
+            }
+            this.showModal = true;
+          }
+        }
+      };
+    },
+    onSearch() {
+      this.getDate();
+    },
+    dateChange() {
+      assign(this.pagination, { pagenum:1 });
+      this.getDate();
+    },
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.getDate();
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagenum: 1, pagesize });
+      this.getDate();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .content {
+    flex: 1;
+    padding: @content-padding-v 0px;
+    overflow-y: auto;
+    min-height: 0px;
+    background: @white;
+    display: flex;
+    flex-direction: column;
+    border-radius: @border-radius-base;
+    .top {
+      display: flex;
+      padding: @content-padding-v @content-padding-h;
+      justify-content: space-between;
+      &:first-child {
+        display: flex;
+        align-items: center;
+        a{
+          color: @primary-color;
+        }
+        .num{
+          color: @primary-color;
+          padding: 0px @padding-xs;
+        }
+        .title{
+          &:last-child{
+            margin-left: @padding-xs;
+          }
+        }
+      }
+    }
+    .middle {
+      flex-shrink: 1;
+       padding: @content-padding-v @content-padding-h;
+      overflow-y: auto;
+      /deep/ tr {
+        cursor: pointer;
+      }
+    }
+    .bottom {
+      text-align: right;
+       padding: @content-padding-v @content-padding-h;
+    }
+  }
+}
+</style>

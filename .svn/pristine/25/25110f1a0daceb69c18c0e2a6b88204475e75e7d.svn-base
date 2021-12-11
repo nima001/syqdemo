@@ -1,0 +1,168 @@
+<template>
+  <div style="padding: 16px 24px;">
+    <div class="select">
+      <a-input-search style="width: 30%;" placeholder="请输入人员名称" @search="searchKeyworlds" />
+    </div>
+
+    <a-table
+      :columns="columns"
+      :dataSource="data"
+      :pagination="pagin"
+      :customRow="addTemplate"
+    >
+      <a
+        slot="username"
+        slot-scope="username"
+        style="color: rgb(0, 0, 0)"
+        :title="username"
+        >{{ username }}</a
+      >
+
+      <a
+        slot="orgname"
+        slot-scope="orgname"
+        style="color: rgb(0, 0, 0)"
+        :title="orgname"
+        >{{ orgname }}</a
+      >
+
+      <a slot="job" slot-scope="job" style="color: rgb(0, 0, 0)" :title="job">{{
+        job
+      }}</a>
+
+      <a slot="_id" slot-scope="text" @click="detail(text)">编辑</a>
+    </a-table>
+  </div>
+</template>
+<script>
+const columns = [
+  {
+    width: "25%",
+    title: "姓名",
+    dataIndex: "username",
+    key: "username",
+    scopedSlots: { customRender: "username" },
+    align: "center",
+  },
+  {
+    // width: "10%",
+    title: "所属组织",
+    dataIndex: "orgname",
+    key: "orgname",
+    scopedSlots: { customRender: "orgname" },
+    align: "center",
+  },
+  {
+    // width: "10%",
+    title: "职务",
+    dataIndex: "job",
+    key: "job",
+    scopedSlots: { customRender: "job" },
+    align: "center",
+  },
+  {
+    title: "操作",
+    dataIndex: "_id",
+    key: "_id",
+    scopedSlots: { customRender: "_id" },
+    align: "center",
+  },
+];
+import { userquery } from "@/hall/api/roster";
+import { Table, Input } from "ant-design-vue";
+import { showError } from "@framework/utils";
+export default {
+  data() {
+    return {
+      columns,
+      data: [],
+      pagin: {
+        pageSize: 10,
+        total: 10,
+        defaultCurrent: 1,
+        onChange: (current, pageSize) => {
+          this.onClick(current, pageSize);
+        },
+      },
+      searchkey: "",
+    };
+  },
+  components: {
+    ATable: Table,
+    AInputSearch: Input.Search,
+  },
+  watch: {
+    loadData: function () {
+      this.searchkey = "";
+      this.getList();
+    },
+  },
+  created() {
+    this.getList();
+  },
+  props:{
+    loadData: { 
+      type: Object,
+      default: {
+        name: '',
+        id: null
+      }
+    },
+  },
+  methods: {
+    addTemplate(record, index) {
+      return {
+        on: {
+          click: () => {
+            this.detail(record._id);
+          },
+        },
+      };
+    },
+    searchKeyworlds(searchkey) {
+      this.searchkey = searchkey;
+      this.getList();
+    },
+    getList(current = 1) {
+      const data = {
+        needtotal: true,
+        pagenum: current,
+        pagesize: 10,
+        searchkey: this.searchkey,
+        nodeid: this.loadData.node.id,
+      };
+      userquery(data).then((res) => {
+        if (res.code == "success") {
+          this.pagin.pageSize = res.result.pagesize;
+          this.pagin.total = res.result.total;
+          this.pagin.defaultCurrent = res.result.pagenum;
+          let data = res.result.rows;
+          data.forEach(function (x, y) {
+            x.key = y;
+            x.orgname=x.org.name
+          });
+          this.data = data;
+        }
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    //分页
+    onClick(current, pageSize) {
+      this.getList(current);
+    },
+    detail(id) {
+      this.$router.push({ path: "/hall/usermanage/userinfo", query: { userid: id } });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.select {
+    // float: right;
+  display: flex;
+  flex-direction: row-reverse;
+  margin-bottom: 12px;
+  
+}
+</style>

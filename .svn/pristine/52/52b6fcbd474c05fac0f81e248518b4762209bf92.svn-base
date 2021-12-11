@@ -1,0 +1,336 @@
+<template>
+  <div class="Personnel-query">
+    <div class="panel">
+      <div class="toolbar">
+        <a-form class="ant-advanced-search-form" :form="form">
+          <div class="box">
+            <ul class="in-box">
+              <li class="li-content">
+                <div>
+                  <span class="name">姓名:</span>
+                  <a-input
+                    placeholder="请输入姓名"
+                    v-model="searchCondition.name"
+                  />
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">身份证号:</span>
+                  <a-input
+                    placeholder="请输入身份证号"
+                    v-model="searchCondition.idcard"
+                  />
+                </div>
+              </li>
+              <li class="li-content" style="width: 180px">
+                <div>
+                  <span class="name">本人身份:</span>
+                  <a-select
+                    v-model="searchCondition.idtype"
+                    placeholder="请选择身份类型"
+                    @change="idtypeChange"
+                  >
+                    <a-select-option
+                      v-for="(item, index) in idtypeList"
+                      :key="index"
+                      :value="item.value"
+                      >{{ item.text }}</a-select-option
+                    >
+                  </a-select>
+                </div>
+              </li>
+              <li class="li-content" style="width: 180px">
+                <div>
+                  <span class="name">编制所在单位:</span>
+                  <a-select
+                    v-model="searchCondition.company"
+                    placeholder="请选择编制单位"
+                    @change="companyChange"
+                  >
+                    <a-select-option
+                      v-for="(item, index) in companyList"
+                      :key="index"
+                      :value="item.value"
+                      >{{ item.text }}</a-select-option
+                    >
+                  </a-select>
+                </div>
+              </li>
+              <li class="li-button">
+                <div>
+                  <span class="name"></span>
+                  <div>
+                    <a-button
+                      type="primary"
+                      @click="onSearch"
+                      style="margin-right: 10px"
+                      >搜索</a-button
+                    >
+                    <a-button @click="onreset">重置</a-button>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </a-form>
+      </div>
+    </div>
+    <div class="Personnel-main"></div>
+    <div class="Personnel-list">
+      <div class="Personnel-content">
+        <h3 class="Personnel-h3">查询结果:</h3>
+        <div class="list-content">
+          <a-table :columns="columns" :data-source="data"></a-table>
+        </div>
+      </div>
+      <!-- <div class="main-image" v-else>
+        <empty-data :tips="warningtext" />
+      </div> -->
+    </div>
+  </div>
+</template>
+<script>
+import moment from "moment";
+import { showError } from "@/framework/utils/index";
+import EmptyData from "@/framework/components/EmptyData";
+import {
+  Form,
+  Row,
+  Col,
+  Input,
+  Button,
+  Select,
+  Modal,
+  Table,
+} from "ant-design-vue";
+export default {
+  name: "Personnelquery",
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    ARow: Row,
+    ACol: Col,
+    ATable: Table,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AModal: Modal,
+    EmptyData,
+  },
+  data() {
+    return {
+      warningtext: "请选择机构或进行关键字搜索",
+      companyList: [],
+      idtypeList: [],
+      companyvalue: null,
+      idtypevalue: null,
+      form: this.$form.createForm(this, { name: "advanced_search" }),
+      searchCondition: {
+        name: null,
+        idcard: null,
+        idtype: undefined,
+        company: undefined,
+      },
+      columns: [
+        {
+          title: "所在主管单位",
+          dataIndex: "name",
+          key: "name",
+        },
+        {
+          title: "所在单位",
+          dataIndex: "age",
+          key: "age",
+        },
+        {
+          title: "姓名",
+          dataIndex: "address",
+          key: "address",
+        },
+        {
+          title: "身份证",
+          key: "tags",
+          dataIndex: "tags",
+        },
+        {
+          title: "性别",
+          key: "action",
+          dataIndex: "action",
+        },
+        {
+          title: "本人身份",
+          key: "action",
+          dataIndex: "action",
+        },
+        {
+          title: "人员分类",
+          key: "action",
+          dataIndex: "action",
+        },
+        {
+          title: "职务级别",
+          key: "action",
+          dataIndex: "action",
+        },
+        {
+          title: "最高学历",
+          key: "action",
+          dataIndex: "action",
+        },
+      ],
+      data: [
+        {
+          key: "1",
+          name: "John Brown",
+          age: 32,
+          address: "New York No. 1 Lake Park",
+          tags: ["nice", "developer"],
+        },
+        {
+          key: "2",
+          name: "Jim Green",
+          age: 42,
+          address: "London No. 1 Lake Park",
+          tags: ["loser"],
+        },
+        {
+          key: "3",
+          name: "Joe Black",
+          age: 32,
+          address: "Sidney No. 1 Lake Park",
+          tags: ["cool", "teacher"],
+        },
+      ],
+    };
+  },
+  created() {
+    this.dictList();
+  },
+  methods: {
+    dictList() {
+      this.typeList = this.$store.getters.dict("library.doctype");
+    },
+    idtypeChange(value) {
+      this.idtypevalue = value;
+    },
+    companyChange(value) {
+      this.companyvalue = value;
+    },
+    //带参查询
+    onSearch() {},
+    onreset() {
+      this.searchCondition = { input: {} };
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.Personnel-query {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .panel {
+    display: flex;
+    // flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    .toolbar {
+      padding: @layout-space-base;
+      width: 100%;
+      margin: 0 auto;
+      .ant-advanced-search-form {
+        .box {
+          width: 100%;
+          .in-box {
+            margin-bottom: 0;
+            overflow: hidden;
+            // margin: 5px;
+            .li-content {
+              float: left;
+              padding: @layout-space-base;
+            }
+            .li-button {
+              float: left;
+              padding: @layout-space-base;
+            }
+            .name {
+              line-height: 32px;
+              padding-right: 5px;
+              // vertical-align: initial;
+            }
+            .ant-input-group.ant-input-group-compact {
+              display: inline-block;
+              vertical-align: super;
+            }
+            /deep/ .ant-input-group {
+              top: 0.8px;
+            }
+            /deep/.ant-select-selection--multiple {
+              padding-bottom: 0px;
+            }
+            @media screen and(max-width:1410px) {
+              .li-content {
+                width: 33%;
+              }
+            }
+            @media screen and (min-width: 1410px) and(max-width:1750px) {
+              .li-content {
+                width: 25%;
+              }
+            }
+            @media screen and (min-width: 1750px) {
+              .li-content {
+                width: 20%;
+              }
+            }
+          }
+        }
+      }
+      .pzwh {
+        width: auto;
+        border: 1px solid #d9d9d9;
+        border-radius: 4px;
+        &:hover {
+          border-color: @primary-color;
+        }
+        &:focus-within {
+          border-color: @primary-color;
+          box-shadow: 0 0 0 2px fade(@primary-color, 20%);
+        }
+        /deep/.ant-input {
+          border: none;
+          height: 30px;
+        }
+        /deep/.ant-input-group-addon {
+          border: none;
+          background: none;
+        }
+      }
+    }
+  }
+  .Personnel-main {
+    background: #f3f7fa;
+    height: @layout-space-base;
+    width: 100%;
+  }
+  .Personnel-list {
+    flex: 1;
+    padding: 10px 24px;
+    .Personnel-h3 {
+      font-weight: 700;
+      color: #666666;
+    }
+    .main-image {
+      position: relative;
+      top: 40%;
+    }
+    .Personnel-content {
+      .list-content {
+      }
+    }
+  }
+}
+</style>

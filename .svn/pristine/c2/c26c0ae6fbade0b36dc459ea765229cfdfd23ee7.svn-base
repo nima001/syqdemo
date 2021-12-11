@@ -1,0 +1,240 @@
+<template>
+  <div>
+    <a-table :loading="loading" :rowKey="(row,index)=>index" :dataSource="table" :columns="columns"/>
+  </div>
+</template>
+
+<script>
+import { Table } from "ant-design-vue";
+import { showError } from "@framework/utils/index";
+import { map } from 'lodash';
+import { orglinedetail } from "@/person-shaoxing/api/information";
+import { organization } from '@person/api/org';
+import { orgpropertyquery } from '@/person-shaoxing/api/orgStaffReport';
+export default {
+  props: {
+    lineid: Number
+  },
+  components: {
+    ATable: Table,
+  },
+  data() {
+    return {
+        table: [],
+        columns: [],
+        columns_xz: [
+            {
+                title: "机构级别",
+                dataIndex: "politicallevel",
+                key: "politicallevel",
+                width: "5%",
+                customRender: (text, record, index) => `${index + 1}`,
+            },
+            {
+                title: "内设机构数",
+                dataIndex: "_deptcount",
+                key: "_deptcount",
+            },
+            {
+                title: "行政编制数",
+                dataIndex: "_join0.dzqjgxzbz",
+                key: "_join0.dzqjgxzbz",
+            },
+            {
+                title: "行政人员实有数",
+                dataIndex: "_join0.dzqjgxzbz_sy",
+                key: "_join0.dzqjgxzbz_sy",
+            },
+            {
+                title: "后勤编制数",
+                dataIndex: "_join0.gqbz",
+                key: "_join0.gqbz",
+            },
+            {
+                title: "后勤编制实有数",
+                dataIndex: "_join0.gqbz_sy",
+                key: "_join0.gqbz_sy",
+            },
+            {
+                title: "部门领正职",
+                dataIndex: "_join0.bmldzz",
+                key: "_join0.bmldzz",
+            },
+            {
+                title: "部门领正职实有数",
+                dataIndex: "_join0.bmldzz_sy",
+                key: "_join0.bmldzz_sy",
+            },
+            {
+                title: "部门领副职",
+                dataIndex: "_join0.bmldfz",
+                key: "_join0.bmldfz",
+            },
+            {
+                title: "部门领副职实有数",
+                dataIndex: "_join0.bmldfz_sy",
+                key: "_join0.bmldfz_sy",
+            },
+            {
+                title: "内设机构领导职数",
+                dataIndex: "_join0.nsjgldzsgps",
+                key: "_join0.nsjgldzsgps",
+            },
+            {
+                title: "内设机构领导实配数",
+                dataIndex: "_join0.nsjgldzsgps_sy",
+                key: "_join0.nsjgldzsgps_sy",
+            },
+            {
+                title: "编外用工控制数",
+                dataIndex: "_join0.bwkzs",
+                key: "_join0.bwkzs",
+            },
+            {
+                title: "编外用工实有数",
+                dataIndex: "_join0.bwsys",
+                key: "_join0.bwsys",
+            },
+            {
+                title: "内设机构名称",
+                dataIndex: "_deptnames",
+                key: "_deptnames",
+            },
+            {
+                title: "未来2年退休人员预测",
+                dataIndex: "_join0.tx_two_xz",
+                key: "_join0.tx_two_xz",
+            },
+        ],
+        columns_sy: [
+            {
+                title: "机构级别",
+                dataIndex: "politicallevel",
+                key: "politicallevel",
+                width: "5%",
+                customRender: (text, record, index) => `${index + 1}`,
+            },
+            {
+                title: "事业单位分类",
+                dataIndex: "unitsort",
+                key: "unitsort",
+            },
+            {
+                title: "经费形式",
+                dataIndex: "fundform",
+                key: "fundform",
+            },
+            {
+                title: "是否参公",
+                dataIndex: "ifcangong",
+                key: "ifcangong",
+            },
+            {
+                title: "内设机构数",
+                dataIndex: "_deptcount",
+                key: "_deptcount",
+            },
+            {
+                title: "事业编制数",
+                dataIndex: "_id@organization.statistic.bzajfxs",
+                key: "_id@organization.statistic.bzajfxs",
+            },
+            {
+                title: "事业人员实有数",
+                dataIndex: "_id@organization.statistic.bzajfxs_sy",
+                key: "_id@organization.statistic.bzajfxs_sy",
+            },
+            {
+                title: "部门领正职",
+                dataIndex: "_join0.bmldzz",
+                key: "_join0.bmldzz",
+            },
+            {
+                title: "部门领正职实有数",
+                dataIndex: "_join0.bmldzz_sy",
+                key: "_join0.bmldzz_sy",
+            },
+            {
+                title: "部门领副职",
+                dataIndex: "_join0.bmldfz",
+                key: "_join0.bmldfz",
+            },
+            {
+                title: "部门领副职实有数",
+                dataIndex: "_join0.bmldfz_sy",
+                key: "_join0.bmldfz_sy",
+            },
+            {
+                title: "编外用工控制数",
+                dataIndex: "_join0.bwkzs",
+                key: "_join0.bwkzs",
+            },
+            {
+                title: "编外用工实有数",
+                dataIndex: "_join0.bwsys",
+                key: "_join0.bwsys",
+            },
+            {
+                title: "未来2年退休人员预测",
+                dataIndex: "_join0.tx_two_xz",
+                key: "_join0.tx_two_xz",
+            }
+        ],
+        loading: false,
+    };
+  },
+  created(){
+    if(this.lineid){
+      this.loadData(this.lineid);
+    }
+  },
+  methods: {
+    async loadData(lineid){
+      try {
+        this.loading = true;
+        let {result: { orgs }} = await orglinedetail(lineid);
+        let orginfo = await organization(orgs[0].orgid);
+        let orgids = orgs.map((item) => item.orgid);
+        let propertycodes = undefined;
+        if(orginfo.result.unittype==1) {
+          this.columns = this.columns_xz;
+          propertycodes = [
+            'politicallevel','_deptcount',
+            '_id@organization.statistic.dzqjgxzbz', '_id@organization.statistic.dzqjgxzbz_sy', 
+            '_id@organization.statistic.gqbz' , '_id@organization.statistic.gqbz_sy',
+            '_id@organization.statistic.bmldzz', '_id@organization.statistic.bmldzz_sy', 
+            '_id@organization.statistic.bmldfz', '_id@organization.statistic.bmldzz_sy', 
+            '_id@organization.statistic.nsjgldzsgps', '_id@organization.statistic.nsjgldzsgps_sy',
+            '_id@organization.statistic.bwkzs', '_id@organization.statistic.bwsys',
+            '_deptnames', '_id@organization.statistic.tx_two_xz'
+          ];
+        }else if(orginfo.result.unittype==3) {
+          this.columns = this.columns_sy;
+          propertycodes = [
+            'politicallevel','unitsort','fundform','ifcangong',
+            '_deptcount','_id@organization.statistic.bzajfxs','_id@organization.statistic.bzajfxs_sy',
+            '_id@organization.statistic.bmldzz', '_id@organization.statistic.bmldzz_sy', 
+            '_id@organization.statistic.bmldfz', '_id@organization.statistic.bmldzz_sy', 
+            '_id@organization.statistic.bwkzs',
+            '_id@organization.statistic.bwsys','_id@organization.statistic.tx_two_sy'
+          ];
+        }
+        let { result } = await orgpropertyquery({
+          orgids: orgids,
+          propertycodes: propertycodes
+        });
+        this.table = result.rows;
+        map(this.table, (item)=> {
+          if(item['_deptnames']) {
+            item['_deptnames'] = item['_deptnames'].join('，');
+          }
+        });
+        this.loading = false;
+      } catch (error) {
+        showError(error);
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped></style>

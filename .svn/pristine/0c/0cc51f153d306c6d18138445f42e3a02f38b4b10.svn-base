@@ -1,0 +1,133 @@
+<template>
+  <div>
+    <a-table
+      :columns="columns"
+      :customRow="customRow"
+      :dataSource="dataSource"
+      :pagination="false"
+    >
+      <span slot="keyCol" slot-scope="text" style="color: #729fff;">{{text}}</span>
+    </a-table>
+  </div>
+</template>
+<script>
+import { Table } from "ant-design-vue";
+
+/**
+ * 通用的统计表控件
+ */
+export default {
+  components: {
+    ATable: Table,
+  },
+  props: {
+    table: {
+      type: Object,
+      default: () => ({})
+    },
+    warnCols: {//需要提示的列（正数和负数会提示）
+      type: Array
+    },
+  },
+  data(){
+    return {
+    }
+  },
+  computed: {
+    columns(){
+      if(!this.table){
+        return [];
+      }
+      let {keyCols = [], valueCols = []} = this.table;
+      let cols = [], group;
+      valueCols.forEach(item => {
+        let c = {
+          title: item.showname, 
+          align: 'center', 
+          dataIndex: item.column, 
+          key: item.key,
+        }
+        if(this.warnCols && this.warnCols.indexOf(item.key) >= 0){
+          c.customRender = (text) => {
+            if(text > 0){
+              return <span style="color:#299a02">{text}</span>
+            }else if(text < 0){
+              return <span style="color:#d60002">{text}</span>
+            }
+            return text;
+          };
+        }
+        if(item.sort){//存在分组
+          if(group && group.title == item.sort){
+            group.children.push(c);
+          }else{
+            group = { title: item.sort, children: [c] }
+            cols.push(group);
+          }
+        }else{
+          cols.push(c);
+          group = null;
+        }
+      })
+      return [
+         ... keyCols.map(item => ({
+          title: item.showname, 
+          align: 'center', 
+          dataIndex: item.column, 
+          scopedSlots: { customRender: 'keyCol'}
+        })),
+        ... cols
+      ]
+    },
+    // total(){
+    //   let {valueCols, keyCols, rows } = this.table;
+    //   let row = this.sum(rows, valueCols);
+    //   if(this.district){
+    //     let d = this.$store.getters.dictKey('usermanage.org.district', this.district);
+    //     row[keyCols[0].column] = (d ? d.text : '');
+    //   }else{
+    //     row[keyCols[0].column] = "全市";
+    //   }
+    //   return row;
+    // },
+    dataSource(){
+      // return [this.total, ...this.table.rows]
+      return this.table && this.table.rows;
+    }
+  },
+  methods: {
+    customRow(row, index){
+      return {
+        on: {
+          click: (event) => {
+            this.$emit('click', row);
+          },
+        }
+      };
+    },
+    // sum(list, valueCols){//求和
+    //   let sum = {};
+    //   (list || []).forEach(item => {
+    //     valueCols.forEach(col => {
+    //       let key = col.column;
+    //       sum[key] = (sum[key] || 0) + (item[key] || 0);
+    //     })
+    //   });
+    //   return sum;
+    // },
+  }
+}
+</script>
+<style lang="less" scoped>
+/deep/.ant-table-thead {
+  tr:not(:last-child)>th {
+    border-bottom: 1px solid #e8e8e8;
+  }
+  th {
+    border-right: 1px solid #e8e8e8;
+    &:last-child {
+      border-right: none;
+    }
+  }
+}
+</style>

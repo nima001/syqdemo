@@ -1,0 +1,241 @@
+<template>
+  <div class="bar-chart">
+    <h2 v-if="title" :style="{ textAlign: 'center' }">{{ title }}</h2>
+    <div ref="chart"></div>
+  </div>
+</template>
+<script>
+import * as G2 from "@antv/g2";
+import BaseMixin from "./BaseMixin";
+import { get } from 'lodash';
+
+// 柱状图
+/**
+ * color: 自定义主题色 -- Array
+ * annotation: 是否显示标注 -- Boolean
+ * background: 是否显示背景色 -- Boolean
+ * size: 柱状图宽度 -- Number
+ * padding: 自定义边距 --Array
+ * legend: 是否显示图例 -- Boolean 默认不显示
+ * label: 是否显示label -- Boolean 默认显示
+ */
+export default {
+  icon: "chart-bar",
+  title: "柱状图",
+  name: "BarChart",
+  mixins: [BaseMixin],
+  watch: {
+    data: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true,
+    },
+  },
+  data() {
+    return {
+      plot: undefined,
+    };
+  },
+  computed: {
+    colors() {
+      if (this.settings.color) {
+        if(typeof this.settings.color==='string') {
+          return this.settings.color.split(',');
+        }
+        return this.settings.color;
+      } else {
+        let colors = this.$store.getters.getConfig("chart.colors");
+        if (colors) {
+          try {
+            colors = JSON.parse(colors);
+            if (colors && colors.length) {
+              return colors;
+            }
+          } catch (err) {}
+        }
+      }
+      return ["#D15456", "#5488D1", "#EDBA55", "#D48265", "#91C7AE", "#749F83", "#BDA29A", "#6E7074", "#585470", "#706254"];
+    },
+    muitl(){
+      if(this.data){
+        let { keyCols, valueCols, rows } = this.data;
+        return valueCols.length > 1 || keyCols.length > 1;
+      }
+    }
+  },
+  mounted() {
+    this.draw(this.data);
+  },
+  methods: {
+    createData(dataTable) {
+      if (!dataTable) {
+        return;
+      }
+      let { keyCols, valueCols, rows } = this.transform(dataTable);
+      return rows.map(item => {
+        let key, type;
+        if(keyCols.length > 1){
+          let keys = keyCols.map(k => item[k.column]);
+          type = keys.pop();
+          key = keys.join("-")
+        }else{
+          key = item[keyCols[0].column]
+        }
+        return {
+          key, type,
+          value: item[valueCols[0].column] || 0
+        };
+      });
+    },
+    draw(dataTable) {
+      let data = this.createData(dataTable);
+      if (!data) {
+        return false;
+      }
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      const chart = new G2.Chart({
+        container: this.$refs.chart,
+        autoFit: true,
+        appendPadding: this.settings.padding || [20, 0, 0, 0],
+      });
+      chart.data(data);
+      let xTitle = get(this.settings, 'xAxis.title');
+      let yTitle = get(this.settings, 'yAxis.title');
+      //度量
+      chart.axis("key", {
+        title: xTitle?{ 
+                style: {
+                  fill: '#AAAAAA'
+                }
+               }:null,
+        // label: {
+        //   autoHide: false, //新增配置label不隐藏
+        // },
+      });
+      chart.axis("value", {
+        title: yTitle?{ 
+                style: {
+                  fill: '#AAAAAA'
+                }
+               }:null,
+      });
+      //坐标轴
+      chart.scale({// X轴,Y轴标题别名
+        key: {
+          alias: xTitle,
+        },
+        value: {
+          alias: yTitle,
+          nice: true,
+        },
+      });
+      //图形
+      let geometry;
+      if (this.settings.background) {
+        let color = this.colorRgba(this.colors[0], "20%");
+        geometry = chart.interval({
+          background: {
+            style: {
+              fill: color,
+            },
+          },
+        });
+      } else {
+        geometry = chart.interval();
+      }
+      geometry.position("key*value")
+      if (this.settings.size) {//配置柱子宽度
+        geometry.size(this.settings.size);
+      }
+      //是否显示lebal
+      if(this.settings.label) {
+        geometry.label("value");
+      }else{
+        geometry.label(false);//FIXME 值太多默认不显示
+      }
+      if (this.muitl) {//分组柱状图
+        geometry.adjust([
+          { type: "dodge", marginRatio: 0 },
+        ]).color("type", this.colors);
+      }else{
+        geometry.color('key', (val) => {
+          return this.colors[0]
+        });
+        // geometry.color(this.colors[0]);
+      }
+      //图例
+      if(!this.settings.legend) {
+        chart.legend(false);
+      }
+      // 提示
+      chart.tooltip({
+        showTitle: this.muitl,
+        showMarkers: false,
+        shared: true,
+      });
+      //标注
+      if (this.settings.annotation) {
+        data.forEach((item) => {
+          chart.annotation().text({
+            position: [item.key, "max"],
+            content: item.value,
+            style: {
+              fill: this.colors[0],
+              textAlign: "center",
+            },
+            offsetY: -20,
+          });
+        });
+      }
+      //交互
+      if (!this.settings.annotation) {
+        chart.interaction("active-region");
+      }
+      
+      chart.render();
+      this.plot = chart;
+    },
+    colorRgba(sHex, alpha) {
+      // 十六进制颜色值的正则表达式
+      var reg = /^#([0-9a-fA-f]{3}|[0-9a-fA-f]{6})$/;
+      /* 16进制颜色转为RGB格式 */
+      let sColor = sHex;
+      if (sColor && reg.test(sColor)) {
+        if (sColor.length === 4) {
+          var sColorNew = "#";
+          for (let i = 1; i < 4; i += 1) {
+            sColorNew += sColor.slice(i, i + 1).concat(sColor.slice(i, i + 1));
+          }
+          sColor = sColorNew;
+        }
+        // 处理六位的颜色值
+        var sColorChange = [];
+        for (let i = 1; i < 7; i += 2) {
+          sColorChange.push(parseInt("0x" + sColor.slice(i, i + 2)));
+        }
+        // return sColorChange.join(',')
+        return "rgba(" + sColorChange.join(",") + "," + alpha + ")";
+      } else {
+        return sColor;
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.bar-chart {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

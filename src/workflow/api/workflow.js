@@ -1,0 +1,488 @@
+import request from '@/framework/utils/request'
+import { uiConfigsCookies } from '@/framework/utils/auth'
+import axios from 'axios'
+
+// 页面配置信息
+export function formcfg(data) {
+    return request({
+        url: '/workflow/v1/formcfg',
+        method: 'get',
+        params: data,
+        timeout:15000
+    })
+}
+
+// 表单数据信息
+export function formdata(data) {
+    return request({
+        url: '/workflow/v1/formdata',
+        method: 'get',
+        params: data
+    })
+}
+
+// 获取流程页面
+export function formurl(url) {
+    return request({
+        url: '/workflow/v1/formurl?'+url,
+        method: 'get',
+    })
+}
+
+// 签收
+export function claim(data) {
+    return request({
+        url: '/workflow/v1/claim',
+        method: 'get',
+        params: data
+    })
+}
+
+// 取消签收
+export function unclaim(data) {
+    return request({
+        url: '/workflow/v1/unclaim',
+        method: 'get',
+        params: data
+    })
+}
+
+// 提交
+export function complete(data) {
+    return request({
+        url: '/workflow/v1/complete',
+        method: 'post',
+        data,
+        timeout:15000
+    })
+}
+//异步提交（部分流程方法处理过慢）
+export function completeAsync(data){
+    return request({
+        url: '/workflow/v1/asynccomplete',
+        method: 'post',
+        data,
+        timeout: 15000
+    })
+}
+
+// 退回
+export function back(data) {
+    return request({
+        url: '/workflow/v1/back',
+        method: 'post',
+        data
+    })
+}
+
+// 暂存
+export function flowtempsave(data) {
+    return request({
+        url: '/workflow/v1/tempsave',
+        method: 'post',
+        data
+    })
+}
+//异步暂存（部分流程方法处理过慢）
+export function tempsaveAsync(data){
+    return request({
+        url: '/workflow/v1/asynctempsave',
+        method: 'post',
+        data,
+        timeout: 15000
+    })
+}
+
+/**
+ * 组装流程节点表单字段 ,取并集
+*/
+export function unionFields(nodeFormVos) {
+    let target = {};
+    for (let m = 0; m < nodeFormVos.length; m++) {
+        let fields = JSON.parse(nodeFormVos[m].fields);
+        for (let n = 0; n < fields.length; n++) {
+            let obj = { [fields[n].code]: '' };
+            Object.assign(target, obj)
+        }
+    }
+    return target;
+}
+
+/** 
+ * 对象b的属性值 赋值给a的属性 {a:'',b:''} 
+*/
+export function assignment(a, b) {
+    var a_keys = Object.keys(JSON.parse(JSON.stringify(a)));
+    var b_keys = Object.keys(JSON.parse(JSON.stringify(b)));
+    for (let i = 0; i < a_keys.length; i++) {
+        var a_key = a_keys[i];
+        for (let j = 0; j < b_keys.length; j++) {
+            var b_key = b_keys[j];
+            if (a_key == b_key) {
+                a[a_key] = b[b_key];
+            }
+        }
+    }
+    return a;
+}
+
+/*** 
+ * 判断对象 属性是否为空
+*/
+export function checkObjNull(obj) {
+    let flag = {
+        type: true,
+        code: null
+    }
+    var arr = Object.keys(obj);
+    for (let i = 0; i < arr.length; i++) {
+        if (obj[arr[i]] == '' && obj[arr[i]] != 0) {
+            flag.type = false;
+            flag.code = arr[i];
+            break;
+        }
+    }
+    return flag;
+}
+
+// 获取流程常量字典列表
+export function getListdict(group) {
+    const data = {
+        group
+    }
+    return request({
+        url: '/workflow/constant/listdict',
+        method: 'get',
+        params: data
+    })
+}
+
+// 上传图片
+export function uploadImg(imgFile) {
+    let uiConfigs = uiConfigsCookies();
+    return new Promise((resolve, reject) => {
+        let formdata = new FormData()
+        formdata.append("file", imgFile)
+        let config = {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        }
+        let url = uiConfigs['api.url'] + '/file/v1/upload';
+        axios.post(url, formdata, config).then(res => {
+            let data = res.data; 
+            if (data.code == "success") {
+                resolve(data)
+            } else {
+                reject(data)
+            }
+        }).catch(error => {
+            reject(error)
+        })
+    })
+}
+
+//获取上传后文件的名称
+export function getFileName(id) {
+    let uiConfigs = uiConfigsCookies();
+    return request({
+        url: uiConfigs['idm.url'] + "/sys/file/getnames",
+        method: 'get',
+        params: {
+            ids: id
+        }
+    })
+}
+
+//拿到pdf文件id
+export function getPdfId(param) {
+    return request({
+        url: "/workflow/v1/previewpdf",
+        method: 'post',
+        dataType: 'json',
+        data: param,
+        timeout:15000
+    })
+}
+
+//业务审批 - 待办列表
+export function listtasks(query) {
+    let data = query;
+    data.needtotal = true;
+    return request({
+        url: '/workflow/v1/listtasks',
+        method: 'post',
+        dataType: 'json',
+        data
+    })
+}
+
+//业务审批 - 用户流程列表
+export function listdelete(id) {
+    return request({
+        url: '/workflow/v1/delete/' + id,
+        method: 'get'
+    })
+}
+
+//获取组织用户信息
+export function getUserInfo(orgUserVo) {
+    let data = orgUserVo;
+    return request({
+        url: '/workflow/v2/choicemethod',
+        method: 'post',
+        data
+    })
+}
+
+//审批记录列表
+export function getApprovalRecords(businessinstanceid) {
+    return request({
+        url: '/workflow/v1/approvalrecords',
+        method: 'get',
+        params: {
+            businessinstanceid
+        }
+    })
+}
+
+//获取流程所有生成的pdf和附件上传内容
+export function getMaterial(businessinstanceid) {
+    return request({
+        url: '/workflow/v1/material/listmaterial',
+        method: 'get',
+        params: {
+            businessinstanceid
+        }
+    })
+}
+
+//获取退回原因
+export function getBackReason(businessInstanceId,taskId) {
+    return request({
+        url: '/workflow/v1/getbackreason',
+        method: 'get',
+        params: {
+            businessInstanceId,
+            taskId
+        }
+    })
+}
+
+//根据登录用户，获取待办流程信息(编办个性化)
+export function getListProcessV2() {
+    return request({
+        url: '/workflow/v2/listprocess',
+        method: 'get',
+    })
+}
+
+//获取地区
+export function getRegion(data) {
+    return request({
+        url: '/workflow/v1/listdistrict',
+        method: 'post',
+        dataType: 'json',
+        data 
+    })
+}
+
+//批量获取流程模板名字
+export function getTemplates(ids) {
+    return request({
+        url: '/workflow/v1/modelinstance/listbyids?ids='+ids,
+        method: 'get'
+    })
+}
+
+//获取字典项
+export function getListconstantbydictkey(dictkey) {
+    const data = {
+        dictkey
+    }
+    return request({
+        url: '/workflow/constant/listconstantbydictkey',
+        method: 'get',
+        params: data
+    })
+}
+
+//批量获取字典项
+export function getListconstantbydictkeys(dictkeys) {
+    return request({
+        url: '/workflow/constant/listconstantbydictkeys',
+        method: 'get',
+        params:{dictkeys}
+    })
+}
+//接口认证策略列表
+export function listApiAuthStrategy() {
+    return request({
+        url: '/workflow/v1/apiauthstrategy/list',
+        method: 'get'
+    })
+}
+
+
+//获取角色列表
+export function getrolesList(query) {
+    return request({
+        url: '/workflow/v1/role/list',
+        method: 'post',
+        dataType: 'json',
+        data:query 
+    })
+}
+
+//批量获取角色
+export function getListroles(ids) {
+    return request({
+        url: '/workflow/v1/role/listroles?ids='+ids,
+        method: 'get'
+    })
+}
+
+//批量审批
+export function batchComplete(batchComplete) {
+    return request({
+        url: '/workflow/v1/batchcomplete',
+        method: 'post',
+        dataType: 'json',
+        data:batchComplete  
+    })
+}
+
+//批量签收
+export function claims(query) {
+    return request({
+        url: '/workflow/v1/claims',
+        method: 'post',
+        dataType: 'json',
+        data:query  
+    })
+}
+
+//批量取消签收
+export function unclaims(query) {
+    return request({
+        url: '/workflow/v1/unclaims',
+        method: 'post',
+        dataType: 'json',
+        data:query  
+    })
+}
+
+//短信验证码
+export function getMobileVerify( mobilePhone ) {
+    return request({
+        url: '/workflow/v1/mobileverify',
+        method: 'get',
+        params:{
+            mobilePhone
+        }
+    })
+}
+
+//新增工作流接口
+export function addWorkflowApi(workflowApi ) {
+    return request({
+        url: '/workflow/v2/workflowapi/add',
+        method: 'post',
+        dataType: 'json',
+        data:workflowApi   
+    })
+}
+
+//删除工作流接口
+export function delWorkflowApi(id) {
+    return request({
+        url: '/workflow/v2/workflowapi/delete/' + id,
+        method: 'get'
+    })
+}
+
+//获取单条工作流接口数据
+export function getSingleWorkflowApi(id) {
+    return request({
+        url: '/workflow/v2/workflowapi/get/'+id,
+        method: 'get'
+    })
+}
+
+//获取工作流接口全部列表
+export function getWorkflowApiList(modelPageQuery ) {
+    return request({
+        url: '/workflow/v2/workflowapi/list',
+        method: 'post',
+        dataType: 'json',
+        data:modelPageQuery   
+    })
+}
+
+//编辑工作流接口
+export function updateWorkflowApi(workflowApi ) {
+    return request({
+        url: '/workflow/v2/workflowapi/update',
+        method: 'post',
+        dataType: 'json',
+        data:workflowApi   
+    })
+}
+
+//删除接口前，提示有无关联流程
+export function workflowApiDeltips(id) {
+    return request({
+        url: '/workflow/v2/workflowapi/deltips/'+id,
+        method: 'get'
+    })
+}
+
+/*根据指定类型，如果筛选类型为空，默认筛选全类型组件，
+获取组件集合（原组件类型）,多种类型之间用逗号隔开,
+addChild:是否将自定义审批意见的时间加到子集合中，默认不加*/
+export function getComponent( query ) {
+    return request({
+        url: '/workflow/v1/getcomponent',
+        method: 'get',
+        params:query
+    })
+}
+
+/*根据指定类型，如果筛选类型为空，默认筛选全类型组件，
+获取组件集合（TreeBox类型）,多种类型之间用逗号隔开,
+addChild:是否将自定义审批意见的时间加到子集合中，默认不加*/
+export function getComponentTree( query ) {
+    return request({
+        url: '/workflow/v1/getcomponenttree',
+        method: 'get',
+        params:query
+    })
+}
+
+//获取流程表单组件信息(树结构)
+export function getRelateComponents(query) {
+    return request({
+        url: '/workflow/v1/componenttree',
+        method: 'get',
+        params:query
+    })
+}
+
+export function getQueryFormInfo(query) {
+    return request({
+        url: '/workflow/v1/material/initforminfo',
+        method: 'get',
+        params:query
+    })
+}
+
+//根据节点id获取流程审批记录
+export function getApprovalRecord(businessinstanceid) {
+    return request({
+        url: '/workflow/v1/approvalrecord',
+        method: 'get',
+        params:{
+            businessinstanceid
+        }
+    })
+}

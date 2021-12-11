@@ -1,0 +1,130 @@
+<template>
+  <div class="org-info">
+    <div class="main-form">
+      <a-spin :spinning="loading" :class="{'loading':loading}">
+        <form-display :formConfig="formConfig" :formLayout='formLayout' :formData="formData" :showAnchor='false' :editor="editor" ref="formDisplay" v-if="show">
+          <org-distr slot="orgDistr" slot-scope="props" v-bind="props"/>
+        </form-display>
+      </a-spin>
+    </div>
+  </div>
+</template>
+<script>
+import FormDisplay from "@/formdesign/views/FormDisplay";
+import { showError } from "@/framework/utils/index";
+import { organization, getEditableProps } from "@/person/api/org";
+import { modelForm } from "@/person/api/user";
+import cloneDeep from "lodash/cloneDeep";
+import OrgDistr from './OrgDistr';
+import data from './data';
+import {Spin} from 'ant-design-vue'; 
+export default {
+  components: {
+    FormDisplay,
+    OrgDistr,
+    ASpin:Spin
+  },
+  props: {
+    org: {
+      type: Object
+    }
+  },
+  data() {
+    return {
+      loading: false,
+      // 表单配置
+      formConfig: [],
+      // 表单初始化数据
+      formData: cloneDeep(this.org),
+      // 表单可编辑
+      editor: true,
+      // 表单布局
+      formLayout: 'vertical'
+    };
+  },
+  computed:{
+    show(){
+      return this.formConfig.length ==0 ? false:true;
+    }
+  },  
+  watch: {
+    org: {
+      handler(v) {
+        this.formData = v;
+        this.renderForm()
+      },
+      deep: true
+    }
+  },
+  created() {
+    // this.formConfig = data.list;
+    // this.formLayout = data['formLayout']
+    this.renderForm();
+  },
+  methods: {
+    /** 
+     * fn1  : 获取表单数据
+     * Fn2  : 获取可编辑的字段
+    */
+    renderForm(){
+      this.loading = true;
+      if(!this.org._id){
+        this.loading = false;
+        return false;
+      }
+      Promise.all([modelForm("organization", this.org._id),getEditableProps('organization')]).then(res=>{
+        if(res[0]['code'] == "success" && res[1]['code'] == "success"){
+          let resultZero = JSON.parse(res[0]['result'])
+          let configArr = resultZero.list;
+          this.formLayout = resultZero['formLayout']
+          let editCode = res[1]['result'];
+          this.formatData(configArr,editCode);
+          this.formConfig = configArr;
+          this.loading = false;
+        }
+      }).catch(err=>{
+        this.formConfig = []
+        showError(err)
+      }).finally(()=>{
+        this.loading = false;
+      });
+    },  
+    // 判断表单字段是否可编辑
+    formatData(formConfig,codeArr){
+      (formConfig || []).forEach(c=>{
+        if(c.children){
+          c.children.forEach(ele => this.formatData(ele.components,codeArr))
+        }else{
+          let disabled = c.disabled;
+          let unittype = this.org['unittype'];
+          if((unittype >= 1 && unittype <= 5) || (unittype >= 20 && unittype <= 21)){
+            if(codeArr.includes(c.code)){
+              c.disabled = false;
+            }
+          }
+        }
+      })
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.org-info {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .main-form {
+    flex: 1 1 100%;
+    min-height: 0;
+    margin: @content-padding-v 0;
+    /deep/.ant-spin-nested-loading , .loading{
+      display: block;
+      margin: 0 auto;
+      height: 100%;
+      .ant-spin-container{
+        height: 100%;
+      }
+    }
+  }
+}
+</style>

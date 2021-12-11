@@ -1,0 +1,315 @@
+<template>
+  <div class="workflow">
+    <a-form-item :label="property.showName?property.name:''" @blur.native.capture="onblur">
+      <a-date-picker
+        :style="property.showName?'':'margin-top:29px;'"
+        v-if="property.format=='YYYY-MM-DD' || property.format=='YYYY-MM-DD HH:mm:ss' || !property.format"
+        :disabledDate="disabledRange"
+        :showTime="property.format=='YYYY-MM-DD HH:mm:ss'?true:false"
+        :format="property.format?property.format:'YYYY-MM-DD'"
+        :placeholder="property.placehold"
+        :getCalendarContainer="triggerNode => triggerNode.parentNode"
+        @change="changeHandler"
+        style="width:100%;"
+        :disabled="property.editable?false:true"
+        v-decorator="[
+          `${property.code}`,
+          {
+            rules: [{required: property.require, message: `请输入${property.name}!`}],
+            initialValue:date
+          }
+        ]"
+      ></a-date-picker>
+      <a-month-picker
+        :style="property.showName?'':'margin-top:29px;'"
+        v-if="property.format=='YYYY-MM'"
+        :disabledDate="disabledRange"
+        :placeholder="property.placehold"
+        :getCalendarContainer="triggerNode => triggerNode.parentNode"
+        @change="changeHandler"
+        style="width:100%;"
+        :disabled="property.editable?false:true"
+        v-decorator="[
+          `${property.code}`,
+          {
+            rules: [{required: property.require, message: `请输入${property.name}!`}],
+            initialValue:date
+          }
+        ]"
+      ></a-month-picker>
+    </a-form-item>
+    <stamp
+      :property="property"
+      @imgUrl="getStamp"
+      v-if="property.signcomponent.signcode && property.signcomponent.editable"
+    ></stamp>
+    <a-form-item class="stampNotice" v-if="!imgUrl && property.signcomponent.signcode">
+      <a-input
+        type="hidden"
+        v-decorator="[
+          `${property.signcomponent.code}`,
+          {
+            rules: [{required: property.signcomponent.require, message: `请选择签章!`}],
+            initialValue: stamp
+          }
+        ]"
+      ></a-input>
+    </a-form-item>
+    <div class="seal" v-if="imgUrl">
+      <img :src="imgUrl" />
+    </div>
+  </div>
+</template>
+<script>
+import Stamp from "./stampComponent/Stamp";
+import { getStampInfo } from "@/workflow/api/stamplist";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import moment from "moment";
+import "@/workflow/style/workflow.css";
+import { Form, DatePicker, Input } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: "DateBox",
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      code: this.property["code"],
+      formData: this.$store.getters.formData,
+      date: {},
+      imgUrl: null,
+      stamp: null
+    };
+  },
+  props: {
+    property: {
+      type: Object,
+      required: true
+    },
+    bindform: {
+      type: Object,
+      required: true
+    },
+    relateControls: {
+      type: Array
+    }
+  },
+  components: {
+    AFormItem: Form.Item,
+    ADatePicker: DatePicker,
+    AMonthPicker: DatePicker.MonthPicker,
+    AInput: Input,
+    Stamp
+  },
+  computed: {
+    data() {
+      return this.$store.getters.formData[this.property.code];
+    }
+  },
+  watch: {
+    data(newVal) {
+      this.date = this.data
+        ? moment(this.data, this.property.format)
+        : undefined;
+    }
+  },
+  created() {
+    this.date = undefined;
+    if (this.formData[this.code]) {
+      this.date = moment(this.formData[this.code], this.property.format);
+      this.relateControl(this.date);
+    } else {
+      if (!this.property.require) {
+        this.formData[this.code] = null;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.formData
+        });
+      } else {
+        let defaultType = this.property.defaultType;
+        if (defaultType == 2) {
+          this.date = this.moment();
+          this.formData[this.code] = moment().format(this.property.format);
+          this.$store.commit({
+            type: "SET_FORM_DATA",
+            data: this.formData
+          });
+          this.relateControl(this.date);
+        } else if (defaultType == 3) {
+          this.date = moment(
+            this.property.defaultContent,
+            this.property.format
+          );
+          this.formData[this.code] = moment(this.date).format(
+            this.property.format
+          );
+          this.$store.commit({
+            type: "SET_FORM_DATA",
+            data: this.formData
+          });
+          this.relateControl(this.date);
+        } else {
+          this.date = undefined;
+        }
+      }
+    }
+    if (this.formData[this.property.signcomponent.code]) {
+      //获取签章图片
+      getStampInfo(this.formData[this.property.signcomponent.code])
+        .then(res => {
+          if (res.code == "success") {
+            this.imgUrl =
+              this.uiConfigs["api.url"] +
+              "/file/v1/download" +
+              "?uri=" +
+              encodeURIComponent(res.result.pictureurl);
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  },
+  methods: {
+    changeHandler(date, dateString) {
+      this.$store.getters.formData[this.code] = dateString;
+      this.$store.commit({
+        type: "SET_FORM_DATA",
+        data: this.$store.getters.formData
+      });
+      this.relateControl(dateString);
+    },
+    onblur(){
+      this.$emit("fillData",this.code);
+    },
+    //关联控件变化
+    relateControl(e) {
+      let formData = {};
+      let flag = false;
+      this.relateControls.forEach(item => {
+        if (item.relate == this.code && e) {
+          flag = true;
+          if (item.type == "plus") {
+            if (item.date == "days") {
+              if (item.pcode) {
+                if (this.$store.getters.formData[item.pcode]) {
+                  this.$set(
+                    this.$store.getters.formData[item.pcode],
+                    item.code,
+                    moment(e)
+                      .add(item.num, "days")
+                      .format(this.property.format)
+                  );
+                } else {
+                  let obj = {};
+                  obj[item.code] = moment(e)
+                    .add(item.num, "days")
+                    .format(this.property.format);
+                  this.$store.getters.formData[item.pcode] = obj;
+                }
+              } else {
+                this.$store.getters.formData[item.code] = moment(e)
+                  .add(item.num, "days")
+                  .format(this.property.format);
+              }
+            } else {
+              if (item.pcode) {
+                if (this.$store.getters.formData[item.pcode]) {
+                  this.$set(
+                    this.$store.getters.formData[item.pcode],
+                    item.code,
+                    moment(e)
+                      .add(item.num, "months")
+                      .format(this.property.format)
+                  );
+                } else {
+                  let obj = {};
+                  obj[item.code] = moment(e)
+                    .add(item.num, "months")
+                    .format(this.property.format);
+                  this.$store.getters.formData[item.pcode] = obj;
+                }
+              } else {
+                this.$store.getters.formData[item.code] = moment(e)
+                  .add(item.num, "months")
+                  .format(this.property.format);
+              }
+            }
+          } else {
+            if (item.date == "days") {
+              if (item.pcode) {
+                if (this.$store.getters.formData[item.pcode]) {
+                  this.$set(
+                    this.$store.getters.formData[item.pcode],
+                    item.code,
+                    moment(e)
+                      .subtract(item.num, "days")
+                      .format(this.property.format)
+                  );
+                } else {
+                  let obj = {};
+                  obj[item.code] = moment(e)
+                    .subtract(item.num, "days")
+                    .format(this.property.format);
+                  this.$store.getters.formData[item.pcode] = obj;
+                }
+              } else {
+                this.$store.getters.formData[item.code] = moment(e)
+                  .subtract(item.num, "days")
+                  .format(this.property.format);
+              }
+            } else {
+              if (item.pcode) {
+                if (this.$store.getters.formData[item.pcode]) {
+                  this.$set(
+                    this.$store.getters.formData[item.pcode],
+                    item.code,
+                    moment(e)
+                      .subtract(item.num, "months")
+                      .format(this.property.format)
+                  );
+                } else {
+                  let obj = {};
+                  obj[item.code] = moment(e)
+                    .subtract(item.num, "months")
+                    .format(this.property.format);
+                  this.$store.getters.formData[item.pcode] = obj;
+                }
+              } else {
+                this.$store.getters.formData[item.code] = moment(e)
+                  .subtract(item.num, "months")
+                  .format(this.property.format);
+              }
+            }
+          }
+        }
+      });
+      if (flag) {
+        this.bindform.resetFields();
+        formData = Object.assign({}, this.$store.getters.formData);
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: formData
+        });
+      }
+    },
+    //时间范围限制
+    disabledRange(val) {
+      if (this.property.range) {
+        let start = moment(this.property.range[0], this.property.format);
+        let end = moment(this.property.range[1], this.property.format);
+        return (
+          val.valueOf() >= end.valueOf() || val.valueOf() <= start.valueOf()
+        );
+      }
+    },
+    moment,
+    //获取签章
+    getStamp(img) {
+      if (img) {
+        this.imgUrl = img;
+        this.stamp = img;
+      }
+    }
+  }
+};
+</script>

@@ -1,0 +1,199 @@
+<template>
+  <div class="form-panel">
+    <div class="top">
+      <div class="left">
+        <div class="title">近五年预计退休人数预测</div>
+        <div class="chart" id="retireChart"></div>
+      </div>
+      <div class="center">
+        <div class="center_con">
+          <div class="tip">未及时办理退休</div>
+          <div class="num">
+            <span>3</span>
+            <span>人</span>
+          </div>
+        </div>
+      </div>
+      <div class="right">
+        <div class="title">未按时退休人数</div>
+        <div class="bottom_table">
+          <a-table
+            :columns="columns"
+            :dataSource="dataSource"
+            :pagination="false"
+            >
+          </a-table>
+        </div>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="title">序列退休人员分布明细表</div>
+      <div class="bottom_table">
+        <a-table
+          :columns="columns"
+          :dataSource="dataSource"
+          :pagination="false"
+          >
+        </a-table>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Table } from "ant-design-vue";
+import { orgOverRetireReport } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '@framework/utils'
+import { Chart } from '@antv/g2';
+
+/**
+ * 退休人数监测
+ */
+export default {
+  components: {
+    ATable: Table,
+  },
+  props: {
+    district: {
+      type: String,
+    }
+  },
+  data(){
+    return {
+      data: undefined,
+      columns: [
+        { title: 'Age', dataIndex: 'age', key: 'age', },
+        { title: 'Name', dataIndex: 'name', key: 'name', },
+      ],
+      dataSource: [
+        { key: '1', name: 'John Brown', age: 32, },
+        { key: '2', name: 'John Brown', age: 32, },
+        { key: '3', name: 'John Brown', age: 32, },
+        { key: '4', name: 'John Brown', age: 32, },
+        { key: '5', name: 'John Brown', age: 32, },
+        { key: '6', name: 'John Brown', age: 32, },
+        { key: '7', name: 'John Brown', age: 32, },
+      ]
+    }
+  },
+  computed: {},
+  watch: {
+  },
+  created(){
+    this.loadData(this.district);
+  },
+  mounted() {
+    this.initChart();
+  },
+  methods: {
+    loadData(district) {
+      orgOverRetireReport(district)
+      .then(res => {
+        console.log(res);
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    initChart() {
+      const data = [
+        { year: '1991', value: 15468 },
+        { year: '1992', value: 16100 },
+        { year: '1993', value: 15900 },
+        { year: '1994', value: 17409 },
+        { year: '1995', value: 17000 },
+        { year: '1996', value: 31056 },
+        { year: '1997', value: 31982 },
+        { year: '1998', value: 32040 },
+        { year: '1999', value: 33233 },
+      ];
+      const chart = new Chart({
+        container: 'retireChart',
+        autoFit: true,
+        height: 270,
+      });
+
+      chart.data(data);
+      chart.scale({
+        value: {
+          min: 10000,
+          nice: true,
+        },
+        year: {
+          range: [0, 1],
+        },
+      });
+      chart.tooltip({
+        showCrosshairs: true,
+        shared: true,
+      });
+
+      chart.axis('value', {
+        label: {
+          formatter: (val) => {
+            return (+val / 10000).toFixed(1) + 'k';
+          },
+        },
+      });
+
+      chart.area().position('year*value');
+      chart.line().position('year*value');
+
+      chart.render();
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  .top{
+    display: flex;
+    padding-bottom: @padding-lg;
+    justify-content: space-between;
+    > div{
+      .title{
+        font-weight: bold;
+        line-height: 30px;
+        margin-bottom: 20px;
+      }
+    }
+    .left{
+      width: 550px;
+    }
+    .center{
+      width: 176px;
+      .center_con{
+        margin-top: 51px;
+        height: 267px;
+        background-image: url('../../../assets/img/report_retire.png');
+        background-size: cover;
+        border-radius: 5px;
+        color: #fff;
+        .tip{
+          text-align: center;
+          font-size: 20px;
+          line-height: 72px;
+        }
+        .num{
+          text-indent: 2em;
+          span{
+            &:nth-child(1){
+              font-size: 40px;
+            }
+          }
+        }
+      }
+    }
+    .right{
+      width: 580px;
+    }
+  }
+  .bottom{
+    margin-top: @padding-lg;
+    .title{
+      font-weight: bold;
+      line-height: 30px;
+      margin-bottom: 10px;
+    }
+  }
+}
+</style>

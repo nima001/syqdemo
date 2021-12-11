@@ -1,0 +1,83 @@
+<template>
+  <div>
+    <a-form-item
+      label="条线选择"
+      :required="false" 
+      :label-col="itemLayout.labelCol" 
+      :wrapper-col="itemLayout.wrapperCol"
+      >
+      <a-select 
+        class="queryitem" 
+        @change="onOrglineChange"
+        :value="propValue"
+        style="width: 100%"
+        >
+        <a-select-option v-for="(item, index) in list" :value="item.id" :key="index">
+          {{item.name}}
+        </a-select-option>
+      </a-select>
+    </a-form-item>
+  </div>
+</template>
+
+<script>
+import { Form, Select } from "ant-design-vue";
+import { orglineList } from "@/person-shaoxing/api/assessment";
+import set from 'lodash/set';
+import { showError } from "@/framework/utils/index";
+
+export default {
+  props: {
+    itemParams: {
+      type: Object
+    },
+    itemLayout: {
+      type: Object
+    }
+  },
+  components: {
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option
+  },
+  data() {
+    return {
+      list: [],
+      propValue: undefined,
+      validateStatus: undefined,
+      key: 'orgline'
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    this.getData();
+    if (this.itemParams[this.key]) {
+      this.propValue = this.itemParams[this.key]
+    }
+  },
+  mounted() {},
+  methods: {
+    getData() {
+      orglineList()
+      .then(({result}) => {
+        this.list = result;
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    onOrglineChange(val) {
+      this.propValue = val;
+    },
+    validateField(obj){
+      return new Promise((resolve, reject) => {
+        set(obj, this.key, this.propValue === undefined ? null : this.propValue);
+        resolve();
+      });
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+</style>

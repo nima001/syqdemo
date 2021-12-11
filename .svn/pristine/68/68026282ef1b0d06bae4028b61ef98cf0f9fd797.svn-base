@@ -1,0 +1,467 @@
+<template>
+  <div class="container">
+    <div class="body">
+      <div class="image-border image-border1"></div>
+      <div class="image-border image-border2"></div>
+      <div class="image-border image-border3"></div>
+      <div class="image-border image-border4"></div>
+      <div class="title">
+        <span class="title">省属事业单位机构编制质效评估</span>
+        <span class="back" @click="() => $router.go(-1)">
+          <img src="../../../assets/img/screen/icon-close.png" />
+        </span>
+      </div>
+      <div class="describe">
+        <div class="name">浙江省农业对外合作中心</div>
+        <div class="deal">
+          <div class="fraction">
+            <span class="desc">评估得分</span>
+            <span class="num" v-for="item in String(86).split('')">{{ item }}</span>
+          </div>
+          <div class="proposal">
+            <div class="desc">处理建议</div>
+            <div class="result">
+              <span class="grade">B</span>
+              <span class="detail">酌情考虑</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="table">
+        <div class="thead">
+          <ul>
+            <li>一级指标</li>
+            <li>二级指标</li>
+            <li>权重分值</li>
+            <li>评分标准</li>
+            <li>数据来源</li>
+            <li>扣分情况</li>
+            <li>问题说明</li>
+          </ul>
+        </div>
+        <div class="tbody">
+          <ul>
+            <li>"(一)职责履行20分"</li>
+            <li>
+              <ul>
+                <li>1.职责变动</li>
+                <li>2.履行职责不到位</li>
+                <li>3.开展的业务与三定不符</li>
+                <li class="error">4.与其他事业单位的工作同质化</li>
+              </ul>
+            </li>
+            <li>
+              <ul>
+                <li>4</li>
+                <li>6</li>
+                <li>4</li>
+                <li class="error">6</li>
+              </ul>
+            </li>
+            <li>
+              <ul>
+                <li>
+                  <a-tooltip placement="right" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>职责划出、下放、取消、且无新增职责的，扣4分</span>
+                    </template>
+                    <span>职责划出、下放、取消、且无新增职责的，扣4分</span>
+                  </a-tooltip>
+                </li>
+                <li>
+                  <a-tooltip placement="right" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span
+                        >部门近三年对所属事业单位综合考评中,有排名在后30%的,扣6分</span
+                      >
+                    </template>
+                    <span>部门近三年对所属事业单位综合考评中,有排名在后30%的,扣6分</span>
+                  </a-tooltip>
+                </li>
+                <li>
+                  <a-tooltip placement="right" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>承担行政职能或偏离公益目标从事经营活动的,扣4分</span>
+                    </template>
+                    <span>承担行政职能或偏离公益目标从事经营活动的,扣4分</span>
+                  </a-tooltip>
+                </li>
+                <li class="error">
+                  <a-tooltip placement="right" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>实际开展的工作与其他事业单位的工作存在同质化现象,扣6分</span>
+                    </template>
+                    <span>实际开展的工作与其他事业单位的工作存在同质化现象,扣6分</span>
+                  </a-tooltip>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <ul>
+                <li>法律法规或规范性文件</li>
+                <li>部门考核结果</li>
+                <li>事业单位年度报告</li>
+                <li>事业单位年度报告</li>
+              </ul>
+            </li>
+            <li>
+              <ul>
+                <li>0</li>
+                <li>0</li>
+                <li>0</li>
+                <li>2</li>
+              </ul>
+            </li>
+            <li></li>
+          </ul>
+          <ul>
+            <li>"(二)规范化建设30分"</li>
+            <li>
+              <ul>
+                <li>1.机构名称标识不规范</li>
+                <li>2.事业单位法人登记不规范</li>
+                <li class="error">3.内设机构设置不规范（限有内设机构的单位）</li>
+                <li>4.中层干部配备不规范</li>
+                <li>5.正式权限不明晰</li>
+                <li class="error">6.实名制系统未及时更新</li>
+              </ul>
+            </li>
+            <li>
+              <ul>
+                <li>4</li>
+                <li>4</li>
+                <li class="error">6</li>
+                <li>6</li>
+                <li>4</li>
+                <li class="error">6</li>
+              </ul>
+            </li>
+            <li>
+              <ul>
+                <li>
+                  <a-tooltip placement="right" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>职责划出、下放、取消、且无新增职责的，扣4分</span>
+                    </template>
+                    <span>职责划出、下放、取消、且无新增职责的，扣4分</span>
+                  </a-tooltip>
+                </li>
+                <li>
+                  <a-tooltip placement="right" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span
+                        >部门近三年对所属事业单位综合考评中,有排名在后30%的,扣6分</span
+                      >
+                    </template>
+                    <span>部门近三年对所属事业单位综合考评中,有排名在后30%的,扣6分</span>
+                  </a-tooltip>
+                </li>
+                <li class="error">
+                  <a-tooltip placement="right" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span
+                        >综合管理机构超过20%的，内设机构名称不规范或数量过多的，每项扣2分</span
+                      >
+                    </template>
+                    <span
+                      >综合管理机构超过20%的，内设机构名称不规范或数量过多的，每项扣2分</span
+                    >
+                  </a-tooltip>
+                </li>
+                <li>
+                  <a-tooltip placement="right" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span
+                        >中层干部配备过多、编外人员人中层干部、职务名称不规范，每项扣2分</span
+                      >
+                    </template>
+                    <span
+                      >中层干部配备过多、编外人员人中层干部、职务名称不规范，每项扣2分</span
+                    >
+                  </a-tooltip>
+                </li>
+                <li>
+                  <a-tooltip placement="right" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span
+                        >"三定"规定明确的干部人事、财务管理与主管部门分工没有执行到位的，扣4分
+                      </span>
+                    </template>
+                    <span
+                      >"三定"规定明确的干部人事、财务管理与主管部门分工没有执行到位的，扣4分
+                    </span>
+                  </a-tooltip>
+                </li>
+                <li class="error">
+                  <a-tooltip placement="right" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>实名制系统未及时更新，扣6分 </span>
+                    </template>
+                    <span>实名制系统未及时更新，扣6分 </span>
+                  </a-tooltip>
+                </li>
+              </ul>
+            </li>
+            <li>
+              <ul>
+                <li>单位提供</li>
+                <li>登记局</li>
+                <li>主管部门或事业单位文件</li>
+                <li>任职文件</li>
+                <li>任职文件、财务管理制度</li>
+                <li>督查处</li>
+              </ul>
+            </li>
+            <li>
+              <ul>
+                <li>0</li>
+                <li>0</li>
+                <li>2</li>
+                <li>0</li>
+                <li>0</li>
+                <li>6</li>
+              </ul>
+            </li>
+            <li></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Tooltip } from "ant-design-vue";
+export default {
+  components: {
+    ATooltip: Tooltip,
+  },
+  data() {
+    return {};
+  },
+};
+</script>
+<style lang="less" scoped>
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  .body {
+    width: 80%;
+    height: 90%;
+    position: relative;
+    padding: @padding-sm;
+    padding-bottom: 0;
+    border: 1px solid #0c336d;
+    display: flex;
+    flex-direction: column;
+    .image-border {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+    }
+    .image-border1 {
+      top: 0;
+      left: 0;
+      border-left: 2px solid #208CFB;
+      border-top: 2px solid #208CFB;
+    }
+    .image-border2 {
+      top: 0;
+      right: -2px;
+      border-right: 2px solid #208CFB;
+      border-top: 2px solid #208CFB;
+    }
+    .image-border3 {
+      bottom: 0;
+      left: 0;
+      border-bottom: 2px solid #208CFB;
+      border-left: 2px solid #208CFB;
+    }
+    .image-border4 {
+      bottom: 0;
+      right: -2px;
+      border-right: 2px solid #208CFB;
+      border-bottom: 2px solid #208CFB;
+    }
+    & > .title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      span.title {
+        font-size: 35px;
+        font-weight: bold;
+        font-family: cursive;
+        text-shadow: 0 0 8px #1169a2;
+        color: #fff;
+      }
+      .back {
+        cursor: pointer;
+        img {
+          width: 35px;
+        }
+      }
+    }
+    .describe {
+      height: 43px;
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(
+        to right,
+        #0a278f,
+        fade(#093596, 80%),
+        fade(#093596, 60%),
+        fade(#093596, 10%)
+      );
+      .name {
+        padding-left: @padding-xs;
+        font-size: 23px;
+        font-weight: 400;
+        color: #f0e203;
+      }
+      .deal {
+        height: 100%;
+        line-height: 43px;
+        font-size: 20px;
+        display: flex;
+        .desc {
+          font-weight: 550;
+          background-image: linear-gradient(
+            150deg,
+            #4df5b0,
+            #4df5b0,
+            #1bacc5,
+            #03bbff
+          ); //背景色渐变，默认从上到下
+          -webkit-background-clip: text; //CSS3属性：设定背景的绘制范围为文字
+          color: transparent; //将字的颜色设置透明，只露出背景色
+        }
+        .fraction {
+          display: flex;
+          align-items: center;
+          span.num {
+            width: 20px;
+            font-size: 26px;
+            text-align: center;
+            margin-left: @padding-xs;
+            color: #fff;
+            background: url("../../../assets/img/screen/icon-num-bg.png") no-repeat;
+            background-size: 100% 80%;
+            background-position: 0 50%;
+          }
+        }
+        .proposal {
+          margin-left: @padding-md;
+          display: flex;
+          .result {
+            padding: 0 10px;
+            margin-left: @padding-xs;
+            display: flex;
+            align-items: center;
+            background: #f0e203;
+            .grade {
+              margin-right: 5px;
+              font-size: 30px;
+              font-weight: 600;
+            }
+            .detail {
+              font-weight: 550;
+            }
+          }
+        }
+      }
+    }
+    .table {
+      flex: 1;
+      width: 97%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      color: fade(#fff, 80%);
+      .thead {
+        height: 37px;
+        margin-top: 10px;
+        padding: @padding-xs 0;
+        background: linear-gradient(
+          to right,
+          #0b347a,
+          fade(#0b347a, 80%),
+          fade(#0b347a, 30%),
+          transparent 95%
+        );
+        ul {
+          margin: 0;
+          display: flex;
+          & > li {
+            width: 14%;
+            padding: 0 @padding-xs;
+            text-align: center;
+            &:nth-child(4) {
+              width: 25%;
+              padding: 0 @padding-xs;
+            }
+          }
+        }
+      }
+      .tbody {
+        flex: 1;
+        .error {
+          color: #d40f2e;
+        }
+        & > ul {
+          display: flex;
+          & > li {
+            width: 14%;
+            padding: 0 @padding-xs;
+            margin: 10px 0;
+            text-align: center;
+            letter-spacing: 3px;
+            &:first-child {
+              display: flex;
+              align-items: center;
+            }
+            &:nth-child(4) {
+              width: 25%;
+              text-align: left;
+              padding: 0 @padding-xs;
+            }
+            &:nth-child(3) > ul li {
+              display: flex;
+              justify-content: center;
+              align-items: center;
+            }
+            & > ul {
+              display: flex;
+              flex-direction: column;
+              li {
+                width: 100%;
+                height: 50px;
+                overflow: hidden;
+                display: -webkit-box;
+                text-overflow: ellipsis;
+                -webkit-line-clamp: 2; /*要显示的行数*/
+                -webkit-box-orient: vertical;
+                text-overflow: ellipsis;
+                line-height: 25px;
+              }
+            }
+          }
+        }
+        & > ul:nth-child(2n) {
+          margin: 0;
+          background: linear-gradient(
+            to right,
+            #0b347a,
+            fade(#0b347a, 80%),
+            fade(#0b347a, 30%),
+            transparent 95%
+          );
+        }
+      }
+    }
+  }
+}
+</style>

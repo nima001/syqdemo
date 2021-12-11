@@ -1,0 +1,108 @@
+<template>
+  <SettingTree v-model="value" :properties="properties" @change="onSettingsChange"/>
+</template>
+<script>
+import { Icon } from 'ant-design-vue'
+import SettingTree from '@framework/components/SettingTree'
+import TestContent from './TestContent'
+
+
+export default {
+  components: {
+    AIcon: Icon,
+    SettingTree,
+  },
+  data(){
+    return {
+      value: undefined,
+      properties: {
+        page: {
+          title: '页面设置',
+          type: 'string',
+          content: TestContent,
+        },
+        inputDecorator: {
+          title: '输入框装饰器',
+          type: 'object',
+          proxy: 'enable', //代理
+          content: TestContent,
+          properties: {
+            enable: {
+              title: '启用',
+              type: 'boolean',
+            },
+            lableAlign: {
+              title: '标签对齐方式',
+              type: 'enum',
+              attrs: {
+                options: [
+                  { value: 'left', label: '左对齐'},
+                  { value: 'right', label: '右对齐'}
+                ]
+              }
+            },
+            labelLayout: {
+              title: '标签布局',
+              type: 'enum',//TODO 枚举
+              attrs: {
+                defaultValue: 'top',//默认值
+                options: [
+                  { value: 'top', label: '上'},
+                  { value: 'left', label: '左'},
+                  { value: 'inset', label: '内'}
+                ]
+              }
+            },
+            showLabel: {
+              title: '显示标签',
+              type: 'boolean',
+              attrs: {
+                defaultValue: true,
+              }
+            },
+            colon: {
+              title: '是否有冒号',
+              type: 'boolean',
+              attrs: {
+                defaultValue: true
+              }
+            },
+            bordered: {
+              title: '是否有边框',
+              type: 'boolean',
+              attrs: {
+                defaultValue: true
+              }
+            },
+            test: {
+              title: '测试3级',
+              type: 'void',
+              properties: {
+                test1: {
+                  title: 'test111',
+                  type: 'boolean',
+                  
+                },
+                test2: {
+                  title: 'test2',
+                  type: 'boolean',
+                  content: TestContent,
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  methods: {
+    onSettingsChange(){
+      console.log('onSettingsChange')
+    }
+  }
+}
+</script>
+
+<style>
+
+</style>

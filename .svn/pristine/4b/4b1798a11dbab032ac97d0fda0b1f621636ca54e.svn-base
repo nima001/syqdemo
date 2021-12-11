@@ -1,0 +1,102 @@
+<template>
+  <div class="user-form-job-tabpanel">
+    <div class="toolbar" v-if="hasPermit('/person/org/user/edit')">
+      <template v-if="edit">
+        <a-button type="primary" @click="save">保存</a-button>
+        <a-button @click="edit=false" style="margin-left: 10px;">取消</a-button>
+      </template>
+      <a-button v-else type="primary" @click="edit=true">编辑</a-button>
+    </div>
+    <div class="body">
+      <user-form :data="user" :form="form" :edit="edit" ref="userForm"/>
+    </div>
+  </div>
+</template>
+<script>
+import { Button } from "ant-design-vue";
+import Form from "../form/Form";
+import { updateUser } from "@/person/api/user";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  props: {
+    user: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
+  components: {
+    AButton: Button,
+    UserForm: Form,
+  },
+  data(){
+    return {
+      edit: false,
+      form: undefined,
+    }
+  },
+  created(){
+    this.form = this.createForm();
+  },
+  methods: {
+     save(){
+      this.$refs.userForm.validateFileds().then(data => {
+        updateUser(this.user._id, data).then(({result}) => {
+          this.edit = false;
+          if(result){
+            Object.keys(result).forEach(key => {
+              this.$set(this.user, key, result[key]);
+            })
+            this.$message.info('保存成功')
+          }
+        }).catch(error => {
+          showError(error);
+        });
+      }).catch(error => {
+        showError({message: '表单验证失败，请检查表单数据'});
+      })
+    },
+    createForm(){
+      return [
+        { id: 'job', title: '岗位信息', properties: [
+          { label: "岗位类型", code: "job.jobtype", type: 'dict', dict: "usermanage.user.jobtype", span: 1, disable: true },
+          { label: "岗位等级", code: "job.joblevel", type: 'dict', dict: "usermanage.user.joblevel", span: 1, disable: true },
+          { label: "现聘岗位等级时间", code: "job.hiretime", type: 'date', span: 1, disable: true },
+          { label: "编制职务名称", code: "position", type: 'text', span: 1, disable: true },
+          { label: "现有专技资格名称", code: "posttitle", type: 'dict', dict: "usermanage.user.posttitle", span: 1 },
+          { label: "技术等级", code: "technicalgrade", type: 'dict', dict: "usermanage.user.technicalgrade", span: 1 },
+          { label: "职业（工种）", code: "occupation", type: 'text', span: 1 },   
+          { label: "是否双肩挑", code: "mpwork", type: 'bool', span: 1, disable: true },
+          { label: "是否占用指标", code: "job.isoccupynum", type: 'bool', span: 1, disable: true },
+          { label: "双肩挑岗位等级", code: "job2.joblevel2", type: 'dict', dict: "usermanage.user.joblevel", span: 1, disable: true },
+          { label: "现聘专技资格名称", code: "hireposttitle", type: 'dict', dict: "usermanage.user.posttitle", span: 1, disable: true },
+          { label: "现聘双肩挑等级时间", code: "job2.hiretime2", type: 'date', span: 1, disable: true },
+        ]},
+        { id: 'partwork', title: '兼职、顶岗、挂职信息', properties: [
+          { code: "work", type: 'group', span: 4, disable: true, properties: [
+            { label: '工作所在单位', code: 'workorg.name', type: 'text', span: 2, disable: true},
+            { label: '工作职务名称', code: 'workposition', type: 'text', span: 1, disable: true },
+          ]},
+        ]},
+      ]
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.user-form-job-tabpanel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  & > .toolbar{
+    padding: 0 @content-padding-h;
+    margin-top: 10px;
+  }
+
+  & > .body{
+    flex: auto;
+    min-height: 0;
+    margin: @content-padding-v 0;
+  }
+}
+</style>

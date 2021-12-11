@@ -1,0 +1,142 @@
+<template>
+  <div class="wrap">
+    <ul class="title">
+      <li>机构</li>
+      <li>编制</li>
+      <li>职数</li>
+    </ul>
+    <div class="content">
+      <span class="btn pre"></span>
+      <span class="btn next"></span>
+      <div class="liquid">
+        <ul class="list">
+          <li class="item">
+            <p class="tip">行政机构限额</p>
+            <div class="liquid-spot">
+              <liquid-spot :persent="88"></liquid-spot>
+            </div>
+          </li>
+          <li class="item">
+            <p class="tip">行政编制限额</p>
+            <div class="liquid-spot">
+              <liquid-spot :persent="70"></liquid-spot>
+            </div>
+          </li>
+          <li class="item">
+            <p class="tip">行政领导职数核定</p>
+            <div class="liquid-spot">
+              <liquid-spot :persent="60"></liquid-spot>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <ul class="swiperSpot">
+      <li class="active"></li>
+      <li></li>
+    </ul>
+  </div>
+</template>
+
+<script>
+import liquidSpot from "../housekeeper/liquidSpot";
+export default {
+  components: { liquidSpot },
+  data() {
+    return {};
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  background: url("../img/long-line.png") center bottom no-repeat;
+  padding-bottom: 25px;
+  .title {
+    margin: 0px;
+    height: 65px;
+    background: url("../img/dote.png") repeat;
+    display: flex;
+    li {
+      flex: 1;
+      text-align: center;
+      line-height: 65px;
+      width: 40px;
+      font-size: 20px;
+      font-family: Microsoft YaHei;
+      font-weight: 400;
+      color: #ffffff;
+      opacity: 1;
+    }
+  }
+  .content {
+    position: relative;
+    .btn {
+      width: 40px;
+      height: 40px;
+      display: block;
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      &.pre {
+        left: -12px;
+        background: url("../img/pre.png");
+      }
+      &.next {
+        right: -12px;
+        background: url("../img/next.png");
+      }
+    }
+    .liquid {
+      .list {
+        display: flex;
+        .item {
+          flex: 1;
+          .tip {
+            font-size: 16px;
+            font-family: Microsoft YaHei;
+            font-weight: 400;
+            line-height: 20px;
+            color: #ffffff;
+            opacity: 0.8;
+            margin: 0px;
+            text-align: center;
+            padding: 16px 0px;
+          }
+          .liquid-spot {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
+          }
+        }
+      }
+    }
+  }
+  .swiperSpot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 10px 0px 0px;
+    li {
+      width: 12px;
+      height: 12px;
+      background: #8fc7ff;
+      border-radius: 50%;
+      opacity: 0.4;
+      margin-right: 20px;
+      cursor: pointer;
+      &.active {
+        width: 36px;
+        height: 36px;
+        background: url("../img/spot.png");
+        margin-right: 10px;
+      }
+      &:last-child {
+        margin-right: 0px;
+      }
+    }
+  }
+}
+</style>

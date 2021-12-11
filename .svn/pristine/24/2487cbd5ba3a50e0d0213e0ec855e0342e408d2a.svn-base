@@ -1,0 +1,39 @@
+<template>
+  <span class="icon">
+    <img v-if="identitytype == 2" src="@/framework/assets/img/user-icon-gwy.png"/>
+    <img v-else-if="identitytype == 3" src="@/framework/assets/img/user-icon-gq.png"/>
+    <img v-else-if="identitytype == 4" src="@/framework/assets/img/user-icon-cg.png"/>
+    <img v-else src="@/framework/assets/img/user-icon-sy.png"/>
+  </span>
+</template>
+<script>
+import {Icon} from "ant-design-vue"
+
+/**
+ * 用户图标控件
+ */
+export default {
+  name: "UserIcon",
+  components:{ 
+    Icon
+  },
+  props:{
+    user: Object
+  },
+  computed:{
+    identitytype(){
+      return this.user && this.user.identitytype;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.icon{
+  font-size: 16px;
+  color: @primary-color;
+  img{
+    width: 16px;
+    height: 16px;
+  }
+}
+</style>

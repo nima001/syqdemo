@@ -1,0 +1,71 @@
+<template>
+  <div class="wrap">
+    <p class="title">告警信息</p>
+    <ul class="warnList">
+      <li class="warnItem" v-for="(item,index) in list" :key="index">
+        <span class="name">【{{item.name}}】</span>
+        <span class="detail">{{item.detail}}</span>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      list: [
+        { name: "越城区", detail: "行政编制超编20名" },
+        { name: "诸暨市", detail: "共有告警30条，昨日新增五条" },
+        { name: "上虞区", detail: "行政编制超编18名，事业编制超编2名" }
+      ]
+    };
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  margin-top: 10px;
+  .title {
+    height: 26px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.6;
+    margin: 0px;
+  }
+  .warnList {
+    margin: 20px 0px 0px;
+    .warnItem {
+      display: flex;
+      height: 37px;
+      align-items: center;
+      padding-left: 20px;
+      &:nth-child(odd) {
+        background: url("../img/warn.png") repeat-x;
+      }
+      span {
+        width: 131px;
+        height: 21px;
+        font-size: 16px;
+        font-family: Microsoft YaHei;
+        font-weight: 400;
+        line-height: 21px;
+        color: #ffffff;
+        opacity: 0.8;
+      }
+      .name {
+        width: 80px;
+      }
+      .detail {
+        flex: 1;
+        margin-left: 20px;
+      }
+    }
+  }
+}
+</style>

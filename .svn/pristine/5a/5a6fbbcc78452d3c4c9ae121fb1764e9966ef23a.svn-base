@@ -1,0 +1,472 @@
+<template>
+  <div class="view">
+    <div class="top">
+      <ul class="tree">
+        <li v-for="(item,index) in cityList" :key="index" :class="{'active':index ==0}">
+          <span class="icon">
+            <icon :active="index ==0"></icon>
+          </span>
+          <span class="name">{{item}}</span>
+        </li>
+      </ul>
+      <div class="content">
+        <div class="borderBar left"></div>
+        <div class="borderBar right"></div>
+        <div class="kpiWrap">
+          <div class="kpi_diamond"></div>
+          <div class="kpiCount kpiOrg">
+            <span class="name">机构</span>
+            <span class="num">98</span>
+          </div>
+          <div class="kpiCount kpiQuestion">
+            <span class="name">问题</span>
+            <span class="num">97</span>
+          </div>
+          <div class="kpiCount ybQuestion">
+            <span class="name">用编</span>
+            <span class="num">95</span>
+          </div>
+          <div class="kpiCount bzQuestion">
+            <span class="name">编制</span>
+            <span class="num">95</span>
+          </div>
+          <div class="kpiCount zsQuestion">
+            <span class="name">职数</span>
+            <span class="num">98</span>
+          </div>
+          <div class="kpiCount multipleKpi">
+            <span class="name">综合绩效</span>
+            <div class="yjChar">
+              <lcd-font :length="3" :realNumber="97"></lcd-font>
+            </div>
+          </div>
+        </div>
+        <div class="orgSwiper">
+          <div class="top">
+            <span class="title">行政机构绩效平均分</span>
+            <div class="lcdFont">
+              <lcd-font :length="4" :realNumber="97.4"></lcd-font>
+            </div>
+          </div>
+          <div class="middle">
+            <div class="order">
+              <span class="icon"></span>
+              <span class="text">行政机构排序</span>
+            </div>
+            <div class="all">
+              <span class="icon"></span>
+              <span class="text">全部</span>
+            </div>
+          </div>
+          <div class="bottom">
+            <span class="btn preBtn"></span>
+            <div class="swiperCont">
+              <ul class="swiper">
+                <li class="swiperItem" v-for="(item,index) in orgList" :key="index">
+                  <span class="index">{{index}}</span>
+                  <span class="orgName">{{item.name}}</span>
+                  <span class="percent">
+                    <a-progress :showInfo="false" :percent="80" status="active"></a-progress>
+                  </span>
+                  <span class="text">{{item.percent}}</span>
+                </li>
+              </ul>
+            </div>
+            <span class="btn nextBtn"></span>
+          </div>
+          <ul class="swiperSpot">
+            <li class="active"></li>
+            <li></li>
+            <li></li>
+            <li></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="welfare">
+      <div class="schoolWelfare">
+        <school-welfare></school-welfare>
+      </div>
+      <div class="hospitalWelfare">
+        <hospital-welfare></hospital-welfare>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import Icon from "./Icon";
+import LcdFont from "../components/LcdFont";
+import HospitalWelfare from "./HospitalWelfare";
+import SchoolWelfare from "./SchoolWelfare";
+import { Progress } from "ant-design-vue";
+export default {
+  components: {
+    Icon,
+    LcdFont,
+    AProgress: Progress,
+    HospitalWelfare,
+    SchoolWelfare
+  },
+  data() {
+    return {
+      cityList: [
+        "市本級",
+        "上虞区",
+        "越城区",
+        "柯桥区",
+        "诸暨市",
+        "嵊州市",
+        "新昌县"
+      ],
+      orgList: [
+        { name: "机构名称机构", percent: 100 },
+        { name: "机构名称机构", percent: 100 },
+        { name: "机构名称机构", percent: 100 },
+        { name: "机构名称机构", percent: 100 },
+        { name: "机构名称机构", percent: 100 }
+      ]
+    };
+  }
+};
+</script>
+
+<style lang='less' scoped>
+@font-face {
+  font-family: LESLIEB;
+  src: url("../img/LESLIEB_.TTF") format("truetype");
+}
+.view {
+  .top {
+    padding: 0px 30px 35px;
+    display: flex;
+    align-items: center;
+    background: url("../img/fengexian.png") bottom center no-repeat;
+    .tree {
+      width: 120px;
+      margin: 0px;
+      li {
+        width: 100%;
+        height: 24px;
+        margin-top: 26px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-left: 16px;
+        position: relative;
+        cursor: pointer;
+        &::before {
+          content: "";
+          width: 4px;
+          height: 20px;
+          background: #323440;
+          position: absolute;
+          left: 0px;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        &.active {
+          &::before {
+            background: #00f7fa;
+          }
+        }
+        &:first-child {
+          margin-top: 0px;
+        }
+        .icon {
+          width: 24px;
+          height: 24px;
+          &.active /deep/ {
+            fill: #00f7fa;
+          }
+        }
+        .name {
+          height: 26px;
+          font-size: 20px;
+          font-family: Microsoft YaHei;
+          font-weight: bold;
+          line-height: 26px;
+          color: #ffffff;
+          text-shadow: 0px 3px 6px rgba(74, 171, 255, 0.16);
+          opacity: 0.5;
+          letter-spacing: 2px;
+        }
+      }
+    }
+    .content {
+      flex: 1;
+      height: 441px;
+      position: relative;
+      margin-left: 45px;
+      position: relative;
+      .borderBar {
+        width: 109px;
+        height: 100%;
+        position: absolute;
+        top: 0px;
+        &.left {
+          left: 0px;
+          background: url("../img/left-border.png") center center no-repeat;
+        }
+        &.right {
+          right: 0px;
+          background: url("../img/right-border.png") center center no-repeat;
+        }
+      }
+      .kpiWrap {
+        width: 700px;
+        height: 206px;
+        background: url("../img/kpi-circle.png") center center no-repeat;
+        position: absolute;
+        left: 76px;
+        bottom: 56px;
+        .kpi_diamond {
+          width: 648px;
+          height: 315px;
+          background: url("../img/kpi-diamond.png") center center no-repeat;
+          position: absolute;
+          top: -126px;
+          left: 14px;
+        }
+        .kpiCount {
+          display: inline-flex;
+          flex-direction: column;
+          position: absolute;
+          .name {
+            height: 19px;
+            font-size: 14px;
+            font-family: Microsoft YaHei;
+            font-weight: 400;
+            line-height: 19px;
+            color: #fff;
+            opacity: 0.6;
+            text-align: center;
+          }
+          .num {
+            height: 27px;
+            font-size: 24px;
+            font-family: Arial;
+            font-weight: bold;
+            line-height: 28px;
+            color: #8fc7ff;
+            opacity: 1;
+            margin-top: 12px;
+          }
+          &.kpiOrg {
+            left: 165px;
+            top: -76px;
+          }
+          &.kpiQuestion {
+            left: 105px;
+            top: 20px;
+          }
+          &.ybQuestion {
+            left: 262px;
+            top: 102px;
+          }
+          &.bzQuestion {
+            left: 585px;
+            top: -98px;
+          }
+          &.zsQuestion {
+            left: 605px;
+            top: 30px;
+          }
+          &.multipleKpi {
+            left: 310px;
+            top: -140px;
+            .yjChar {
+              position: relative;
+            }
+          }
+        }
+      }
+      .orgSwiper {
+        position: absolute;
+        right: 60px;
+        top: 50%;
+        transform: translateY(-50%);
+        .top {
+          display: flex;
+          flex-direction: column;
+          background: none;
+          margin: 0 auto;
+          padding: 0px;
+          .title {
+            height: 21px;
+            font-size: 16px;
+            font-family: Microsoft YaHei;
+            font-weight: 400;
+            line-height: 21px;
+            color: #ffffff;
+            opacity: 0.8;
+          }
+          .lcdFont {
+            padding: 25px 0px;
+          }
+        }
+        .middle {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          width: 270px;
+          margin: 0 auto;
+          .order {
+            display: flex;
+            align-items: center;
+            .icon {
+              width: 20px;
+              height: 20px;
+              background: url("../img/order.png");
+            }
+            .text {
+              height: 26px;
+              font-size: 20px;
+              font-family: Microsoft YaHei;
+              font-weight: bold;
+              line-height: 26px;
+              color: #ffffff;
+              opacity: 0.8;
+              margin-left: 8px;
+            }
+          }
+          .all {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            .icon {
+              width: 16px;
+              height: 16px;
+              background: url("../img/all.png");
+              cursor: pointer;
+            }
+            .text {
+              height: 22px;
+              font-size: 16px;
+              font-family: Alibaba PuHuiTi;
+              font-weight: bold;
+              line-height: 22px;
+              color: #ffffff;
+              letter-spacing: 2px;
+              opacity: 0.6;
+              margin-left: 8px;
+            }
+          }
+        }
+        .bottom {
+          position: relative;
+          display: flex;
+          align-items: center;
+          margin-top: 25px;
+          width: 340px;
+          .btn {
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            &.preBtn {
+              background: url("../img/pre.png") center center;
+            }
+            &.nextBtn {
+              background: url("../img/next.png") center center;
+            }
+          }
+          .swiperCont {
+            width: 270px;
+            .swiper {
+              margin: 0px;
+              .swiperItem {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 8px 0px;
+                .index {
+                  width: 10px;
+                  height: 22px;
+                  font-size: 16px;
+                  font-family: XinYuGongPinBoTi;
+                  font-weight: 400;
+                  line-height: 22px;
+                  color: #8fc7ff;
+                  opacity: 1;
+                }
+                .orgName {
+                  width: 108px;
+                  height: 22px;
+                  font-size: 16px;
+                  font-family: Microsoft YaHei;
+                  font-weight: 400;
+                  line-height: 22px;
+                  color: #ffffff;
+                  opacity: 0.6;
+                  overflow: hidden;
+                  text-overflow: ellipsis;
+                  white-space: nowrap;
+                }
+                .percent {
+                  width: 70px;
+                  height: 6px;
+                  display: flex;
+                  align-items: center;
+                  /deep/ .ant-progress {
+                    line-height: 6px;
+                    /deep/.ant-progress-inner {
+                      background: #343434;
+                      /deep/ .ant-progress-bg {
+                        width: 68px;
+                        height: 6px !important;
+                        border: 1px solid rgba(0, 0, 0, 0);
+                        background: linear-gradient(
+                          270deg,
+                          #8fd2ff 0%,
+                          rgba(87, 140, 246, 0.66) 49%,
+                          #5d4ef4 100%
+                        );
+                      }
+                    }
+                  }
+                }
+                .text {
+                  height: 22px;
+                  font-size: 16px;
+                  font-family: Microsoft YaHei;
+                  font-weight: 400;
+                  line-height: 22px;
+                  color: #ffffff;
+                  opacity: 0.6;
+                }
+              }
+            }
+          }
+        }
+        .swiperSpot {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0px;
+          li {
+            width: 12px;
+            height: 12px;
+            background: #8fc7ff;
+            border-radius: 50%;
+            opacity: 0.4;
+            margin-right: 20px;
+            cursor: pointer;
+            &.active {
+              width: 36px;
+              height: 36px;
+              background: url("../img/spot.png");
+              margin-right: 10px;
+            }
+            &:last-child {
+              margin-right: 0px;
+            }
+          }
+        }
+      }
+    }
+  }
+  .welfare {
+    display: flex;
+    justify-content: center;
+  }
+}
+</style>

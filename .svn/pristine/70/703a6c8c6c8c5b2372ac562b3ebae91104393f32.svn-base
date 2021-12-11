@@ -1,0 +1,162 @@
+<template>
+  <div class="layout">
+    <div class="content">
+      <div class="top">
+        <div class="left">
+        </div>
+        <div class="right">
+          <a-select placeholder="请选择时间类型" allowClear>
+            <a-select-option :value="1">本月</a-select-option>
+            <a-select-option :value="2">本年</a-select-option>
+          </a-select>
+        </div>
+      </div>
+      <div class="middle">
+        <a-table
+          rowKey="id"
+          :loading="loading"
+          :columns="columns"
+          :data-source="dataSource"
+          :pagination="false"
+        ></a-table>
+      </div>
+      <div class="bottom">
+        <a-pagination
+          show-size-changer
+          :total="pagination.total"
+          :page-size="pagination.pagesize"
+          :default-current="pagination.pagenum"
+          :show-total="(total) => `共 ${total} 条`"
+          @change="onChange"
+          @showSizeChange="onShowSizeChange"
+        ></a-pagination>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { DatePicker, Input, Table, Pagination, Select } from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+import { showError } from "@/framework/utils/index";
+export default {
+  data() {
+    return {
+      loading: false,
+      dataSource: [],
+      query: {
+        type: 1
+      },
+      pagination: {
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+        needtotal: true
+      }
+    };
+  },
+  computed: {
+    columns() {
+      return [
+        {
+          title: "年份",
+          dataIndex: "date"
+        },
+        {
+          title: "考核时间",
+          dataIndex: "time"
+        },
+        {
+          title: "考核类型",
+          dataIndex: "type"
+        },
+        {
+          title: "考核结果",
+          dataIndex: "result"
+        },
+        {
+          title: "考核奖(元)",
+          dataIndex: "reward"
+        }
+      ];
+    }
+  },
+  components: {
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    APagination: Pagination
+  },
+  methods: {
+    dictRender(key, attr) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.getData();
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagenum: 1, pagesize });
+      this.getData();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .content {
+    flex: 1;
+    padding: @content-padding-v @content-padding-h;
+    margin-top: @layout-space-base;
+    overflow-y: auto;
+    min-height: 0px;
+    background: @white;
+    display: flex;
+    flex-direction: column;
+    border-radius: @border-radius-base;
+    .top {
+      display: flex;
+      justify-content: space-between;
+      padding: @content-padding-v 0px;
+      .left {
+        display: flex;
+        justify-content: space-between;
+        .cell {
+          display: flex;
+          align-items: center;
+          .title {
+            font-size: 15px;
+            color: #666;
+          }
+          .days {
+            color: @primary-color;
+            margin-left: @padding-md;
+          }
+        }
+      }
+      .right {
+        width: 250px;
+        .ant-select {
+          width: 100%;
+        }
+      }
+    }
+    .middle {
+      flex-shrink: 1;
+      padding: @content-padding-v 0px;
+      overflow-y: auto;
+    }
+    .bottom {
+      text-align: right;
+      padding: @content-padding-v 0px;
+    }
+  }
+}
+</style>

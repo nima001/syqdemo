@@ -1,0 +1,211 @@
+<template>
+  <div class="form-design-panel">
+		<form-design v-model="config" ></form-design>
+	</div>
+</template>
+<script>
+import FormDesign from "./FormDesign";
+import get from 'lodash/get';
+import set from 'lodash/set';
+
+
+export default {
+	name: 'form-design-index',
+	components: {
+		FormDesign,
+	},
+	data(){
+		return {
+      config: {
+        schema: {
+          type: 'object',
+          properties: {
+            user: {
+              type: 'void',
+              'x-component': 'GridLayout',
+              'x-component-props': {
+                gutter: 15
+              },
+              properties: {
+                item22: {
+                  type: 'void',
+                  'x-component': 'GridLayout.Grid',
+                  'x-component-props': {
+                    span: 18,
+                  },
+                  properties: {
+                    row: {
+                      type: 'void',
+                      'x-component': 'GridLayout',
+                      'x-component-props': {
+                        gutter: 15
+                      },
+                      properties: {
+                        item1: {
+                          type: 'void',
+                          'x-component': 'GridLayout.Grid',
+                          'x-component-props': {
+                            span: 8,
+                          },
+                          properties: {
+                            name: {
+                              type: 'string',
+                              title: '姓名',
+                              required: false,
+                              'x-decorator': 'FieldDecorator',
+                              'x-component': 'TextInput',
+                              'x-decorator-props': {
+                                labelLayout: undefined
+                              },
+                            },
+                          }
+                        },
+                        item2: {
+                          type: 'void',
+                          'x-component': 'GridLayout.Grid',
+                          'x-component-props': {
+                            span: 8,
+                          },
+                          properties: {
+                            sex: {
+                              type: 'string',
+                              title: '性别',
+                              required: false,
+                              'x-decorator': 'FieldDecorator',
+                              'x-component': 'DictSelect',
+                              'x-component-props': {
+                                dict: 'usermanage.user.sex',
+                              },
+                              "x-reactions": {
+                                "target": "level",
+                                "when": "{{$self.value === 1}}",
+                                "fulfill": {
+                                  "state": {
+                                    "visible": false
+                                  }
+                                },
+                                "otherwise": {
+                                  "state": {
+                                    "visible": true
+                                  }
+                                }
+                              }
+                            },
+                          }
+                        },
+                        item3: {
+                          type: 'void',
+                          'x-component': 'GridLayout.Grid',
+                          'x-component-props': {
+                            span: 8,
+                          },
+                          properties: {
+                            nation: {
+                              type: 'string',
+                              title: '民族',
+                              required: false,
+                              'x-decorator': 'FieldDecorator',
+                              'x-component': 'DictSelect',
+                              'x-component-props': {
+                                dict: 'usermanage.user.nation',
+                                multiple: true,
+                              },
+                            },
+                          }
+                        },
+                        item5: {
+                          type: 'void',
+                          'x-component': 'GridLayout.Grid',
+                          'x-component-props': {
+                            span: 12,
+                          },
+                          properties: {
+                            worktime: {
+                              type: 'string',
+                              title: '参加工作时间',
+                              required: false,
+                              'x-decorator': 'FieldDecorator',
+                              'x-component': 'TextInput',
+                            },
+                          }
+                        },
+                        item4: {
+                          type: 'void',
+                          'x-component': 'GridLayout.Grid',
+                          'x-component-props': {
+                            span: 12,
+                          },
+                          properties: {
+                            'idcard.num': {
+                              type: 'string',
+                              title: '身份证号',
+                              required: false,
+                              'x-decorator': 'FieldDecorator',
+                              'x-component': 'TextInput',
+                            },
+                          }
+                        },
+                        
+                      }
+                    }
+                  }
+                },
+                item11: {
+                  type: 'void',
+                  'x-component': 'GridLayout.Grid',
+                  'x-component-props': {
+                    span: 6
+                  },
+                  properties: {
+                    head: {
+                      type: 'string',
+                      required: false,
+                      'x-component': 'TextInput',
+                    },
+                  }
+                }
+              }
+            },
+            haha: {
+              type: 'string',
+              title: '哈哈',
+              required: true,
+              'x-decorator': 'FieldDecorator',
+              'x-component': 'TextInput',
+            },
+            level: {
+              type: 'string',
+              title: '等级',
+              'x-component': 'DictSelect',
+              'x-component-props': {
+                dict: [
+                  { value: 1, text: '1级'},
+                  { value: 2, text: '2级'}
+                ],
+              },
+              'x-decorator': 'FieldDecorator',
+            },
+            'user.post': {
+              type: 'string',
+              title: '职务',
+              'x-component': 'TextInput',
+              'x-decorator': 'FieldDecorator',
+            },
+          },
+        }
+      }
+		}
+  },
+  // watch: {
+  //   config(v){
+  //     console.log('config change', v);
+  //   }
+  // },
+}
+</script>
+<style lang="less" scoped>
+.form-design-panel{
+	height: 100%;
+	padding: @layout-space-base;
+}
+</style>

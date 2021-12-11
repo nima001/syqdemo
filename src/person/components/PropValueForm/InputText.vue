@@ -1,0 +1,120 @@
+<template>
+  <a-form-item
+    :label="property.name"
+    :required="!!property.require" 
+    :validateStatus="validateStatus"
+  >
+    <MultiInput v-if="property.multi"
+      v-model="propValue"
+      :disabled="!!property.disable"
+      :placeholder="property.hint"
+      :validate="key => key.trim() || undefined"
+    />
+    <a-textarea v-else-if="property.multiline" 
+      :autoSize="{ minRows: 4, maxRows: 12 }" 
+      v-model="propValue"
+      :placeholder="property.hint"
+      :disabled="!!property.disable"
+    />
+    <a-input v-else
+      v-model="propValue"
+      :placeholder="property.hint"
+      :disabled="!!property.disable"
+    />
+  </a-form-item>
+</template>
+<script>
+import { Form, Input } from "ant-design-vue";
+import get from 'lodash/get';
+import set from 'lodash/set';
+import MultiInput from "@/framework/components/MultiInput";
+
+export default {
+  props: {
+    property: {
+      type: Object,
+    },
+    value:{
+      type: Object,
+    },
+  },
+  components: {
+    AFormItem: Form.Item,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    MultiInput,
+  },
+  data() {
+    return {
+      validateStatus: undefined,
+    };
+  },
+  computed:{
+    code(){
+      return this.property.code;
+    },
+    propValue:{
+      get(){
+        let data = get(this.value, this.code);
+        if(data !== undefined){
+          if(this.property.multi){
+            if(!Array.isArray(data)){
+              data = [data];
+              this.propValue = data;
+            }
+          }else{
+            if(Array.isArray(data)){
+              data = data[0];
+              this.propValue = data;
+            }
+          }
+        }
+        return data;
+      },
+      set(value){
+        set(this.value, this.code, value);
+        this.$emit('change', this.code, value);
+      }
+    }
+  },
+  methods: {
+    validateField(obj){
+      return new Promise((resolve, reject) => {
+        this.validate((error) => {
+          if(error){
+            reject(error);
+          }else{
+            set(obj, this.code, this.propValue)
+            resolve();
+          }
+        })
+      });
+    },
+    validate(callback){
+      let status = undefined;//error 验证失败 success成功
+      let error;
+      if(!this.property.disable){
+        //TODO 数据格式校验
+        if(this.property.require && (!this.propValue && this.propValue !== 0)){
+          status = 'error';
+          error = `请填写${this.property.name || this.code}`;
+        }else{
+          status = 'success';
+        }
+      }
+      this.validateStatus = status;
+      if(callback){
+        callback(error);
+      }
+    },
+    onChange(){
+      this.validate();
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-form-item {
+  margin-bottom: 0;
+}
+</style>

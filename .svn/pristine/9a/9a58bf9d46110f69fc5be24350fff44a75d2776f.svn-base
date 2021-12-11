@@ -1,0 +1,110 @@
+import request from '@/framework/utils/request'
+
+//用户查询
+export function userquery(data) {
+    return request({
+        url: '/person/user/query',
+        method: 'post',
+        dataType: 'json',
+        data
+    });
+}
+//内设下用户查询
+export function deptuserquery(data) {
+    return request({
+        url: '/person/user/dept/list',
+        method: 'post',
+        dataType: 'json',
+        data
+    });
+}
+//人员信息
+export function getUser(id) {
+    return request({
+        url: '/person/user/' + id,
+        method: 'get'
+    });
+}
+// 添加人员信息
+export function createUser(data){
+    return request({
+        url:'/person/user',
+        method:'post',
+        dataType:'json',
+        data
+    })
+}
+//删除用户
+export function reduceUser(data) {
+    return request({
+        url: '/person/user/reduce',
+        method: 'post',
+        dataType: 'json',
+        data
+    })
+}
+//更新人员信息
+export function updateUser(id, data) {
+    if(data.dept && Object.keys(data.dept).length==0){
+        data.dept = null;
+    }
+    if(data.work && data.work.length){
+        data.work.forEach(element => {
+            if(element.workdept && Object.keys(element.workdept).length==0){
+                element.workdept = null;
+            }
+        });
+    }
+    return request({
+        url: '/person/user/' + id,
+        method: 'post',
+        dataType: 'json',
+        data
+    });
+}
+//从第三方获取用户信息
+export function getusertransfer(idcard, name) {
+    return request({
+        url: '/usertransfer/othersource/get',
+        // dataType: 'json',
+        method: 'get',
+        params: {
+            idcard: idcard,
+            username: name
+        }
+    });
+}
+export function familytransfer() {
+    return request({
+        url: '/usertransfer/transfer/familytransfer',
+        method: 'get'
+    });
+}
+//用户查询导出
+export function userQueryExport(data, title, properties) {
+    let ele = properties ? `&properties=${encodeURIComponent(properties)}` : `&properties=`
+    return request({
+        url: `/person/user/query/export?title=${encodeURIComponent(title)}${ele}`,
+        method: 'post',
+        dataType: 'json',
+        data
+    })
+}
+//科室列表查询导出
+export function deptUserQueryExport(data, title, properties) {
+    let ele = properties ? `&properties=${encodeURIComponent(properties)}` : `&properties=`
+    return request({
+        url: `/person/user/dept/query/export?title=${encodeURIComponent(title)}${ele}`,
+        method: 'post',
+        dataType: 'json',
+        data
+    })
+}
+
+// 获取模型的表单
+export function modelForm(model,userId){
+    return request({
+        url :`/person/modelprops/form/${model}?id=${userId}`,
+        method: 'get'
+    })
+}

@@ -1,0 +1,212 @@
+<template>
+  <div>
+    <Title title="机构资源分析"/>
+    <div class="container" style="height:460px">
+      <div class="count">
+        <div class="org">
+          <div class="org-content">
+            <div class="title">行政机构数</div>
+            <div class="num">
+              <div class="sum">85</div>
+              <div class="type">
+                <div class="detail">正厅<span>48</span></div>
+                <div class="detail">副厅<span>37</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="unit">
+          <div class="org-content">
+            <div class="title">事业单位数</div>
+            <div class="num">
+              <div class="sum">14</div>
+              <div class="type">
+                <div class="detail">正厅<span>8</span></div>
+                <div class="detail">副厅<span>6</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="org-num">
+          <div class="org-content">
+            <div class="detail">内设机构数 <span>28</span></div>
+            <div class="detail">下设机构数 <span>16</span></div>
+          </div>
+          <div></div>
+        </div>
+      </div>
+      <div class="content">
+        <SwiperChart>
+          <div slot="content">
+            <RingChart :data="data" :settings="{canvas: {width: 520,height: 200}, legend: {visible: true, layout: 'horizontal', position: 'right', flipPage: false, offsetX: -60, marker: 'square'}, radius: 0.9, innerRadius: 0.8 }"/>
+          </div>
+          <div slot="content">
+            <RingChart :data="data" :settings="{canvas: {width: 520,height: 200}, legend: {visible: true, layout: 'horizontal', position: 'right', flipPage: false, offsetX: -60, marker: 'square'}, radius: 0.9, innerRadius: 0.8 }"/>
+          </div>
+        </SwiperChart>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+import SwiperChart from './SwiperChart'
+import RingChart from '@person/components/chart/RingChart';
+
+export default {
+  props: {
+    districtCode: {
+      type: String
+    }
+  },
+  components: {
+    Title,
+    RingChart,
+    SwiperChart
+  },
+  data() {
+    return{
+      data: { "keyCols": [ { "column": "k0", "key": "district", "showname": "所在地区" } ], "rows": [ { "k0": "市本级", "v0": 247 }, { "k0": "越城区", "v0": 247 }, { "k0": "柯桥区", "v0": 352 }, { "k0": "上虞区", "v0": 361 }, { "k0": "诸暨市", "v0": 305 }, { "k0": "嵊州市", "v0": 371 }, { "k0": "新昌县", "v0": 254 } ], "valueCols": [ { "column": "v0", "showname": "记录数" } ] },
+    }
+  },
+  watch: {
+    districtCode(val) {
+      return val;
+    }
+  }
+}
+</script>
+
+<style scoped lang="less">
+.container {
+  display: flex;
+  flex-direction: column;
+  .count {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    .org {
+      margin: @layout-space-base;
+      width: 45%;
+      background: url("../../../assets/img/screen/top-adorn.png") no-repeat;
+      background-size: 100%;
+      .org-content {
+        position: relative;
+        padding: @padding-sm;
+        .title {
+          font-size: 1.2em;
+          color: #fff;
+        }
+        .num {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          .sum {
+            font-size: 1.9em;
+            font-weight: bold;
+            color: #1CB1EE;
+          }
+          .type {
+            font-size: 0.8em;
+            color: #ffff;
+            .detail {
+              margin: @layout-space-base/2;
+              span {
+                display: inline-block;
+              }
+            }
+          }
+        }
+        &::before {
+          opacity: .1;
+          position: absolute;
+          top: 0;
+          left: 0;
+          content: '';
+          width: 100%;
+          height: 100%;
+          z-index: -1;
+          border-top-color: transparent;
+          border-left-color: transparent;
+          background: linear-gradient(132deg, transparent,#7AC3E4 10%,#8E57BE);
+        }
+      }
+    }
+    .unit {
+      margin: @layout-space-base;
+      width: 45%;
+      background: url("../../../assets/img/screen/top-adorn.png") no-repeat;
+      background-size: 100%;
+    }
+    .org-num {
+      margin: @layout-space-base;
+      width: 45%;
+      background: url("../../../assets/img/screen/left-adorn.png") no-repeat;
+      background-position: 0 50%;
+      .org-content {
+        height: 100%;
+        display: flex;
+        align-items: flex-end;
+        flex-direction: column;
+        justify-content: space-between;
+        .detail {
+          width: 85%;
+          padding: @padding-xs/4 @padding-xs;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          position: relative;
+          font-size: 0.8em;
+          color: fade(#fff, 80%);
+          background: linear-gradient(to right, fade(#A27AE4, 20%), fade(#513D72, 20%));
+          &:first-child {
+            margin-bottom: 10px;
+          }
+          span {
+            font-size: 1.5em;
+          }
+        }
+      }
+    }
+    .org,.unit {
+      .org-content {
+        position: relative;
+        padding: @padding-sm;
+        background: linear-gradient(132deg, transparent, fade(#7AC3E4, 10%), fade(#8E57BE, 20%));
+        .title {
+          font-size: 1.1em;
+          color: fade(#fff, 60%);
+        }
+        .num {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          .sum {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #1CB1EE;
+          }
+          .type {
+            font-size: 0.8em;
+            color: fade(#fff, 60%);
+            .detail {
+              margin: @layout-space-base/2;
+              span {
+                display: inline-block;
+                margin-left: @layout-space-base;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  .content {
+    flex: 1;
+    /deep/.pie-chart {
+      height: 100%;
+    }
+  }
+}
+</style>

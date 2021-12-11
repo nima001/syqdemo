@@ -1,0 +1,51 @@
+<template>
+  <span class="icon">
+    <img v-if="usertype == 2" src="@/framework/assets/img/user-icon-bw.png" alt />
+    <img v-else-if="usertype == 3" src="@/framework/assets/img/user-icon-gy.png" alt />
+    <img v-else-if="identitytype == 1" src="@/framework/assets/img/user-icon-gwy.png" alt />
+    <img v-else-if="identitytype == 2" src="@/framework/assets/img/user-icon-gq.png" alt />
+    <img v-else-if="identitytype == 3" src="@/framework/assets/img/user-icon-cg.png" alt />
+    <img v-else-if="identitytype == 4" src="@/framework/assets/img/user-icon-sy.png" alt />
+    <img v-else-if="identitytype == 11" src="@/framework/assets/img/user-icon-ye.png" alt />
+    <img v-else-if="identitytype == 13" src="@/framework/assets/img/user-icon-gjye.png" alt />
+    <icon v-else type="user"/>
+  </span>
+</template>
+<script>
+import {Icon} from "ant-design-vue"
+
+/**
+ * 用户图标控件
+ */
+export default {
+  name: "UserIcon",
+  components:{ 
+    Icon
+  },
+  props:{
+    user: Object,
+    // workOrg: String,//TODO 显示指定单位的工作状态
+  },
+  data() {
+    return {};
+  },
+  computed:{
+    identitytype(){
+      return this.user && this.user.identitytype;
+    },
+    usertype(){
+      return this.user && this.user.usertype;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.icon{
+  font-size: 16px;
+  color: @primary-color;
+  img{
+    width: 16px;
+    height: 16px;
+  }
+}
+</style>

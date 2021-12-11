@@ -1,0 +1,200 @@
+<template>
+  <div class="lineChart">
+    <div class="top">
+      <span class="title">{{name}}</span>
+      <ul class="tipList">
+        <li>
+          <span class="dote odd"></span>
+          <span class="text">党政机构</span>
+        </li>
+        <li>
+          <span class="dote even"></span>
+          <span class="text">事业单位</span>
+        </li>
+      </ul>
+    </div>
+    <loading v-if="loading"/>
+    <div class="barChart" v-else :id="id"></div>
+  </div>
+</template>
+
+<script>
+import { Chart } from "@antv/g2";
+import { mixins } from "../components/minxin";
+import { facemonitor } from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@/framework/utils/index";
+import Loading from "../components/Loading";
+export default {
+  components:{
+    Loading,
+  },
+  data() {
+    return {
+      id: Math.random()
+        .toString(32)
+        .substr(2),
+      list: [],
+      loading:true,
+    };
+  },
+  props: {
+    type: {
+      type: Number,
+      required: true
+    },
+  },
+  computed: {
+    name() {
+      return this.type == 1 ? "人员入编趋势" : "人员出编趋势";
+    }
+  },
+  mixins: [mixins],
+  watch: {
+    dictId(v) {
+      this.loading = true;
+      this.getData(v);
+    }
+  },
+  mounted() {
+    this.getData(this.dictId);
+  },
+  methods: {
+    getMonths(){
+      let dataArr = [];
+      let data = new Date();
+      for(let i = 0;i<12;i++){
+        let month = data.getMonth();
+        month = month < 10 ? "0" + month : month;
+        data.setMonth(data.getMonth()-1,1);
+        dataArr.push(data.getFullYear() + "-" + (month))
+      }
+      return [dataArr[11],dataArr[0]]
+    },
+    getData(dictId) {
+      facemonitor(undefined, ...this.getMonths())
+        .then(res => {
+          this.loading = false;
+          let { keyCols, rows, valueCols } = res.result.data;
+          let valueArr =
+            this.type == 1 ? valueCols.slice(0, 2) : valueCols.slice(2, 4);
+          let list = [];
+          for (let i = 0; i < rows.length; i++) {
+            let row = rows[i];
+            for (let j = 0; j < valueArr.length; j++) {
+              let col = valueArr[j];
+              let obj = {
+                month: row[keyCols[i]["column"]],
+                name: col["showname"].split("-")[1],
+                value: row[col["column"]]
+              };
+              list.push(obj);
+            }
+          }
+          this.list = list;
+          if(!this.loading){
+            this.$nextTick(() => {           
+              this.draw();
+            })
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    draw() {
+      const chart = new Chart({
+        container: this.id,
+        autoFit: true
+      });
+      chart.data(this.list);
+      chart.scale({
+        month: {
+          range: [0, 1]
+        },
+        value: {
+          nice: true
+        }
+      });
+      chart.tooltip({
+        showCrosshairs: true,
+        shared: true
+      });
+      chart.axis('month',{
+        label:null,
+        grid:null
+      });
+      chart
+        .line()
+        .position("month*value")
+        .color("name",["#8fc7ff","#ffd3a3"])
+        .shape("smooth");
+      chart.legend(false);
+      chart.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.lineChart {
+  padding-top: 5px;
+  position: relative;
+  height: 246px;
+  /deep/ svg{
+    top: 143px;
+  }
+  .top {
+    display: flex;
+    align-items: center;
+    .title {
+      font-size: 20px;
+      font-family: Microsoft YaHei;
+      font-weight: bold;
+      line-height: 26px;
+      color: #ffffff;
+      opacity: 0.8;
+    }
+    .tipList {
+      display: flex;
+      margin: 0px 0px 0px 17px;
+      li {
+        display: flex;
+        align-items: center;
+        &:last-child {
+          margin-left: 12px;
+        }
+        span {
+          &.dote {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            opacity: 1;
+            &.odd {
+              background: #8fc7ff;
+            }
+            &.even {
+              background: #ffd3a3;
+            }
+          }
+          &.text {
+            height: 19px;
+            font-size: 14px;
+            margin-left: 5px;
+            font-family: Microsoft YaHei;
+            font-weight: 400;
+            line-height: 19px;
+            color: #ffffff;
+            opacity: 0.6;
+          }
+        }
+      }
+    }
+  }
+  .barChart {
+    width: 100%;
+    height: 195px;
+    margin-top: 20px;
+    border-radius: 4px;
+    background: url("../img/repeat.png") repeat;
+  }
+}
+</style>

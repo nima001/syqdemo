@@ -1,0 +1,472 @@
+ <template>
+  <div class="person-detail">
+    <div class="top-btn">
+      <a-row>
+        <a-col v-for="(item,index) in btnList" :key="index">
+          <div
+            class="topbtn"
+            :class="{'act-btn': item == nowTab}"
+            @click="changeType(item)"
+          >{{item.name}}</div>
+        </a-col>
+      </a-row>
+    </div>
+    <div class="personlist">
+      <div class="top">
+        <div class="left">
+          <a-button @click="handleExport"><a-icon type="upload"/>导出</a-button>
+        </div>
+        <div class="right">
+          <dict-select
+            dict="usermanage.user.partposition"
+            placeholder="党组织职务"
+            allowClear
+            class="search-item"
+            v-model="properties.partypost"
+          />
+          <dict-select dict="usermanage.user.commposition"
+            placeholder="居委会职务"
+            allowClear
+            class="search-item"
+            v-model="properties.committeepost"
+          />
+          <dict-select
+            dict="usermanage.user.gdjjhzspost"
+            placeholder="股份经济合作社职务"
+            allowClear
+            class="search-item"
+            v-model="properties.cooperationpost"
+          />
+          <a-input
+            class="inputBox"
+            placeholder="身份证、姓名或手机查询"
+            style="width: 200px"
+            allowClear
+            v-model="keyWord"
+          />
+          <a-button class="searchBt" type="primary" @click="onSearch">搜索</a-button>
+        </div>
+      </div>
+      <a-table
+        class="per-table"
+        rowKey="_id"
+        :columns="columns"
+        :dataSource="pagination.rows"
+        :customRow="jumpToPerson"
+        :pagination="false"
+        :loading="loading"
+      >
+        <div class="table-tr" slot="username" slot-scope="record">
+          <span v-if="showWorkStatus" style="padding-right:3px" >
+            <img v-if="record.workstatus" class="worstatus" src="../../../assets/img/icon-workstatus-jz.png"/>
+            <span class="worstatus" v-else />
+          </span>
+          <span :title="record.username">{{record.username}}</span>
+        </div>
+      </a-table>
+      <div class="footer">
+        <a-pagination
+          v-if="pagination.rows && pagination.rows.length"
+          showSizeChanger
+          :showTotal="total => `总共：${total}人`"
+          @showSizeChange="onShowSizeChange"
+          :total="pagination.total"
+          v-model="pagination.pagenum"
+          @change="onPageChange"
+        />
+      </div>
+    </div>
+    <TaskProgress :taskid="taskid" defaultInfo="正在导出" @finish="onProgressFinish"/>
+  </div>
+</template>
+<script>
+import { Row, Col, Button, Input, Table, Icon, Pagination } from "ant-design-vue";
+import DictSelect from "@/framework/components/DictSelect";
+import moment from "moment";
+import { userQueryExport,userquery, deptuserquery,deptUserQueryExport } from "@/person/api/user";
+import { organization } from "@/person/api/org";
+import { showError } from "@/framework/utils/index";
+import UserIcon from "@/framework/components/UserIcon";
+import { download } from "@/framework/api/file";
+import TaskProgress from "@/framework/components/TaskProgress";
+
+let orgLoader = {
+  cache: new Map(),
+  loading: new Set(),
+};
+
+export default {
+  props: ["org", "nodeid", "treeid"],
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AButton: Button,
+    AInput: Input,
+    ATable: Table,
+    AIcon:Icon,
+    APagination: Pagination,
+    UserIcon,
+    DictSelect,
+    TaskProgress
+  },
+  data() {
+    return {
+      columns: [
+        {
+          title: "序号",
+          width: "34px", 
+          align: "center",
+          customRender: this.indexRender()
+        },
+        {
+          title: "姓名",
+          width: "70px",
+          scopedSlots: { customRender: "username" }
+        },
+        {
+          title: "性别",
+          dataIndex: "sex",
+          customRender: this.dictRender("usermanage.user.sex"),
+          width: "34px"
+        },
+        {
+          title: "出生年月",
+          dataIndex: "birthday",
+          width: "7%",
+          customRender: text => moment(text).format("YYYY-MM-DD")
+        },
+        {
+          title: "实际镇街",
+          width: "6%",
+          dataIndex: "work[0].workorg._id",
+          customRender: this.suporgRender
+        },
+        {
+          title: "实际岗位",
+          width: "6.5%",
+          dataIndex: "work[0].workorg.name",
+          customRender: text => <span title={text}>{text}</span>
+        },
+        {
+          title: "所属镇街",
+          width: "6%",
+          dataIndex: "org._id",
+          customRender: this.suporgRender
+        },
+        {
+          title: "所属村社区",
+          width: "6%",
+          dataIndex: "org.name",
+          customRender: text => <span title={text}>{text}</span>
+        },
+        {
+          title: "党组织职务",
+          dataIndex: "party.partypost",
+          width: "8%",
+          customRender: this.dictRender("usermanage.user.partposition")
+        },
+        {
+          title: "居委会职务",
+          dataIndex: "committee.committeepost",
+          width: "8%",
+          customRender: this.dictRender("usermanage.user.commposition")
+        },
+        {
+          title: "股份经济合作社职务",
+          dataIndex: "cooperation.cooperationpost",
+          width: "10%",
+          customRender: this.dictRender("usermanage.user.gdjjhzspost")
+        },
+        {
+          title: "现任职级",
+          dataIndex: "postlevel",
+          width: "6%",
+          customRender: this.dictRender("usermanage.user.postlevel")
+        }
+      ],
+      tabs: [
+        {
+          name: "社工名册",
+          usertype: 4,
+          scope: "WORKORG",
+        },
+        {
+          name: "社区岗位",
+          usertype: 4,
+          scope: "ORG",
+        }
+      ],
+      loading: false,
+      btnList: [],
+      nowTab: undefined,
+      properties: {},
+      keyWord: undefined,
+      taskid:undefined,
+      pagination: {
+        rows: null,
+        pagesize: 10,
+        pagenum: 1,
+        total: 0
+      },
+      showWorkStatus: false,
+      jumpToPerson: row => {
+        return {
+          on: {
+            click: () => {
+              this.$router.push({
+                name: 'orgUserInfo',
+                query: { userid: row._id }
+              });
+            }
+          }
+        };
+      }
+    };
+  },
+  created() {
+    this.btnList = this.tabs;
+    this.nowTab = this.btnList[0];
+    this.getUser();
+  },
+  watch: {
+    org(org) {
+      if (this.btnList.indexOf(this.nowTab) < 0) {
+        this.nowTab = this.btnList[0];
+      }
+      this.properties = {};
+      this.keyWord = "";
+      this.pagination = {};
+      this.getUser();
+    }
+  },
+  methods: {
+    onProgressFinish(uri){
+      download(uri);
+    },
+      handleExport() {
+      let title;
+      if (this.nodeid) {
+        title = this.org.name + this.nowTab.name;
+        userQueryExport(this.getParams({}), title).then(res => {
+          this.taskid = res.result;
+        }).catch(err => {
+          showError(err);
+        })
+      } else {
+        title = this.org.name + this.nowTab.name;
+        deptUserQueryExport(this.getParams({}), title).then(res => {
+          this.taskid = res.result;
+        }).catch(err => {
+          showError(err);
+        })
+      }
+    },
+    changeType(val) {
+      if (val != this.nowTab) {
+        this.nowTab = val;
+        this.properties = {};
+        this.keyWord = "";
+        this.pagination = {};
+        this.getUser();
+      }
+    },
+    indexRender() {
+      return (text, row, index) => {
+        let p = this.pagination;
+        return (p.pagenum - 1) * p.pagesize + index + 1;
+      };
+    },
+    dictRender(key) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key, text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    suporgRender(key, row, index){
+      if(!key){
+        return '';
+      }
+      let {cache, loading} = orgLoader;
+      let v = cache.get(key);
+      if(v){
+        return v.suporg && v.suporg.name;
+      }
+      if(!loading.has(key)){
+        loading.add(key);
+        organization(key).then(({result}) => {
+          loading.delete(key);
+          cache.set(key, {name: result.name, suporg: result.suporg});
+          this.pagination.rows = [...this.pagination.rows];
+        }).catch(err => {
+          loading.delete(key);
+        })
+      }
+    },
+    onPageChange(pagenum, pagesize) {
+      this.getUser({ pagenum, pagesize });
+    },
+    onShowSizeChange(current, pagesize) {
+      this.getUser({ pagenum: 1, pagesize });
+    },
+    onSearch() {
+      this.getUser();
+    },
+    getParams(page) {
+      if (this.nodeid) {
+        const params = {
+          scope: this.nowTab.scope,
+          treeid: this.treeid,
+          nodeid: this.nodeid,
+          usertype: this.nowTab.usertype,
+          needtotal: true,
+          searchkey: this.keyWord,
+          properties: this.properties,
+          ...page,
+        };
+        return params;
+      } else {
+        const params = {
+          orgid: this.org._id,
+          scope: this.nowTab.scope,
+          usertype: this.nowTab.usertype,
+          ...page,
+          needtotal: true,
+          searchkey: this.keyWord,
+          properties: this.properties
+        };
+        return params;
+      }
+    },
+    getUser(page) {
+      if (!this.org) {
+        return;
+      }
+      this.loading = true;
+      const pagination = page || this.pagination;
+      let request;
+      if (this.nodeid) {
+        request = userquery(this.getParams(page));
+      } else {
+        request = deptuserquery(this.getParams(page));
+      }
+      request.then(({result}) => {
+        this.pagination = result;
+        this.showWorkStatus = false;
+        result.rows.forEach(element => {
+          if(element.work && element.work.length){
+            if(element.org._id != element.work[0].workorg._id){
+              this.showWorkStatus = true;
+              element.workstatus = 1;
+            }
+          }
+        });
+        this.loading = false;
+      }).catch(error => {
+        this.pagination = {};
+        this.showWorkStatus = false;
+        this.loading = false;
+        showError(error);
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.person-detail {
+  height: 100%;
+  flex-direction: column;
+  display: flex;
+  .top-btn {
+    width: 100%;
+    height: auto;
+    padding: @content-padding-v @content-padding-h;
+    background-image: linear-gradient(to right, #fcfcfc, @primary-1);
+    .topbtn {
+      cursor: pointer;
+      height: 26px;
+      line-height: 26px;
+      padding: 0 14px;
+      float: left;
+      border-radius: 3px;
+      margin-right: 5px;
+      &:hover {
+        background-color: @primary-1;
+        color: @primary-color;
+      }
+      &.act-btn {
+        background-color: @primary-2;
+        color: @primary-color;
+      }
+    }
+  }
+  .personlist {
+    flex: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    .top {
+      padding: @content-padding-v/2 @content-padding-h @content-padding-v @content-padding-h;
+      .left {
+        float: left;
+        margin-top: @content-padding-v/2;
+        .ant-btn {
+          margin-right: 10px;
+          color: @primary-color;
+          border-color: @primary-color;
+        }
+      }
+      .right {
+        float: right;
+        margin-top: @content-padding-v/2;
+        .search-item {
+          width: 140px;
+          margin: 0 5px 0 0;
+          &.scope {
+            width: 100px;
+          }
+        }
+        .searchBt {
+          background-color: @primary-color;
+          border: 0;
+          color: #fff;
+          margin-left: 5px;
+        }
+      }
+    }
+    .per-table {
+      flex-shrink: 1;
+      min-height: 0;
+      padding: 0 @content-padding-h;
+      overflow-y: auto;
+      /deep/table {
+        table-layout: fixed;
+        td,
+        th {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+      .table-tr {
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        .worstatus {
+          width: 16px;
+          height: 16px;
+          display: inline-block;
+        }
+      }
+    }
+    .footer {
+      padding: @content-padding-v @content-padding-h;
+      .ant-pagination {
+        float: right;
+        margin-bottom: 10px;
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,79 @@
+<template>
+  <div class="satisfied">
+    <ul>
+      <li v-for="(item,index) in list" :key="index">
+        <span class="name">{{item.name}}</span>
+        <span class="num">{{item.num}}</span>
+      </li>
+    </ul>
+  </div>
+</template>
+<script>
+export default {
+  data() {
+    return {
+      list: [
+        { name: "取号量", num: 7560 },
+        { name: "办事量", num: 7542 },
+        { name: "满意度", num: "99.3%" },
+        { name: "投诉量", num: 8 }
+      ]
+    };
+  }
+};
+</script>
+<style lang='less' scoped>
+.satisfied {
+  width: 763px;
+  height: 133px;
+  background: url("../../assets/img/list-two.png") no-repeat center center;
+  ul {
+    margin: 0px;
+    display: flex;
+    justify-content: space-around;
+    height: 100%;
+    padding-top: 12px;
+    li {
+      display: flex;
+      flex:1;
+      flex-direction: column;
+      position: relative;
+      justify-content: center;
+      .name {
+        font-size: 16px;
+        font-family: Alibaba;
+        font-weight: 400;
+        color: #ffffff;
+        text-shadow: 0px 0px 16px rgba(28, 28, 30, 0.95);
+        opacity: 0.8;
+        text-align: center;
+      }
+      .num {
+        font-size: 36px;
+        font-family: D-DINExp;
+        font-weight: 400;
+        line-height: 39px;
+        color: #2bffff;
+        opacity: 1;
+        text-align: center;
+      }
+      &:last-child {
+        &::after {
+          width: 0px;
+        }
+      }
+      &::after {
+        content: "";
+        width: 1px;
+        height: 32px;
+        background: #2bffff;
+        opacity: 0.6;
+        position: absolute;
+        right: 0px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+    }
+  }
+}
+</style>

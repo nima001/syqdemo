@@ -1,0 +1,133 @@
+<template>
+    <div class="layout">
+      <div class="tools">
+        <a-input allowClear v-model="namelike" placeholder="请输入操作内容" @pressEnter="getChangLog" :style="{width:'200px'}" class="tsearch"/>
+        <a-button type="primary" @click="getChangLog" class="tsearch">搜索</a-button>
+        <a-button type="primary" @click="resetsearch" class="tsearch">重置</a-button>
+      </div>
+      <div class="table">
+        <a-table :columns="columns" :data-source="data" :pagination="false"></a-table>
+        <a-pagination
+          v-if="data.length > 0"
+          :total="total"
+          :showSizeChanger="true"
+          @showSizeChange="onShowSizeChange"
+          :page-size-options="pageSizeOptions"
+          :pageSize="pagesize"
+          v-model="pagenum"
+          @change="onPageChange"
+          :showTotal="(total) => `总共：${total}条`"
+        />
+      </div>
+    </div>
+</template>
+
+<script>
+import {Button, Input, Table, Pagination } from "ant-design-vue";
+import { operationlog } from "@/dev/api/app";
+import { showError } from "@/framework/utils";
+export default {
+  components: {
+    AButton: Button,
+    AInput: Input,
+    ATable: Table,
+    APagination: Pagination
+  },
+
+  data() {
+    return {
+      namelike: "",
+      columns: [
+        {
+          title: "操作对象",
+          dataIndex: "operation",
+          width: "20%"
+        },
+        {
+          title: "操作内容",
+          dataIndex: "desc",
+          width: "30%"
+        },
+        {
+          title: "操作人",
+          dataIndex: "createuser",
+          width: "10%"
+        },
+        {
+          title: "操作时间",
+          dataIndex: "createtime",
+          width: "10%"
+        }
+      ],
+      data: [],
+      total: 0,
+      pageSizeOptions: ["10", "20", "30", "40", "50"],
+      pagesize: 10,
+      pagenum: 1
+    };
+  },
+  created() {
+    this.getChangLog();
+  },
+  methods: {
+    getChangLog() {
+      let data = {
+        appid: this.$store.getters.appInfo.id,
+        desc: this.namelike,
+        needtotal: true,
+        orders: [
+          {
+            orderby: "createtime",
+            ordertype: "DESC"
+          }
+        ],
+        pagenum: this.pagenum,
+        pagesize: this.pagesize
+      };
+      operationlog(data)
+        .then(res => {
+          let result = res.result;
+          this.data = result.rows;
+          this.total = result.total;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    onPageChange(page, pageSize) {
+      this.getChangLog();
+    },
+    onShowSizeChange(current, size) {
+      (this.pagesize = size), (this.pagenum = 1);
+      this.getChangLog();
+    },
+    resetsearch() {
+      this.pagesize = 10;
+      this.pagenum = 1;
+      this.namelike = "";
+      this.getChangLog();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+  .layout {
+    .tools {
+      display: flex;
+      justify-content: flex-end;
+      .tsearch {
+        margin: 0 5px;
+      }
+    }
+    .table{
+      margin-top: 10px;
+    }
+    .ant-pagination {
+      margin-top: 10px;
+      text-align: right;
+    }
+    /deep/ .ant-table-tbody > tr > td {
+      line-height: 2;
+    }
+  }
+</style>

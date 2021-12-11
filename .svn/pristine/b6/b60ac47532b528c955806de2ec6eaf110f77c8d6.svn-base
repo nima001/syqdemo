@@ -1,0 +1,86 @@
+<template>
+  <div>
+    <a-form-item
+      label="所在区域"
+      :required="true" 
+      :validateStatus="validateStatus"
+      :label-col="itemLayout.labelCol" 
+      :wrapper-col="itemLayout.wrapperCol"
+      >
+      <dict-select
+        dict="usermanage.org.district"
+        style="width: 100"
+        v-model="propValue"
+        @change="onChange"
+        >
+      </dict-select>
+    </a-form-item>
+  </div>
+</template>
+
+<script>
+import { Form } from "ant-design-vue";
+import DictSelect from "@/framework/components/DictSelect";
+import set from 'lodash/set';
+export default {
+  props: {
+    itemParams: {
+      type: Object
+    },
+    itemLayout: {
+      type: Object
+    }
+  },
+  components: {
+    AFormItem: Form.Item,
+    DictSelect
+  },
+  data() {
+    return {
+      propValue: undefined,
+      validateStatus: undefined,
+      key: 'district'
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    if (this.itemParams[this.key]) {
+      this.propValue = this.itemParams[this.key]
+    }
+  },
+  mounted() {},
+  methods: {
+    validateField(obj){
+      return new Promise((resolve, reject) => {
+        this.validate((error) => {
+          if(error){
+            reject(error);
+          }else{
+            set(obj, this.key, this.propValue === undefined ? null : this.propValue);
+            resolve();
+          }
+        })
+      });
+    },
+    validate(callback){
+      let status = undefined, error;
+      if(!this.propValue && this.propValue !== 0){
+        status = 'error';
+        error = `请选择所在区域`;
+      }else{
+        status = 'success';
+      }
+      this.validateStatus = status;
+      if(callback){
+        callback(error);
+      }
+    },
+    onChange(){
+      this.validate();
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+</style>

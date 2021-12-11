@@ -1,0 +1,123 @@
+<template>
+  <div>
+    <ul>
+      <li v-for="item in messageList" :key="item.messageid" @click="openMsg(item)">
+        <div class="icon"
+          :class="{ unread: item.isread == 0 }" 
+        ><a-icon type="mail"/></div>
+        <div class="text">
+          <v-clamp tag="span" :max-lines="2">{{item.oatitle ? `【${item.oatitle}】${item.content}` : item.content }}</v-clamp>
+        </div>
+      </li>
+    </ul>
+  </div>
+</template>
+<script>
+import { Icon } from 'ant-design-vue'
+import VClamp from 'vue-clamp';
+import { msglist, msgreadMark } from "@framework/api/message";
+import { showError, dateFormat } from "@/framework/utils/index";
+
+/**
+ * 我的新消息
+ */
+export default {
+  components: {
+    AIcon: Icon,
+    VClamp
+  },
+  data(){
+    return {
+      messageList: undefined
+    }
+  },
+  watch: {
+    '$store.getters.notification'(n, old) {
+      if(n.count > 0){//有新的消息，刷新消息列表
+        this.loadMessage();
+      }
+    },
+  },
+  created(){
+    this.loadMessage();
+  },
+  methods: {
+     openMsg(item){
+      if(item && item.pcurl){
+        if(item.pcurl.startsWith('/person/worktask/taskinfo?')){
+          let params = new URLSearchParams(item.pcurl.substr(26));
+          let id = params.get('id');
+          //TODO 打开任务
+        }else{
+          window.open(item.pcurl);
+        }
+        this.read(item);
+      }
+    },
+    read(msg) {
+      msgreadMark({ 
+        mark: 1, 
+        messageid: msg.messageid 
+      }).then((res) => {
+        msg.read = 1;
+        this.messageList = [...this.messageList];
+      }).catch((err) => {
+        //ignore
+      });
+    },
+    loadMessage() {
+      msglist({
+        // ishandle: 0,
+        // isread: 0,
+        needtotal: true,
+        pagenum: 1,
+        pagesize: 20,//加载前20条未读消息
+      }).then(({ result }) => {
+        this.messageList = result.rows || [];
+        this.messageList.forEach((i) => {
+          i.sendtime = dateFormat(new Date(i.sendtime), "yyyy-MM-dd");
+        });
+      }).catch((err) => {
+        showError(err);
+      });
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+ul{
+  padding: @content-padding-v @content-padding-h;
+  margin: 0;
+  li{
+    display: flex;
+    box-sizing: content-box;
+    height: 56px;
+    line-height: 56px;
+    padding: 0 5px 3px 5px;
+    border-bottom: 1px solid @border-color-split;
+    cursor: pointer;
+    &:last-child{
+      border-bottom: unset;
+    }
+    &:hover{
+      background-color: @primary-1;
+    }
+    .icon{
+      flex: none;
+      margin-right: 5px;
+      &.unread{
+        color: @accent-color;
+      }
+    }
+    .text{
+      flex: auto;
+      & > span{
+        line-height: 1.4em;
+        display: inline-block;
+        vertical-align: middle;
+      }
+    }
+  }
+
+}
+</style>

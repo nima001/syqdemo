@@ -1,0 +1,82 @@
+<template>
+  <div class="form-group">
+    <!-- <a-form :form="form"> -->
+      <template v-for="item in props">
+        <component 
+          ref="inputBox"
+          :is="`input-${item}`"
+          :property="item"
+          :itemLayout="formLayout"
+        >
+        </component>
+      </template>
+    <!-- </a-form> -->
+  </div>
+</template>
+
+<script>
+import { Form } from 'ant-design-vue';
+import InputOrg from '@/person-shaoxing/views/assessment/compileAssist/components/InputOrg';
+import InputMainunit from '@/person-shaoxing/views/assessment/compileAssist/components/InputMainunit';
+import InputTable from '@/person-shaoxing/views/assessment/compileAssist/components/InputTable';
+import InputDistrict from '@/person-shaoxing/views/assessment/compileAssist/components/InputDistrict';
+import InputOrgline from '@/person-shaoxing/views/assessment/compileAssist/components/InputOrgline';
+import InputCompilenum from '@/person-shaoxing/views/assessment/compileAssist/components/InputCompilenum';
+import InputLeveldict from '@/person-shaoxing/views/assessment/compileAssist/components/InputLeveldict';
+import InputOrgname from '@/person-shaoxing/views/assessment/compileAssist/components/InputOrgname';
+import InputDutytext from '@/person-shaoxing/views/assessment/compileAssist/components/InputDutytext';
+import InputScopetext from '@/person-shaoxing/views/assessment/compileAssist/components/InputScopetext';
+export default {
+  props: {
+    formConfig: {
+      type: Array
+    },
+    formLayout: {
+      type: Object,
+      default: {
+        labelCol: { span: 6 },
+        wrapperCol: { span: 12 }
+      }
+    },
+    props: {
+      type: Array
+    }
+  },
+  components: { 
+    AForm: Form,
+    InputOrg,
+    InputMainunit,
+    InputTable,
+    InputDistrict,
+    InputOrgline,
+    InputCompilenum,
+    InputLeveldict,
+    InputOrgname,
+    InputDutytext,
+    InputScopetext
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {},
+  beforeCreate() {
+    this.form = this.$form.createForm(this);
+  },
+  created() {},
+  mounted() {},
+  methods: {
+    validateFields(obj){
+      return Promise.all((this.$refs.inputBox || []).map(ele => {
+        return ele.validateField(obj);
+      }))
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.form-group{
+  // height: 100%;
+}
+</style>

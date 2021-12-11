@@ -1,0 +1,95 @@
+<template>
+	<a-layout>
+		<chart-console v-model="chart" namespace="customquery" @save="onSave">
+			<template v-slot:table="props">
+				<DataTable v-bind="props" :allowDrag="true" />
+			</template>
+			<template v-slot:pie-chart="props">
+				<PieChart v-bind="props" :allowDrag="true" />
+			</template>
+			<template v-slot:ring-chart="props">
+				<RingChart v-bind="props" :allowDrag="true" />
+			</template>
+			<template v-slot:radar-chart="props">
+				<RadarChart v-bind="props" :allowDrag="true" />
+			</template>
+			<template v-slot:line-chart="props">
+				<LineChart v-bind="props" :allowDrag="true" />
+			</template>
+			<template v-slot:bar-chart="props">
+				<BarChart v-bind="props" :allowDrag="true" />
+			</template>
+			<template v-slot:stack-bar-chart="props">
+				<StackBarChart v-bind="props" :allowDrag="true"/>
+			</template>
+		</chart-console>
+	</a-layout>
+</template>
+<script>
+import { Layout } from 'ant-design-vue'
+import ChartConsole from './ChartConsole';
+import { closeWindowDelay } from '@framework/utils'
+import { showError } from '@framework/utils';
+import cloneDeep from 'lodash/cloneDeep';
+// import { components } from "@person/components/chart";//FIXME sunwen 异步导入无法手动创建slot，先手动导入
+import DataTable from "./components/DataTable"
+import PieChart from "@person/components/chart/PieChart"
+import RingChart from "@person/components/chart/RingChart"
+import LineChart from "@person/components/chart/LineChart"
+import BarChart from "@person/components/chart/BarChart"
+import RadarChart from "@person/components/chart/RadarChart"
+import StackBarChart from "@person/components/chart/StackBarChart"
+
+export default {
+	components:{
+		ALayout: Layout,
+		ChartConsole,
+		// ...components,
+		DataTable,
+		PieChart, BarChart, LineChart, StackBarChart, RadarChart, RingChart
+	},
+	data(){
+		return {
+			chart: undefined,
+			callback: undefined,
+		}
+	},
+	created(){
+		let { id, feedback } = this.$route.query;
+		if(feedback && window.opener){//需要返回保存信息
+			let { type, data, callback } = window.opener.paramsBridge;
+			if(type == 'chart'){
+				this.callback = callback;
+				this.chart = cloneDeep(data);
+				return;
+			}
+		}
+		this.chart = {id};
+	},
+	methods: {
+		onSave(chart){
+			this.doCallback(chart)
+			this.$message.success('保存成功');
+		},
+		doCallback(chart){
+			if(typeof(this.callback) == 'function'){
+				try{
+					let rt = this.callback(chart);
+					if(rt === true){
+						closeWindowDelay(3, '保存成功');
+						return;
+					}
+				}catch(e){
+					//ignore
+				}
+			}
+		},
+	}
+}
+</script>
+<style lang="less" scoped>
+.ant-layout{
+	height: 100%;
+	padding: @layout-space-base;
+}
+</style>

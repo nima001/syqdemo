@@ -1,0 +1,73 @@
+
+/** 
+ * 监测模块路由
+*/
+import Layout from '../../views/Layout'
+
+export const monitorRoutes = {
+	path: '/person/monitor',
+  component: Layout,
+  children: [
+    {
+			path: '',
+			component: () => import('../../views/monitor/businessHandle/index.vue'),
+			name: 'monitorIndex',
+			redirect: 'businesshandle',
+			children: [
+				{
+          path: 'businesshandle',
+          component: () => import('../../views/monitor/businessHandle/Main.vue'),
+          name: 'businesshandle',
+          meta: { path: [ { name: '业务办理监测', path: '/person/monitor/businesshandle' }] }
+        },
+			]
+    },
+    {
+      path: 'issuetracking',
+			component: () => import('../../views/monitor/issueTracking/index.vue'),
+      name: 'issueTracking',
+      meta: { path: [ { name: '问题跟踪监测', path: '/person/monitor/issuetracking' }] }
+    },
+    {
+      path: 'dataquality',
+			component: () => import('../../views/monitor/dataQuality/index.vue'),
+      name: 'dataQuality',
+      meta: { path: [ { name: '数据质量监测', path: '/person/monitor/dataquality' }] }
+    },
+    {
+      path: 'demo',
+			component: () => import('../../views/monitor/components/demo'),
+      name: 'demo',
+      meta: { path: [ { name: '数据质量监测', path: '/person/monitor/demo' }] }
+    },
+  ]
+}
+
+//监控策略管理
+export const monitorStrategyManage = {
+	path: '/person/manage/monitorstrategy',
+  component: Layout,
+  redirect: 'list',
+  name: 'monitorStrategyManage',
+  meta: {auth: true, title: '监控策略管理'},
+  children: [
+    {
+			path: 'list',
+			component: () => import('../../views/monitor/manage/MonitorStrategy'),
+      name: 'MonitorStrategy',
+      meta: {
+        auth: 'login',
+        path: [{name: '监控策略管理', path: '/person/manage/monitorstrategy/list'}]
+      }
+    },
+    {
+			path: 'info',
+			component: () => import('../../views/monitor/manage/MonitorStrategyInfo'),
+      name: 'MonitorStrategyInfo',
+      meta: {
+        auth: 'login',
+        path: [{name: '监控策略管理', path: '/person/manage/monitorstrategy/list'},{name: '策略编辑',path: '/person/manage/monitorstrategy/info'}]
+      }
+		}
+  ]
+}

@@ -1,0 +1,85 @@
+<template>
+  <div class="staffing-map">
+    <a v-if="location" 
+      class="location" 
+      @click="onBack"
+    >{{location.title}}</a>
+    <AreaMap v-model="selected" :locationPath.sync="path" :rotateX="51.4" class="map"/>
+  </div>
+</template>
+<script>
+import AreaMap from '../map'
+
+export default {
+  components: {
+    AreaMap
+  },
+  data(){
+    return {
+      path: [],
+      location: undefined,
+      selected: undefined,
+    }
+  },
+  watch: {
+    path(path){
+      let index = path.length  - 1;
+      if(index >= 0 && this.location != path[index]){//定位发生变更时，修改定位及选区
+        this.location = path[index];
+        this.selected = this.location;
+      }
+    },
+    selected(v, oldV){
+      if(!v || !oldV || v.adcode != oldV.adcode){
+        this.$emit('select', v);
+      }
+    }
+  },
+  methods: {
+    onBack(){
+      let len = this.path.length;
+      if(len > 1){
+        this.location = this.path[len - 2];
+        this.selected = this.path.pop();
+      }else{
+        this.selected = this.path[0]
+      }
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.staffing-map{
+  height: 100%;
+  width: 100%;
+  position: relative;
+  // perspective-origin: 90% 50%;
+  // perspective: 1500px;
+  .location{
+    position: absolute;
+    top: 0;
+    min-width: 40px;
+    padding: 40px 5px 5px;
+    background: url('../../../assets/img/screen/map-location.png') center top no-repeat;
+    color: rgba(255, 255, 255, .8);
+    font-size: 16px;
+    z-index: 1;
+    &:hover{
+      color: #fff;  
+    }
+  }
+  .map{
+    visibility: hidden;
+  }
+  &::before {
+    content: "";
+    background: url('../../../assets/img/screen/temp.png') center center no-repeat;
+    background-size: 100% 100%;
+    top: 0;
+    left: 40px;
+    bottom: 50px;
+    right: 40px;
+    position: absolute;
+  }
+}
+</style>

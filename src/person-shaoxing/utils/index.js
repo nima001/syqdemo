@@ -1,0 +1,186 @@
+import notification from 'ant-design-vue/es/notification'
+import 'ant-design-vue/lib/notification/style'
+
+// 接口统一错误提示
+export function showError (error) {
+  if (typeof error.code === 'number') {
+    // 生成环境 http状态错误不提示
+    return
+  }
+  notification.error({
+    message: '提示',
+    description: error.desc || '未知错误' + (error.code || ''),
+    duration: 2
+  })
+}
+//  颜色组
+export const colorGroup = [
+  '#D15456',
+  '#5488D1',
+  '#EDBA55',
+  '#D48265',
+  '#91C7AE',
+  '#749F83',
+  '#BDA29A',
+  '#6E7074',
+  '#585470',
+  '#706254'
+]
+
+//  axis配置类
+export class AxisOption {
+  constructor (axiosColor, showGrid, showTitle) {
+    let AxisOption = {
+      label: { textStyle: { fill: axiosColor.labelColor } },
+      line: {}
+    }
+    AxisOption['line']['stroke'] = axiosColor.lineColor
+    AxisOption['title'] = showTitle ? {} : null
+    if (showGrid === false) {
+      AxisOption['grid'] = null
+    }
+    return AxisOption
+  }
+}
+
+/*
+ * 处理百分比
+ * @param {Number} divisor 除数
+ * @param {Number} dividend 被除数
+ * @param {Number} decimal 需要保留几位小数
+ * @return {String}
+ */
+export function numberToPercent (divisor, dividend, decimal = 0) {
+  if (!divisor || !dividend) return 0
+  return (
+    Math.floor((divisor / dividend) * (100 * Math.pow(10, decimal))) /
+      Math.pow(10, decimal) +
+    '%'
+  )
+}
+
+//  导出p标签样式
+export const pStyle =
+  'margin-bottom: 0px; text-align: justify; text-indent: 2em; font-family: 仿宋_GB2312; font-size: 21px; line-height: 2em'
+//  导出tr标签样式
+export const trStyle =
+  'margin-bottom: 0px; text-align: justify; font-family: 仿宋_GB2312; font-size: 21px; line-height: 2em'
+
+export function createHtmlTemp (template) {
+  let html = `<html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <style>
+      body{font-family:sans-serif;font-size:14px;word-break:break-word;text-align:justify;}h2{font-family: SimHei;};h4{font-family: KaiTi_GB2312;};p{font-family: FangSong_GB2312;font-size:16px;margin:5px 0;}table{border-collapse:collapse;}table td, table th{border:1px solid;padding: 2px 6px;word-break:break-word;}body{margin: 60px 60px 60px 60px;}</style>
+    </head>
+    <body>
+      ${template}
+    </body>
+  </html>
+  `
+  return html
+}
+
+/*
+ * 生成导出项
+ * @param {String} template   数据
+ * @param {String} title      标题
+ * @param {Boolean} isCanvas  是否为vanvas,默认false
+ * @return {Object}
+ */
+export function createReportItem (template, title, isCanvas = false) {
+  let data = isCanvas ? template : createHtmlTemp(template)
+  let obj = {
+    children: [],
+    showtitle: false,
+    title: `${title}`
+  }
+
+  if (isCanvas) {
+    let list = {
+      children: [{ image: '' }],
+      showtitle: false,
+      title: '实有人员结构分析'
+    }
+    list.children[0].image = data
+    obj.children.push(list)
+  } else {
+    let list = {
+      children: [{ html: '' }],
+      showtitle: false,
+      title: '实有人员结构分析'
+    }
+    list.children[0].html = data
+    obj.children.push(list)
+  }
+  return obj
+}
+
+/**
+ * 获取当前日期
+ *
+ * @date 格式为yyyy-mm-dd的日期，如：2014-01-25
+ */
+export function getNowFormatDate () {
+  var date = new Date()
+  var seperator1 = '-'
+  var year = date.getFullYear()
+  var month = date.getMonth() + 1
+  var strDate = date.getDate()
+  if (month >= 1 && month <= 9) {
+    month = '0' + month
+  }
+  if (strDate >= 0 && strDate <= 9) {
+    strDate = '0' + strDate
+  }
+  var currentdate = year + seperator1 + month + seperator1 + strDate
+  return currentdate
+}
+
+/**
+ * 获取上一个月
+ *
+ * @date 格式为yyyy-mm-dd的日期，如：2014-01-25
+ */
+export function getPreMonth (date) {
+  var arr = date.split('-')
+  var year = arr[0] // 获取当前日期的年份
+  var month = arr[1] // 获取当前日期的月份
+  var day = arr[2] // 获取当前日期的日
+  var days = new Date(year, month, 0)
+  days = days.getDate() // 获取当前日期中月的天数
+  var year2 = year
+  var month2 = parseInt(month) - 1
+  if (month2 == 0) {
+    year2 = parseInt(year2) - 1
+    month2 = 12
+  }
+  var day2 = day
+  var days2 = new Date(year2, month2, 0)
+  days2 = days2.getDate()
+  if (day2 > days2) {
+    day2 = days2
+  }
+  if (month2 < 10) {
+    month2 = '0' + month2
+  }
+  var t2 = year2 + '-' + month2 + '-' + day2
+  return t2
+}
+
+/**
+ * 一维数组转二维数组
+ * arr: 原数组
+ * length : 二位数组长度
+ *
+ * [1,2,3,4,5,6,7,8] =>[[1,2,3,4][5,6,7,8]]
+ */
+export function sliceArr (arr, length) {
+  let productData = []
+  let num = Math.ceil(arr.length / length)
+  for (let i = 0; i < num; i++) {
+    productData.push(arr.slice(i * length, i * length + length))
+  }
+  return productData
+}

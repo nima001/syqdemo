@@ -1,0 +1,662 @@
+<template>
+  <div class="Unfileddocument-query">
+    <slot name="spin"/>
+    <div class="panel">
+      <div class="toolbar">
+        <a-form :form="form" class="ant-advanced-search-form">
+          <div class="box">
+            <ul class="in-box">
+              <li class="li-content">
+                <div>
+                  <span class="name">批准文号：</span>
+                  <a-input-group compact class="pzwh">
+                    <a-input  type="text" v-model="pagination.zihao" style="width: 30%" />
+                    <a-input v-model="pagination.year" addonBefore="〔" addonAfter="〕" type="text" style="width: 40%; top: 0" />
+                    <a-input v-model="pagination.ordinal" addonAfter="号" type="text" style="width: 30%; top: 0" />
+                  </a-input-group>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">发文时间：</span>
+                  <a-input-group compact style="top: 0">
+                    <a-date-picker
+                      placeholder="发文开始时间"
+                      style="width: 50%"
+                      v-model="startValue"
+                      :disabled-date="disabledStartDate"
+                    />
+                    <a-date-picker
+                      placeholder="发文结束时间"
+                      style="width: 50%"
+                      v-model="endValue"
+                      :disabled-date="disabledEndDate"
+                    />
+                  </a-input-group>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">关键字:</span>
+                  <div>
+                    <a-input
+                      v-model="pagination.searchkey"
+                      placeholder="标题或文件内容"
+                    />
+                  </div>
+                </div>
+              </li>
+              <li class="li-button">
+                <div>
+                  <span class="name"></span>
+                  <div>
+                    <a-button
+                      @click="search"
+                      type="primary"
+                      style="margin-right: 10px"
+                      >搜索</a-button
+                    >
+                    <a-button @click="onreset">重置</a-button>
+                  </div>
+                </div>
+              </li>
+              <slot name="upload" v-if="!needOperation"/>
+            </ul>
+          </div>
+          <a-divider />
+        </a-form>
+      </div>
+    </div>
+    <div class="main">
+      <UploadFile
+        v-if="needOperation"
+        :form="form"
+        :active="active"
+        :record.sync="record"
+        :visible.sync="visible"
+        :type.sync="type"
+        :documentsubtype="documentsubtype"
+        :doctype="doctype"
+        @documentList="documentList"
+      />
+      <div class="list-content">
+        <a-table
+          :row-selection="needOperation?null:{ selectedRowKeys: selectedRowKeys, onChange: onSelectChange, onSelect: onSelect, onSelectAll: onSelectAll }"
+          :loading="loading"
+          :pagination="false"
+          :scroll="{ y: 370 }"
+          :columns="this.columns"
+          :data-source="tableData"
+          :rowKey="(item) => item.id"
+        >
+          <template slot="action" slot-scope="text, record">
+            <span v-if="active.id === 1">
+              <span @click="showmodal(record)">归档</span>
+              <span @click="downDoc(record)">下载</span>
+              <span @click="delorReset(record)">删除</span>
+              <span @click="showFile(record.id)">附件管理</span>
+            </span>
+            <span v-else-if="active.id === 2">
+              <span @click="downDoc(record)">下载</span>
+              <span @click="delorReset(record)">恢复</span>
+              <span @click="delrecord(record.id)">删除</span>
+            </span>
+          </template>
+        </a-table>
+        <a-pagination
+          showSizeChanger
+          @change="onChange"
+          :total="this.pagination.total"
+          :current="this.pagination.pagenum"
+          @showSizeChange="onShowSizeChange"
+          :pageSize="this.pagination.pagesize"
+          v-if="tableData.length&&!this.loading"
+          :showTotal="(total) => `总共：${total}条`"
+        />
+      </div>
+    </div>
+    <FileManage :docid="docid" :filemanageModal.sync="filemanageModal"/>
+  </div>
+</template>
+
+<script>
+import { Form, Input, DatePicker, Button, Select, Divider, Icon, Modal, Table, Upload, Pagination } from "ant-design-vue";
+import { assign, uniq, concat, cloneDeep, pullAll, intersection, difference } from "lodash";
+import UploadFile from "./UploadFile.vue";
+import FileManage from '@framework/components/FileManage.vue';
+import { showError } from "@/framework/utils";
+import { organization } from '@/person/api/org';
+import { download } from "@/framework/api/file";
+import { documentlist, documentdel, documentbyid, documentstatus } from "@/person-shaoxing/api/information";
+
+export default {
+  props: {
+    active: {//选中 已归档文件/已删除文件
+      type: Object,
+    },
+    loading: {//加载状态
+      type: Boolean,
+    },
+    needOperation: {//是否需要操作
+      type: Boolean,
+      default:()=>{
+        return true
+      }
+    },
+    selectedRowKeys: {//选中项id
+      type: Array,
+      required: false,
+      default: ()=>{
+        return []
+      }
+    },
+    fileList: {//选中项行数据
+      type: Array,
+      required: false,
+      default: ()=>{
+        return []
+      }
+    },
+    uploadid: {//uploadid
+      type: String,
+      required: false,
+      default: ()=>{
+        return ''
+      }
+    }
+  },
+  components: {
+    UploadFile,
+    FileManage,
+    AForm: Form,
+    AIcon: Icon,
+    AInput: Input,
+    ATable: Table,
+    AModal: Modal,
+    AUpload: Upload,
+    AButton: Button,
+    ASelect: Select,
+    ADivider: Divider,
+    AFormItem: Form.Item,
+    APagination: Pagination,
+    ADatePicker: DatePicker,
+    AInputGroup: Input.Group,
+    ASelectOption: Select.Option,
+    ARangePicker: DatePicker.RangePicker,
+  },
+  data() {
+    return {
+      columns: [
+        {
+          title: "序号",
+          dataIndex: "index",
+          key: "index",
+          width: "5%",
+          customRender: (text, record, index) => `${index + 1}`,
+        },
+        {
+          title: "文件标题",
+          dataIndex: "title",
+          key: "title",
+        },
+        {
+          title: "批准文号",
+          dataIndex: "num",
+          key: "num",
+          width: "10%",
+        },
+        {
+          title: "文件来源",
+          dataIndex: "source",
+          key: "source",
+          width: "10%",
+          customRender: this.docsourceRender('library.docsource'),
+        },
+        {
+          title: "发文时间",
+          key: "dispatchdate",
+          dataIndex: "dispatchdate",
+          width: "10%",
+        },
+        {
+          title: "操作",
+          key: "action",
+          dataIndex: "action",
+          width: "19%",
+          scopedSlots: { customRender: "action" },
+        },
+      ],
+      record: {},
+      endValue: null,
+      visible: false,
+      startValue: null,
+      filemanageModal: false,
+      docid: undefined,
+      type: undefined,//上传文件-1 归档-2
+      pagination: {
+        rows: [],
+        total: 0,
+        pagenum: 1,
+        pagesize: 10,
+        statusIn:[0],
+        needtotal: true,
+        year: undefined,
+        zihao: undefined,
+        ordinal: undefined,
+        endtime: undefined,
+        starttime: undefined,
+        searchkey: undefined,
+      },
+      form: this.$form.createForm(this, { name: "docform" }),
+    };
+  },
+  computed: {
+    tableData() {
+      return this.pagination.rows;
+    },
+    doctype() {
+      //发文类型 即文件归档
+      return this.$store.getters.dict("library.doctype");
+    },
+    documentsubtype() {
+      return this.$store.getters.dict("library.documentsubtype");
+    },
+  },
+  watch: {
+    startValue(val) {
+      this.pagination.starttime = val;
+    },
+    endValue(val) {
+      this.pagination.endtime = val;
+    },
+    needOperation: {
+      immediate:  true,
+      handler(val) {
+        if(!val) {
+          if(this.columns[this.columns.length-1].dataIndex==='action') {
+            this.columns.pop();
+          }
+        }else{
+          if(this.columns[this.columns.length-1].dataIndex!=='action') {
+            this.columns.push({
+              title: "操作",
+              key: "action",
+              dataIndex: "action",
+              width: "15%",
+              scopedSlots: { customRender: "action" },
+            });
+          }
+        }
+        return val;
+      }
+    },
+    active(val) {
+      this.onreset();
+      this.pagination.rows = [];
+      if (val.id === 1) {
+        //未归档
+        this.pagination.statusIn = [0];
+      } else {
+        //已删除
+        this.pagination.statusIn = [2];
+      }
+      this.pagination.pagenum = 1;
+      this.documentList(this.pagination);
+    },
+  },
+  mounted() {
+    this.$emit('init');
+  },
+  methods: {
+    docsourceRender(key) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key, text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    showFile(id) {
+      this.docid = id;
+      this.filemanageModal = true;
+    },
+    onSelectChange(selectedRowKeys, selectedRows) {
+      this.$emit('update:selectedRowKeys', selectedRowKeys);
+    },
+    //全选
+    onSelectAll(selected, selectedRows, changeRows) {
+      let data = cloneDeep(this.fileList);
+      let upids = cloneDeep(this.uploadid);
+      let ids = '';
+      changeRows.forEach((item,index)=> {
+        changeRows[index] = this.getName(item);
+        if(index===0) {
+          ids+=`${this.getuploadId(item)}`;
+        }else{
+          ids+=`,${this.getuploadId(item)}`;
+        }
+      });
+      if(selected) {//全选
+        data = concat(data, changeRows);
+        if(upids==='') {
+          upids+=`${ids}`;
+        }else{
+          upids+=`,${ids}`;
+        }
+        this.$emit('update:uploadid', upids);
+      }else{//全不选
+        let dataarr = difference(data, changeRows);
+        pullAll(data, dataarr);
+        let upidsarr = upids.split(',');
+        let idsarr = ids.split(',');
+        let intersectionarr = intersection(upidsarr, idsarr);
+        pullAll(upidsarr, intersectionarr);
+        this.$emit('update:uploadid', upidsarr.join(','));
+      }
+      this.$emit('update:fileList', data);
+    },
+    //单选
+    onSelect(record, selected) {
+      let data = cloneDeep(this.fileList);
+      let upids = cloneDeep(this.uploadid);
+      record = this.getName(record);
+      let upid = this.getuploadId(record);
+      if(selected) {//选中
+        data.push(record);
+        if(upids==='') {
+          upids = `${upid}`;
+        }else{
+          upids += `,${upid}`;
+        }
+        this.$emit('update:uploadid', upids);
+      }else{//取消选中
+       let arr = data.filter((item)=>item.id===record.id);
+        pullAll(data, arr);
+        let filterid = upids.split(',');
+        let id = filterid.filter((item)=>item===upid);
+        let idarr = upids.split(',');
+        pullAll(idarr, id);
+        this.$emit('update:uploadid', idarr.join(','));
+      }
+      this.$emit('update:fileList', data);
+    },
+    getName(record) {
+      let name = undefined;
+      if('filename'.indexOf(record['fileurl'])!==-1) {
+        let url = record.fileuri.split("?");
+        url.forEach((urlItem)=>{
+          if(urlItem.startsWith('filename')){
+            name = urlItem.split('=')[1];
+          }
+        })
+        record.name = decodeURIComponent(name);
+      }else{
+        record.name = record.title;
+      }
+      return record;
+    },
+    getuploadId(record) {
+      if('filename'.indexOf(record['fileurl'])!==-1) {
+        let url = record.fileuri.split("?");
+        return url[0].slice(7);
+      }else{
+        return record.fileuri;
+      }
+    },
+    async showmodal(val) {
+      await this.documentbyId(val.id);
+    },
+    disabledStartDate(startValue) {
+      const endValue = this.endValue;
+      if (!startValue || !endValue) {
+        return false;
+      }
+      return startValue.valueOf() > endValue.valueOf();
+    },
+    disabledEndDate(endValue) {
+      const startValue = this.startValue;
+      if (!endValue || !startValue) {
+        return false;
+      }
+      return startValue.valueOf() >= endValue.valueOf();
+    },
+    //翻页
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.documentList();
+    },
+    //pagesize改变回调
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagesize, pagenum: 1 });
+      this.documentList();
+    },
+    onreset() {
+      this.pagination.ordinal = undefined;
+      this.pagination.year = undefined;
+      this.pagination.zihao = undefined;
+      this.pagination.starttime = undefined;
+      this.pagination.endtime = undefined;
+      this.pagination.searchkey = undefined;
+      this.startValue = null;
+      this.endValue = null;
+    },
+    search() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          this.pagination.pagenum = 1;
+          this.documentList();
+        }
+      });
+    },
+    delrecord(id) {
+      let that = this;
+      this.$confirm({
+        title: "删除这条数据？",
+        okText: "确定",
+        cancelText: "取消",
+        onOk() {
+          documentdel(id).then((res)=>{
+            if (res.code === "success") {
+              that.$notification.success({
+                message: "提示",
+                description: "删除成功！",
+                duration: 3,
+              });
+              that.documentList();
+            } else {
+              that.$notification.warning({
+                message: "提示",
+                description: "删除失败！",
+                duration: 3,
+              });
+            }
+          }).catch((err)=>{
+            showError(err);
+          });
+        },
+      });
+    },
+    delorReset(record) {
+      let that = this;
+      let title = undefined;
+      if(record.status === 0) {
+        title = "删除";
+        record.status = 2;
+      }else if(record.status === 2) {
+        title = "恢复";
+        record.status = 0;
+      }
+      this.$confirm({
+        title: `${title}这条数据？`,
+        okText: "确定",
+        cancelText: "取消",
+        onOk() {
+          documentstatus(record.id, record.status).then((res)=>{
+            if (res.code === "success") {
+              that.$notification.success({
+                message: "提示",
+                description: `${title}成功！`,
+                duration: 3,
+              });
+              that.documentList();
+            } else {
+              that.$notification.warning({
+                message: "提示",
+                description: `${title}失败！`,
+                duration: 3,
+              });
+            }
+          }).catch((err)=>{
+            showError(err);
+          });
+        },
+      });
+    },
+    documentbyId(id) {
+      this.$emit("update:loading", true);
+      documentbyid(id).then((res)=>{
+        this.record = res.result;
+        this.type = 2;
+        if(this.record.orgid) {
+          this.organization(this.record.orgid);
+        }else{
+          this.$emit("update:loading", false);
+          this.visible = true;
+        }
+      }).catch((err) => {
+        this.$emit("update:loading", false);
+        showError(err);
+      });
+    },
+    organization(id) {
+      organization(id).then((res)=>{ 
+        this.$emit("update:loading", false);
+        this.orgidselected={ orgname:res.result.name,orgid: this.record.orgid };
+        this.visible = true;
+      }).catch((err)=>{
+        this.$emit("update:loading", false);
+        showError(err);
+      })
+    },
+    //文件下载
+    downDoc(record) {
+      if (record.fileuri) {
+        download(record.fileuri);
+      } else {
+        this.$notification.warning({
+          message: "提示",
+          description: "暂无可下载内容!",
+          duration: 3,
+        });
+      }
+    },
+    documentList() {
+      this.$emit("update:loading", true);
+      if (this.pagination.rows) {
+        this.pagination.rows = [];
+      }
+      documentlist(this.pagination)
+        .then((res) => {
+          this.$emit("update:loading", false);
+          if (res.result.rows.length) {
+            assign(this.pagination, res.result);
+          } else {
+            this.$notification.warning({
+              message: "提示",
+              description: "暂无数据!",
+              duration: 3,
+            });
+          }
+        })
+        .catch((err) => {
+          this.$emit("update:loading", false);
+          showError(err);
+        });
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+.Unfileddocument-query {
+  .toolbar {
+    width: 100%;
+    margin: 0 auto;
+    .ant-advanced-search-form {
+      .in-box {
+        display: flex;
+        flex-wrap: wrap;
+        margin-bottom: 0;
+      }
+      .li-content:not(:last-child) {
+        width: 30%;
+      }
+      /deep/.li-content {
+        padding: @layout-space-base;
+        padding-left: 0;
+        & .pzwh {
+          top: 0;
+          display: inline-block;
+          vertical-align: middle;
+        }
+        & .pzwh .ant-input {
+          border: none;
+          height: 30px;
+        }
+        & span.pzwh.ant-input-group {
+          border: 1px solid #d9d9d9;
+          border-radius: 4px;
+        }
+        & span.ant-input-group-addon {
+          border: none;
+          background: none;
+          padding: 0 4px;
+        }
+      }
+      .li-button {
+        padding: @layout-space-base;
+        padding-left: 0;
+      }
+      .name {
+        line-height: 32px;
+        padding-right: 5px;
+      }
+    }
+  }
+  .main {
+    .ant-table span {
+      margin-right: 8px;
+      cursor: pointer;
+    }
+    .ant-table span span:hover {
+      color: @primary-color;
+    }
+    /deep/.ant-table-tbody {
+      & > tr {
+        user-select: none;
+      }
+      & > tr > td {
+        word-break: keep-all;
+        white-space: nowrap;
+      }
+      & > tr > td {
+        max-width: 160px;
+        overflow: hidden;
+        word-break: keep-all;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+    }
+    /deep/.ant-table-fixed-header .ant-table-scroll .ant-table-header {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      overflow-y: visible;
+    }
+    /deep/.ant-table-body {
+      overflow-y: auto !important;
+    }
+    & .ant-pagination {
+      float: right;
+      margin-top: 8px;
+    }
+  }
+}
+</style>

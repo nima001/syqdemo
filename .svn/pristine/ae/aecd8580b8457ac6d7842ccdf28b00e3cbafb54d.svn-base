@@ -1,0 +1,225 @@
+<template>
+  <div class="content">
+    <div class="addAndSearch">
+      <div>
+        <a-button type="primary" @click="add()">新增</a-button>
+      </div>
+      <div>
+        <a-input-search placeholder="输入模板名称搜索" enter-button="搜索" @search="onSearch" />
+      </div>
+    </div>
+    <div class="table">
+      <a-table
+        :columns="columns"
+        :pagination="false"
+        :data-source="data"
+        :rowKey="row=>row.id"
+        :scroll="{ y: 500 }"
+      >
+        <span slot="action" slot-scope="text, record" class="action">
+          <a href="javascript:;" @click.prevent="edit(record.id,record.type)">编辑</a>
+          <a href="javascript:;" @click="push(scopepath,record.id)">分析范围管理</a>
+          <a @click="push(contentpath,record.id)">分析内容管理</a>
+          <a-popconfirm title="Sure to delete?" @confirm="() => onDelete(record.id)">
+            <a href="javascript:;">删除</a>
+          </a-popconfirm>
+        </span>
+      </a-table>
+      <a-modal v-model="visible" title="新增/编辑" @ok="handleOk">
+        <a-form :form="form" :label-col="{ span: 5 }" :wrapper-col="{ span: 12 }">
+          <a-form-item label="模板名称">
+            <a-input v-decorator="['name', { rules: [{ required: true, message: '请输入模板名称!' }] }]" />
+          </a-form-item>
+          <a-form-item label="分类">
+            <dictselect
+              @change="changeAnslyzetype"
+              placeholder="请选择分类"
+              :dict="'analyze.report.analyzetype'"
+            />
+          </a-form-item>
+          <a-form-item label="主题">
+            <dictselect
+              @change="changeSubject"
+              placeholder="请选择主题"
+              :dict="'analyze.report.analyzesubject'"
+            />
+          </a-form-item>
+          <a-form-item label="分析范围类型">
+            <dictselect
+              @change="changeScope"
+              placeholder="请选择分析范围类型"
+              :dict="'analyze.report.analyzescopetype'"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </div>
+  </div>
+</template>
+<script>
+import {
+  Button,
+  InputSearch,
+  Table,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Popconfirm,
+} from "ant-design-vue";
+import dictselect from "@/framework/components/DictSelect";
+const columns = [
+  {
+    title: "序号",
+    dataIndex: "id",
+    align: "center",
+    width: "10%",
+  },
+  {
+    title: "模板名称",
+    dataIndex: "name",
+    align: "left",
+    width: "20%",
+  },
+  {
+    title: "分类",
+    dataIndex: "type",
+    align: "left",
+    width: "20%",
+    customRender(type) {
+      return type == 1 ? "区域" : type == 2 ? "个体" : type == 3 ? "专题" : ""; //数字转文字
+    },
+  },
+  {
+    title: "主题",
+    dataIndex: "subject",
+    align: "left",
+    width: "20%",
+    customRender(subject) {
+      return subject == 1
+        ? "教育"
+        : subject == 2
+        ? "卫生"
+        : subject == 3
+        ? "开发区"
+        : subject == 4
+        ? "行政"
+        : subject == 5
+        ? "事业"
+        : "其他"; //数字转文字
+    },
+  },
+  {
+    title: "操作",
+    dataIndex: "action",
+    align: "left",
+    scopedSlots: { customRender: "action" },
+  },
+];
+export default {
+  components: {
+    AButton: Button,
+    ATable: Table,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    AInputSearch: Input.Search,
+    ASelect: Select,
+    APopconfirm: Popconfirm,
+    dictselect,
+  },
+  props: {
+    data: {
+      type: Array,
+    },
+  },
+  data() {
+    return {
+      columns,
+      visible: false,
+      id: 0,
+      scopetype: 0,
+      subject: 0,
+      anslyzetype: 0,
+      scopepath: "scope",
+      contentpath: "content",
+      form: this.$form.createForm(this, { name: "analysisForm" }),
+    };
+  },
+  methods: {
+    //新增按钮点击事件
+    add() {
+      this.id = 0;
+      this.showModal();
+    },
+    //删除,实际应该调用接口
+    onDelete(id) {
+      this.$emit("delete", id);
+    },
+    //查询
+    onSearch(value) {
+      this.$emit("search", value);
+    },
+    //编辑按钮点击事件
+    edit(id, type) {
+      this.id = id;
+      this.showModal();
+    },
+    push(path, id) {
+      this.$router.push({ path: path, query: { id: id } });
+    },
+    showModal() {
+      this.visible = true;
+    },
+    changeScope(value) {
+      this.scopetype = value;
+    },
+    changeSubject(value) {
+      this.subject = value;
+    },
+    changeAnslyzetype(value) {
+      this.anslyzetype = value;
+    },
+    //确定
+    handleOk(e) {
+      e.preventDefault();
+      //验证输入
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          //输入正确
+          this.$emit("save", {
+            name: values.name,
+            scopetype: this.scopetype,
+            subject: this.subject,
+            anslyzetype: this.anslyzetype,
+            id: this.id,
+          });
+        }
+        //重置所有组件
+        this.form.resetFields();
+        this.visible = false;
+      });
+    },
+  },
+};
+</script>
+
+<style lang="less" scoped>
+.content {
+  height: 100%;
+  padding: @layout-space-base;
+  background-color: @white;
+  .addAndSearch {
+    display: flex;
+    justify-content: space-between;
+    margin: 12px;
+  }
+  .action {
+    & a:not(:nth-child(4)) {
+      margin-right: 15px;
+      color: @primary-color;
+    }
+  }
+}
+</style>

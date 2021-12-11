@@ -1,0 +1,208 @@
+<template>
+  <div class="layout">
+    <div class="content-left">
+      <org-tree class="org-tree" slot="nav" @select="onOrgSelect" :nodeid="undefined" :treeid="undefined"/>
+    </div>
+    <div class="content-right">
+      <div class="top">
+        <div class="top-left"></div>
+        <div class="top-right">
+          <a-date-picker :style="{width:'200px',margin:'0px 10px'}" @change="changeHandle" v-model="query.date"></a-date-picker>
+          <a-input-search placeholder="请输入人员姓名" :style="{width:'200px'}" v-model="query.searchkey" allowClear  enter-button @search="changeHandle"></a-input-search>
+        </div>
+      </div>
+      <div class="middle">
+        <a-table rowKey="id" :loading="loading"  :columns="columns"  :data-source="dataSource" :pagination="false">
+          <template slot="operate" slot-scope="text,record">
+            <a @click="openPubchCard(record)">查看打卡</a>
+            <a :style="{marginLeft:'10px'}" @click.stop="()=>{}">查看请假</a>
+          </template>
+          <template slot="morningtime" slot-scope="record">{{record? moment(record).format("HH:mm:ss"):'---'}}</template>
+          <template slot="morning" slot-scope="text,record">
+            <span class="state">{{record.morning | toStr}}</span>
+            <a-icon type="tool" v-if="record.morning != 3" />
+          </template>
+          <template slot="nighttime" slot-scope="record">{{record? moment(record).format("HH:mm:ss"):'---'}}</template>
+          <template slot="night" slot-scope="text,record">
+            <span class="state">{{record.night | toStr}}</span>
+            <a-icon type="tool" v-if="record.night != 3" />
+          </template>
+        </a-table>
+      </div>
+      <div class="bottom">
+        <a-pagination show-size-changer :total="pagination.total" :page-size="pagination.pagesize"
+          v-model="pagination.pagenum" :show-total="(total) => `共 ${total} 条`" @change="onChange"  
+          @showSizeChange="onShowSizeChange">
+        </a-pagination>
+      </div>
+    </div>
+    <punch-list v-if="punchCard.visible" v-model="punchCard.visible" :punchCard="punchCard"></punch-list>
+  </div>
+</template>
+<script>
+import { DatePicker, Input, Table, Pagination, Select, Button,Icon} from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+import OrgTree from "@/hall/components/OrgTree";
+import AccordionLayout from "@/framework/components/AccordionLayout";
+import { showError } from "@/framework/utils/index";
+import {attendanceList} from "@/hall/api/attendance";
+import PunchList from "./PunchList"
+import moment from "moment";
+let columns = [
+  {title: "序号",width: "50px",customRender: (text, record, index) => `${index + 1}`},
+  { title: "姓名", dataIndex: "username" },
+  { title: "日期", dataIndex: "checkdate",customRender: (text, record, index) => moment(text).format("YYYY-MM-DD")},
+  { title: "组织名称", dataIndex: "org" },
+  { title: "上班打卡", dataIndex: "morningtime",scopedSlots: { customRender: 'morningtime' } },
+  { title: "状态", dataIndex: "morning",scopedSlots: { customRender: 'morning' } },
+  { title: "下班打卡", dataIndex: "nighttime",scopedSlots: { customRender: 'nighttime' }},
+  { title: "状态", dataIndex: "night" ,scopedSlots: { customRender: 'night' }},
+  {title: "操作",dataIndex: "operate",scopedSlots: { customRender: "operate" }}
+];
+export default {
+  components: {
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    APagination: Pagination,
+    AInputSearch: Input.Search,
+    OrgTree,
+    AccordionLayout,
+    AButton: Button,
+    ADatePicker: DatePicker,
+    AIcon:Icon,
+    PunchList
+  },
+  data() {
+    return {
+      columns: columns,
+      loading: true,
+      dataSource: [],
+      node:{},
+      query: {
+        searchkey: undefined,
+        date: moment(new Date().toLocaleDateString()).format('YYYY-MM-DD')
+      },
+      pagination: {
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+        needtotal: true
+      },
+      punchCard:{
+        visible:false,
+        checkdate:undefined,
+        userid:undefined,
+        username:undefined
+      }
+    };
+  },
+  watch:{
+    node:{
+      handler(){
+        this.queryAttence()
+      },
+      deep:true
+    }
+  },
+  filters:{
+    toStr(v){
+      let str = undefined;
+      switch (v){
+        case 0 :str = '未打卡';break;
+        case 1 :str = '迟到';break;
+        case 2 :str ='早退';break;
+        case 3 :str ='正常';break;
+        default:;break;
+      }
+      return str;
+    }
+  },
+  methods: {
+    moment:moment,
+    // 考勤记录
+    queryAttence(){
+      let date = this.query.date ?moment(this.query.date).format("YYYY-MM-DD"):undefined;
+      let query = {
+        nodeid:this.node.id,
+        searchkey:this.query.searchkey,
+        starttime:date,
+        endtime: date,
+        ...this.pagination
+      }
+      this.loading = true;
+      attendanceList(query).then(res=>{
+        let {pagenum,pagesize,total,rows} = res.result;
+        assign(this.pagination,{pagenum,pagesize,total});
+        this.dataSource = rows;
+      }).catch(err=>{
+        showError(err)
+      }).finally(()=>{
+        this.loading = false;
+      });
+    },
+    openPubchCard(record){
+      let {checkdate,userid,username} = record
+      this.punchCard = {checkdate,userid,username,visible:true}
+    },
+    onOrgSelect(node) {
+      this.node = node;
+    },
+    changeHandle(){
+      this.queryAttence();
+    },
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.queryAttence()
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagenum: 1, pagesize });
+      this.queryAttence()
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  .content-left {
+    width: 310px;
+    background: @white;
+    border-radius: @border-radius-base;
+  }
+  .content-right {
+    flex: 1;
+    padding: @content-padding-v 0px;
+    overflow-y: auto;
+    min-height: 0px;
+    background: @white;
+    display: flex;
+    flex-direction: column;
+    border-radius: @border-radius-base;
+    margin-left: @layout-space-base;
+    .top {
+      display: flex;
+      padding: @content-padding-v @content-padding-h;
+      justify-content: space-between;
+    }
+    .middle {
+      flex-shrink: 1;
+      padding: @content-padding-v @content-padding-h;
+      overflow-y: auto;
+      /deep/ tr {
+        cursor: pointer;
+        .state{
+          width: 45px;
+          display: inline-block;
+        }
+      }
+    }
+    .bottom {
+      text-align: right;
+      padding: @content-padding-v 0px;
+    }
+  }
+}
+</style>

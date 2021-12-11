@@ -1,0 +1,393 @@
+<template>
+  <a-layout>
+    <div class="org-record">
+      <div class="toolbar">
+        <div class="left">
+          <a-button icon="plus" type="primary" @click="add"
+            >新增计划管控数</a-button
+          >
+        </div>
+        <div class="right"></div>
+      </div>
+      <div class="body">
+        <a-table
+          class="data-table"
+          :columns="columns"
+          :dataSource="page.rows"
+          rowKey="id"
+          :loading="pageLoading"
+          :pagination="false"
+        >
+          <template slot="opts" slot-scope="record">
+            <a @click="deleteRecord(record)">删除</a>
+          </template>
+        </a-table>
+      </div>
+      <div class="footer">
+        <a-pagination
+          v-if="page.rows && page.rows.length"
+          showSizeChanger
+          :showTotal="(total) => `总共：${total}条`"
+          @showSizeChange="onShowSizeChange"
+          :total="page.total"
+          :pageSize="page.pagesize"
+          v-model="page.pagenum"
+          @change="onPageChange"
+        />
+      </div>
+    </div>
+    <a-modal
+      v-model="showAdd"
+      title="编外计划控制数修改"
+      @ok="handleSubmit"
+      width="650px"
+      :bodyStyle="{
+        height: '550px',
+        paddingTop: '10px',
+        paddingBottom: '0',
+        overflowY: 'auto',
+      }"
+    >
+      <a-form class="form" :form="form">
+        <a-row :gutter="20">
+          <a-col :span="12">
+            <a-form-item label="修改后控制数">
+              <a-input-number
+                v-decorator="[
+                  'control',
+                  {
+                    rules: [
+                      { required: true, message: '请填写修改后的控制数' },
+                    ],
+                  },
+                ]"
+                style="width: 100%"
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="修改值">
+              <a-input-number
+                v-decorator="[
+                  'change',
+                  {
+                    rules: [{ required: true, message: '请填写修改值' }],
+                  },
+                ]"
+                style="width: 100%"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-form-item label="修改时间">
+          <a-date-picker
+            v-decorator="[
+              'createtime',
+              {
+                rules: [{ required: true, message: '请填写修改时间' }],
+              },
+            ]"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item label="修改原因">
+          <a-input-text
+            v-decorator="[
+              'reason',
+              {
+                rules: [
+                  { required: true, message: '请填写修改原因' },
+                  { max: 200, message: '原因不能超过200个字' },
+                ],
+              },
+            ]"
+          />
+        </a-form-item>
+        <a-form-item label="关联文件">
+          <a-input
+            type="hidden"
+            v-decorator="[
+              'docid',
+              {
+                rules: [{ required: false, message: '请填写关联文件' }],
+              },
+            ]"
+          />
+          <a-input :value="doctitle" :read-only="true">
+            <a-icon
+              slot="addonAfter"
+              type="select"
+              @click="showDocSelect = true"
+            />
+          </a-input>
+        </a-form-item>
+        <a-form-item label="已考虑驾驶员岗位数">
+          <a-input-number
+            v-decorator="[
+              'ykljsygws',
+            ]"
+            style="width: 100%"
+          />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+    <a-modal
+      title="选择文件"
+      :footer="null"
+      v-model="showDocSelect"
+      width="1000px"
+      :bodyStyle="{ height: '520px', padding: 0, overflow: 'hidden' }"
+    >
+      <select-doc @finish="onDocSelected" />
+    </a-modal>
+  </a-layout>
+</template>
+<script>
+import {
+  Layout,
+  Button,
+  Table,
+  Pagination,
+  Icon,
+  Modal,
+  Form,
+  Row,
+  Col,
+  DatePicker,
+  Input,
+  InputNumber,
+} from "ant-design-vue";
+import SelectDoc from "./SelectDoc";
+import { showError } from "@/framework/utils/index";
+import request from "@/framework/utils/request";
+
+export default {
+  components: {
+    ALayout: Layout,
+    AButton: Button,
+    ATable: Table,
+    APagination: Pagination,
+    AIcon: Icon,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    AInputText: Input.TextArea,
+    AInputNumber: InputNumber,
+    ADatePicker: DatePicker,
+    SelectDoc,
+  },
+  props: ["loadData"],
+  data() {
+    return {
+      columns: [
+        { title: "修改后控制数", dataIndex: "control", width: "100px" },
+        { title: "修改值", dataIndex: "change", width: "100px" },
+        {
+          title: "修改原因",
+          dataIndex: "reason",
+          width: "50%",
+          customRender: (text) => <span title={text}>{text}</span>,
+        },
+        { title: "修改时间", dataIndex: "createtime", width: "150px" },
+        {
+          title: "关联文件",
+          dataIndex: "doc.title",
+          width: "20%",
+          customRender: (text) => <span title={text}>{text}</span>,
+        },
+        {
+          title: "已考虑驾驶员岗位数",
+          dataIndex: "ykljsygws",
+          width: "135px",
+        },
+        {
+          title: "操作",
+          width: "100px",
+          scopedSlots: { customRender: "opts" },
+        },
+      ],
+      showAdd: false,
+      form: this.$form.createForm(this, {}),
+      doctitle: undefined,
+      showDocSelect: false,
+      pageLoading: false,
+      page: {
+        rows: null,
+        pagesize: 20,
+        pagenum: 1,
+        total: 0,
+      },
+    };
+  },
+  created() {
+    this.refresh(this.page);
+  },
+  watch: {
+    loadData(data) {
+      this.refresh(this.page);
+    },
+  },
+  methods: {
+    onSearch() {
+      this.refresh({ pagenum: 1, pagesize: this.page.pagesize });
+    },
+    onPageChange(page, pagesize) {
+      this.refresh({ pagenum: page, pagesize: pagesize });
+    },
+    onShowSizeChange(current, size) {
+      this.refresh({ pagenum: 1, pagesize: size });
+    },
+    deleteRecord(record) {
+      Modal.confirm({
+        title: "提示",
+        content: "确定删除记录？",
+        onOk: () => {
+          request({
+            url: "/person/bianwai/num/delete",
+            method: "delete",
+            params: { id: record.id },
+          })
+            .then(() => {
+              this.refresh(this.page);
+            })
+            .catch((error) => {
+              showError(error);
+            });
+        },
+      });
+    },
+    refresh({ pagenum, pagesize }) {
+      let orgid = this.loadData && this.loadData.node.data._id;
+      if (!orgid) {
+        return;
+      }
+      this.pageLoading = true;
+      request({
+        url: "/person/bianwai/num/query",
+        method: "post",
+        data: {
+          orgid,
+          needtotal: true,
+          pagenum,
+          pagesize,
+        },
+      })
+        .then((resp) => {
+          this.pageLoading = false;
+          this.page = resp.result;
+        })
+        .catch((err) => {
+          showError(err);
+          this.pageLoading = false;
+        });
+    },
+    add() {
+      this.showAdd = true;
+      this.doctitle = undefined;
+      this.form.resetFields();
+    },
+    onDocSelected(doc) {
+      if (doc) {
+        this.form.setFieldsValue({ docid: doc.id });
+        this.doctitle = doc.title;
+      }
+      this.showDocSelect = false;
+    },
+    handleSubmit() {
+      this.form.validateFields((error, values) => {
+        if (error) {
+          this.$message.error("表单验证失败");
+          return;
+        }
+        let orgid = this.loadData && this.loadData.node.data._id;
+        if (!orgid) {
+          this.$message.error("未关联单位");
+          return;
+        }
+        request({
+          url: "/person/bianwai/num/add",
+          method: "post",
+          data: {
+            orgid,
+            ...values,
+          },
+        })
+          .then(() => {
+            this.$message.success("添加成功");
+            this.refresh(this.page);
+            this.showAdd = false;
+          })
+          .catch((error) => {
+            showError(error);
+          });
+      });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.ant-layout {
+  height: 100%;
+}
+.org-record {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: @border-radius-base;
+  background: @white;
+
+  & > .toolbar {
+    padding: @content-padding-v @content-padding-h;
+    margin-top: 10px;
+    .left {
+      float: left;
+    }
+    .right {
+      float: right;
+    }
+    ul {
+      margin: 0;
+      white-space: nowrap;
+    }
+    li {
+      display: inline-block;
+      margin-left: 8px;
+      white-space: nowrap;
+      .name {
+        line-height: 32px;
+        padding-right: 5px;
+        vertical-align: middle;
+      }
+    }
+  }
+
+  .body {
+    flex-shrink: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 0 @content-padding-h;
+    /deep/table {
+      table-layout: fixed;
+      td,
+      th {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .disabled {
+        color: @disabled-color;
+      }
+    }
+  }
+  .footer {
+    padding: @content-padding-v @content-padding-h;
+    .ant-pagination {
+      float: right;
+      margin-bottom: 10px;
+    }
+  }
+}
+</style>

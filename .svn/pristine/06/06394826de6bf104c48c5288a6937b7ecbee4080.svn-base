@@ -1,0 +1,65 @@
+/** 
+ * 信息服务模块路由
+*/
+import Layout from '../../views/Layout'
+
+export const informationRoutes = {
+    path: '/person/information',
+    component: Layout,
+    children: [
+        {
+            path: 'intelligent',
+            component: () => import('../../views/information/intelligentSearch/Intelligent.vue'),
+            name: 'intelligent',
+            meta: { path: [{ name: '智能搜索', path: '/person/information/intelligent' }] }
+        },
+        {
+            path: 'orgline',
+            component: () => import('../../views/orgline/index.vue'),
+            name: 'orgline',
+            meta: { path: [{ name: '条线配置', path: '/person/information/orgline' }] }
+        },
+        {
+            path: 'docfiling',
+            component: () => import('../../views/information/document/docfiling.vue'),
+            name: 'docfiling',
+            meta: { path : [{ name: '文件归档', path: '/perosn/information/docfiling'}] }
+        },
+        {
+            path: 'organization',
+            component: () => import('../../views/information/organization/index.vue'),
+            name: 'organization',
+            meta: { path : [{ name: '机构编制文件', path: '/person/information/organization'}] }
+        },
+        {
+            path: 'regulations',
+            component: () => import('../../views/information/organization/index.vue'),
+            name: 'regulations',
+            meta: { path : [{ name: '法律法规文件', path: '/person/information/regulations'}] }
+        },
+        // {
+        //     path: 'personnel',
+        //     component: () => import('../../views/information/otherDocument/index.vue'),
+        //     name: 'personnel',
+        //     meta: { path : [{ name: '人事任免文件', path: '/person/information/personnel'}] }
+        // },
+        // {
+        //     path: 'policy',
+        //     component: () => import('../../views/information/otherDocument/index.vue'),
+        //     name: 'policy',
+        //     meta: { path : [{ name: '人事任免文件', path: '/person/information/policy'}] }
+        // },
+        // {
+        //     path: 'comprehensive',
+        //     component: () => import('../../views/information/otherDocument/index.vue'),
+        //     name: 'comprehensive',
+        //     meta: { path : [{ name: '综合文件', path: '/person/information/comprehensive'}] }
+        // },
+        {
+            path: 'orgterm',
+            component: () => import('../../views/information/orgterm/orgtermList.vue'),
+            name: 'orgterm',
+            meta: { path : [{ name: '机构编制用语', path: '/person/information/orgterm'}] }
+        }
+    ]
+}

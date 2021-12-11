@@ -1,0 +1,657 @@
+<template>
+  <div class="catalog-select">
+    <div class="data-panel">
+      <div class="header">
+        <div class="search-bar">
+          <a-input placeholder="输入关键词搜索" v-model="searchkey" @change="onSearch" @pressEnter="onSearch">
+            <a-icon slot="suffix" :type="searchkey ? 'close-circle' : 'search'" @click="clearSearch" />
+          </a-input>
+        </div>
+      </div>
+      <div class="body">
+        <a-breadcrumb v-if="!searchkey" class="catalog-path" separator=">">
+          <a-breadcrumb-item v-for="(item, index) in path" :key="index">
+            <a @click="showNode(index, index == path.length - 1)">
+              <a-icon type="home" v-if="index == 0 && !item.name"/>
+              <template v-else>{{item.name}}</template>
+            </a>
+          </a-breadcrumb-item>
+        </a-breadcrumb>
+        <a-spin :spinning="loading" :class="{'data-list': true, 'multi': isMulti}" :delay="200">
+          <empty-data v-if="!loading && dataList.length == 0"/>
+          <ul v-else @scroll="onScroll" >
+            <li v-for="(item, index) in dataList" :key="item.id">
+              <div class="item-meta" @click="onSelect(item)"
+                :class="{checked: item.checked, single: !isMulti, uncheck: selectState(item) == -1}">
+                <div class="content">
+                  <a-checkbox v-if="isMulti" :checked="item.checked" :disabled="!!selectState(item)" class="checkbox"/>
+                  <custom-icon class="icon" :type="item.type" :object="item.data" />
+                  <span class="text" :title="item.name">{{ item.name }}</span>
+                </div>
+                <a v-if="!searchkey && item.hasChild !== false" @click.stop="showNode(item)" class="enter">下级</a>
+              </div>
+              <a-spin v-if="dataList.length-1 == index && query && query.hasNext()" class="loading-more" tip="加载中...">
+                <a-icon slot="indicator" type="loading"/>
+              </a-spin>
+            </li>
+          </ul>
+        </a-spin>
+      </div>
+    </div>
+    <div v-if="isMulti" class="selected-panel">
+      <div class="header">
+        <div class="select-desc">
+          <span class="tag">已选</span>
+          <span class="desc">{{`${this.selectList.length}/${this.maxSelect}`}}</span>
+        </div>
+        <a class="select-clear" @click="resetSelect()"><a-icon type="delete"/>清空</a>
+      </div>
+      <div class="body">
+        <div class="selected-data">
+          <tags v-if="selectList.length" v-model="selectList" class="list" text="name" @remove="removeSelect"/>
+          <empty-data v-else :tips="`请选择`"/>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="left" v-if="maxSelect > 1">
+        <a-checkbox :checked="checkAll" @change="onCheckAll">全选</a-checkbox>
+      </div>
+      <div class="right">
+        <a-button @click="$emit('cancel')">取消</a-button>
+        <a-button type="primary" @click="$emit('ok')">确认</a-button>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Breadcrumb, Button, Checkbox, Icon, Spin, Input } from "ant-design-vue"
+import EmptyData from "@framework/components/EmptyData";
+import CustomIcon from "@framework/components/CustomIcon";
+import Tags from '@framework/components/Tags';
+import { showError } from "@/framework/utils/index";
+
+/**
+ * 目录选择控件
+ * 事件 
+ * 1.select 选中变更
+ * 2.ok 点击确定
+ * 3.cancel 点击取消
+ * 
+ * 参数
+ * 见 props
+ * 
+ * 节点数据属性(Node)
+ * 1.id 数据ID
+ * 2.type 数类型（默认根据类型选择图标）
+ * 3.name 显示名称
+ * 4.selectable 是否可选(设置为false时将不可选，多选模式下不会出现复选框)
+ * 5.hasChild 是否含有子节点
+ * 6.data 节点数据
+ * 7.children 子节点列表
+ * @author sunwen
+ */
+let canceltoken = 0;
+let searchDelayTimer = 0;
+
+export default {
+  components: {
+    EmptyData, CustomIcon,
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    AInput: Input,
+    ACheckbox: Checkbox ,
+    AButton: Button,
+    ASpin: Spin,
+    AIcon: Icon,
+    Tags
+  },
+  model: {
+    prop: 'selected',
+    event: 'select'
+  },
+  props: {
+    selected: {//选择的数据(v-model)
+      type: Array,
+      default: () => [],
+    },
+    loadData: {//数据加载函数
+      type: Object,
+      required: true,
+      // root(){return Node} 获取根节点
+      // children(node, pageNo){return { list: [Node], nextCount }} 获取子节点
+      // search(searchkey, pageNo){return { list: [Node], nextCount }} 搜索
+    },
+    maxSelect: { //最大选择数，当设置为1时 会改成单选模式，可以设置alwaysMulti为true禁止该行为
+      type: Number,
+      default: 1,
+    },
+    alwaysMulti: { //是否始终为多选模式
+      type: Boolean,
+      default: false,
+    },
+    disabledKeys: { //禁选的id 和Node的selectable属性不同，在多选模式下该属性表现为禁用复选框 (watch)
+      type: Array,
+      default: () => [],
+    },
+  },
+  data() {
+    return {
+      path: [],
+      virtualRoot: false,//path的第一个节点是否为虚拟根节点
+      dataList: [],
+      loading: true,
+      scrollLoading: false,//滚动加载下一页
+      searchkey: undefined,
+      query: undefined,
+      selectList: [...this.selected],
+      checkAll: false,
+    };
+  },
+  created() {
+    this.initData();
+  },
+  watch:{
+    loadData(){
+      this.initData();
+    },
+    selected(selected){
+      if(this.selectList !== selected){
+        this.clearSearch();
+        this.resetSelect(selected);
+      }
+    },
+    disabledKeys(keys){
+      this.dataList = [...this.dataList];
+    }
+  },
+  computed:{
+    isMulti(){//是否多选
+      return this.alwaysMulti || this.maxSelect > 1;
+    },
+  },
+  methods: {
+    /************** event/operate *************/
+    async onCheckAll(){
+      if(this.loading || this.scrollLoading){
+        this.$message.info('数据加载中，请稍后')
+        return//加载中禁止全选操作
+      }
+      try {
+        if(this.checkAll){//取消全选
+          this.checkAll = false;
+          this.dataList.forEach(item => {
+            if(item.checked){
+              item.checked = false;
+              let index = this.selectList.findIndex(i => i.id == item.id);
+              if(index >= 0){
+                this.selectList.splice(index, 1);
+              }
+            }
+          })
+          this.dataList = [...this.dataList];
+        }else{
+          let selectable = [], list = this.dataList;
+          this.loading = true;
+          while(true){//逐页加载
+            list.forEach(item => {
+              if(!item.checked && !this.selectState(item)){
+                selectable.push(item);
+              }
+            });
+            if(this.maxSelect - this.selectList.length - selectable.length <= 0){
+              this.$message.info(`最多只能选${this.maxSelect}个`);
+              this.loading = false;
+              return;
+            }
+            if(this.query && this.query.hasNext()){
+              list = await this.loadNext();
+            }else{
+              break;
+            }
+          }
+          this.loading = false;
+          selectable.forEach(item => item.checked = true);
+          this.selectList = [...this.selectList, ...selectable];
+          this.dataList = [...this.dataList];
+          this.checkAll = true;
+        }
+        this.$emit('select', this.selectList);
+      } catch (error) {
+        if(error != 'cancel'){
+          this.loading = false;
+          showError(error)
+        }
+      }
+    },
+    onSelect(item){
+			if(this.selectState(item)){
+				return;
+			}
+      let list = this.dataList;
+      if(item.checked){//取消选中
+        item.checked = false;
+        this.checkAll = false;
+        let index = this.selectList.findIndex(i => i.id == item.id);
+        if(index >= 0){
+          this.selectList.splice(index, 1);
+        }
+      }else{
+        if(this.isMulti){//多选有复选框
+          if(this.selectList.length >= this.maxSelect){
+            this.$message.info(`您最多只能选${this.maxSelect}个`);
+            return;
+          }
+          this.selectList.push(item);
+        }else{
+          list.forEach(e => {
+            if(e.checked){
+              e.checked = false;
+            }
+          });
+          this.selectList = [item];
+        }
+        item.checked = true;
+      }
+      this.dataList = [...list];
+      this.$emit('select', this.selectList);
+    },
+    removeSelect(item){
+      let listItem = this.dataList.find(i => i.id == item.id);
+      if(listItem){
+        listItem.checked = false;
+        this.dataList = [...this.dataList];
+        this.checkAll = false;
+      }
+      this.$emit('select', this.selectList);
+    },
+    resetSelect(selected){
+      selected = selected || [];
+      let add = false, removed = false;
+      this.dataList.forEach(item => {
+        let checked = selected.findIndex(i => item.id == i.id) >= 0;
+        if(checked != item.checked){
+          if(checked){
+            add = true;
+          }else{
+            removed = true;
+          }
+          item.checked = checked;
+        }
+      });
+      this.selectList = [...selected];
+      if(removed){
+        this.checkAll = false;
+      }
+      if(add || removed){
+        this.dataList = [...this.dataList];
+      }
+      this.$emit('select', this.selectList);
+		},
+    onScroll(e){
+      if(!this.scrollLoading && this.query && this.query.hasNext()){
+        if(e.target.scrollHeight - e.target.clientHeight - e.target.scrollTop <= 34){//剩余可滚动区域小于底部加载中高度
+          this.scrollLoading = true;
+          this.loadNext().then(list => {
+            this.scrollLoading = false;
+          }).catch(err => {
+            if(error != 'cancel'){
+              this.scrollLoading = false;
+              showError(error)
+            }
+          })
+        }
+      }
+    },
+    onSearch(e){
+      let searchkey = e.target.value.trim();
+      if(searchkey){
+        let token = ++canceltoken;
+        this.dataList = [];
+        this.loading = true;
+        if(searchDelayTimer){
+          clearTimeout(searchDelayTimer);
+        }
+        //延时500毫秒发起请求，减少连续输入时请求数
+        searchDelayTimer = setTimeout(() => {
+          if(canceltoken == token){
+            this.query = this.createQuery('search', searchkey);
+            this.query.next().then((data) => {
+              this.loading = false;
+              this.setCheckState(data);
+              this.dataList = data;
+            }).catch(error => {
+              if(error != 'cancel'){
+                this.loading = false;
+                showError(error)
+              }
+            });
+          }
+        }, 500);
+      }else{
+        this.clearSearch();
+      }
+    },
+    clearSearch(){
+      if(searchDelayTimer){
+        clearTimeout(searchDelayTimer);
+        searchDelayTimer = 0
+        this.searchkey = undefined;
+        this.dataList = [];
+        this.query = undefined;
+        this.showNode(this.path.length - 1);
+      }
+    },
+    /************** data request *************/
+    initData(){
+      this.loading = true;
+      this.loadData.root().then(data => {
+        let { children } = data;
+        if(children && children.length == 1 && !children[0].selectable){
+          //根节点只有一个元素，并且根节点不可选时，设置该节点为根路径，否则显示虚拟根路径
+          this.path = [children[0]];
+        }else{
+          this.virtualRoot = true;//标记为虚拟根节点
+          this.path = [data];
+        }
+        this.loading = false;
+        this.showNode(0);
+      }).catch(error => {
+        this.loading = false;
+        showError(error)
+      });
+    },
+    async showNode(node, refresh){
+      let query;
+      this.loading = true;
+      try {
+        if(typeof node == 'number'){//返回指定路径
+          if(node < 0 || node >= this.path.length){
+            throw `路径索引${node}不正确`;
+          }
+          let n = this.path[node];
+          if(refresh){
+            n.children = undefined;//刷新时清除缓存
+          }
+          if(node == 0 && this.virtualRoot){
+            query = this.createQuery('root', n);
+          }else{
+            query = this.createQuery('children', n);
+          }
+          this.dataList = await query.next();
+          this.path.splice(node + 1, this.path.length - node + 1);
+        }else{//显示某个子节点
+          query = this.createQuery('children', node);
+          this.dataList = await query.next();
+          this.path.push(node);
+        }
+        this.setCheckState(this.dataList);
+        this.query = query;
+        this.checkAll = false;
+        this.loading = false;
+      } catch (error) {
+        if(error != 'cancel'){
+          this.loading = false;
+          showError(error)
+        }
+      }
+    },
+    loadNext(){
+      return this.query.next().then(list => {
+        this.setCheckState(list);
+        this.dataList = [...this.dataList, ...list];
+        return list;
+      })
+    },
+    createQuery(type){//创建查询
+      let fn = this.loadData[type],
+        args = [...arguments].slice(1),
+        pageNo = 0, nextCount, dataList;
+      let node;
+      if(type != 'search'){
+        node = args[0];
+      }
+      return {
+        hasNext(){
+          return !dataList || nextCount > 0;
+        },
+        next(){
+          if(!dataList && (node && node.children)){//第一次加载判断是否有缓存，从缓存中读取数据
+            dataList = node.children;
+            pageNo = dataList.pageNo;
+            nextCount = dataList.nextCount;
+            return Promise.resolve(dataList);
+          }else{
+            let token = ++canceltoken;
+            return fn(...args, pageNo).then((data) => {
+              if(canceltoken == token){
+                let list;
+                if(type == 'root'){
+                  list = data.children || [];
+                }else{
+                  list = data.list || [];
+                  if(data.nextCount !== undefined){
+                    nextCount = data.nextCount;
+                  }else if(nextCount > 0){//未提供剩余条数，根据之前的数据计算
+                    nextCount -= list.length;
+                  }
+                }
+                if(!list.length){//服务器数据容错，防止循环请求空数据
+                  nextCount = 0;
+                }
+                pageNo++;
+                if(dataList){
+                  dataList = [...dataList, ...list];
+                }else{
+                  dataList = list;
+                }
+                if(node){
+                  dataList.pageNo = pageNo;
+                  dataList.nextCount = nextCount;
+                  node.children = dataList;
+                }
+                return list;
+              }else{
+                return Promise.reject('cancel');
+              }
+            })
+          }
+        }
+      }
+    },
+    /************** utils *************/
+    setCheckState(list){
+      list.forEach(item => {
+        item.checked = this.selectList.findIndex(i => i.id == item.id) >= 0;
+      });
+    },
+    selectState(item){//选择状态 0 可选 1 禁选 -1 非选项
+      if(!item.selectable){
+        return -1;
+      }
+      return this.disabledKeys.indexOf(item.id) >= 0 ? 1 : 0; 
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+@header-height: 58px;
+@footer-height: 60px;
+@base-padding: 34px;
+
+.catalog-select {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  .header{
+    height: @header-height;
+    padding: 20px @base-padding 8px @base-padding;
+  }
+  .body{
+    height: 100%;
+    box-sizing: border-box;
+    margin-top: -@header-height;
+    padding-top: @header-height;
+    padding-bottom: @footer-height;
+  }
+  //左侧待选数据
+  & > .data-panel{
+    flex: 1 1 50%;
+    min-width: 0;
+    & > .body{
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      .catalog-path{
+        line-height: 1.4em;
+        padding: 6px @base-padding 6px @base-padding;
+        a{
+          color: @text-color;
+        }
+        a:hover{
+          color: @primary-color;
+        }
+      }
+      .data-list{
+        flex: 1 1 100%;
+        overflow: hidden;
+        padding: 0 6px;
+        &.multi{
+          padding-right: 0;
+        }
+        /deep/.ant-spin-nested-loading, /deep/.ant-spin-container{
+          height: 100%;
+        }
+        ul{
+          height: 100%;
+          margin: 0;
+          overflow-y: auto;
+				}
+        li{
+          margin-bottom: 2px;
+          .item-meta{
+            position: relative;
+            line-height: 1.4em;
+            padding: 6px @base-padding - 6;
+            cursor: pointer;
+
+            .content{
+              margin-right: 50px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              .checkbox{
+                margin-right: 8px;
+              }
+              .icon{
+                width: 18px;
+                height: 18px;
+                margin-right: 4px;
+                padding: 1px;
+              }
+            }
+            &:hover{
+              background: @primary-1;
+            }
+            &.single.checked{
+              background: @primary-2;
+            }
+            &.uncheck{
+              .checkbox{
+                visibility: hidden;
+              }
+            }
+            .enter{
+              position: absolute;
+              right: @base-padding;
+              top: 50%;
+              margin-top: -0.7em;
+              color: @text-color-secondary;
+              border-left: 1px solid fade(@text-color-secondary, 30%);
+              text-indent: 6px;
+              &:hover{
+                color: @primary-color;
+                border-color: @primary-color;
+              }
+            }
+          }
+          .loading-more{
+            display: block;
+            text-align: center;
+            /deep/.anticon-loading{
+              vertical-align: middle
+            }
+            /deep/.ant-spin-text{
+              display: inline-block;
+              vertical-align: middle;
+              margin-left: 6px;
+              line-height: 34px;
+              color: fade(@black, 25%);
+            }
+          }
+        }
+      }
+    }
+  }
+  //右侧已选列表
+  & > .selected-panel{
+    flex: 1 1 50%;
+    min-width: 0;
+    border-left: 1px solid @border-color-split;
+
+    .select-desc{
+      float: left;
+      line-height: 32px;
+      .tag{
+        line-height: 1.4em;
+        border-left: 4px solid @primary-color;
+        padding: 0 4px 0 6px;
+      }
+      .desc{
+        color: @primary-color;
+      }
+    }
+    .select-clear{
+      float: right;
+      line-height: 32px;
+      i{
+        margin-right: 6px;
+      }
+      &:hover{
+        color: lighten(@primary-color, 20%);
+      }
+    }
+    .selected-data{
+      height: 100%;
+      overflow-y: auto;
+      .list{
+        padding: 0 @base-padding - 4;
+      }
+    }
+  }
+  //底部功能按钮
+  & > .footer{
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: @footer-height;
+    display: flex;
+    & > .left{
+      width: 50%;
+      line-height: @footer-height - 20;
+      padding: 10px @base-padding;
+    }
+    & > .right{
+      flex: 1 0 50%;
+      line-height: @footer-height - 20;
+      padding: 10px 20px;
+      text-align: right;
+      border-top: 1px solid @border-color-split;
+      .ant-btn{
+        margin-left: 12px;
+      }
+    }
+  }
+}
+</style>

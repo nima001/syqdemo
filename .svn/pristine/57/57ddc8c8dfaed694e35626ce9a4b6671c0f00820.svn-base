@@ -1,0 +1,74 @@
+<template>
+  <div class="layout">
+    <div class="top">
+      <a-tabs default-active-key="UserRoster" @change="callback">
+        <a-tab-pane key="UserRoster" tab="人员花名册"></a-tab-pane>
+        <a-tab-pane key="OrganizeList" tab="组织列表"></a-tab-pane>
+        <a-tab-pane key="PersonTransfer" tab="人员调动记录"></a-tab-pane>
+        <a-tab-pane key="PersonCount" tab="人员统计信息"></a-tab-pane>
+      </a-tabs>
+    </div>
+    <div class="middle">
+      <component :is="activeCmpt" :orgData="LoadData"></component>
+    </div>
+  </div>
+</template>
+<script>
+import UserRoster from "./UserRoster";
+import OrganizeList from "./OrganizeList";
+import PersonTransfer from "./PersonTransfer";
+import PersonCount from "./PersonCount";
+import { Tabs } from "ant-design-vue";
+export default {
+  components: {
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    UserRoster,
+    OrganizeList,
+    PersonTransfer,
+    PersonCount
+  },
+  props: {
+    LoadData: {
+      type: Object
+    }
+  },
+  data() {
+    return {
+      activeCmpt: "UserRoster",
+      cmptList: [
+        { name: "人员花名册", cmpt: "UserRoster" },
+        { name: "组织列表", cmpt: "OrganizeList" },
+        { name: "人员调动记录", cmpt: "PersonTransfer" },
+        { name: "人员统计信息", cmpt: "PersonCount" }
+      ]
+    };
+  },
+  methods: {
+    callback(key) {
+      this.activeCmpt = key;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .top {
+    background: @white;
+    /deep/ .ant-tabs-nav-scroll {
+      padding: 0px @content-padding-h;
+    }
+    /deep/.ant-tabs-bar {
+      margin: 0px;
+    }
+  }
+  .middle {
+    flex: 1;
+    min-height: 0px;
+  }
+}
+</style>

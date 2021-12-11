@@ -1,0 +1,89 @@
+import request from '@/framework/utils/request'
+
+//获取流程附件列表
+export function getAttachmentList(id) {
+    return request({
+        url: '/workflow/v1/material/attachmentlist/' + id,
+        method: 'get'
+    })
+}
+
+//流程PDF模板列表
+export function getPdfList(id){
+    return request({
+        url:'/workflow/v1/material/pdflist/'+id,
+        method:'get'
+    })
+}
+
+//发布
+export function publish(id){
+    return request({
+        url:'/workflow/v1/material/publish/'+id,
+        method:'get'
+    })
+}
+
+//编辑列表查询
+export function queryList(query){
+    return request({
+        url:'/workflow/v1/material/querylist',
+        method:'post',
+        dataType: 'json',
+        data:query
+    })
+}
+
+//排序时所需的编辑列表（不分页）
+export function queryTracList(id){
+    return request({
+        url:'/workflow/v1/material/querytraclist/'+id,
+        method:'get'
+    })
+}
+
+//pdf表单
+export function querypdfform(id){
+    return request({
+        url:'/workflow/v1/material/querypdfform/'+id,
+        method:'get'
+    })
+}
+
+//发布列表查询
+export function querypublishlist(query){
+    return request({
+        url:'/workflow/v1/material/querypublishlist',
+        method:'post',
+        dataType: 'json',
+        data:query
+    })
+}
+
+//保存
+export function save(param) { 
+    return request({
+        url:'/workflow/v1/material/save',
+        dataType:'json',
+        method:'post',
+        data:param
+    })
+ }
+
+ //更新排序
+export function saveorder(param) { 
+    return request({
+        url:'/workflow/v1/material/saveorder',
+        dataType:'json',
+        method:'get',
+        params:param
+    })
+ }
+
+//删除
+export function deleteMaterial(id){
+    return request({
+        url:'/workflow/v1/material/delete/'+id,
+        method:'get'
+    })
+}

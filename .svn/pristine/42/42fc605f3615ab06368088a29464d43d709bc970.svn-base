@@ -1,0 +1,354 @@
+<template>
+  <div class="container" style="height: 500px">
+    <div class="content">
+      <a-tabs default-active-key="1" @change="callback">
+        <a-tab-pane key="1" tab="我要办的">
+          <a-table
+            rowKey="id"
+            :pagination="false"
+            :loading="spinning"
+            :columns="this.dealcolumns"
+            :data-source="this.data"
+          >
+            <template slot="category" slot-scope="text">
+              {{ text | capitalize(taskcategory) }}
+            </template>
+            <template slot="operation" slot-scope="text,record">
+              <span @click="worktaskDetails(record)">查看</span>
+            </template>
+          </a-table>
+          <a-pagination
+            v-if="this.data.length"
+            show-size-changer
+            :total="pagination.total"
+            :default-current="pagination.pagenum"
+            :page-size="pagination.pagesize"
+            :show-total="(total) => `共${total}`"
+            @change="onChange"
+            @showSizeChange="onShowSizeChange"
+          />
+        </a-tab-pane>
+        <a-tab-pane key="2" tab="我关注的" force-render>
+          <a-table
+            rowKey="id"
+            :pagination="false"
+            :loading="spinning"
+            :columns="this.attentioncolumns"
+            :data-source="this.data"
+          >
+            <template slot="category" slot-scope="text">
+              {{ text | capitalize(taskcategory) }}
+            </template>
+            <template slot="operation" slot-scope="text,record">
+              <span @click="worktaskDetails(record)">查看</span>
+            </template>
+          </a-table>
+          <a-pagination
+            v-if="this.data.length"
+            show-size-changer
+            :total="pagination.total"
+            :default-current="pagination.pagenum"
+            :page-size="pagination.pagesize"
+            :show-total="(total)=>`共${total}`"
+            @change="onChange"
+            @showSizeChange="onShowSizeChange"
+          />
+        </a-tab-pane>
+      </a-tabs>
+      <a-button type="primary" ghost @click="toPublish">发布任务</a-button>
+    </div>
+    <!--详情弹窗-->
+    <DetailModal :showModal.sync="showModal" :recordData.sync="recordData" @listAttentiontask="listAttentiontask"/>
+  </div>
+</template>
+<script>
+/**
+ * 工作任务
+ */
+import { Tabs, Table, Button, Pagination, Modal, Row, Col } from "ant-design-vue";
+import DetailModal from './DetailModal';
+import { queryWorkTask, queryConcernTask, worktaskdetails } from "@/person-shaoxing/api/workTask";
+import { assign, cloneDeep } from 'lodash';
+import { showError } from "@/framework/utils";
+export default {
+  components: {
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    ATable: Table,
+    AButton: Button,
+    APagination: Pagination,
+    AModal: Modal,
+    ARow: Row,
+    ACol: Col,
+    DetailModal
+  },
+  data() {
+    return {
+      data: [],
+      tabactive: 1,
+      spinning: false,
+      showModal: false,
+      attentioncolumns: [
+        {
+          title: "标题",
+          dataIndex: "title",
+          key: "title",
+        },
+        {
+          title: "分类",
+          dataIndex: "category",
+          key: "category",
+          scopedSlots: { customRender: "category" },
+        },
+        {
+          title: "发布人",
+          dataIndex: "createusername",
+          key: "createusername",
+        },
+        {
+          title: "主办处室",
+          dataIndex: "mainorg",
+          key: "mainorg",
+        },
+        {
+          title: "主办人",
+          dataIndex: "mainusername",
+          key: "mainusername",
+        },
+        {
+          title: "截止时间",
+          dataIndex: "deadtime",
+          key: "deadtime",
+        },
+        {
+          title: "操作",
+          dataIndex: "operation",
+          key: "operation",
+          scopedSlots: { customRender: "operation" },
+        },
+      ],
+      dealcolumns: [
+        {
+          title: "标题",
+          dataIndex: "title",
+          key: "title",
+        },
+        {
+          title: "分类",
+          dataIndex: "category",
+          key: "category",
+          scopedSlots: { customRender: "category" },
+        },
+        {
+          title: "发布人",
+          dataIndex: "createusername",
+          key: "createusername",
+        },
+        {
+          title: "截止时间",
+          dataIndex: "deadtime",
+          key: "deadtime",
+        },
+        {
+          title: "操作",
+          dataIndex: "operation",
+          key: "operation",
+          scopedSlots: { customRender: "operation" },
+        },
+      ],
+      recordData: {},
+      pagination: {
+        statusIn:[1],
+        tasktypeIn: [1,2,3],
+        pagenum: 1,
+        pagesize: 10,
+        total: 0,
+        needTotal: true,
+      },
+    };
+  },
+  computed: {
+    taskcategory() {
+      return this.$store.getters.dict("person.work.taskcategory");
+    },
+  },
+  filters: {
+    capitalize: function (value, type) {
+      if (!value) return "无";
+      let result = type.filter(
+        (item) => parseInt(item.value) == parseInt(value)
+      );
+      return result[0].text;
+    },
+  },
+  mounted() {
+    this.listDealtask();
+  },
+  methods: {
+    toPublish() {
+      this.$router.push('worktask/publish');
+    },
+    resetPage() {
+      this.pagination = {
+        statusIn: [1],
+        tasktypeIn: [1,2,3],
+        pagenum: 1,
+        pagesize: 10,
+        total: 0,
+        needTotal: true,
+      };
+    },
+    callback(key) {
+      this.resetPage();
+      this.tabactive = key;
+      this.chooseTask(key);
+    },
+    onChange(pagenum,pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.chooseTask(this.tabactive);
+    },
+    onShowSizeChange(current,pagesize) {
+      assign(this.pagination, { pagenum: 1, pagesize });
+      this.chooseTask(this.tabactive);
+    },
+    chooseTask(val) {
+      this.data = [];
+      if (parseInt(val) === 1) {
+        this.listDealtask();
+      } else {
+        this.listAttentiontask();
+      }
+    },
+    notify(val) {
+      this.$notification.warning({
+        message: "提示",
+        description: val,
+        duration: 3,
+      });
+    },
+    //查看任务详情
+    worktaskDetails(record) {
+      this.spinning = true;
+      this.recordData = {};
+      this.recordData.id = record.id;
+      this.recordData.tabtype = this.tabactive;
+      worktaskdetails(this.recordData).then(({result})=>{
+        this.spinning = false;
+        this.recordData = cloneDeep(result);
+        this.recordData.id = record.id;
+        this.recordData.tabtype = this.tabactive;
+        this.showModal = true;
+      }).catch((err)=>{
+        this.recordData = {};
+        this.spinning = false;
+        showError(err);
+      })
+    },
+    //需要处理的任务列表分页查询
+    listDealtask() {
+      this.spinning = true;
+      queryWorkTask(this.pagination)
+        .then(({result}) => {
+          this.spinning = false;
+          if (parseInt(this.tabactive)===1) {
+            if(result.rows.length) {
+              this.data = cloneDeep(result.rows);
+              delete result.rows;
+              assign(this.pagination, result);
+            } else {
+              this.data = [];
+            }
+          } 
+        })
+        .catch((err) => {
+          this.data = [];
+          this.spinning = false;
+          showError(err);
+        });
+    },
+    //关注的任务列表分页查询
+    listAttentiontask() {
+      this.spinning = true;
+      queryConcernTask(this.pagination)
+        .then(({result}) => {
+          this.spinning = false;
+          if (parseInt(this.tabactive)===2) {
+            if(result.rows.length) {
+              this.data = cloneDeep(result.rows);
+              delete result.rows;
+              assign(this.pagination, result);
+            } else {
+              this.data = [];
+            }
+          }
+        })
+        .catch((err) => {
+          this.data = [];
+          this.spinning = false;
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  display: flex;
+  .content {
+    flex: 1;
+    display: flex;
+    position: relative;
+    /deep/.ant-tabs {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      .ant-tabs-bar {
+        margin-bottom: 0;
+      }
+      .ant-tabs-nav {
+        left: 5%;
+      }
+      .ant-tabs-content {
+        flex: 1;
+        .ant-tabs-tabpane {
+          padding: @padding-md;
+          .ant-table-wrapper {
+            height: 363px;
+            overflow-y: auto;
+            tr td:last-child span{
+              cursor: pointer;
+            }
+          }
+          .ant-pagination {
+            margin-top: 10px;
+            float: right;
+          }
+        }
+      }
+      .ant-tabs-nav-container {
+        padding: @padding-xs @layout-space-base;
+        .ant-tabs-tab-active.ant-tabs-tab {
+          padding: @layout-space-base @padding-md;
+          background: @primary-color;
+          border-radius: 50px;
+          color: white;
+          height: 35px;
+          line-height: 1;
+        }
+        .ant-tabs-ink-bar {
+          display: none !important;
+        }
+      }
+    }
+    .ant-btn {
+      position: absolute;
+      top: 12px;
+      right: @layout-space-base;
+      padding: @layout-space-base @padding-md;
+      border-radius: 50px;
+      line-height: @layout-space-base;
+      height: 35px;
+    }
+  }
+}
+</style>

@@ -1,0 +1,144 @@
+<template>
+  <div>
+    <Title title="预警信息列表"/>
+    <div style="height:390px" class="container">
+      <SwiperChart>
+        <div slot="content" class="content">
+          <ul>
+            <li>
+              问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述
+            </li>
+            <li>
+              问题描述
+            </li>
+            <li>
+              问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述
+            </li>
+            <li>
+              问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述
+            </li>
+            <li>
+              问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述
+            </li>
+          </ul>
+        </div><div slot="content" class="content">
+          <ul>
+            <li>
+              问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述
+            </li>
+            <li>
+              问题描述
+            </li>
+            <li>
+              问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述
+            </li>
+            <li>
+              问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述
+            </li>
+            <li>
+              问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述问题描述
+            </li>
+          </ul>
+        </div>
+      </SwiperChart>
+      <div class="overtime">
+        <span>超时处置问题数</span> 
+        <span>
+          <LcdFont :length="3" :realNumber="8" :realStyle="realStyle"/>
+        </span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+import SwiperChart from './SwiperChart'
+import LcdFont from './LcdFont';
+
+
+export default {
+  components: {
+    Title,
+    SwiperChart,
+    LcdFont
+  },
+  data() {
+    return{
+      realStyle: {
+        color: "#CF6C56",
+        textStroke: "1 #ECA066",
+        opacity: 0.95,
+      },
+    }
+  }
+}
+</script>
+
+<style scoped lang="less">
+.container {
+  display: flex;
+  flex-direction: column;
+  .ant-carousel {
+    height: 70%;
+  }
+  /deep/.slick-initialized {
+    .slick-dots {
+      bottom: 15px;
+    }
+    .slick-slide {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      .content {
+        ul {
+          display: flex;
+          flex-direction: column;
+          margin:0 @padding-lg;
+          li {
+            width: 100%;
+            padding: @padding-xs @padding-md;
+            padding-left: @padding-lg;
+            border-radius: @border-radius-base;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            position: relative;
+            color: fade(#fff, 80%);
+            &::before {
+              content: '';
+              width: 8px;
+              height: 8px;
+              position: absolute;
+              left: @padding-lg/2;
+              top: 50%;
+              background: #FF7C28;
+              border-radius: 50%;
+              transform: translate(-50%,-50%);
+            }
+            &:nth-child(2n-1) {
+              background: fade(#E8835E, 20%);
+            }
+          }
+        }
+      }
+    }
+  }
+  .overtime {
+    padding: @padding-xs/2;
+    background: fade(#7AC3E4,20%);
+    color: #fff;
+    border-radius: @border-radius-base;
+    font-size: 1.1em;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    span:last-child {
+      font-size: 1.2em;
+      color: #CF6C56;
+      margin-left: @padding-lg;
+    }
+  }
+}
+</style>

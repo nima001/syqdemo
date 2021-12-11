@@ -1,0 +1,593 @@
+<template>
+  <div class="Function-query">
+    <div class="panel">
+      <div class="toolbar">
+        <a-form class="ant-advanced-search-form" :form="form">
+          <div class="box">
+            <ul class="in-box">
+              <li class="li-content" style="width: 180px">
+                <div>
+                  <span class="name">查询范围:</span>
+                  <a-select
+                    v-model="searchCondition.district"
+                    placeholder="请选择查询范围"
+                    :allowClear="true"
+                    @change="distChange"
+                  >
+                    <a-select-option
+                      v-for="(item, index) in distList"
+                      :key="index"
+                      :value="item.value"
+                      >{{ item.text }}</a-select-option
+                    >
+                  </a-select>
+                </div>
+              </li>
+              <li class="li-content" style="width: 354px">
+                <div>
+                  <span class="name">发文时间:</span>
+                  <a-input-group compact style="display: flex">
+                    <a-select
+                      v-model="searchCondition.starttime"
+                      showSearch
+                      :allowClear="true"
+                      placeholder="开始时间"
+                      style="width: 177px"
+                      optionFilterProp="children"
+                      @change="newChange"
+                    >
+                      <a-select-option
+                        v-for="(item, index) in datasourceSelect"
+                        :key="index"
+                        :value="index"
+                        >{{ item }}</a-select-option
+                      >
+                    </a-select>
+                    <a-select
+                      v-model="searchCondition.endtime"
+                      showSearch
+                      :allowClear="true"
+                      placeholder="结束时间"
+                      style="width: 177px"
+                      optionFilterProp="children"
+                      @change="yearChange"
+                    >
+                      <a-select-option
+                        v-for="(item, index) in datasourceSelect"
+                        :key="index"
+                        :value="index"
+                        >{{ item }}</a-select-option
+                      >
+                    </a-select>
+                  </a-input-group>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">关键字:</span>
+                  <a-input
+                    :allowClear="true"
+                    placeholder="请用、隔开多个关键字"
+                    v-model="keywards"
+                  />
+                </div>
+              </li>
+              <li class="li-button">
+                <div>
+                  <span class="name"></span>
+                  <div>
+                    <a-button
+                      type="primary"
+                      @click="onSearch"
+                      style="margin-right: 10px"
+                      >搜索</a-button
+                    >
+                    <a-button @click="onreset">重置</a-button>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </a-form>
+      </div>
+    </div>
+    <div class="Function-main"></div>
+    <div
+      class="Function-list"
+      :style="functiondata && functiondata.length ? '' : 'margin-top:10%'"
+    >
+      <a-spin class="loading" :spinning="loading" :delay="50" />
+      <div class="Function-content" v-if="functiondata && functiondata.length">
+        <h3 class="Function-h3">查询结果:</h3>
+        <div
+          v-for="(item, index) in functiondata"
+          :key="index"
+          class="div-content"
+        >
+          <div class="year-span">{{ item.year }}</div>
+          <div class="list-content">
+            <div
+              v-for="(i, inex) in item.orgFuncDescVos"
+              :key="inex"
+              class="cbranch-no"
+            >
+              <div class="contant-div">
+                <span class="title-span">{{ i.orgname }}</span>
+                <span class="time-span"
+                  >批准文号:&nbsp;{{
+                    i.documentVo.num
+                  }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;发文时间:&nbsp;{{
+                    i.documentVo.dispatchdate
+                  }}</span
+                >
+                <span
+                  class="contant-span"
+                  v-html="brightenKeyword(i.content)"
+                ></span>
+              </div>
+              <div class="button-div">
+                <div style="margin-right: 10px">
+                  <a-button @click="downloadFile(i.documentVo.fileuri)"
+                    >下载文件</a-button
+                  >
+                </div>
+                <div>
+                  <a-button @click="watchDetails(i)">查看详情</a-button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="main-image" v-else>
+        <empty-data :tips="warningtext" />
+      </div>
+    </div>
+    <a-modal
+      title="查看详情"
+      :visible="visible"
+      @cancel="close"
+      :footer="null"
+      v-if="detailsData"
+      width="800px"
+      :bodyStyle="bodyStyle"
+    >
+      <div class="detailsmodal">
+        <div class="details-top">
+          <div>
+            <p class="pcss" :title="detailsData.documentVo.title">
+              <span>相关文件：</span>
+              {{ detailsData.documentVo.title }}
+            </p>
+            <span style="color: #c9c9c9">
+              <span style="margin-right: 20px">{{
+                detailsData.documentVo.num
+              }}</span>
+              <span>{{ detailsData.documentVo.dispatchdate }}</span>
+            </span>
+          </div>
+          <a-button @click="downloadFile(detailsData.documentVo.fileuri)"
+            >下载文件</a-button
+          >
+        </div>
+        <div>
+          <span
+            v-for="(e, enx) in typearr"
+            :key="enx"
+            v-show="detailsData.documentVo.type == e.value"
+            >{{ e.text }}:</span
+          >
+          <p
+            v-html="transformationContent(detailsData.content)"
+            style="line-height: 25px"
+          ></p>
+        </div>
+      </div>
+    </a-modal>
+  </div>
+</template>
+<script>
+import moment from "moment";
+import { replace, words } from 'lodash';
+import { showError } from "@/framework/utils/index";
+import { download } from "@/framework/api/file";
+import { sxorgfuncdesc } from "@/person-shaoxing/api/information";
+import EmptyData from "@/framework/components/EmptyData";
+import { getorgfuncdesc } from "@/person-shaoxing/api/analysis";
+import {
+  Form,
+  Row,
+  Col,
+  Input,
+  Button,
+  Select,
+  Modal,
+  Spin,
+} from "ant-design-vue";
+export default {
+  name: "Functionquery",
+  components: {
+    ASpin: Spin,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AModal: Modal,
+    EmptyData,
+  },
+  data() {
+    return {
+      bodyStyle: {
+        padding: "15px",
+        height: "500px",
+        overflow: "auto",
+      },
+      visible: false,
+      warningtext: "请选择机构或进行关键字搜索",
+      districtvalue: null,
+      datasourceSelect: [],
+      keywards: null,
+      detailsData: null,
+      functiondata: null,
+      form: this.$form.createForm(this, { name: "advanced_search" }),
+      searchCondition: {
+        keys: null,
+        district: undefined,
+        starttime: undefined,
+        endtime: undefined,
+      },
+      loading: false,
+    };
+  },
+  created() {
+    this.createYear();
+  },
+  computed: {
+    typearr() {
+      return this.$store.getters.dict("person.orgfuncdesctype");
+    },
+    distList() {
+      return this.$store.getters.dict("usermanage.org.district");
+    },
+  },
+  watch: {
+    keywards(val) {
+      if (val) {
+        this.searchCondition.keys = val.split("、"); // 在每个逗号(,)处进行分解。
+      }
+    },
+  },
+  methods: {
+    close() {
+      this.visible = false;
+      this.detailsData = null;
+    },
+    watchDetails(item) {
+      this.visible = true;
+      getorgfuncdesc(item.id).then((res) => {
+        this.detailsData = res.result;
+      });
+    },
+    //下载文件
+    downloadFile(fileuri) {
+      if (fileuri) {
+        download(fileuri);
+      }
+    },
+    transformationContent(content) {
+      //原始字符串
+      let string = content;
+      //替换所有的换行符
+      string = string.replace(/\r\n/g, "<br>");
+      string = string.replace(/\n/g, "<br>");
+      string = string.replace(/(\r\n)|(\n)/g, "<br>");
+      //替换所有的空格（中文空格、英文空格都会被替换）
+      string = string.replace(/\s/g, " ");
+      //输出转换后的字符串
+      return string;
+    },
+    //判断搜索记录是否包含某个关键字
+    brightenKeyword(content) {
+      // inputvalue为搜索框中的value
+      let inputvalue = this.searchCondition.keys;
+      let index = undefined
+      if(inputvalue.length>1) {
+        index = content.indexOf(inputvalue[0]);
+      }else if(inputvalue.length===1){
+        index = content.indexOf(inputvalue);
+      }
+      if (content.length < 200) {
+        let res = this.getContent(inputvalue, content);
+        return res;
+      } else if (index < 20) {
+        let newtext = content.slice(index, index + 200);
+        let newcontent = `......${newtext}......`;
+        let res = this.getContent(inputvalue, newcontent);
+        return res;
+      } else {
+        let newtext = content.slice(index - 15, index + 185);
+        let newcontent = `......${newtext}......`;
+        const Reg = new RegExp(inputvalue);
+        let res = this.getContent(inputvalue, newcontent);
+        return res;
+      }
+    },
+    getContent(inputvalue, newcontent) {
+      let Reg = undefined;
+      let res = "";
+      let data = undefined;
+      if(inputvalue.length>1) {
+        inputvalue.forEach((item,index)=>{
+          Reg = new RegExp(item,'g');
+          if(index===0) {
+            res = newcontent.replace(
+              Reg,
+              `<span style="color: #d60002;">${item}</span>`
+            );
+          }else{
+            res = res.replace(
+              Reg,
+              `<span style="color: #d60002;">${item}</span>`
+            );
+          }
+        });
+      }else if(inputvalue.length===1) {
+        Reg = new RegExp(inputvalue,'g');
+        res = newcontent.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+      }
+      return res;
+    },
+    createYear() {
+      let year = new Date().getFullYear();
+      for (let i = year; i > 1970; i--) {
+        this.datasourceSelect.push(i);
+      }
+    },
+    //开始时间
+    newChange(value) {
+      this.currentYear = this.datasourceSelect[value];
+      this.searchCondition.starttime = this.currentYear;
+    },
+    //结束时间
+    yearChange(value) {
+      this.currentYear = this.datasourceSelect[value];
+      this.searchCondition.endtime = this.currentYear;
+      if (this.searchCondition.starttime) {
+        if (this.searchCondition.endtime < this.searchCondition.starttime) {
+          this.searchCondition.endtime = undefined;
+        }
+      }
+    },
+    //时间
+    distChange(value) {
+      this.districtvalue = value;
+    },
+    //带参查询
+    onSearch() {
+      if (this.searchCondition.district && this.keywards) {
+        this.loading = true;
+        this.loadData();
+      } else {
+        this.$notification.warning({
+          message: "提示",
+          description: "请填写关键字和查询范围!",
+          duration: 3,
+        });
+      }
+    },
+    loadData() {
+      let params = {
+        ...this.searchCondition,
+      };
+      sxorgfuncdesc(params)
+        .then((res) => {
+          this.loading = false;
+          if (!res.result.length) {
+            this.$notification.warning({
+              message: "提示",
+              description: "暂无数据!",
+              duration: 3,
+            });
+          }
+          this.functiondata = res.result;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    onreset() {
+      this.searchCondition = { input: {} };
+      this.keywards = null;
+      this.functiondata = null;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.Function-query {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .panel {
+    display: flex;
+    // flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    .toolbar {
+      padding: @layout-space-base;
+      width: 100%;
+      margin: 0 auto;
+      .ant-advanced-search-form {
+        .box {
+          width: 100%;
+          .in-box {
+            margin-bottom: 0;
+            overflow: hidden;
+            // margin: 5px;
+            .li-content {
+              float: left;
+              padding: @layout-space-base;
+            }
+            .li-button {
+              float: left;
+              padding: @layout-space-base;
+            }
+            .name {
+              line-height: 32px;
+              padding-right: 5px;
+              // vertical-align: initial;
+            }
+            .ant-input-group.ant-input-group-compact {
+              display: inline-block;
+              vertical-align: super;
+            }
+            /deep/ .ant-input-group {
+              top: 0.8px;
+            }
+            /deep/.ant-select-selection--multiple {
+              padding-bottom: 0px;
+            }
+            @media screen and(max-width:1410px) {
+              .li-content {
+                width: 33%;
+              }
+            }
+            @media screen and (min-width: 1410px) and(max-width:1750px) {
+              .li-content {
+                width: 25%;
+              }
+            }
+            @media screen and (min-width: 1750px) {
+              .li-content {
+                width: 20%;
+              }
+            }
+          }
+        }
+      }
+      .pzwh {
+        width: auto;
+        border: 1px solid #d9d9d9;
+        border-radius: 4px;
+        &:hover {
+          border-color: @primary-color;
+        }
+        &:focus-within {
+          border-color: @primary-color;
+          box-shadow: 0 0 0 2px fade(@primary-color, 20%);
+        }
+        /deep/.ant-input {
+          border: none;
+          height: 30px;
+        }
+        /deep/.ant-input-group-addon {
+          border: none;
+          background: none;
+        }
+      }
+    }
+  }
+  .Function-main {
+    background: #f3f7fa;
+    height: @layout-space-base;
+    width: 100%;
+  }
+  .Function-list {
+    // flex: 1;
+    padding: 10px 24px;
+    .Function-h3 {
+      font-weight: 700;
+      color: #666666;
+      margin-bottom: 0px;
+    }
+    .loading {
+      position: relative;
+      top: 40%;
+      left: 50%;
+      margin-left: -10px;
+    }
+    .main-image {
+      position: relative;
+      top: 40%;
+    }
+    .Function-content {
+      .div-content {
+        border-bottom: 1px dashed rgb(222, 222, 222);
+        display: flex;
+        flex-direction: row;
+        .year-span {
+          margin-top: 10px;
+          font-size: 18px;
+          font-weight: 700;
+          margin-right: 10px;
+        }
+        .list-content {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          padding-bottom: 10px;
+          span {
+            margin-bottom: 5px;
+          }
+          .button-div {
+            display: flex;
+            flex-direction: row;
+            div {
+              width: 88px;
+            }
+          }
+          .contant-div {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            .title-span {
+              font-size: 18px;
+            }
+            .time-span {
+              color: #cccccc;
+            }
+            .contant-span {
+              margin-bottom: 0px;
+              width: 90%;
+              color: rgba(0, 0, 0, 0.5);
+            }
+          }
+          .cbranch-no {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px dashed rgb(222, 222, 222);
+            &:last-child {
+              border: none;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+.detailsmodal {
+  .details-top {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: @layout-space-base;
+    .pcss {
+      width: 600px;
+      overflow: hidden;
+      margin: 0;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+  }
+}
+</style>

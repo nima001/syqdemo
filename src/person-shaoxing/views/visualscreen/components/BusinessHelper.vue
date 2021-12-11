@@ -1,0 +1,78 @@
+<template>
+  <div class="container">
+    <div class="left">
+      <div class="business-notice">
+        <business-notice></business-notice>
+      </div>
+      <split-line/>
+      <div class="power-change">
+        <power-swiper></power-swiper>
+      </div>
+    </div>
+    <div class="middle">
+      <div class="important-task">
+        <important-task></important-task>
+      </div>
+      <split-line/>
+      <div class="personTrend">
+        <person-trend></person-trend>
+      </div>
+    </div>
+    <div class="right">
+      <div class="matterList">
+        <corporate-code></corporate-code>
+        <matter-list></matter-list>
+      </div>
+      <split-line/>
+      <div class="interFace">
+        <interface-info></interface-info>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import BusinessNotice from "../businesshelper/BusinessNotice";
+import ImportantTask from "../businesshelper/ImportantTask";
+import MatterList from "../businesshelper/MatterList";
+import InterfaceInfo from "../businesshelper/InterfaceInfo";
+import PersonTrend from "../businesshelper/PersonTrend";
+import { mixins} from "./minxin";
+import SwiperAnt from "../components/SwiperAnt";
+import SplitLine from './SplitLine';
+import PowerSwiper from "../businesshelper/PowerSwiper";
+import CorporateCode from "../businesshelper/CorporateCode";
+export default {
+  components: {
+    BusinessNotice,
+    ImportantTask,
+    MatterList,
+    InterfaceInfo,
+    PersonTrend,
+    SplitLine,
+    SwiperAnt,
+    PowerSwiper,
+    CorporateCode
+  },
+  mixins:[mixins],
+  created(){
+    if(!this.dictCode.dictId){
+      this.dictCode.dictId = "330600"
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.container {
+  display: flex;
+  justify-content: space-between;
+  .left {
+    width: 325px;
+  }
+  .middle {
+    width: 735px;
+  }
+  .right {
+    width: 305px;
+  }
+}
+</style>

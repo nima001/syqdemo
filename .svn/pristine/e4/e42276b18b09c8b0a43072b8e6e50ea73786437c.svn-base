@@ -1,0 +1,132 @@
+<!-- 转让应用 -->
+<template>
+  <a-modal
+    title="转让应用"
+    :visible="transfervisible"
+    :confirm-loading="transferLoading"
+    @ok="transferOk"
+    @cancel="transferCancel"
+    width="600px"
+    okText="转让应用"
+  >
+    <a-form :form="form" :label-col="{ span: 5 }" :wrapper-col="{ span: 19 }" labelAlign="left">
+      <a-form-item class="transferdata" label="转让码">
+        <a-input
+          ref="tranferscodeFocus"
+          v-decorator="[
+                  'code',
+                  { rules: [{ required: true, message: '请输入转让码' }] },
+                ]"
+        >
+          <a-icon slot="suffix" type="plus" title="生成转让码" @click="generyTcode" />
+        </a-input>
+      </a-form-item>
+
+      <a-form-item class="transferdata" label="是否短信通知">
+        <a-switch
+          checked-children="是"
+          un-checked-children="否"
+          v-decorator="['inform',{ valuePropName: 'checked',initialValue: false}]"
+          @change="smsInform"
+        />
+      </a-form-item>
+      <div v-if="smsInformFlag">
+        <a-form-item class="transferdata" label="手机号">
+          <a-input
+            v-decorator="[
+                    'phone',
+                    { rules: [{ required: true, message: '请输入手机号' }] },
+                  ]"
+          ></a-input>
+        </a-form-item>
+      </div>
+    </a-form>
+  </a-modal>
+</template>
+<script>
+import { Select, Input, Modal, Form, Icon, Switch } from "ant-design-vue";
+import { generateTransfercode, transfer } from "@/dev/api/app";
+import { transfaceAppTmpl } from "@/dev/api/idm";
+import { showError } from "@/framework/utils";
+export default {
+  props: {
+    transfervisible: Boolean,
+    record: {
+      type: Object,
+      required: true
+    }
+  },
+  data() {
+    return {
+      transferLoading: false,
+      smsInformFlag: false,
+      form: this.$form.createForm(this)
+    };
+  },
+  components: {
+    AInput: Input,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AForm: Form,
+    AIcon: Icon,
+    ASwitch: Switch,
+    AFormItem: Form.Item
+  },
+  watch: {
+    transfervisible(val, oldVal) {
+      if (val) {
+        this.generyTcode();
+      }
+    }
+  },
+  methods: {
+    // 转让页面关闭
+    transferCancel() {
+      this.$emit("closeTransfer", false);
+      this.form.resetFields();
+      this.smsInformFlag = this.form.getFieldValue("inform");
+    },
+    //生成转让码
+    generyTcode() {
+      generateTransfercode()
+        .then(res => {
+          this.form.setFieldsValue({ code: res.result });
+          this.$refs.tranferscodeFocus.focus();
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    //转让应用
+    transferOk() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          if (!this.smsInformFlag) {
+            values.appid = this.record.id;
+            this.transferLoading = true;
+            transfer(values)
+              .then(res => {
+                this.$message.success("转让成功");
+                this.$emit("closeTransfer", false);
+                this.form.resetFields();
+                this.smsInformFlag = this.form.getFieldValue("inform");
+              })
+              .catch(error => {
+                showError(error);
+              })
+              .finally(() => {
+                this.transferLoading = false;
+              });
+          }
+        }
+      });
+    },
+    //是否开启短信通知
+    smsInform(checked) {
+      this.smsInformFlag = checked;
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+</style>

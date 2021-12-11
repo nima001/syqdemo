@@ -1,0 +1,190 @@
+<template>
+  <div class="message">
+    <div class="spin" v-show="spinning">
+      <a-spin/>
+    </div>
+    <ul v-if="messageList&&messageList.length">
+      <li v-for="item in messageList" :key="item.messageid" @click="openMsg(item)">
+        <div class="icon"
+          :class="{ unread: item.isread == 0 }" 
+        ><a-icon type="mail"/></div>
+        <div class="text">
+          <v-clamp tag="span" :max-lines="2">{{item.oatitle ? `【${item.oatitle}】${item.content}` : item.content }}</v-clamp>
+        </div>
+      </li>
+    </ul>
+    <div class="message" v-else>
+      <span><img src="../../../assets/img/icon-bussiness-message.png" />暂无消息</span>
+    </div>
+    <DetailModal :showModal.sync="showModal" :recordData.sync="record"/>
+  </div>
+</template>
+<script>
+import { Icon, Spin } from 'ant-design-vue'
+import VClamp from 'vue-clamp';
+import DetailModal from './DetailModal';
+import { cloneDeep } from 'lodash';
+import { msglist, msgreadMark } from "@framework/api/message";
+import { showError, dateFormat } from "@/framework/utils/index";
+import { worktaskdetails } from "@/person-shaoxing/api/workTask"
+
+/**
+ * 我的新消息
+ */
+export default {
+  components: {
+    AIcon: Icon,
+    VClamp,
+    ASpin: Spin,
+    DetailModal,
+  },
+  data(){
+    return {
+      spinning: false,
+      record: {},
+      showModal: false,
+      listDealtask: false,
+      messageList: undefined
+    }
+  },
+  watch: {
+    '$store.getters.notification'(n, old) {
+      if(n.count > 0){//有新的消息，刷新消息列表
+        this.loadMessage();
+      }
+    },
+  },
+  created(){
+    this.loadMessage();
+  },
+  methods: {
+     openMsg(item){
+      if(item && item.pcurl && item.appurl){
+        let newUrl = item.appurl.split("&");
+        let gourl = undefined;
+        newUrl.forEach((item)=>{
+          if(item.startsWith('gourl')){
+            gourl = item.split('=')[1];
+          }
+        });
+        let decodeUrl = decodeURIComponent(gourl);
+        if(decodeUrl.startsWith('/person/worktask/taskinfo?')){
+          let params = new URLSearchParams(decodeUrl.substr(26));
+          let id = params.get('id');
+          //TODO 打开任务
+          this.workTaskdDtails(id);
+        }else{
+          window.open(item.pcurl);
+        }
+        this.read(item);
+      }
+    },
+    read(msg) {
+      msgreadMark({ 
+        mark: 1, 
+        messageid: msg.messageid 
+      }).then((res) => {
+        msg.read = 1;
+        this.messageList = [...this.messageList];
+      }).catch((err) => {
+        //ignore
+      });
+    },
+    workTaskdDtails(id) {
+      this.spinning = true;
+      worktaskdetails({ id: id, tabtype: 3}).then(({result})=>{
+        this.record = cloneDeep(result);
+        this.record.id = id;
+        this.record.tabtype = 3;
+        this.showModal = true;
+      }).catch((err)=>{
+        this.record = {};
+        showError(err);
+      }).finally(()=>{
+        this.spinning = false;
+      })
+    },
+    loadMessage() {
+      msglist({
+        // ishandle: 0,
+        // isread: 0,
+        needtotal: true,
+        pagenum: 1,
+        pagesize: 20,//加载前20条未读消息
+      }).then(({ result }) => {
+        this.messageList = result.rows || [];
+        this.messageList.forEach((i) => {
+          i.sendtime = dateFormat(new Date(i.sendtime), "yyyy-MM-dd");
+        });
+      }).catch((err) => {
+        showError(err);
+      });
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.message {
+  position: relative;
+  .spin {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 999;
+    background: fade(white, 50%);
+    .ant-spin {
+      position: absolute;
+      top: 15%;
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+  ul{
+    padding: @content-padding-v @content-padding-h;
+    margin: 0;
+    li{
+      display: flex;
+      box-sizing: content-box;
+      height: 56px;
+      line-height: 56px;
+      padding: 0 5px 3px 5px;
+      border-bottom: 1px solid @border-color-split;
+      cursor: pointer;
+      &:last-child{
+        border-bottom: unset;
+      }
+      &:hover{
+        background-color: @primary-1;
+      }
+      .icon{
+        flex: none;
+        margin-right: 5px;
+        &.unread{
+          color: @accent-color;
+        }
+      }
+      .text{
+        flex: auto;
+        & > span{
+          line-height: 1.4em;
+          display: inline-block;
+          vertical-align: middle;
+        }
+      }
+    }
+  }
+  .message > span {
+    position: absolute;
+    top: 132px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 1em;
+    color: rgba(0, 0, 0, 0.35);
+  } 
+}
+</style>

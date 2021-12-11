@@ -1,0 +1,38 @@
+<template>
+  <div class="split-line">
+    <div class="facula"></div>
+  </div>
+</template>
+<script>
+/**
+ * 带动效的分割线
+ */
+export default {
+
+}
+</script>
+<style lang="less" scoped>
+@keyframes faculaSlide{
+  90% { left: -134px; }
+  100% { left: 100%; }
+}
+
+.split-line{
+  height: 26px;
+  background: url('../img/split-line.png') no-repeat;
+  background-size: 100% 100%;
+  position: relative;
+  overflow: hidden;
+  .facula{
+    height: 26px;
+    width: 134px;
+    background: url('../img/split-line-facula.png') no-repeat;
+    background-size: 100% 100%;
+    position: absolute;
+    top: 50%;
+    margin-top: -13px;
+    left: -134px;
+    animation: faculaSlide 5s infinite linear;
+  }
+}
+</style>

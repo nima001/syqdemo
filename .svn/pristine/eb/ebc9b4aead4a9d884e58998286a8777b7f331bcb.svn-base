@@ -1,0 +1,292 @@
+<template>
+  <div class="body">
+    <div class="tools">
+      <a-select
+        v-model="stateselect"
+        allowClear
+        :style="{width:'200px'}"
+        @change="getList"
+        placeholder="选择服务状态"
+      >
+        <a-select-option
+          :value="item.value"
+          v-for="(item, index) in stateList"
+          :key="index"
+        >{{item.name}}</a-select-option>
+      </a-select>
+      <a-input
+        v-model="namelike"
+        allowClear
+        :style="{width:'200px'}"
+        placeholder="请输入服务名称"
+        @pressEnter="getList"
+      />
+      <a-button type="primary" @click="getList">搜索</a-button>
+      <a-button type="primary" @click="resetsearch">重置</a-button>
+    </div>
+    <div class="serve" v-if="hasPermit('/dev/manage/service') && serviceListData.length > 0">
+      <a-spin :spinning="loading">
+        <ul>
+          <li v-for="item in serviceListDataFilter" :key="item.id">
+            <div>
+              <h2>{{ item.name }}</h2>
+              <p>
+                {{ item.desc }}
+                <span @click="serviceDetail(item.id)">详情</span>
+              </p>
+            </div>
+            <div>
+              <p v-if="hasPermit('/dev/manage/service/modify')">
+                <span :style="colors(item.state)">{{ serviceState(item.state) }}</span>
+                <span v-if="inUse" @click="servicePort(item)">查看</span>
+              </p>
+            </div>
+          </li>
+        </ul>
+      </a-spin>
+    </div>
+    <a-empty v-if="!loading && serviceListData.length <= 0 && verifyList.length <= 0"></a-empty>
+    <servevice-detail-modal v-model="serviceVisible" :serviceDetails="serviceDetails"></servevice-detail-modal>
+  </div>
+</template>
+<script>
+import { Modal,Empty,Spin,Select,Input,Button,Row,Col,Form} from "ant-design-vue";
+import { serviceList, serviceDetail } from "@/dev/api/service";
+import { showError } from "@/framework/utils";
+import ServeviceDetailModal from "./ServeviceDetailModal";
+import { appdetail } from "@/dev/api/app";
+export default {
+  data() {
+    return {
+      loading:false,
+      // 开发服务列表
+      serviceListData: [],
+      serviceVisible: false,
+      // 服务详情
+      serviceDetails: {},
+      // 审核服务列表
+      verifyList: [],
+      verifyState: 1,
+      stateselect: undefined,
+      namelike: undefined,
+      stateList: [
+        { name: "未开通", value: 0 },
+        { name: "已开通", value: 2 },
+        { name: "审核中", value: 1 },
+        { name: "审核未通过", value: 4 }
+      ]
+    };
+  },
+  created() {
+    this.getList();
+  },
+  components: {
+    AModal: Modal,
+    AEmpty: Empty,
+    ASpin: Spin,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInput: Input,
+    AButton: Button,
+    ARow: Row,
+    ACol: Col,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ServeviceDetailModal
+  },
+  computed: {
+    serviceListDataFilter() {
+      //  审核员
+      if (this.hasPermit("AuditServiceList")) {
+        if (this.verifyState == 1) {
+          let data = this.serviceListData.filter(function(item) {
+            return item.state == 1;
+          });
+          return data;
+        } else {
+          return this.serviceListData.filter(function(item) {
+            return item.state != 1;
+          });
+        }
+      } else {
+        return this.serviceListData;
+      }
+    },
+    verifyListFilter() {
+      if (this.hasPermit("AuditServiceList")) {
+        if (this.verifyState == 1) {
+          return this.verifyList.filter(function(item) {
+            return item.state == 1;
+          });
+        } else {
+          return this.verifyList.filter(function(item) {
+            return item.state != 1;
+          });
+        }
+      } else {
+        return this.verifyList;
+      }
+    },
+    query(){
+      return this.$route.query
+    },
+    //判断应用状态是否为可编辑状态
+    inUse() {
+      let state = this.query.state;
+      return !(state === 1 || state === 2);
+    }
+  },
+  methods: {
+    colors(state) {
+      switch (state) {
+        case 0:
+          return "color:#999";
+        case 1:
+          return "color:#faad14";
+        case 2:
+          return "color:#0dbc79";
+        case 3:
+          return "color:#0dbc79";
+        case 4:
+          return "color:#f5222d";
+        default:
+          return;
+      }
+    },
+    // 服务详情
+    serviceDetail(id) {
+      serviceDetail(id)
+        .then(res => {
+          this.serviceDetails = res.result;
+          this.serviceVisible = true;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    // 服务状态
+    serviceState(state) {
+      switch (state) {
+        case 0:
+          return "未开通";
+        case 1:
+          return "待审核";
+        case 2:
+          return "已开通";
+        case 3:
+          return "待下线";
+        case 4:
+          return "审核未通过";
+        default:
+          return "";
+      }
+    },
+    verifyServiceState(state) {
+      switch (state) {
+        case 1:
+          return "待审核";
+        default:
+          return "已审核";
+      }
+    },
+    // 接口列表查看
+    servicePort(item) {
+      let pathstr = "";
+      if (item.state == 0) {
+        pathstr = "/dev/manage/service/apply";
+      } else {
+        pathstr = "/dev/manage/service/accessInfo";
+      }
+      this.$router.push({
+        path: pathstr,
+        query: {
+          appid: this.$route.query.id,
+          code: item.code,
+          state: item.state,
+          serviceId: item.id,
+          url: item.url
+        }
+      });
+    },
+    // 获取服务列表
+    getList() {
+      if (this.hasPermit("/dev/manage/service")) {
+        let data = {
+          appid: this.$route.query.id,
+          state: this.stateselect,
+          name: this.namelike
+        };
+        this.loading = true;
+        // 开发者角色
+        serviceList(data)
+          .then(res => {
+            this.serviceListData = res.result;
+          })
+          .catch(err => {
+            showError(err);
+          }).finally(()=>{
+            this.loading = false;
+          });
+      }
+    },
+    //重置
+    resetsearch() {
+      this.stateselect = undefined;
+      this.namelike = undefined;
+      this.getList();
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.body {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  .tools {
+    display: flex;
+    justify-content: flex-end;
+    padding: @content-padding-v @content-padding-h 0px;
+    .ant-input-affix-wrapper,
+    button {
+      margin-left: @layout-space-base;
+    }
+  }
+  .ant-empty {
+    margin: @padding-lg auto 0px;
+  }
+  .serve {
+    width: 100%;
+    flex: 1;
+    padding: 0px @content-padding-h;
+    overflow-y: auto;
+    ul {
+      margin: 0px;
+      li {
+        list-style: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: @content-padding-v @content-padding-h;
+        border-bottom: 1px solid #f0f0f0;
+        &:nth-of-type(2n) {
+          background: #f9f9f9;
+        }
+        span {
+          color: rgba(0, 0, 0, 0.65);
+          font-weight: normal;
+          margin-left: 20px;
+        }
+        p {
+          margin-top: 10px;
+          span {
+            color: @primary-color;
+            cursor: pointer;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

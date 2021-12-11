@@ -1,0 +1,94 @@
+<template>
+  <div class="component-tools" @click="e => e.stopPropagation()">
+    <a class="handle" draggable="true"><a-icon type="drag" /></a>
+    <a-dropdown v-model="visible" overlayClassName="component-tools-parents">
+      <a><CustomIcon :type="component.icon"/>{{component.name}}</a>
+      <a-menu v-if="parents && parents.length" slot="overlay" @click="handleMenuClick">
+        <a-menu-item v-for="(item, index) in parents" :key="index"   
+          @mouseenter="$emit('hover', item)"
+          @mouseleave="$emit('hover')"
+        ><CustomIcon :type="item.icon"/>{{item.name}}</a-menu-item> 
+      </a-menu>
+    </a-dropdown>
+    <a @click="$emit('delete')"><a-icon type="delete"/></a>
+  </div>
+</template>
+<script>
+import { Dropdown, Menu, Icon } from "ant-design-vue";
+import CustomIcon from '@/framework/components/CustomIcon'
+
+/**
+ * 组件编辑工具条
+ * 事件
+ * delete 删除
+ * change 选中父组件
+ * hover 父组件悬停
+ */
+export default {
+  model: {
+    prop: 'component',
+    event: 'change',
+  },
+  components: {
+    ADropdown: Dropdown,
+    AMenu: Menu,
+    AMenuItem: Menu.Item,
+    AIcon: Icon,
+    CustomIcon
+  },
+  props: {
+    component: { //v-model 操作的组件对象 { name, type, icon, parents, instance }
+      type: Object,
+    },
+  },
+  data(){
+    return {
+      visible: false,
+      parents: []
+    }
+  },
+  watch: {
+    component: {
+      immediate: true,
+      handler(c){
+        if(c){
+          this.parents = c.parents;
+        }
+      }
+    }
+  },
+  methods: {
+    handleMenuClick({key}){
+      let c = this.parents[key];
+      c.parents = this.parents.slice(key+1); 
+      this.$emit('change', c)
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.component-tools{
+  font-size: 14px;
+  line-height: 22px;
+  a{
+    background: @accent-color;
+    border-radius: 2px;
+    margin-right: 2px;
+    padding: 1px 3px;
+    color: fade(@white, 80%);
+    &:hover{
+      color: @white;
+    }
+  }
+  .handle{
+    cursor: move;
+  }
+}
+
+.component-tools-parents{
+  .ant-dropdown-menu-item{
+    font-size: 14px;
+    padding: 2px 8px;
+  }
+}
+</style>

@@ -1,0 +1,259 @@
+<template>
+  <div class="layout">
+    <div class="top">
+      <a-button type="primary" @click="exportbutton">导出</a-button>
+      <a-input-search
+        :style="{ width: '250px' }"
+        enter-button
+        placeholder="请输入人员名称"
+        @search="searchKeyworlds"
+      />
+    </div>
+    <div class="middle">
+      <a-table
+        rowKey="_id"
+        :customRow="customRow"
+        :columns="columns"
+        :dataSource="pagination.rows"
+        :pagination="false"
+        :loading="loading"
+      >
+        <template slot="operate" slot-scope="text, record">
+          <a @click.stop="toEditor(record)">
+            <template v-if="edit">编辑</template>
+            <template v-else>查看</template>
+          </a>
+        </template>
+        <!-- 暂不支持选择导出，隐藏复选框 -->
+        <!-- :row-selection="{ selectedRowKeys, onChange: onSelectChange }" -->
+      </a-table>
+    </div>
+    <div class="bottom">
+      <a-pagination
+        :total="pagination.total"
+        :showSizeChanger="true"
+        @showSizeChange="onShowSizeChange"
+        :page-size="pagination.pagesize"
+        v-model="pagination.pagenum"
+        @change="onPageChange"
+        :showTotal="(total) => `总共：${total}条`"
+      >
+      </a-pagination>
+    </div>
+    <TaskProgress :taskid="taskid" defaultInfo="正在导出" @finish="onProgressFinish"/>
+  </div>
+</template>
+<script>
+import { userquery, getexport } from "@/hall/api/usermanage";
+import { Table, Input, Pagination, Button } from "ant-design-vue";
+import { showError } from "@framework/utils";
+import { mixins } from "@/hall/mixin/index";
+import { assign } from "lodash";
+import { download } from "@/framework/api/file";
+import TaskProgress from "@/framework/components/TaskProgress";
+export default {
+  data() {
+    return {
+      columns: [
+        {
+          title: "序号",
+          width: "50px",
+          customRender: (text, record, index) => `${index + 1}`,
+        },
+        {
+          title: "姓名",
+          dataIndex: "username",
+        },
+        {
+          title: "所属组织",
+          dataIndex: "orgname",
+        },
+        {
+          title: "职位",
+          dataIndex: "windowposition",
+          customRender: this.dictRender("usermanage.user.windowposition"),
+        },
+        {
+          title: "政治面貌",
+          dataIndex: "politicsface",
+          customRender: this.dictRender("usermanage.user.politicsface"),
+        },
+        {
+          title: "是否考核",
+          dataIndex: "isneedassess",
+          customRender: this.dictRender("usermanage.user.yesorno"),
+        },
+        {
+          title: "是否考勤",
+          dataIndex: "isneedcheck",
+          customRender: this.dictRender("usermanage.user.yesorno"),
+        },
+        {
+          title: "电话",
+          dataIndex: "contactway",
+        },
+        {
+          title: "操作",
+          dataIndex: "operate",
+          scopedSlots: { customRender: "operate" }
+        }
+      ],
+      loading: true,
+      selectedRowKeys: [],
+      searchkey: undefined,
+      pagination: {
+        pagenum: 1,
+        pagesize: 10,
+        needtotal: true,
+        total: 0,
+        rows: [],
+      },
+      taskid: undefined,
+    };
+  },
+  components: {
+    AButton: Button,
+    ATable: Table,
+    AInputSearch: Input.Search,
+    APagination: Pagination,
+    TaskProgress
+  },
+  mounted() {
+    this.getData(this.nodeData);
+  },
+  mixins: [mixins],
+  computed:{
+    edit(){
+      return this.hasPermit('/usermanage/roster/user/edit');
+    }
+  },
+  methods: {
+    exportbutton() {
+      if (this.pagination.rows.length <= 0) {
+        showError({
+          code: "showError",
+          message: "当前条件下没有可导出的数据！",
+        });
+        return;
+      }
+      let properties = `[
+        {"key":"username","name":"姓名"},
+        {"key":"org.name","name":"所属组织"},
+        {"key":"windowposition","name":"职位"},
+        {"key":"politicsface","name":"政治面貌"},
+        {"key":"isneedassess","name":"是否考核"},
+        {"key":"isneedcheck","name":"是否考勤"},
+        {"key":"contactway","name":"电话"}
+        ]`;
+      let data = {
+        needtotal: true,
+        searchkey: this.searchkey
+      };
+      if(this.nodeData.pid!== 0){
+        data = {...data,nodeid: this.nodeData.id}
+      }
+      getexport(data, properties, this.nodeData.name +"人员信息")
+        .then((res) => {
+          this.taskid = res.result;
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    onProgressFinish(uri){
+      download(uri);
+    },
+    onSelectChange(selectedRowKeys) {
+      this.selectedRowKeys = selectedRowKeys;
+    },
+    toEditor(record){
+      this.$router.push({
+        path: "/hall/usermanage/userinfo",
+        query: { userid: record._id },
+      });
+    },
+    customRow(row, index) {
+      return {
+        on: {
+          click: () => {
+            this.toEditor(row)
+          },
+        },
+      };
+    },
+    dictRender(key, attr) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    searchKeyworlds(searchkey) {
+      this.searchkey = searchkey;
+      this.pagenum = 1;
+      this.getData(this.nodeData);
+    },
+    getData(nodeData) {
+      if (nodeData && nodeData.id) {
+        this.loading = true;
+        userquery({
+          searchkey: this.searchkey,
+          nodeid: nodeData.id,
+          ...this.pagination,
+        })
+          .then((res) => {
+            let { pagenum, pagesize, total, rows } = res.result;
+            rows = rows.map(function (item) {
+              return {
+                orgname: item.org.name,
+                ...item,
+              };
+            });
+            assign(this.pagination, { pagenum, pagesize, total, rows });
+          })
+          .catch((error) => {
+            this.loading = false;
+            showError(error);
+          })
+          .finally(() => {
+            this.loading = false;
+          });
+      } else {
+        this.loading = false;
+      }
+    },
+    onPageChange(page, pagesize) {
+      assign(this.pagination, { pagenum: page });
+      this.getData(this.nodeData);
+    },
+    onShowSizeChange(current, size) {
+      assign(this.pagination, { pagenum: 1, pagesize: size });
+      this.getData(this.nodeData);
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.layout {
+  padding: @content-padding-v 0px;
+  display: flex;
+  flex-direction: column;
+  .top {
+    padding: @content-padding-v @content-padding-h;
+    display: flex;
+    justify-content: space-between;
+  }
+  .middle {
+    padding: @content-padding-v @content-padding-h;
+    flex-shrink: 1;
+    overflow-y: auto;
+    /deep/ tr {
+      cursor: pointer;
+    }
+  }
+  .bottom {
+    padding: @content-padding-v @content-padding-h;
+    text-align: right;
+  }
+}
+</style>

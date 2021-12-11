@@ -1,0 +1,46 @@
+<template>
+  <div>
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">机构名称：</span>
+      </a-col>
+    </a-row>
+    <a-row >
+      <a-col :span="24">
+        <span class="name">主管部门：</span>
+      </a-col>
+    </a-row>
+    <a-row >
+      <a-col :span="6">
+        <span class="name">机构规格：</span>
+      </a-col>
+      <a-col :span="6">
+        <span class="name">是否为参公事业单位：</span>
+      </a-col>
+      <a-col :span="6">
+        <span class="name">事业单位分类：</span>
+      </a-col>
+      <a-col :span="6">
+        <span class="name">经费形式：</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+<script>
+import { Row, Col } from "ant-design-vue";
+
+//评估项-基本信息
+export default {
+  components: {
+    ARow: Row,
+    ACol: Col,
+  },
+  props: {
+    data: Object, //内容数据
+  },
+  
+}
+</script>
+<style lang="less" scoped>
+
+</style>

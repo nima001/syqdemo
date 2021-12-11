@@ -1,0 +1,99 @@
+<template>
+  <a-modal title="接收应用" :visible="receivevisible" :confirm-loading="receiveLoading"  @ok="ok" @cancel="cancel" width="600px">
+    <p>
+      <a-icon type="info-circle" />&nbsp;&nbsp;请联系转让应用的开发者索要转让码，通过转让码接收转让的应用。
+    </p>
+    <a-form :form="form" layout="vertical">
+      <a-row :gutter="24">
+        <a-col :span="22">
+          <a-form-item label="转让码">
+            <a-input v-decorator="['receiveCode', {rules: [{ required: true, message: '请输入转让码' }]}]" placeholder="请输入转让码"/>
+          </a-form-item>
+        </a-col>
+        <a-col :span="2" title="显示应用信息">
+          <a-icon type="project" @click="getAppInfo" />
+        </a-col>
+      </a-row>
+    </a-form>
+    <app-reciveinfo v-if="reciveModel" v-model="reciveModel" :receiveCode="receiveCode"></app-reciveinfo>
+  </a-modal>
+</template>
+<script>
+import {Input, Modal, Form, Icon,Row, Col} from "ant-design-vue";
+import { receive, appInfo } from "@/dev/api/app";
+import { showError } from "@/framework/utils";
+import AppReciveinfo from './AppReciveinfo';
+export default {
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    AIcon: Icon,
+    AInput: Input,
+    AModal: Modal,
+    ARow: Row,
+    ACol: Col,
+    AppReciveinfo
+  },
+  data() {
+    return {
+      form: this.$form.createForm(this),
+      receiveLoading: false,
+      reciveModel:false,
+      receiveCode:undefined
+    };
+  },
+  props: {
+    receivevisible: {
+      type: Boolean,
+      required: true
+    }
+  },
+  methods: {
+    ok() {
+      this.receiveLoading = true;
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          receive(values["receiveCode"])
+            .then(res => {
+              this.$message.success("接收应用成功");
+              this.$emit("callBack", { type: "ok" });
+            })
+            .catch(err => {
+              showError(err);
+            })
+            .finally(() => {
+              this.receiveLoading = false;
+            });
+        } else {
+          this.receiveLoading = false;
+        }
+      });
+    },
+    cancel() {
+      this.form.setFieldsValue({ receiveCode: undefined });
+      this.$emit("callBack", { type: "cancel" });
+    },
+    getAppInfo() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          this.reciveModel = true;
+          this.receiveCode = values["receiveCode"]
+        }
+      });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+p {
+  color: #999;
+}
+.ant-row {
+  .ant-col-2 {
+    margin-top: 30px;
+    font-size: 20px;
+    color: @primary-color;
+    cursor: pointer;
+  }
+}
+</style>

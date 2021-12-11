@@ -1,0 +1,46 @@
+<template>
+  <div class="authorize">
+    <a-tabs :default-active-key="tabs[0].key" :animated="false" @change="change">
+      <a-tab-pane v-for="item in tabs" :key="item.key" :tab="item.title">
+        <authorize-roles :id="id" :type="type"></authorize-roles>
+      </a-tab-pane>
+    </a-tabs>
+  </div>
+</template>
+
+<script>
+import { Tabs } from "ant-design-vue";
+import AuthorizeRoles from "./AuthorizeRoles";
+export default {
+  components: {
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    AuthorizeRoles
+  },
+  props: {
+    id: {
+      type: Number
+    }
+  },
+  data() {
+    return {
+      tabs: [
+        { key: 1, title: "审批权限" },
+        { key: 2, title: "监控权限" }
+      ],
+      type: 1
+    };
+  },
+  methods: {
+    change() {
+      if (this.type == 1) {
+        this.type = 2;
+      } else {
+        this.type = 1;
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+</style>

@@ -1,0 +1,71 @@
+import axios from 'axios';
+import store from '../../store';
+import {objFromArr} from './../../utils/index';
+let loader;
+/**
+ * 系统配置
+ */
+const config = {
+  state: {
+    persiste: true,//系统配置持久化
+    config: undefined,
+  },
+  mutations: {
+    SAVE_CONFIG (state, config) {
+      state.config = config || {};
+    }
+  },
+  actions: {
+    loadConfig(context, reload){
+      if(context.state.config && !reload){
+        return Promise.resolve(context.state.config);
+      }else if(!loader){
+        let baseUrl = process.env.VUE_APP_CONFIG_UI_URL || window.origin + '/api';
+        loader = axios.get(baseUrl + '/config/v1/config/ui/' + process.env.VUE_APP_PROJECT_NAME)
+        .then(response => {
+          loader = undefined;
+          let res = response.data;
+          if (res.code == 'success') {
+            // let uiConfigs = Object.fromEntries((res.result || []).map(item => [item.key, item.value]))
+            let uiConfigs = objFromArr(res.result);
+            //根据配置修改最终的接口地址
+            uiConfigs['api.url'] = uiConfigs['api.url'] || baseUrl;
+            context.commit('SAVE_CONFIG', uiConfigs);
+            return uiConfigs;
+          } else {
+            return Promise.reject(res);
+          }
+        }).catch(error => {
+          loader = undefined;
+          if (error.response) {
+            return Promise.reject({
+              code: error.response.status,
+              message: error.message,
+            })
+          } else {
+            return Promise.reject(error);
+          }
+        })
+			}
+      return loader
+    }
+  },
+  getters: {
+    getConfig: (state) => (key) => {
+      if(state.config){
+        return key && state.config[key];
+      }else{
+        store.dispatch("loadConfig");
+      }
+    },
+    config: (state) => {
+      if(state.config){
+        return state.config;
+      }else{
+        store.dispatch("loadConfig");
+        return {};
+      }
+    }
+  }
+}
+export default config

@@ -1,0 +1,110 @@
+<template>
+  <div class="staff-violate">
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">现核定机关编制{{data.bzzj}}名，实有人员{{data.bzzj_sy}}人。核定编外用工控制数{{data.bwkzs}}名，实有{{data.bwkzs_sy}}名</span>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">（1）编制使用率为{{data.bzzj_sy}}/{{data.bzzj}}={{usage_bz}}</span>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">（2）人员配备率为{{data.zbzg}}/{{data.bzzj}}={{usage_user}}</span>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">（3）人员岗位匹配率为{{data.zbzg}}/{{data.bzzj_sy}}={{usage_job}}</span>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">（4）编外用工控制数使用率为{{data.bwkzs_sy}}/{{data.bwkzs}}={{usage_bw}}</span>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">（5）近三年申请用编使用率为{{data.ysybzs}}/{{data.pzsybzs}}={{usage_yb}}</span>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">（6）职数使用率为{{data.ldzs_sy}}/{{data.ldzs}}={{usage_zs}}</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**编制职数岗位分析
+*/
+import { Row, Col } from "ant-design-vue";
+import { numberToPercent, createReportItem } from "@/person-shaoxing/utils/index";
+export default {
+  props: {
+    data: Object
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+    //  编制使用率
+    usage_bz() {
+      return numberToPercent(this.data.bzzj_sy, this.data.bzzj)
+    },
+    //  人员配备率
+    usage_user() {
+      return numberToPercent(this.data.zbzg, this.data.bzzj)
+    },
+    //  人员岗位匹配率
+    usage_job() {
+      return numberToPercent(this.data.zbzg, this.data.bzzj_sy)
+      
+    },
+    //  编外用工控制数使用率
+    usage_bw() {
+      return numberToPercent(this.data.bwkzs_sy, this.data.bwkzs)
+    },
+    //  近三年申请用编使用率
+    usage_yb() {
+      return numberToPercent(this.data.ysybzs, this.data.pzsybzs)
+    },
+    //  职数使用率
+    usage_zs(){
+      return numberToPercent(this.data.ldzs_sy, this.data.ldzs)
+    }
+  },
+  created() {},
+  mounted() {},
+  methods: {
+    getHtml() {
+      let text = `
+        <p>现核定机关编制${this.data.bzzj}名，实有人员${this.data.bzzj_sy}人。核定编外用工控制数${this.data.bwkzs}名，实有${this.data.bwkzs_sy}</p>
+        <p>（1）编制使用率为${this.data.bzzj_sy}/${this.data.bzzj}=${this.usage_bz}</p>
+        <p>（2）人员配备率为${this.data.zbzg}/${this.data.bzzj}=${this.usage_user}</p>
+        <p>（3）人员岗位匹配率为${this.data.zbzg}/${this.data.bzzj_sy}=${this.usage_job}</p>
+        <p>（4）编外用工控制数使用率为${this.data.bwkzs_sy}/${this.data.bwkzs}=${this.usage_bw}</p>
+        <p>（5）近三年申请用编使用率为${this.data.ysybzs}/${this.data.pzsybzs}=${this.usage_yb}</p>
+        <p>（6）职数使用率为${this.data.ldzs_sy}/${this.data.ldzs}=${this.usage_zs}</p>`
+      return createReportItem(text, '编制职数岗位分析')
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.staff-violate{  
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

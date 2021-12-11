@@ -1,0 +1,37 @@
+<template>
+  <a-input-number :value="defaultData.value" @change="handleChange" class="input" placeholder="(空)"/>
+</template>
+<script>
+import { InputNumber } from "ant-design-vue";
+
+export default {
+  name: "TypeFour",
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  components: {
+    AInputNumber: InputNumber
+  },
+  methods: {
+    handleChange(value) {
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.input {
+  width: 320px;
+}
+</style>

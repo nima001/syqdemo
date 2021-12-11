@@ -1,0 +1,147 @@
+
+<template>
+  <a-select
+    show-search
+    :value="value"
+    placeholder="查找历史"
+    style="width: 200px"
+    :show-arrow="false"
+    :filter-option="false"
+    :not-found-content="null"
+    :loading="dataLoading"
+    @search="onSearch"
+    @change="onChange"
+    @focus="allSearch()"
+    @popupScroll="handlePopupScroll"
+    :options="data"
+  >
+  </a-select>
+</template>
+<script>
+import { Icon, Select } from "ant-design-vue";
+import { querylist } from "@/person/api/integratedquery";
+import { showError } from "@framework/utils";
+
+/**
+ * 查询选择
+ * 提供外部事件
+ * 1.select 选中查询事件 返回查询ID
+ */
+
+export default {
+  components: {
+    AIcon: Icon,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+  },
+  props: {
+    namespace: {
+      //搜索查询的命名空间
+      type: String,
+      required: true,
+    },
+  },
+  data() {
+    return {
+      data: [],
+      scrollPage: 1,
+      pageSize: 20,
+      value: undefined,
+      dataLoading: false,
+      allData: [],
+    };
+  },
+  created() {
+    console.log("select source", this.namespace);
+  },
+
+  methods: {
+    fetch(value, callback, time) {
+      let timeout;
+      let currentValue;
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
+      currentValue = value;
+      timeout = setTimeout(()=>{
+        querylist({
+          searchkey: value,
+          namespace: this.namespace,
+        })
+          .then((res) => {
+            if (currentValue === value) {
+           
+              callback((res.result || [])
+                .map((item) => {
+                  return {
+                    value: item.id,
+                    label: item.title,
+                  };
+                })
+                .slice(0, 20));
+              this.allData = res.result;
+              console.log(this.allData.length);
+              
+            }
+          })
+          .catch((error) => {
+            showError(error);
+          });
+      }, time);
+    },
+    onSearch(value) {
+      this.fetch(value, (data) => (this.data = data), 500);
+    },
+    onChange(value) {
+      this.value = value;
+      this.fetch(value, (data) => (this.data = data));
+    },
+    allSearch(value) {
+      this.fetch(value, (data) => (this.data = data), 0);
+    },
+    clearSearch() {
+      this.data = [];
+      this.value = "";
+    },
+    handlePopupScroll(e) {
+      const { target } = e;
+      const scrollHeight = target.scrollHeight - target.scrollTop;
+      const clientHeight = target.clientHeight;
+      if (scrollHeight === 0 && clientHeight === 0) {
+        this.scrollPage = 1;
+      } else {
+        if (scrollHeight < clientHeight + 5) {
+          let scrollPage = this.scrollPage; //获取当前页
+          let pageSize = this.pageSize * (scrollPage + 1 || 1); //新增数据量
+          let newData = []; //存储新增数据
+          let max = ""; // max 为能展示的数据的最大条数
+          if (this.allData.length > pageSize) {
+            // 如果总数据的条数大于需要展示的数据
+            max = pageSize;
+          } else {
+            // 否则
+            max = this.allData.length;
+          }
+          this.allData.forEach((item, index) => {
+            if (index < max) {
+              //当data数组的下标小于max时
+              newData.push(item);
+            }
+          });
+          this.data = newData; //将新增的数据赋值到要显示的数组中
+        }
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.clear-search {
+  color: @text-color-secondary;
+  font-size: 12px;
+  &:hover {
+    color: @text-color;
+  }
+}
+</style>

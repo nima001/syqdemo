@@ -1,0 +1,197 @@
+<template>
+  <div class="proportion">
+    <a-progress type="circle" :percent="percent" :format="() => '问题类型'" />
+    <div class="footer">
+      <div class="top">
+        <span class="text">外部问题</span>
+        <span class="num" @click="showOutNum = true">{{ outsideNum ? outsideNum : 0 }}</span>
+      </div>
+      <div class="bottom">
+        <span class="text">内部问题</span>
+        <span class="num" @click="showInsideNum = true">{{ insideNum ? insideNum : 0 }}</span>
+      </div>
+    </div>
+    <a-modal
+      :footer="null"
+      v-model="showOutNum"
+      :width="1100"
+      title="外部问题"
+      :afterClose="onClosed"
+      :bodyStyle="{ height: '560px', padding: '0' }"
+    >
+      <show-outside
+        :district="district.district"
+        :orgid="orgid"
+        @updateOrgid="updateOrgid"
+        :dataSearchVal="dataSearchVal"
+        @updatedataSearchVal="updatedataSearchVal"
+      />
+    </a-modal>
+    <a-modal
+      :footer="null"
+      v-model="showInsideNum"
+      :width="1100"
+      title="内部问题"
+      :afterClose="onClosed"
+      :bodyStyle="{ height: '560px', padding: '0' }"
+    >
+      <show-inside
+        :district="district.district"
+        :orgid="orgid"
+        @updateOrgid="updateOrgid"
+        :dataSearchVal="dataSearchVal"
+        @updatedataSearchVal="updatedataSearchVal"
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Progress, Modal } from "ant-design-vue";
+import ShowOutside from "@/person-shaoxing/views/orgStaffReport/components/ShowOutside";
+import ShowInside from "@/person-shaoxing/views/orgStaffReport/components/ShowInside";
+/**
+ * 占比显示
+ */
+export default {
+  components: {
+    AProgress: Progress,
+    AModal: Modal,
+    ShowOutside,
+    ShowInside
+  },
+  props: {
+    outsideNum: Number,
+    insideNum: Number,
+    cardtype: {
+      type: String,
+      default: "card",
+    },
+
+    numText: String,
+    overNum: Number,
+    surplusText: String,
+    district: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
+  data() {
+    return{
+      showOutNum: undefined,
+      orgid: undefined,
+      dataSearchVal: undefined,  
+      showInsideNum: undefined
+    }
+  },
+  computed: {
+    percent() {
+      if (this.outsideNum > 0 && this.insideNum > 0) {
+        return (this.insideNum / (this.outsideNum + this.insideNum)) * 100;
+      }
+    },
+  },
+  methods: {
+    onClosed() {
+      this.searchVal = "";
+      this.dataSearchVal = "";
+      this.orgid = undefined;
+    },
+    updateOrgid(orgid) {
+      this.orgid = orgid;
+    },
+    updatedataSearchVal(dataSearchVal) {
+      this.dataSearchVal = dataSearchVal;
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.proportion {
+  min-height: 212px;
+  text-align: left;
+  display: flex;
+  border-radius: 5px;
+  border: 1px solid #e8e8e8;
+  border-radius: 5px;
+  justify-content: center;
+  align-items: center;
+  /deep/ .ant-progress-circle-path {
+    stroke: rgb(144,194,255) !important;
+  }
+  /deep/ .ant-progress-circle-trail {
+    stroke:  rgb(76,132,255) !important;
+  }
+
+  .progress {
+    line-height: 1.6em;
+    .text {
+      color: @text-color;
+    }
+    .num {
+      color: @primary-color;
+      font-size: 1.5em;
+      font-weight: bold;
+      transition: color 0.3s ease 0s;
+    }
+  }
+
+  & > .footer {
+    margin-left: 35px;
+    min-width: 170px;
+    & > .top {
+      height: 45px;
+      line-height: 45px;
+      & > .text {
+        display: inline-block;
+        line-height: 25px;
+        height: 25px;
+        color: rgb(144,194,255);
+            margin-left: -20px;
+        &::before {
+          content: "●";
+          font-size: 25px;
+          margin-right: 4px;
+          color: rgb(76,132,255);
+        }
+      }
+      & > .num:hover{
+        cursor: pointer;
+      }
+      & > .num {
+        margin-left: 20px;
+        font-size: 25px;
+        font-weight: bold;
+      }
+      & .text::before {
+        color: lighten(@primary-color, 20%);
+      }
+    }
+
+    & > .bottom {
+      height: 45px;
+      line-height: 45px;
+      & > .text {
+        display: inline-block;
+        line-height: 25px;
+        height: 25px;
+        color: rgb(144,194,255);
+        margin-left: -20px;
+        &::before {
+          content: "●";
+          font-size: 25px;
+          margin-right: 4px;
+          color: rgb(144,194,255);
+        }
+      }
+      & > .num:hover{
+        cursor: pointer;
+      }
+      & > .num {
+        margin-left: 20px;
+        font-size: 25px;
+        font-weight: bold;
+      }
+    }
+  }
+}
+</style>

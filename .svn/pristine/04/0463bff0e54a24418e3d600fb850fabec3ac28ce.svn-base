@@ -1,0 +1,90 @@
+<template>
+  <card title="评级分布">
+    <div class="kpi-rank">
+      <div id="main" style="width:320px;height:300px;"></div>
+    </div>
+  </card>
+</template>
+<script>
+import Card from './ScreenCard'
+import echarts from 'echarts'
+/**
+ * 评级分布
+ */
+export default {
+  components: {
+    Card,
+  },
+  data() {
+      return {}
+  },
+  mounted: function() {
+      this.$nextTick(function() {
+        this.getPie()
+      })
+    },
+  methods: {
+      getPie() {
+        var myChart = echarts.init(document.getElementById('main'))
+        var option = {
+          tooltip: {
+            trigger: 'item',
+            formatter: '{b}:{c} ({d}%)'
+          },
+          legend: {
+            bottom: 10,
+            left: 'center',
+            orient : 'vertical',
+            textStyle: {
+              color: 'white',
+              fontSize: 12
+            },
+            data: ['A级', 'B级', 'C级'],
+            formatter: function(name) {
+                                var index = 0;
+                                var labels = ['A级', 'B级', 'C级'];
+                                var counts = [21,12,16];
+                                labels.forEach(function(value,i){
+                                    if(value == name){
+                                        index = i;
+                                    }
+                                });
+                                return name + "    " + counts[index];
+                            }
+
+          },
+          color: ['#2BFFFF', '#02C0D7', '#158DD1'],
+          series: {
+            type: 'pie',             
+            radius: '50%',           
+            center: ['50%', '30%'], 
+            data: [                  
+              { name: 'A级', value: 21 },
+              { name: 'B级', value: 12},
+              { name: 'C级', value: 16 }
+            ],
+            itemStyle: {
+              normal: {
+                label: {
+                  show: true,
+                  formatter: '{b} {d}%',
+                  fontSize: 10
+                },
+                labelLine: {
+                  show: true
+                }
+              }
+            },
+          }
+
+        }
+        myChart.setOption(option)
+      }
+    }
+}
+</script>
+<style lang="less" scoped>
+.kpi-rank{
+  color: white;
+}
+</style>

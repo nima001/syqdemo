@@ -1,0 +1,392 @@
+<template>
+  <div>
+    <div class="title-bar">
+      <a-select v-model="chart.type" style="width:200px">
+        <a-select-option value="_id@organization.statistic.ldzsck">领导超职预警</a-select-option>
+        <a-select-option value="_id@organization.statistic.xzzcldzscks">中层领导超职预警</a-select-option>
+        <a-select-option value="type:ld">领导异常配置预警</a-select-option>
+        <a-select-option value="type:zcld">中层领导异常配置预警</a-select-option>
+      </a-select>
+    </div>
+    <bar-chart :dataTable="chart.table"/>
+    <div class="tool-bar" v-if="district">
+      <div class="left"></div>
+      <div class="right">
+        <!-- <a-select v-model="search.ckb"
+          allowClear
+          placeholder="超空编" 
+          style="width: 100px;margin-right: 10px;"
+        >
+          <a-select-option :key="-1">超编</a-select-option>
+          <a-select-option :key="1">空编</a-select-option>
+          <a-select-option :key="0">满编</a-select-option>
+        </a-select> -->
+        <a-input-search v-model="search.key" style="width: 240px;" enter-button @search="onSearch"/>
+      </div>
+    </div>
+    <a-table
+      :columns="columns"
+      :customRow="customRow"
+      :dataSource="dataSource"
+      :loading="loading"
+      :pagination="false"
+      @change="onChange"
+    >
+      <EmptyData v-if="search.rows && search.rows.length == 0" slot="footer"/>
+
+    </a-table>
+    <div style="padding: 10px 0;overflow: hidden;">
+      <a-pagination
+        v-if="search.enabled && search.rows && search.rows.length"
+        v-model="search.pagenum"
+        showSizeChanger
+        :showTotal="total => `总共：${total}条`"
+        @showSizeChange="onShowSizeChange"
+        :total="search.total"
+        :pageSize="search.pagesize"
+        @change="onPageChange"
+        style="float:right;"
+      />
+    </div>
+  </div>
+</template>
+<script>
+import { Table, Input, Select, Pagination, Icon} from "ant-design-vue";
+import { components } from '@person/components/chart'
+import EmptyData from '@framework/components/EmptyData'
+import { orgPostQuery, orgPostErrorReport } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '../../../../framework/utils';
+
+/**
+ * 职数统计的图表控件
+ */
+export default {
+  components: {
+    ATable: Table,
+    APagination: Pagination,
+    AInputSearch: Input.Search,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AIcon: Icon,
+    ...components,
+    EmptyData,
+  },
+  props: {
+    value: {
+      type: Object,
+      default: () => ({})
+    },
+    name: String,
+    chartCols: {//图形 展示的列 （后续支持计算函数）
+      type: Array,
+    },
+    tableCols: {
+      type: Array,
+    },
+    warnCols: {//需要提示的列（正数和负数会提示）
+      type: Array
+    },
+    unittype: Number,
+    district: String,
+  },
+  data(){
+    return {
+      loading: false,
+      chart: {
+        type: undefined,
+        table: undefined
+      },
+      chartCache: {},
+      search: {
+        enabled: false,
+        ckb: undefined,
+        key: undefined,//搜索关键词
+        totalRow: undefined, //
+        orderby: undefined,
+        header: undefined,
+        rows: undefined,
+        pagenum: 1,
+        pagesize: 10,
+        total: 0
+      },
+    }
+  },
+  computed: {
+    // title(){
+    //   let d;
+    //   if(this.district){
+    //     d = this.$store.getters.dictKey('usermanage.org.district', this.district);
+    //     d = d ? d.text : '';
+    //   }else{
+    //     d = "全市"
+    //   }
+    //   return d + this.name;
+    // },
+    zckCol(){//正职超空数
+      return this.value.valueCols.find(item => item.key == '_id@organization.statistic.xzzszzcks');
+    },
+    zczckCol(){//中层正职超空数
+      return this.value.valueCols.find(item => item.key == '_id@organization.statistic.xzzczszzcks');
+    },
+    columns(){
+      let {keyCols, valueCols} = this.value;
+      let cols = [], group;
+      valueCols.forEach(item => {
+        if(!this.tableCols || !!this.tableCols.find(key => key == item.key)){
+          let c = {
+            title: item.showname, 
+            align: 'center', 
+            dataIndex: item.column, 
+            key: item.key,
+          }
+          if(item.key == '_id@organization.statistic.ldzs_hd_sy'){
+            c.customRender = this.getErrorRender(this.zckCol)
+          }else if(item.key == '_id@organization.statistic.zcldzs_sy'){
+            c.customRender = this.getErrorRender(this.zczckCol)
+          }
+          if(this.warnCols && this.warnCols.indexOf(item.key) >= 0){
+            c.customRender = (text) => {
+              if(text > 0){
+                return <span style="color:#5488d1">{text}</span>
+              }else if(text < 0){
+                return <span style="color:#d60002">{text}</span>
+              }
+              return text;
+            };
+          }
+          if(item.sort){//存在分组
+            if(group && group.title == item.sort){
+              group.children.push(c);
+            }else{
+              group = { title: item.sort, children: [c] }
+              cols.push(group);
+            }
+          }else{
+            cols.push(c);
+            group = null;
+          }
+        }
+      })
+      return [
+        {
+          title: keyCols[0].showname, 
+          dataIndex: keyCols[0].column, 
+          width: "15%",
+        },
+        ... cols
+      ]
+    },
+    total(){
+      let { valueCols, keyCols, rows } = this.value;
+      let row = this.sum(rows, valueCols);
+      if(this.district){
+        let d = this.$store.getters.dictKey('usermanage.org.district', this.district);
+        row[keyCols[0].column] = (d ? d.text : '');
+      }else{
+        row[keyCols[0].column] = "全市";
+      }
+      return row;
+    },
+    dataSource(){
+      let { enabled, totalRow, rows, header} = this.search;
+      let { valueCols, keyCols } = this.value;
+      if(enabled){
+        let list = (rows || []).map(item => {
+          let row = {};
+          row[keyCols[0].column] = item.name;//第一列组织名称
+          valueCols.forEach(c => {
+            let hc = header.find(h => h.key == c.key);
+            if(hc){
+              row[c.column] = item[hc.column];
+            }
+          })
+          return row;
+        })
+        if(totalRow){//点击机构分类统计进入机构查询（查询当前分类的机构）
+          return [totalRow, ...list]
+        }else{//直接搜索当前区域的机构
+          return [this.total, ...list]
+        }
+      }else{
+        return [this.total, ...this.value.rows]
+      }
+    },
+  },
+  watch: {
+    'chart.type'(type){
+      this.loadChart(type);
+    },
+    value(){
+      this.chartCache = {};//清空缓存
+      this.loadChart('_id@organization.statistic.ldzsck');  
+    }
+  },
+  created(){
+    this.loadChart('_id@organization.statistic.ldzsck')
+  },
+  methods: {
+    loadChart(type){
+      if(type.startsWith('type:')){//服务器请求数据
+        let t = type.substr(5);
+        let table = this.chartCache[t];
+        if(table){
+          this.chart = {type, table}
+        }else{
+          orgPostErrorReport(t, this.unittype, this.district).then(({result}) => {
+            this.chartCache[t] = result;
+            this.chart = {type, table: result};
+          }).catch(error => {
+            showError(error);
+          })
+        }
+      }else{
+        let valueCol = this.value.valueCols.find(item => item.key == type);
+        if(valueCol){
+          this.chart = {
+            type,
+            table: {
+              ...this.value,
+              valueCols: [{...valueCol, showname: '超编/空编'}]
+            }
+          }
+        }
+      }
+    },
+    onPageChange(pagenum, pagesize) {
+      this.doSearch({pagenum, pagesize});
+    },
+    onShowSizeChange(current, pagesize) {
+      this.doSearch({pagenum: 1, pagesize});
+    },
+    onChange(pagination, filters, sorter){
+      if(sorter.column){
+        this.search.orderby = {
+          orderby: sorter.column.key,
+          ordertype: sorter.order == 'descend' ? 'DESC' : 'ASC'
+        }
+      }else{
+        this.search.orderby = undefined;
+      }
+      this.doSearch(this.search)
+    },
+    customRow(row, index){
+      return {
+        on: {
+          dblclick: (event) => {
+            if(this.district){
+              if(index == 0){
+                this.clearSearch();
+              }else if(!this.search.totalRow && index > 0){
+                //第一条是合计不需要查看单位
+                this.search.totalRow = row;
+                this.doSearch({pagenum: 1, pagesize: this.search.pagesize});
+              }
+            }
+          },
+        }
+      };
+    },
+    getErrorRender(col){
+      return (text, row) => {
+        let v = col && row[col.column] || 0;
+        if(v < 0){
+          return <span><a-icon class="ld-error" type="exclamation-circle" title="配置异常"/>{text}</span>
+        }
+        return text;
+      }
+    },
+    onSearch(){
+      let { key, ckb, totalRow, pagesize } = this.search;
+      if(key || ckb !== undefined || totalRow){//搜索条件都为空时，清空搜索
+        this.doSearch({pagenum: 1, pagesize});
+      }else{
+        this.clearSearch();
+      }
+    },
+    doSearch({pagenum, pagesize}){
+      this.loading = true;
+      let { ckb, key, totalRow, orderby } = this.search;
+      let orders = [{ orderby: "index", ordertype: 'ASC'}];
+      if(orderby){
+        orders.unshift(orderby);
+      }
+      orgPostQuery({
+        unittype: this.unittype,
+        district: this.district,
+        systype: totalRow && totalRow[this.value.keyCols[0].column],
+        ckb,
+        searchkey: key,
+        orderby: orders,
+        pagenum, 
+        pagesize,
+        needtotal: true
+      }).then(({result}) => {
+        this.search = { ...this.search, ...result, enabled: true};
+      }).catch(error => {
+        showError(error);
+      }).finally(() => {
+        this.loading = false;
+      })
+    },
+    clearSearch(){
+      this.search = {
+        enabled: false,
+        ckb: undefined,
+        key: undefined,
+        totalRow: undefined,
+        orderby: undefined,
+        header: undefined,
+        rows: undefined,
+        pagenum: 1,
+        pagesize: 10,
+        total: 0
+      }
+    },
+    sum(list, valueCols){//求和
+      let sum = {};
+      (list || []).forEach(item => {
+        valueCols.forEach(col => {
+          let key = col.column;
+          sum[key] = (sum[key] || 0) + (item[key] || 0);
+        })
+      });
+      return sum;
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.title-bar{
+  margin: 10px 0;
+  line-height: 1em;
+  font-size: 18px;
+  text-align: center;
+  font-weight: bold;
+}
+.tool-bar{
+  overflow: hidden;
+  margin-bottom: 10px;
+  & > .left{
+    float: left;
+  }
+  & > .right{
+    float: right;
+
+  }
+}
+.ld-error{
+  color: @primary-color;
+  margin-right: 5px;
+}
+/deep/.ant-table-thead {
+  th {
+    border: 1px solid #e8e8e8;
+    &:first-child {
+      border-left: none;
+    }
+    &:last-child {
+      border-right: none;
+    }
+  }
+}
+</style>

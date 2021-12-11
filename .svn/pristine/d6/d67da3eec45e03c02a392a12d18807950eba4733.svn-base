@@ -1,0 +1,259 @@
+<template>
+  <div class="container">
+    <div class="body">
+      <!-- <div class="title">
+        <span class="title">省属事业单位机构编制质效评估</span>
+        <span>sd</span>
+      </div>
+      <div class="describe">
+        <div class="name">浙江省农业对外合作中心</div>
+        <div class="deal">
+          <div class="fraction">
+            <span class="desc">评估得分</span>
+            <span>86</span>
+          </div>
+          <div class="proposal">
+            <div class="desc">处理建议</div>
+            <div class="result">
+              <span class="grade">B</span>
+              <span class="detail">酌情考虑</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="table">
+        <div class="thead">
+          <ul>
+            <li>一级指标</li>
+            <li>二级指标</li>
+            <li>权重分值</li>
+            <li>评分标准</li>
+            <li>数据来源</li>
+            <li>扣分情况</li>
+            <li>问题说明</li>
+          </ul>
+        </div>
+        <div class="tbody">
+          <ul>
+            <li>"(一)职责履行20分"</li>
+            <li>
+              <ul>
+                <li>
+                  1.职责变动
+                </li>
+              </ul>
+              <ul>
+                <li>
+                  2.履行职责不到位
+                </li>
+              </ul>
+              <ul>
+                <li>
+                  3.开展的业务与三定不符
+                </li>
+              </ul>
+              <ul>
+                <li>
+                  4.与其他事业单位的工作同质化
+                </li>
+              </ul>
+            </li>
+            <li>
+              <ul>
+                <li>4</li>
+                <li>6</li>
+                <li>4</li>
+                <li>6</li>
+              </ul>
+            </li>
+            <li>
+              <ul>
+                <li>职责划出、下放、取消、且无新增职责的，扣4分</li>
+                <li>部门近三年对所属事业单位综合考评中,有排名在后30%的,扣6分</li>
+                <li>承担行政职能或偏离公益目标从事经营活动的,扣4分</li>
+                <li>实际开展的工作与其他事业单位的工作存在同质化现象,扣6分</li>
+              </ul>
+            </li>
+            <li>
+              <ul>
+                <li>法律法规或规范性文件</li>
+                <li>部门考核结果</li>
+                <li>事业单位年度报告</li>
+                <li>事业单位年度报告</li>
+              </ul>
+            </li>
+            <li>
+              <ul>
+                <li>0</li>
+                <li>0</li>
+                <li>0</li>
+                <li>2</li>
+              </ul>
+            </li>
+            <li></li>
+          </ul>
+        </div>
+      </div> -->
+      <div class="back" @click="()=>$router.go(-1)">
+        
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {};
+  },
+};
+</script>
+<style lang="less" scoped>
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  .body {
+    width: 95%;
+    padding: @padding-sm;
+    // border: 1px solid #000;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: url('../../../assets/img/screen/assess-detail.png') no-repeat;
+    background-size: 100% 100%;
+    position: relative;
+    .back {
+      width: 80px;
+      height: 80px;
+      position: absolute;
+      right: 8%;
+      top: -7px;
+    }
+    & > .title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      span.title {
+        font-size: 35px;
+        font-weight: bold;
+        font-family: cursive;
+        text-shadow: 0 0 8px #1169a2;
+        color: #fff;
+      }
+    }
+    .describe {
+      height: 43px;
+      margin-top: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(
+        to right,
+        #0a278f,
+        fade(#093596, 80%),
+        fade(#093596, 60%),
+        fade(#093596, 10%)
+      );
+      .name {
+        padding-left: @padding-xs;
+        font-size: 23px;
+        font-weight: 400;
+        color: #f0e203;
+      }
+      .deal {
+        height: 100%;
+        line-height: 43px;
+        font-size: 20px;
+        display: flex;
+        .desc {
+          font-weight: 550;
+          background-image: linear-gradient(150deg, #4DF5B0, #4DF5B0, #1BACC5, #03BBFF); //背景色渐变，默认从上到下
+          -webkit-background-clip: text; //CSS3属性：设定背景的绘制范围为文字
+          color: transparent; //将字的颜色设置透明，只露出背景色
+        }
+        .fraction {
+          span:last-child {
+            margin-left: @padding-xs;
+            color: #fff;
+          }
+        }
+        .proposal {
+          margin-left: @padding-md;
+          display: flex;
+          .result {
+            margin-left: @padding-xs;
+            display: flex;
+            align-items: center;
+            background: #f0e203;
+            .grade {
+              font-size: 30px;
+              font-weight: 600;
+            }
+            .detail {
+              font-weight: 550;
+            }
+          }
+        }
+      }
+    }
+    .table {
+      width: 97%;
+      margin: 0 auto;
+      color: fade(#fff,80%);
+      .thead {
+        margin-top: 10px;
+        padding: @padding-xs 0;
+        background:linear-gradient(to right, #0B347A, fade(#0B347A, 80%), fade(#0B347A, 30%), transparent 95%);
+        ul {
+          margin: 0;
+          display: flex;
+          & > li {
+            width: 14%;
+            padding: 0 @padding-xs;
+            text-align: center;
+            &:nth-child(4) {
+              width: 25%;
+              padding: 0 @padding-xs;
+            }
+          }
+        }
+      }
+      .tbody {
+        & > ul {
+          display: flex;
+          & > li {
+            width: 14%;
+            padding: 0 @padding-xs;
+            margin-top: 10px;
+            text-align: center;
+            letter-spacing: 3px;
+            &:nth-child(4) {
+              width: 25%;
+              text-align: left;
+              padding: 0 @padding-xs;
+            }
+            & > ul {
+              display: flex;
+              flex-direction: column;
+              li {
+                width: 100%;
+                height: 50px;
+                overflow: hidden;
+                -webkit-line-clamp: 3;
+                text-overflow: ellipsis;
+                margin-bottom: 10px;
+                line-height: 25px;
+              }
+            }
+          }
+        }
+        & > ul:nth-child(2n) {
+          background:linear-gradient(to right, #0B347A, fade(#0B347A, 80%), fade(#0B347A, 30%), transparent 95%);
+        }
+      }
+    }
+  }
+}
+</style>

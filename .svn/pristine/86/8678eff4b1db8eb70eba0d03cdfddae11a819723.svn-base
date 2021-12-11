@@ -1,0 +1,287 @@
+<template>
+  <div>
+    <dialog-box 
+      v-model="show"
+      title="违规使用编制"
+    >
+    <div class="container">
+      <div class="top">
+        <div class="left">
+          <p>预警对象数</p>
+          <LcdFont :length="3" :realNumber="problemNum" :realStyle="realStyle" :fakeStyle="fakeStyle"/>
+        </div>
+        <div class="right">
+          <p>规则数</p>
+          <LcdFont :length="3" :realNumber="ruleNum" :realStyle="realStyle" :fakeStyle="fakeStyle"/>
+        </div>
+      </div>
+      <div class="bottom">
+        <div class="left">
+            <div class="table">
+                <p>预警对象</p>
+                <ul>
+                    <li :class="{'active': isActive(item.id)}" v-for="item in data" :key="item.id" @click="checked(item)">
+                      {{item.name}}
+                    </li>
+                </ul>
+            </div>
+            <div class="pagination">
+                <div class="prev">
+                    <img src="../../../assets/img/screen/page-prev.png" @click="changePage('prev')">
+                </div>
+                <div>
+                    <span class="current">{{pagination.pagenum}}</span>
+                    <span>/</span>
+                    <span>{{totalPage}}</span>
+                </div>
+                <div class="next">
+                    <img src="../../../assets/img/screen/page-next.png" @click="changePage('next')">
+                </div>
+            </div>
+        </div>
+        <div class="right">
+            <div class="title">预警规则</div>
+            <div class="content" >
+              <p v-html="description"/>
+            </div>
+        </div>
+      </div>
+    </div>
+    </dialog-box>
+  </div>
+</template>
+<script>
+import DialogBox from '../components/DialogBox'
+import LcdFont from './LcdFont';
+import { assign } from 'lodash';
+import { problems, problemCount } from "../../../api/analyze";
+import { showError } from '../../../../framework/utils';
+
+export default {
+  components: {
+    DialogBox,
+    LcdFont
+  },
+  props: {
+    value: Boolean,
+    category: Number,
+  },
+  data(){
+    return {
+      pagination: {
+        pagesize: 8,
+        pagenum: 1,
+        needTotal: true,
+        total: 0,
+      },
+      totalPage: 0,
+      active: undefined,
+      description: undefined,
+      data: [],
+      problemNum: 0,
+      ruleNum: 0,
+      show: this.value,
+      realStyle: {
+        color: "#02E7EF",
+        textStroke: "1 #ECA066",
+        opacity: 0.95,
+        fontSize: '3em',
+      },
+      fakeStyle: {
+        fontSize: '3em',
+      }
+    }
+  },
+  watch: {
+    category(val) {
+        if(val) {
+          this.lodaData();
+          this.loadCount();
+        }
+    },
+    data: {
+        deep: true,
+        handler(val) {
+            if(val.length) {
+              this.description = val[0].description;
+              this.active = val[0].id;
+            }
+        }
+    },
+    value(value){
+      this.show = value;
+    },
+    show(show){
+      this.$emit('input', show);
+    },
+  },
+  mounted() {
+    if(this.category) {
+        this.lodaData();
+    }
+  },
+  methods: {
+    isActive(id) {
+        if(id==this.active) {
+          return true;
+        }
+        return false;
+    },
+    checked(item) {
+      this.active = item.id;
+      this.description = item.description;
+    },
+    changePage(type) {
+      if(type=='prev'&&this.pagination.pagenum>1) {
+        this.pagination.pagenum--;
+      }else if(type=='next'&&this.pagination.pagenum<this.totalPage) {
+        this.pagination.pagenum++;
+      }
+      this.lodaData();
+    },
+    lodaData() {
+      problems({category: this.category, ...this.pagination}).then(({result})=>{
+        this.data = result.rows;
+        delete result.rows;
+        assign(this.pagination, result);
+        this.totalPage = Math.ceil(this.pagination.total/this.pagination.pagesize);
+      }).catch(err=>{
+        showError(err);
+      })
+    },
+    loadCount() {
+        problemCount(this.category).then(({result})=>{
+          this.problemNum = result.problemcount;
+          this.ruleNum = result.rulecount;
+        }).catch(err=>{
+          showError(err);
+        })
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  .top {
+    width: 100%;
+    height: 20%;
+    display: flex;
+    margin-top: 40px;
+    align-items: center;
+    justify-content: center;
+    .left, .right {
+      width: 20%;
+      text-align: center;
+      margin-top: auto;
+      margin-bottom: 10px;
+      p {
+        margin-bottom: 10px;
+        color: #fff;
+        font-size: 1.2em;
+      }
+    }
+  }
+  .bottom {
+    width: 100%;
+    height: 65%;
+    padding: @padding-xs 35px;
+    color: fade(#fff, 80%);
+    display: flex;
+    justify-content: space-around;
+    .left {
+        width: 60%;
+        height: 90%;
+        margin-right: 30px;
+        display: flex;
+        flex-direction: column;
+        .table {
+            flex: 1;
+            p {
+                padding: @padding-xs @padding-sm;
+                margin-bottom: 10px;
+                text-align: center;
+                color: #fff;
+                font-size: 1.2em;
+                background: url('../../../assets/img/screen/problems-title-bg.png') no-repeat;
+                background-size: 100%;
+                position: relative;
+                &::before {
+                    content: '';
+                    position: absolute;
+                    width: 100%;
+                    height: 100%;
+                    padding: @padding-xs @padding-sm;
+                    left: 0;
+                    top: 0;
+                    background: #161932;
+                    z-index: -1;
+                }
+            }
+            ul {
+                margin-bottom: 0;
+                color: fade(#fff, 80%);
+                li {
+                    padding: 6px @padding-sm;
+                    font-size: 1.1em;
+                    cursor: pointer;
+                    transition: all .3s;
+                    &:nth-child(2n-1) {
+                        background: fade(#506EA7, 20%);
+                    }
+                    &.active {
+                        background: fade(#506EA7, 60%);
+                    }
+                }
+            }
+            
+        }
+        .pagination {
+            width: 120px;
+            padding: @padding-xs @padding-lg;
+            margin: auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: @border-radius-base;
+            color: fade(#fff, 80%);
+            background: fade(#000, 30%);
+            .current {
+                color: #fff;
+            }
+            .prev, .next {
+                margin: 0 16px;
+                cursor: pointer;
+            }
+        }
+    }
+    .right {
+        flex: 1;
+        height: 365px;
+        display: flex;
+        flex-direction: column;
+        .title {
+            padding: @padding-sm;
+            font-size: 1.2em;
+            font-weight: 500;
+            text-align: center;
+            background: #1F2F53;
+        }
+        .content {
+            font-size: 1.2em;
+            flex: 1;
+            padding: @padding-md;
+            overflow-y: auto;
+            background: #344A74;
+            p {
+                margin: 0;
+                white-space: pre-wrap;
+            }
+        }
+    }
+  }
+}
+</style>

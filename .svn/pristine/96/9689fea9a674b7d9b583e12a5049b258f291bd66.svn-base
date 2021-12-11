@@ -1,0 +1,679 @@
+<template>
+  <div class="select-content">
+    <!-- 按区域查看部门历史明细 -->
+    <a-form
+      v-if="active === 1"
+      :form="this.form"
+      :label-col="{ span: 24 }"
+      :wrapper-col="{ span: 24 }"
+      @submit="regionSubmit"
+    >
+      <a-form-item label="选择区域">
+        <a-select
+          v-decorator="[
+            'district',
+            {
+              initialValue: this.district[0].value,
+            },
+          ]"
+        >
+          <a-select-option
+            v-for="(item,index) in district"
+            :key="index"
+            :value="item.value"
+          >
+            {{ item.text }}
+          </a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item label="选择时间">
+        <a-month-picker
+          v-decorator="['date']"
+          placeholder="请选择时间"
+          style="width: 100%; cursor: pointer"
+          @change="onChange"
+        />
+      </a-form-item>
+      <a-form-item class="submitbtn">
+        <a-button :block="true" class="submit" html-type="submit"
+          >确定</a-button
+        >
+      </a-form-item>
+    </a-form>
+    <!-- 按时间查看部门变化情况 -->
+    <a-form
+      v-else-if="active === 2"
+      :form="this.form"
+      :label-col="{ span: 24 }"
+      :wrapper-col="{ span: 24 }"
+      @submit="datelineSubmit"
+    >
+      <a-form-item label="选择单位">
+        <div @click="orgVisible = true">
+          <a-input
+            read-only
+            v-decorator="['orgid']"
+            placeholder="请选择相关单位"
+          >
+            <a-icon slot="suffix" @click.stop="clear('orgid')" v-show="this.form.getFieldValue('orgid')" type="close-circle" theme="filled"/>
+          </a-input>
+        </div>
+      </a-form-item>
+      <a-form-item label="选择时间">
+        <a-month-picker
+          v-decorator="[
+            'startDate',
+            { rules: [{ required: true, message: '请选择时间!' }] },
+          ]"
+          placeholder="请选择时间"
+          style="width: 100%; cursor: pointer"
+          @change="onChange"
+        />
+      </a-form-item>
+      <a-form-item label="区间类型">
+        <ul class="interval" v-decorator="['dateStep']">
+          <li
+            v-for="(item, index) in intervaltype"
+            :key="index"
+            :class="{ check: item.checked }"
+            @click="changeCheck(index)"
+          >
+            {{ item.name }}
+          </li>
+        </ul>
+      </a-form-item>
+      <a-form-item class="submitbtn">
+        <a-button :block="true" class="submit" html-type="submit">确定</a-button>
+      </a-form-item>
+    </a-form>
+    <!-- 按权力基本码对比具体事项 -->
+    <a-form
+      v-else-if="active === 3"
+      :form="this.form"
+      :label-col="{ span: 24 }"
+      :wrapper-col="{ span: 24 }"
+      @submit="orgSubmit"
+    >
+      <a-form-item label="选择区域">
+        <a-checkbox-group v-decorator="['districts', { initialValue: [] }]">
+          <a-row>
+            <a-col :span="8" v-for="(item,index) in district" :key="index">
+              <a-checkbox :value="item" :key="item.key">{{
+                item.text
+              }}</a-checkbox>
+            </a-col>
+          </a-row>
+        </a-checkbox-group>
+      </a-form-item>
+      <a-form-item class="submitbtn">
+        <a-button :block="true" class="submit" html-type="submit"
+          >确定</a-button
+        >
+      </a-form-item>
+    </a-form>
+    <!-- 按条线部门对比具体事项 -->
+    <a-form
+      v-else-if="active === 4"
+      :form="this.form"
+      :label-col="{ span: 24 }"
+      :wrapper-col="{ span: 24 }"
+      @submit="orglineSubmit"
+    >
+      <a-form-item label="选择条线">
+        <a-select v-decorator="['lineid']" allowClear>
+          <a-select-option
+            v-for="item in orgline"
+            :key="item.id"
+            :value="item.id"
+          >
+            {{ item.name }}
+          </a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item label="选择区域">
+        <a-checkbox-group v-decorator="['districts', { initialValue: [] }]">
+          <a-row>
+            <a-col :span="8" v-for="(item,index) in district" :key="index">
+              <a-checkbox :value="item.value" :key="item.key">{{
+                item.text
+              }}</a-checkbox>
+            </a-col>
+          </a-row>
+        </a-checkbox-group>
+      </a-form-item>
+      <a-form-item class="submitbtn">
+        <a-button :block="true" class="submit" html-type="submit"
+          >确定</a-button
+        >
+      </a-form-item>
+    </a-form>
+    <!-- 按单个事项查看发布情况 -->
+    <a-form
+      v-else-if="active === 5"
+      :form="this.form"
+      :label-col="{ span: 24 }"
+      :wrapper-col="{ span: 24 }"
+      @submit="codeSubmit"
+    >
+      <a-form-item label="选择事项">
+        <div class="code" @click="showModal">
+          <a-input
+            v-decorator="['code',{rules:[{required:true,message:'请选择权力事项！'}]}]"
+            read-only
+            placeholder="请选择权力事项"
+          >
+            <a-icon slot="suffix" v-if="!this.form.getFieldValue('code')" type="select" />
+            <a-icon slot="suffix" v-else @click.stop="clear('code')" type="close-circle" theme="filled"/>
+          </a-input>
+        </div>
+      </a-form-item>
+      <a-form-item class="submitbtn">
+        <a-button :block="true" class="submit" html-type="submit">确定</a-button>
+      </a-form-item>
+    </a-form>
+    <a-modal
+      v-model="orgVisible"
+      :destroyOnClose="true"
+      title="选择机构"
+      :width="800"
+      :bodyStyle="{ height: '600px', padding: '0' }"
+      :footer="null"
+    >
+      <org-user-select
+        mode="orgtree"
+        :root-selectable="true"
+        @finish="selectOrg"
+      />
+    </a-modal>
+    <a-modal
+      v-model="qlsxVisible"
+      :destroyOnClose="true"
+      title="权力事项选择"
+      :width="800"
+      :bodyStyle="{ height: '600px', padding: '0' }"
+    >
+      <a-form :form="this.qlsxform">
+        <a-row style="padding-top: 20px">
+          <a-col :span="24">
+            <a-form-item
+              label-align="left"
+              :label-col="{ span: 3 }"
+              :wrapper-col="{ span: 20 }"
+              label="事项名称"
+            >
+              <a-input v-decorator="['searchkey']" allowClear />
+            </a-form-item>
+          </a-col>
+          <a-col :span="6">
+            <a-form-item
+              label-align="'left'"
+              :label-col="{ span: 12 }"
+              :wrapper-col="{ span: 12 }"
+              label="事项类型"
+            >
+              <a-input v-decorator="['kind']" allowClear />
+            </a-form-item>
+          </a-col>
+          <a-col :span="6">
+            <a-form-item
+              :label-col="{ span: 12 }"
+              :wrapper-col="{ span: 12 }"
+              label="主项编码"
+            >
+              <a-input v-decorator="['maincode']" allowClear />
+            </a-form-item>
+          </a-col>
+          <a-col :span="6">
+            <a-form-item
+              :label-col="{ span: 12 }"
+              :wrapper-col="{ span: 12 }"
+              label="子项编码"
+            >
+              <a-input v-decorator="['childcode']" allowClear />
+            </a-form-item>
+          </a-col>
+          <a-col :span="5">
+            <a-form-item class="button">
+              <a-button
+                @click="
+                  search({
+                    pagenum: 1,
+                    pagesize: 10,
+                    needtotal: true,
+                    total: 0,
+                  })
+                ">搜索</a-button>
+              <a-button @click="handleReset">重置</a-button>
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-row :span="24" class="radio">
+          <a-col class="spin">
+            <a-spin :spinning="this.loading"></a-spin>
+          </a-col>
+          <a-col class="radioItem" :span="22" :offset="1">
+            <a-form-item v-if="this.qlsxOptions.length">
+              <a-radio-group v-if="qlsxOptions" v-decorator="['code']">
+                <a-radio v-for="(item,index) in qlsxOptions" :value="item.value" :key="index" @click="changeradio(item)">
+                  <a-tooltip :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      {{ `${item.label} ` }}
+                    </template>
+                    {{ `${item.value}  (${item.label})` }}
+                  </a-tooltip>
+                </a-radio>
+              </a-radio-group>
+              <a-pagination
+                showSizeChanger
+                :current="this.pagination.pagenum"
+                :total="this.pagination.total"
+                :showTotal="(total) => `总共：${total}条`"
+                @change="changepage"
+                @showSizeChange="onShowSizeChange"
+              />
+            </a-form-item>
+            <a-form-item class="empty" v-else>
+              <Empty-data />
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
+      <template slot="footer">
+        <a-button @click="ok">确认</a-button>
+      </template>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import {
+  Form,
+  Select,
+  Checkbox,
+  Radio,
+  Input,
+  DatePicker,
+  Button,
+  Row,
+  Col,
+  Modal,
+  Icon,
+  Pagination,
+  Spin,
+  Tooltip,
+} from "ant-design-vue";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import { orglinequery } from "@/person-shaoxing/api/information";
+import { showError } from "../../../../../framework/utils";
+import { qlsxsearch } from "@/person-shaoxing/api/assessment";
+import { cloneDeep, assign } from "lodash";
+import EmptyData from "@/framework/components/EmptyData";
+export default {
+  props: {
+    active: {
+      //左侧选中项
+      type: Number,
+    },
+  },
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ACheckbox: Checkbox,
+    ACheckboxGroup: Checkbox.Group,
+    ARadio: Radio,
+    ARadioGroup: Radio.Group,
+    AInput: Input,
+    ADatePicker: DatePicker,
+    AMonthPicker: DatePicker.MonthPicker,
+    AButton: Button,
+    OrgUserSelect,
+    AIcon: Icon,
+    ARow: Row,
+    ACol: Col,
+    AModal: Modal,
+    APagination: Pagination,
+    EmptyData,
+    ASpin: Spin,
+    ATooltip: Tooltip,
+  },
+  data() {
+    return {
+      mode2: ["month", "month"],
+      date: "",
+      orgline: [],
+      selected: {},
+      orgVisible: false,
+      qlsxVisible: false,
+      intervaltype: [
+        { name: "年", value: "1", checked: true },
+        { name: "半年", value: "2", checked: false },
+        { name: "季度", value: "3", checked: false },
+        { name: "月份", value: "4", checked: false },
+      ],
+      qlsxOptions: [],
+      pagination: {
+        pagenum: 1,
+        pagesize: 10,
+        total: 0,
+        needtotal: true,
+      },
+      loading: false,
+      title: {},
+      form: this.$form.createForm(this, { name: "coordinated" }),
+      qlsxform: this.$form.createForm(this, { name: "qxsxform" }),
+    };
+  },
+  computed: {
+    district() {
+      return this.$store.getters.dict("usermanage.org.district");
+    },
+  },
+  created() {
+    this.orglineQuery();
+  },
+  methods: {
+    clear(name){
+      let obj = {};
+      obj[name] = undefined;
+      this.form.setFieldsValue(obj);
+    },
+    changeradio(item){
+      assign(this.title,item);
+    },
+    //确定选择的机构
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok" && list.length) {
+        let org = list[0];
+        this.selected.orgid = org.data._id;
+        this.form.setFieldsValue({'orgid': org.name})
+        this.selected.nodeid = org.id;
+      }
+    },
+    showModal() {
+      this.qlsxVisible = true;
+    },
+    //年份变化触发
+    onChange(date, dateString) {
+      this.date = dateString + "-01";
+    },
+    changepage(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.search(this.pagination);
+    },
+    onShowSizeChange(current, pagesize){
+      assign(this.pagination, { pagesize, pagenum: 1 });
+      this.search(this.pagination);
+    },
+    changeCheck(Index) {
+      this.intervaltype.forEach((item, index) => {
+        item.checked = false;
+        if (index === Index) {
+          item.checked = true;
+        }
+      });
+    },
+    handleReset() {
+      this.qlsxform.resetFields();
+    },
+    search(pagination) {
+      this.loading = true;
+      this.qlsxform.validateFields((err, values) => {
+        if (!err) {
+          assign(values, pagination);
+          qlsxsearch(values)
+            .then((res) => {
+              this.loading = false;
+              this.pagination = cloneDeep(res.result);
+              this.pagination.needtotal = true;
+              if (res.result.rows) {
+                this.qlsxOptions = [];
+                res.result.rows.forEach((item) => {
+                  let checkitem = {};
+                  checkitem.label = item.quanliname;
+                  checkitem.value = item.quanlicode;
+                  this.qlsxOptions.push(checkitem);
+                });
+              }
+            })
+            .catch((err) => {
+              this.loading = false;
+              showError(err);
+            });
+        }
+      });
+    },
+    ok() {
+      this.qlsxform.validateFields((err, values) => {
+        if (values.code && !err) {
+          this.form.setFieldsValue({ code: values.code });
+          this.qlsxVisible = false;
+          this.qlsxOptions = [];
+        }
+      });
+    },
+    //查询全部条线
+    orglineQuery() {
+      orglinequery({ pagesize: 0 })
+        .then((res) => {
+          this.orgline = res.result.rows;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    //按区域查看部门变化情况
+    regionSubmit(e) {
+      e.preventDefault();
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          if(values.date){
+            values.date = this.date;
+          }
+          this.$emit("regionsubmit", values);
+        }
+      });
+    },
+    //按时间查看部门变化情况
+    datelineSubmit(e) {
+      e.preventDefault();
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          if(values.orgid){
+            values.orgid = this.selected.orgid;
+          }else{
+            values.orgid = undefined;
+            this.selected = {};
+          }
+          values.startDate = this.date;
+          this.intervaltype.forEach((item) => {
+            if (item.checked) {
+              values.dateStep = parseInt(item.value);
+            }
+          });
+          this.$emit("datelinesubmit", values);
+        }
+      });
+    },
+    //按条线部门对比具体事项
+    orglineSubmit(e) {
+      e.preventDefault();
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          if (!values.lineid) {
+            values.lineid = undefined;
+          }
+          this.$emit("orglinesubmit", values);
+        }
+      });
+    },
+    //按权利基本码对比具体事项
+    orgSubmit(e) {
+      e.preventDefault();
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          this.$emit("orgsubmit", values);
+        }
+      });
+    },
+    //按单个事项查看发布情况
+    codeSubmit(e) {
+      e.preventDefault();
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          if (!values.code) {
+            values.code = undefined;
+          }
+          values.title = this.title;
+          this.$emit('qlsxsearchCode',values);
+        }
+      });
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+.select-content {
+  height: 100%;
+  display: flex;
+  /deep/.ant-form {
+    width: 100%;
+    position: relative;
+    flex: 1;
+    padding-top: 20%;
+    & .ant-input-suffix{
+      color: @primary-color;
+      cursor: pointer;
+    }
+    & #coordinated_orgid + .ant-input-suffix,
+    & #coordinated_code + .ant-input-suffix .anticon-close-circle{
+      cursor:pointer;
+      font-size: 14px;
+      color: rgb(102, 102, 102);
+      transition: all .3s;
+    }
+
+    #coordinated_orgid:hover,#coordinated_code:hover{
+      border-color: @primary-color;
+    }
+    & .ant-input-group > .ant-input:first-child,
+    & input#coordinated_code,
+    & input#coordinated_orgid {
+      cursor: pointer;
+      background-color: #ffffff;
+    }
+    & .ant-input-group-addon {
+      cursor: pointer;
+      background-color: #ffffff;
+    }
+    ul.interval {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      & li {
+        width: 45%;
+        height: 32px;
+        line-height: 2;
+        text-align: center;
+        color: #000000;
+        margin-bottom: 16px;
+        border-radius: 4px;
+        border: 1px solid rgba(215, 215, 215, 1);
+        cursor: pointer;
+        transition: all 0.3s;
+      }
+      & li.check {
+        color: #ffffff;
+        background-color: @primary-color;
+      }
+    }
+    .submitbtn.ant-row.ant-form-item {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      & .submit {
+        border: 1px solid @primary-color;
+        color: @primary-color;
+      }
+    }
+  }
+}
+.ant-modal {
+  & .ant-form {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    & .ant-modal-footer button {
+      background-color: @primary-color;
+      color: #ffffff;
+    }
+    & .ant-radio-group {
+      display: flex;
+      flex-direction: column;
+      max-height: 400px;
+      overflow-y: scroll;
+      overflow-x: hidden;
+      & .ant-radio-wrapper {
+        align-items: center;
+        display: flex;
+        margin-bottom: 8px;
+        height: 32px;
+        transition: all 0.3s;
+        & span{
+          margin-bottom: 2px;
+          display: inline-block;
+          max-width: 704px;
+          vertical-align: middle;
+          word-break: keep-all; /* 不换行 */
+          white-space: nowrap; /* 不换行 */
+          overflow: hidden; /* 内容超出宽度时隐藏超出部分的内容 */
+          text-overflow: ellipsis;
+        }
+      }
+      & .ant-radio-wrapper:hover {
+        background-color: @primary-1;
+      }
+    }
+    & .radio.ant-row {
+      height: 100%;
+      position: relative;
+      & .radioItem {
+        height: 100%;
+        & .ant-pagination {
+          float: right;
+          margin-top: 8px;
+        }
+      }
+      & .spin {
+        position: absolute;
+        top: 30%;
+        left: 50%;
+        transform: translate(-50%, -30%);
+      }
+      & .empty {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+    }
+  }
+  & .ant-modal-footer {
+    & button {
+      background-color: @primary-color;
+      color: #ffffff;
+    }
+  }
+}
+/deep/.ant-row.button {
+    text-align: right;
+  & button.ant-btn:first-child {
+    color: #ffffff;
+    margin-right: 4px;
+    background-color: @primary-color !important;
+  }
+}
+</style>

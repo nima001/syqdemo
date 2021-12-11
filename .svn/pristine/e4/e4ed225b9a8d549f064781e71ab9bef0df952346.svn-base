@@ -1,0 +1,91 @@
+import request from '@/framework/utils/request'
+// 服务相关api
+
+// 查看服务列表信息 
+export function serviceList(id) {
+  return request({
+      url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/service/list/${id}`,
+      method: 'get'
+  })
+}
+
+// 查看服务接口列表信息 
+export function apiList(data) {
+  return request({
+      url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/service/api/list`,
+      method: 'post',
+      data
+  })
+}
+
+// 查看服务详情 
+export function serviceDetail(id) {
+  return request({
+      url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/service/${id}`,
+      method: 'get',
+  })
+}
+
+// 查看服务接口详情 /${process.env.VUE_APP_PROJECT_NAME}/v1/service/api/
+export function apiDetail(id) {
+  return request({
+      url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/service/api/${id}`,
+      method: 'get',
+  })
+}
+
+// 接口申请 /dev/v1/service/api/verify
+export function apiApply(data) {
+  return request({
+      url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/service/api/apply`,
+      method: 'post',
+      data
+  })
+} 
+// 接口审核
+export function apiVerify(data) {
+  return request({
+      url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/service/api/verify`,
+      method: 'post',
+      data
+  })
+} 
+// 应用服务状态审核 
+export function serviceVerify(data) {
+  return request({
+      url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/service/verify`,
+      method: 'post',
+      data
+  })
+} 
+// 服务接口审核列表
+export function apiVerifyList(data) {
+  return request({
+      url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/service/api/verify/list`,
+      method: 'post',
+      data
+  })
+}
+// 需审核服务列表 
+export function verifyServiceList(id) {
+  return request({
+      url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/service/verify/list/${id}`,
+      method: 'get',
+  })
+}
+// 开发者已申请接口列表 
+export function appliedList(data) {
+  return request({
+      url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/service/api/applied/list`,
+      method: 'post',
+      data
+  })
+}
+// 开发者修改已申请接口
+export function apiModify(data) {
+  return request({
+      url: `/${process.env.VUE_APP_PROJECT_NAME}/v1/service/api/modify`,
+      method: 'post',
+      data
+  })
+}

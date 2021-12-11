@@ -1,0 +1,41 @@
+import request from '@/framework/utils/request'
+
+//search
+export function fieldsearch(data) {
+    return request({
+        url: '/person/statistic/search',
+        method: 'post',
+        data
+    })
+}
+//获取统计对象
+export function fieldtarget() {
+    return request({
+        url: '/person/statistic/target',
+        method: 'get',
+    })
+}
+//删除
+export function deletefield(data) {
+    return request({
+        url: '/person/statistic',
+        method: 'delete',
+        data
+    })
+}
+//新增
+export function newfield(data) {
+    return request({
+        url: '/person/statistic',
+        method: 'post',
+        data
+    })
+}
+//修改
+export function editupd(data) {
+    return request({
+        url: '/person/statistic/upd',
+        method: 'post',
+        data
+    })
+}

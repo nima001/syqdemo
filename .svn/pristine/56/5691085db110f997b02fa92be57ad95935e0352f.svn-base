@@ -1,0 +1,82 @@
+<template>
+  <div class="details">
+    <ul>
+      <li v-for="(item, index) in data.filter((item, index)=>index<10)">
+        <span class="index">{{ index + 1 }}</span>
+        <span class="name">{{ item.name }}</span>
+        <span class="fraction">
+          <span>{{ item.fraction }}</span>
+          <span>分</span>
+        </span>
+      </li>
+    </ul>
+    <ul>
+      <li v-for="(item, index) in data.filter((item, index)=>index>9)">
+        <span class="index">{{ index + 10 }}</span>
+        <span class="name">{{ item.name }}</span>
+        <span class="fraction">
+          <span>{{ item.fraction }}</span>
+          <span>分</span>
+        </span>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {
+    data: {
+      type: Array,
+      default: () => {
+        return [];
+      },
+    },
+  },
+  data() {
+    return {};
+  },
+};
+</script>
+<style lang="less" scoped>
+.details {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  ul {
+    width: 50%;
+    li {
+      width: 95%;
+      display: flex;
+      align-items: center;
+      span {
+        font-size: 18px;
+        &.index {
+          margin-bottom: 10px;
+          font-weight: bold;
+          color: #fff;
+          position: relative;
+          z-index: 1;
+        }
+        &.name {
+          margin-left: 10px;
+          font-size: 15px;
+          color: #c9c12e;
+        }
+        &.fraction {
+          margin-left: auto;
+          color: #fff;
+          span:first-child {
+            font-size: 18px;
+            font-family: math;
+          }
+          span:last-child {
+            font-size: 15px;
+            transform: translateX(-15%);
+          }
+        }
+      }
+    }
+  }
+}
+</style>

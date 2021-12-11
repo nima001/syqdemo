@@ -1,0 +1,79 @@
+<template>
+  <div>
+    <Title title="人员结构"/>
+    <div style="height:260px">
+      <div class="content">
+        <span>平均年龄</span>
+        <span>31.95</span>
+      </div>
+      <div class="chart-content">
+        <RingChart :data="data" :settings="{canvas: {width: 520,height: 170}, legend: {visible: true, layout: 'horizontal', position: 'right', flipPage: false, offsetX: -60}, radius: 0.9, innerRadius: 0.8 }"/>
+      </div>
+      <div class="chart-content">
+        <RingChart :data="data" :settings="{canvas: {width: 520,height: 170}, layout: 'horizontal', legend: {visible: true, layout: 'horizontal', position: 'right', flipPage: false, offsetX: -60}, radius: 0.9, innerRadius: 0.8 }"/>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+import RingChart from '@person/components/chart/RingChart';
+
+export default {
+  props: {
+    districtCode: {
+      type: String
+    }
+  },
+  components: {
+    Title,
+    RingChart
+  },
+  data() {
+    return{
+      data: { "keyCols": [ { "column": "k0", "key": "district", "showname": "所在地区" } ], "rows": [ { "k0": "市本级", "v0": 247 }, { "k0": "越城区", "v0": 247 }, { "k0": "柯桥区", "v0": 352 }, { "k0": "上虞区", "v0": 361 }, { "k0": "诸暨市", "v0": 305 }, { "k0": "嵊州市", "v0": 371 }, { "k0": "新昌县", "v0": 254 } ], "valueCols": [ { "column": "v0", "showname": "记录数" } ] },
+    }
+  },
+  watch: {
+    districtCode(val) {
+      return val;
+    }
+  }
+}
+</script>
+
+<style scoped lang="less">
+@font-face {
+  font-family: LESLIEB;
+  src: url("../../../assets/img/screen/LESLIEB_.TTF") format("truetype");
+}
+.content {
+  margin-top: @layout-space-base;
+  padding: @padding-xs;
+  font-size: 1.4em;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  color: #fff;
+  background: fade(#7AC3E4, 20%);
+  span:first-child {
+    font-weight: bold;
+  }
+  span:last-child {
+    font-size: 1.5em;
+    font-family: LESLIEB;
+    color: fade(#01E3FC, 95%);
+  }
+}
+.chart-content {
+  display: flex;
+  flex-direction: column;
+  background: url('../../../assets/img/screen/legend-bg.png') no-repeat;
+  background-position: 100%;
+  .pie-chart {
+    flex: 1;
+  }
+}
+</style>

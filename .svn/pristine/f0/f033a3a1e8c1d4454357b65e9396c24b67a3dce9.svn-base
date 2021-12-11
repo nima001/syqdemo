@@ -1,0 +1,818 @@
+<template>
+  <div class="functional-design">
+    <div
+      class="functional"
+      ref="functionalBody"
+      :class="orgdata ? '' : 'flexbox'"
+    >
+      <div class="sticky">
+        <!-- id="header-top" -->
+        <div class="content-header" :class="orgdata ? '' : 'contentbox'">
+          <div class="header-left">
+            <div class="mechanism" @click="orgModelShow">
+              <ul>
+                <li v-if="orgValue.length === 0" class="placehold">
+                  请选择机构
+                </li>
+                <li v-for="(item, index) in orgValue">
+                  {{ item.name }}
+                  <span @click.stop="deleteItem(index)" class="delete"
+                    ><a-icon type="close"
+                  /></span>
+                </li>
+              </ul>
+              <span
+                class="clear"
+                v-if="orgValue.length !== 0"
+                @click.stop="resetRange"
+              >
+                <a-icon
+                  type="close-circle"
+                  theme="filled"
+                  :style="{ fontSize: '12px', color: '#666' }"
+                />
+              </span>
+            </div>
+            <div class="editicon" @click="orgModelShow">
+              <span class="icon">
+                <a-icon slot="addonAfter" type="select" class="left-icon" />
+              </span>
+            </div>
+            <div>
+              <a-input
+                placeholder="请输入关键字"
+                style="width: 400px; margin-right: 15px"
+                allow-clear
+                v-model="searchkey"
+              />
+              <a-button
+                type="primary"
+                style="margin-right: 15px"
+                @click="searchOrg"
+                >搜索</a-button
+              >
+              <a-button @click="resetOrg">重置</a-button>
+            </div>
+          </div>
+        </div>
+        <h2 class="mechanism-h2" v-if="orgdata">相关机构</h2>
+        <div class="sortWrap" v-if="orgdata">
+          <span class="lineWrap">
+            <a-divider dashed />
+          </span>
+          <div
+            @click="changeArrow"
+            class="toggleSort"
+            v-if="orgdata != null && orgdata.length > 3"
+          >
+            <span>{{ flag ? "折叠" : "展开" }}</span>
+            <a-icon :type="flag ? 'up' : 'down'" />
+          </div>
+          <span class="lineWrap">
+            <a-divider dashed />
+          </span>
+        </div>
+      </div>
+      <!--相关机构-->
+      <div class="functional-content" id="header-top">
+        <div class="content-main" v-if="orgdata">
+          <div class="main-mechanism">
+            <ul
+              class="mechanism-ul"
+              :class="{ activeUi: !flag }"
+              :style="orgdata.length < 3 ? 'height:auto;' : 'activeUi'"
+            >
+              <li
+                v-for="(item, index) in orgdata"
+                :key="index"
+                class="mechanism-li"
+                :class="{ active: currentSort == index }"
+                @click="active(index, item)"
+              >
+                <span>{{ item.key }} {{ item.orgname }}</span>
+                <span style="float: right">
+                  <span class="span-tag" v-if="(item.type & 8) == 8"
+                    >&nbsp;机构职责&nbsp;</span
+                  >
+                  <span class="span-tag" v-if="(item.type & 4) == 4"
+                    >&nbsp;权力清单&nbsp;</span
+                  >
+                  <span class="span-tag" v-if="(item.type & 2) == 2"
+                    >&nbsp;定岗定员定责&nbsp;</span
+                  >
+                  <span class="span-tag" v-if="(item.type & 1) == 1"
+                    >&nbsp;事业单位年报&nbsp;</span
+                  >
+                  <a-icon
+                    type="file-search"
+                    style="font-size: 16px; cursor: pointer"
+                    @click="active(index, item)"
+                  />
+                </span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <a-spin :spinning="this.spinning" class="loading" />
+      <!--机构全部内容-->
+      <div class="functional-content details" v-if="orgdata">
+        <!--机构详情-->
+        <h2 class="mechanism-h2">机构详情——{{ orgMuster.orgname }}</h2>
+        <div style="display: flex; flex-direction: row">
+          <div style="width: 92%; min-width: 1080px">
+            <div class="main-mechanism" id="mechanism-one" v-if="dutieslist.length || childrenlist.length">
+              <div class="mechanism-div">
+                <div class="small-div"></div>
+                <div class="small-p">机构详情</div>
+              </div>
+              <tree-list
+                :orgtitle="orgMuster.orgname"
+                :dutieslist="dutieslist"
+                :childrenlist="childrenlist"
+                :inputvalue="keywords"
+                :typearr="typearr"
+              ></tree-list>
+            </div>
+            <!-- 权力清单 -->
+            <div class="list-power main-mechanism" id="list-two" v-if="qlsx">
+              <div class="mechanism-div">
+                <div class="small-div"></div>
+                <div class="small-p">权力清单</div>
+              </div>
+              <tree-list
+                :qlsxtitle="qlsx.orgname"
+                :qlsxlist="qlsx"
+                :inputvalue="keywords"
+              ></tree-list>
+            </div>
+            <!-- 定岗定员定责 -->
+            <div
+              class="list-power main-mechanism"
+              id="people-three"
+              v-if="dinggang"
+            >
+              <div class="mechanism-div">
+                <div class="small-div"></div>
+                <div class="small-p">定岗定员定责</div>
+              </div>
+              <tree-list
+                :dingganglist="dinggang"
+                :dinggangtitle="dinggang.orgname"
+                :inputvalue="keywords"
+              ></tree-list>
+            </div>
+            <!-- 事业单位年报 -->
+            <div
+              class="list-power main-mechanism"
+              id="work-four"
+              v-if="yearReports.length > 0"
+            >
+              <div class="mechanism-div">
+                <div class="small-div"></div>
+                <div class="small-p">事业单位年报</div>
+              </div>
+              <ul v-for="(item, iex) in yearReports" :key="iex">
+                <h4>{{ item.orgname }}</h4>
+                <span style="font-weight: 700"
+                  >【{{ item.year }}|事业单位法人年度报告书】</span
+                >
+                <li class="work-li">
+                  <span
+                    v-if="item.purpose && item.purpose.indexOf(keywords)!==-1"
+                    style="width: 91%; color: rgba(0, 0, 0, 0.5)"
+                    v-html="brightenKeyword(item.purpose)"
+                  ></span>
+                  <span
+                    v-else
+                    style="width: 91%; color: rgba(0, 0, 0, 0.5)"
+                    v-html="brightenKeyword(item.content)"
+                  ></span>
+                  <div class="ul-a-button">
+                    <a-button @click="yearReportswatch(item)"
+                      >查看详情</a-button
+                    >
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div style="width: 8%;">
+            <!-- 锚点 -->
+            <a-card class="anchor-point" v-if="orgdata">
+              <a-anchor
+                :offsetTop="160"
+                :getContainer="() => $refs.functionalBody"
+              >
+                <a-anchor-link href="#header-top" title="顶部" />
+                <a-anchor-link
+                  href="#mechanism-one"
+                  title="机构职责"
+                  v-if="dutieslist.length || childrenlist.length"
+                />
+                <a-anchor-link href="#list-two" title="权力清单" v-if="qlsx" />
+                <a-anchor-link
+                  href="#people-three"
+                  title="定岗定员定责"
+                  v-if="dinggang"
+                />
+                <a-anchor-link
+                  href="#work-four"
+                  title="事业单位年报"
+                  v-if="yearReports.length > 0"
+                />
+              </a-anchor>
+            </a-card>
+          </div>
+        </div>
+      </div>
+      <div class="main-image" v-else>
+        <empty-data :tips="warningtext" />
+      </div>
+    </div>
+    <!--组织选择-->
+    <a-modal
+      title="单位名称选择"
+      v-model="orgVisible"
+      :width="800"
+      :bodyStyle="{ height: '600px', padding: '0' }"
+      :footer="null"
+    >
+      <org-user-select
+        mode="org"
+        :showDept="true"
+        :max-select="100"
+        :root-selectable="true"
+        :selected.sync="selected"
+        @finish="selectOrg"
+      />
+    </a-modal>
+
+    <a-modal
+      title="查看详情"
+      :visible="yearReportsvisible"
+      @cancel="yearReportsclose"
+      v-if="yearReportsData"
+      :footer="null"
+      width="800px"
+      :bodyStyle="{ padding: '15px', height: '500px', overflow: 'auto' }"
+    >
+      <div class="detailsmodal">
+        <div class="details-top" style="margin-bottom: 5px">
+          <div>
+            <p class="detailspcss">{{ yearReportsData.orgname }}</p>
+            <div style="padding-top: 5px">
+              【{{ yearReportsData.year }}|事业单位法人年度报告书】
+            </div>
+          </div>
+        </div>
+        <div>
+          <span style="color: #c9c9c9">宗旨和业务范围</span>
+          <p
+            v-html="this.brightenAllKeyword(transformationContent(yearReportsData.purpose))"
+            style="line-height: 25px; text-indent: 2em"
+          ></p>
+        </div>
+        <div>
+          <span style="color: #c9c9c9">开展业务活动情况</span>
+          <p
+            v-html="this.brightenAllKeyword(transformationContent(yearReportsData.content))"
+            style="line-height: 25px; text-indent: 2em"
+          ></p>
+        </div>
+      </div>
+    </a-modal>
+  </div>
+</template>
+<script>
+import {
+  Input,
+  Icon,
+  Button,
+  Modal,
+  Anchor,
+  Card,
+  Spin,
+  Divider,
+} from "ant-design-vue";
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+import {
+  orgfuncdescPost,
+  orgfuncdescSearch,
+} from "@/person-shaoxing/api/analysis";
+import treeList from "./components/treeList";
+import { showError } from "@/framework/utils/index";
+import EmptyData from "@/framework/components/EmptyData";
+export default {
+  name: "",
+  components: {
+    ASpin: Spin,
+    AInput: Input,
+    AIcon: Icon,
+    ACard: Card,
+    AButton: Button,
+    AModal: Modal,
+    AAnchor: Anchor,
+    AAnchorLink: Anchor.Link,
+    OrgUserSelect,
+    treeList,
+    EmptyData,
+    ADivider: Divider,
+  },
+  data() {
+    return {
+      dutieslist: [],
+      childrenlist: [],
+      qlsx: null,
+      dinggang: null,
+      flag: false,
+      yearReports: [],
+      currentSort: 0,
+      orgdata: null,
+      orgValue: [],
+      orgVisible: false,
+      nodelist: [],
+      selected: [],
+      searchkey: "",
+      keywords: "",
+      orgMuster: null,
+      warningtext: "请选择机构或进行关键字搜索",
+      spinning: false,
+      yearReportsvisible: false,
+      yearReportsData: null,
+    };
+  },
+  computed: {
+    //职责
+    typearr() {
+      return this.$store.getters.dict("person.orgfuncdesctype");
+    },
+  },
+  methods: {
+    //清空
+    resetRange() {
+      this.selected = [];
+      this.nodelist = [];
+      this.orgValue = [];
+    },
+    //单个删除
+    deleteItem(index) {
+      this.selected.splice(index, 1);
+      this.orgValue.splice(index, 1);
+    },
+    yearReportswatch(item) {
+      this.yearReportsData = item;
+      this.yearReportsvisible = true;
+    },
+    yearReportsclose() {
+      this.yearReportsvisible = false;
+    },
+    transformationContent(content) {
+      //原始字符串
+      let string = content;
+      //替换所有的换行符
+      string = string.replace(/\r\n/g, "<br>");
+      string = string.replace(/\n/g, "<br>");
+      string = string.replace(/(\r\n)|(\n)/g, "<br>");
+      //替换所有的空格（中文空格、英文空格都会被替换）
+      string = string.replace(/\s/g, " ");
+      //输出转换后的字符串
+      return string;
+    },
+    searchOrg() {
+      if (this.searchkey == "") {
+        this.$notification.warning({
+          message: "提示",
+          description: "请输入查询内容!",
+          duration: 3,
+        });
+      } else {
+        this.spinning = true;
+        let orgids = [];
+        this.nodelist.forEach(function (item) {
+          orgids.push(item.orgid);
+        });
+        let data = {
+          orgids: orgids,
+          searchkey: this.searchkey,
+        };
+        orgfuncdescPost(data)
+          .then((res) => {
+            if (res.result && res.result.length > 0) {
+              this.orgdata = res.result;
+              //清空数据，防止搜索后数据未刷新
+              this.currentSort = 0;
+              this.keywords = this.searchkey;
+              this.searchlist(this.orgdata[0], this.searchkey);
+              this.orgMuster = this.orgdata[0];
+              this.$refs.functionalBody.scrollTop=0;
+            } else {
+              this.$message.warning("暂无内容！");
+              this.orgdata = null;
+            }
+          })
+          .catch((err) => {
+            this.spinning = false;
+            showError(err);
+          });
+      }
+    },
+    resetOrg() {
+      this.resetRange();
+      this.searchkey = "";
+      this.warningtext = "请选择机构或进行关键字搜索";
+    },
+    async searchlist(data, searchkey) {
+      this.spinning = true;
+      let list = {
+        orgid: data.orgid,
+        type: data.type,
+        searchkey: searchkey,
+      };
+      await orgfuncdescSearch(list)
+        .then((res) => {
+          this.spinning = false;
+          if(res.result.orgfuncdesc){
+            if (res.result.orgfuncdesc.duties) {
+              this.dutieslist = res.result.orgfuncdesc.duties;
+            }else{
+              this.dutieslist = [];
+            }
+            if (res.result.orgfuncdesc.children) {
+              this.childrenlist = res.result.orgfuncdesc.children;
+            }else{
+              this.childrenlist = [];
+            }
+          }else{
+              this.dutieslist = [];
+              this.childrenlist = [];
+          }
+          if (res.result.qlsx) {
+            this.qlsx = res.result.qlsx;
+          }else{
+             this.qlsx = null;
+          }
+          if (res.result.dinggang) {
+            this.dinggang = res.result.dinggang;
+          }else{
+            this.dinggang = null;
+          }
+          if (res.result.yearReport) {
+            this.yearReports = res.result.yearReport.yearReports;
+          }else{
+            this.yearReports = [];
+          }
+        })
+        .catch((err) => {
+          this.spinning = false;
+          showError(err);
+        });
+    },
+    brightenAllKeyword(content) {
+      let inputvalue = this.keywords;
+      let index = content.indexOf(inputvalue);
+      const Reg = new RegExp(inputvalue, "g");
+      let res = "";
+      res = content.replace(
+        Reg,
+        `<span style="color: #d60002;">${inputvalue}</span>`
+      );
+      return res;
+    },
+    //判断搜索记录是否包含某个关键字
+    brightenKeyword(content) {
+      // inputvalue为搜索框中的value
+      let inputvalue = this.keywords;
+      let index = content.indexOf(inputvalue);
+      if (content.length < 200) {
+        const Reg = new RegExp(inputvalue, "g");
+        let res = "";
+        res = content.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+        return res;
+      } else if (index < 20) {
+        let newtext = content.slice(index, index + 200);
+        let newcontent = `......${newtext}......`;
+        const Reg = new RegExp(inputvalue);
+        let res = "";
+        res = newcontent.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+        return res;
+      } else {
+        let newtext = content.slice(index - 15, index + 185);
+        let newcontent = `......${newtext}......`;
+        const Reg = new RegExp(inputvalue);
+        let res = "";
+        res = newcontent.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+        return res;
+      }
+    },
+    //展开、收起筛选
+    changeArrow() {
+      this.flag = !this.flag;
+      this.$refs.functionalBody.scrollTop=0;
+    },
+    async active(index, item) {
+      this.currentSort = index;
+      this.orgMuster = item;
+      await this.searchlist(item, this.searchkey);
+      if(this.flag) {
+        document.querySelector("#header-top .mechanism-li:nth-last-child(1)").scrollIntoView({behavior: "smooth"});
+      }else{
+        this.$refs.functionalBody.scrollTop=0;
+      }
+    },
+    orgModelShow() {
+      this.orgVisible = true;
+    },
+    //确定选择的机构
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok") {
+        let orgarr = [];
+        list.forEach(function (item) {
+          orgarr.push({
+            orgid: item._id || item.orgid,
+            orgname: item.name,
+            name: item.name,
+          });
+        });
+        this.nodelist = orgarr;
+        this.orgValue = this.nodelist;
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.functional-design {
+  // position: relative;
+  height: 100%;
+  .flexbox {
+    display: flex;
+    flex-direction: column;
+  }
+  .functional {
+    height: 100%;
+    // min-width: 1259px;
+    padding: @layout-space-base;
+    overflow-y: auto;
+    .sticky {
+      position: sticky;
+      top: -10px;
+      background-color: #ffffff;
+      z-index: 999;
+      .content-header {
+        display: flex;
+        flex-direction: column;
+        height: 70px;
+        box-shadow: 1px 1px 3px 1px @primary-1;
+        .header-left {
+          display: flex;
+          float: left;
+          margin: auto @layout-space-base;
+          .mechanism {
+            width: 400px;
+            border-radius: 4px 0 0 4px;
+            border: 1px solid #d9d9d9;
+            border-right: 0;
+            display: flex;
+            align-items: center;
+            overflow-x: auto;
+            position: relative;
+            padding: 1px 30px 0 11px;
+            & ul {
+              width: 357px;
+              overflow-y: hidden;
+              overflow-x: auto;
+              display: flex;
+              margin: 0;
+              li {
+                background: #e8e8e8;
+                border-radius: 4px;
+                padding: 0 4px;
+                margin: 0 @padding-xs 0 0;
+                white-space: nowrap;
+                .delete {
+                  cursor: pointer;
+                }
+              }
+              li.placehold {
+                color: rgba(176, 176, 176, 0.8);
+                background: transparent;
+              }
+            }
+            .clear {
+              position: absolute;
+              top: 50%;
+              right: 12px;
+              transform: translateY(-50%);
+              display: flex;
+              z-index: 2;
+              cursor: pointer;
+            }
+          }
+          .editicon {
+            margin-right: 15px;
+            .icon {
+              height: 100%;
+              text-align: center;
+              background-color: #fafafa;
+              margin-left: auto;
+              padding: 0 11px;
+              border: 1px solid #d9d9d9;
+              display: flex;
+              align-items: center;
+              border-radius: 0 4px 4px 0;
+              cursor: pointer;
+            }
+          }
+          .left-icon {
+            color: @primary-color;
+          }
+        }
+      }
+      .mechanism-h2 {
+        font-weight: 700;
+        color: #666666;
+        margin-top: 10px;
+        margin-left: 10px;
+      }
+      .sortWrap {
+        display: flex;
+        align-items: center;
+        height: 20px;
+        padding: 0 10px;
+        .lineWrap {
+          flex: 1;
+          display: flex;
+          align-items: center;
+          .ant-divider {
+            margin: 0px;
+            border-color: #ddd;
+          }
+        }
+        .toggleSort {
+          margin: auto;
+          width: 60px;
+          cursor: pointer;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          span {
+            color: @primary-color;
+          }
+          i {
+            margin-left: 5px;
+            color: @primary-color;
+          }
+        }
+      }
+    }
+    .functional-content {
+      height: auto;
+      display: flex;
+      -webkit-box-orient: vertical;
+      -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+      flex-direction: column;
+      overflow: hidden;
+      background: @white;
+
+      .contentbox {
+        margin-bottom: 3px;
+      }
+      .content-main {
+        height: auto;
+        .main-mechanism {
+          margin: @layout-space-base;
+          .mechanism-ul {
+            .mechanism-li {
+              cursor: pointer;
+              padding: 0 @layout-space-base;
+              border-bottom: 1px dashed #d9d9d9;
+              height: 45px;
+              span {
+                line-height: 45px;
+              }
+              .span-tag {
+                margin-right: @layout-space-base;
+                border: 1px solid #d9d9d9;
+                border-radius: 2px;
+              }
+            }
+            .active {
+              color: @primary-color;
+              .span-tag {
+                border: 1px solid @primary-color;
+              }
+            }
+          }
+          .activeUi {
+            height: 135px;
+            overflow: hidden;
+          }
+        }
+      }
+    }
+    .details {
+      height: auto;
+      margin-top: @layout-space-base;
+      /deep/.treeheader .details-tree .tree-ul .tree-ul-s .tree-ul-a {
+        width: 81%;
+      }
+      .mechanism-h2 {
+        padding-bottom: @layout-space-base;
+        font-weight: 700;
+        color: #666666;
+        border-bottom: 1px solid #ededed;
+        padding-top: 10px;
+        padding-left: 10px;
+      }
+      .main-mechanism {
+        margin: @layout-space-base;
+        border-bottom: 1px solid #ededed;
+        .mechanism-div {
+          display: flex;
+          align-items: center;
+          .small-div {
+            width: 5px;
+            height: 20px;
+            background: @primary-color;
+          }
+          .small-p {
+            font-size: 20px;
+            margin-left: 5px;
+          }
+        }
+      }
+      .list-power {
+        margin-top: 0px;
+        .work-li {
+          width: 92%;
+          justify-content: space-between;
+          display: flex;
+          min-height: 32px;
+        }
+        @media screen and(max-width:1440px) {
+          .work-li {
+            width: 92.6%;
+          }
+        }
+      }
+    }
+    .main-image {
+      background: @white;
+      flex: 1;
+    }
+    .loading {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      margin-left: -10px;
+    }
+  }
+  .anchor-point {
+    // position: fixed;
+    // right: 30px;
+    // top: 44%;
+    // border-radius: @layout-space-base;
+    /deep/.ant-card-body {
+      padding: 18px;
+      padding-left: 0;
+    }
+  }
+  /deep/.anchor-point.ant-card.ant-card-bordered {
+    border: 0;
+  }
+}
+.detailsmodal {
+  .details-top {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: @layout-space-base;
+    .detailspcss {
+      font-weight: 700;
+      font-size: 16px;
+      width: 600px;
+      overflow: hidden;
+      margin: 0;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    p {
+      margin-bottom: 0;
+    }
+  }
+}
+/deep/.ant-affix {
+  top: 245px !important;
+}
+</style>

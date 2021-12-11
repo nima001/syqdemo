@@ -1,0 +1,105 @@
+<template>
+  <div class="wrap">
+    <div class="title">
+      <span></span>
+      <span>机关群团</span>
+      <span>事业单位</span>
+    </div>
+    <ul>
+      <li v-for="(item,index) in list" :key="index">
+        <span class="name">{{item.name}}</span>
+        <span class="v1">{{item.v1}}</span>
+        <span class="v2">{{item.v2}}</span>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+export default {
+  components: {},
+  data() {
+    return {};
+  },
+  props: {
+    unittype: {
+      type: Number,
+      required: true
+    }
+  },
+  computed: {
+    list() {
+      if (this.unittype == 1) {
+        return [
+          { name: "设立(初领)", v1: 642, v2: 736 },
+          { name: "注销(撤销)", v1: 236, v2: 950 },
+          { name: "变更", v1: 383, v2: 299 }
+        ];
+      } else {
+        return [
+          { name: "设立(初领)", v1: 36, v2: 24 },
+          { name: "注销(撤销)", v1: 66, v2: 13 },
+          { name: "变更", v1: 23, v2: 19 }
+        ];
+      }
+    }
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .title {
+    border-bottom: 1px solid #d9d9d9;
+    padding: @padding-xs 0px;
+    display: flex;
+    justify-content: space-between;
+    span {
+      flex: 1;
+      color: #262626;
+      font-weight: 100;
+      text-align: center;
+      &:first-child {
+        min-width: 84px;
+        flex: 1;
+      }
+    }
+  }
+  ul {
+    flex: 1;
+    margin: 0px;
+    padding: 0px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    li {
+      display: flex;
+      justify-content: space-between;
+      padding: @padding-xs / 4 0px;
+      span {
+        &.name {
+          color: #666;
+          flex: 1;
+          min-width: 84px;
+        }
+        &.v1 {
+          text-align: center;
+          color: #d15456;
+          font-weight: bold;
+          flex: 1;
+        }
+        &.v2 {
+          text-align: center;
+          color: #5488d1;
+          font-weight: bold;
+          flex: 1;
+        }
+      }
+    }
+  }
+}
+</style>

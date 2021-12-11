@@ -1,0 +1,310 @@
+import Vue from 'vue'
+import { parentArr, splitArr, objInArrary, isArrayOp } from '../../utils/index'
+import cloneDeep from 'lodash/cloneDeep'
+/**
+ * 综合查询
+ */
+const query = {
+  state: {
+    treeData: {},
+    scopeData:[],
+  },
+  mutations: {
+    // 模板编译器 作用域数据
+    SET_SCOPE_DATA(state,payload){
+      state.scopeData = payload.data
+    },
+    SET_TREEDATA: (state, payload) => {
+      state.treeData = payload.data
+    },
+    ADD_ONE: (state) => {
+      state.treeData.criteria.push({id:Math.random()})
+    },
+    ADD_BY_POSITION: (state, payload) => {
+      let position = payload.data
+      let obj = parentArr(position, state.treeData)
+      let index = obj.index + 1
+      obj.data.splice(index, 0, {id:Math.random()})
+    },
+    ADD_IN_GROUP: (state, payload) => {
+      let wrap = state.treeData
+      let position = payload.data.split('_')
+      position.shift()
+      let first = payload.first
+      for (let i = 0; i < position.length; i++) {
+        let index = parseInt(position[i])
+        wrap = wrap['criteria'][index]
+      }
+      if (first) {
+        wrap['criteria'].unshift({id:Math.random()})
+      } else {
+        wrap['criteria'].push({id:Math.random()})
+      }
+    },
+    DEL_BY_POSITION: (state, payload) => {
+      let position = payload.data
+      let obj = parentArr(position, state.treeData)
+      if (obj.data.length == 1) {
+        obj.data.splice(0, 1)
+      } else if (obj.data.length == 2) {
+        let saveIndex = obj.index == 0 ? 1 : 0
+        let saveObj = cloneDeep(obj.data[saveIndex])
+        let fatherPosition = position.substr(0, position.length - 2)
+        let fatherIndex = fatherPosition.split('_').pop()
+        let grandPosition = position.substr(0, position.length - 4)
+        let wrap = parentArr(fatherPosition, state.treeData)
+        if (grandPosition) {
+          wrap.data.splice(fatherIndex, 1, saveObj)
+        } else {
+          obj.data.splice(obj.index, 1)
+        }
+      } else {
+        obj.data.splice(obj.index, 1)
+      }
+    },
+    ADD_FIELD: (state, payload) => {
+      let field = payload.field
+      let position = payload.position
+      let obj = parentArr(position, state.treeData)
+      let index = obj.index
+      Vue.set(obj.data[index], 'field', field)
+      Vue.delete(obj.data[index], 'value')
+      Vue.delete(obj.data[index], 'op')
+      Vue.delete(obj.data[index], 'opList')
+    },
+    ADD_FIELD_TWO: (state, payload) => {
+      let field = payload.field
+      let position = payload.position
+      let obj = parentArr(position, state.treeData)
+      let index = obj.index
+      Vue.set(obj.data[index], 'field2', field)
+    },
+    SET_OP_LIST: (state, payload) => {
+      let opList = payload.data
+      let position = payload.position
+      let obj = parentArr(position, state.treeData)
+      let index = obj.index
+      Vue.set(obj.data[index], 'opList', opList)
+    },
+    SET_OP_LIST_TWO: (state, payload) => {
+      let opListTwo = payload.data
+      let position = payload.position
+      let obj = parentArr(position, state.treeData)
+      let index = obj.index
+      Vue.set(obj.data[index], 'opListTwo', opListTwo)
+    },
+    SET_OP: (state, payload) => {
+      let position = payload.position
+      let op = payload.op
+      let obj = parentArr(position, state.treeData)
+      let criteria = obj.data[obj.index];
+      let oldOp = criteria.op;
+      Vue.set(criteria, 'op', op)
+      if(isArrayOp(oldOp) !== isArrayOp(op)){
+        Vue.delete(criteria, 'value')
+      }
+      // Vue.delete(criteria, 'op2')
+      // Vue.delete(criteria, 'opListTwo')
+      // Vue.delete(criteria, 'field2')
+    },
+    SET_OP_TWO: (state, payload) => {
+      let position = payload.position
+      let op2 = payload.op2
+      let obj = parentArr(position, state.treeData)
+      let index = obj.index
+      Vue.set(obj.data[index], 'op2', op2)
+    },
+    SET_VALUE: (state, payload) => {
+      let position = payload.position
+      let value = payload.value
+      let obj = parentArr(position, state.treeData)
+      let index = obj.index
+      Vue.set(obj.data[index], 'value', value)
+    },
+    UNION: (state, payload) => {
+      let position = payload.position
+      let op = payload.op
+      let obj = parentArr(position, state.treeData)
+      let index = obj.index
+      let curObj = obj.data[index]
+      let nextObj = obj.data[index + 1]
+      let newObj = {
+        op: op,
+        criteria: []
+      }
+      newObj.criteria.push(curObj)
+      newObj.criteria.push(nextObj)
+      obj.data.splice(index, 0, newObj)
+      obj.data.splice(index + 1, 1)
+      obj.data.splice(index + 1, 1)
+    },
+    SPLIT: (state, payload) => {
+      let position = payload.position
+      let obj = parentArr(position, state.treeData)
+      let index = obj.index
+      let arr = splitArr(obj.data, index)
+      let preData = null
+      let nextData = null
+      if (arr[0].length == 1) {
+        preData = arr[0][0]
+      } else {
+        preData = objInArrary(arr[0])
+      }
+      if (arr[1].length == 1) {
+        nextData = arr[1][0]
+      } else {
+        nextData = objInArrary(arr[1])
+      }
+      obj.data.splice(0)
+      obj.data.push(preData)
+      obj.data.push(nextData)
+      let fatherPosition = position.substr(0, position.length - 2)
+      let fatherIndex = parseInt(fatherPosition.split('_').pop())
+      let grandWrap = parentArr(fatherPosition, state.treeData)
+      grandWrap.data.splice(fatherIndex, 1)
+      if (fatherIndex == 0) {
+        grandWrap.data.splice(0, 0, preData)
+        grandWrap.data.splice(1, 0, nextData)
+      } else {
+        grandWrap.data.splice(fatherIndex, 0, preData)
+        grandWrap.data.splice(fatherIndex + 1, 0, nextData)
+      }
+    },
+    OROP: (state, payload) => {
+      let position = payload.position
+      let op = payload.op
+      let obj = parentArr(position, state.treeData)
+      if (obj.data.length == 2) {
+        // 两个只改变关系
+        if (position.length == 3) {
+          // 两层
+          Vue.set(state.treeData, 'op', op)
+        } else {
+          // >= 3层
+          let parentPosition = position.substr(0, position.length - 2)
+          let parentIndex = parseInt(parentPosition.split('_').pop())
+          let wrap = parentArr(parentPosition, state.treeData)
+          Vue.set(wrap.data[parentIndex], 'op', op)
+        }
+      } else {
+        // 非两个要or
+        let newObj = {
+          op: '',
+          criteria: []
+        }
+        let newObj2 = {
+          op: '',
+          criteria: []
+        }
+        let curIndex = parseInt(position.split('_').pop())
+        // 两层  切割
+        if (position.length == 3) {
+          newObj.op = state.treeData.op
+          newObj2.op = state.treeData.op
+          state.treeData.op = op
+          // 切头部
+          if (curIndex == 0) {
+            let single = cloneDeep(state.treeData.criteria[0])
+            newObj.criteria = cloneDeep(state.treeData.criteria.slice(1))
+            state.treeData.criteria = []
+            state.treeData.criteria.push(single)
+            state.treeData.criteria.push(newObj)
+          } else if (curIndex == obj.data.length - 2) {
+            // 切尾部
+            let single = cloneDeep(state.treeData.criteria.pop())
+            newObj.criteria = cloneDeep(state.treeData.criteria)
+            state.treeData.criteria = []
+            state.treeData.criteria.push(newObj)
+            state.treeData.criteria.push(single)
+          } else {
+            // 切中间
+            newObj.criteria = cloneDeep(
+              state.treeData.criteria.slice(0, curIndex + 1)
+            )
+            newObj2.criteria = cloneDeep(
+              state.treeData.criteria.slice(curIndex + 1)
+            )
+            state.treeData.criteria.splice(0)
+            state.treeData.criteria.push(newObj)
+            state.treeData.criteria.push(newObj2)
+          }
+        } else {
+          // >3层
+          var parentPosition = position.substr(0, position.length - 2)
+          var parentIndex = parseInt(parentPosition.split('_').pop())
+          let grandWrap = parentArr(parentPosition, state.treeData)
+          let childop = grandWrap.data[parentIndex].op
+          newObj.op = childop
+          newObj2.op = childop
+          grandWrap.data[parentIndex].op = op
+          if (curIndex == 0) {
+            // 切第一个
+            let single = cloneDeep(obj.data[0])
+            newObj.criteria = cloneDeep(obj.data.slice(1))
+            obj.data.splice(0)
+            obj.data.push(single)
+            obj.data.push(newObj)
+          } else if (curIndex == obj.data.length - 2) {
+            // 切尾部
+            let single = cloneDeep(obj.data.pop())
+            newObj.criteria = cloneDeep(obj.data)
+            obj.data.splice(0)
+            obj.data.push(newObj)
+            obj.data.push(single)
+          } else {
+            // 切中间
+            newObj.criteria = cloneDeep(obj.data.slice(0, curIndex + 1))
+            newObj2.criteria = cloneDeep(obj.data.slice(curIndex + 1))
+            obj.data.splice(0)
+            obj.data.push(newObj)
+            obj.data.push(newObj2)
+          }
+        }
+      }
+    },
+    ANDOP: (state, payload) => {
+      let position = payload.position
+      let op = payload.op
+      let obj = parentArr(position, state.treeData)
+      if (obj.data.length == 2) {
+        // 两个只改变关系
+        if (position.length == 3) {
+          // 两层
+          Vue.set(state.treeData, 'op', op)
+        } else {
+          // > 3层
+          let parentPosition = position.substr(0, position.length - 2)
+          let parentIndex = parseInt(parentPosition.split('_').pop())
+          let wrap = parentArr(parentPosition, state.treeData)
+          Vue.set(wrap.data[parentIndex], 'op', op)
+        }
+      } else {
+        // 非两个要and
+        let newObj = {
+          op: op,
+          criteria: []
+        }
+        let curIndex = parseInt(position.split('_').pop())
+        if (position.length == 3) {
+          // 两层
+          newObj.criteria.push(cloneDeep(state.treeData.criteria[curIndex]))
+          newObj.criteria.push(cloneDeep(state.treeData.criteria[curIndex + 1]))
+          state.treeData.criteria.splice(curIndex, 1, newObj)
+          state.treeData.criteria.splice(curIndex + 1, 1)
+        } else {
+          // >=3层
+          let parentObj = parentArr(position, state.treeData)
+          newObj.criteria.push(cloneDeep(parentObj.data[curIndex]))
+          newObj.criteria.push(cloneDeep(parentObj.data[curIndex + 1]))
+          parentObj.data.splice(curIndex, 1, newObj)
+          parentObj.data.splice(curIndex + 1, 1)
+        }
+      }
+    },
+  },
+  getters: {
+    treeData: state => state.treeData
+  }
+}
+
+export default query

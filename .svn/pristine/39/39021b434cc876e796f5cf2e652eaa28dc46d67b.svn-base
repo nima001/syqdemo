@@ -1,0 +1,300 @@
+<template>
+  <a-layout>
+    <a-layout-content>
+      <a-row>
+        <a-col :span="3" class="leftbox" :style="{'height': boxHeight}">
+          <div class="leftdiv">
+            <div @click="previous" v-if="treelist" class="iconbox">
+              <a-icon type="left" :style="{ fontSize: '30px', color: '#fff' }" />
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="18" class="ifmbox">
+          <div class="coverimg">
+            <h1>目录</h1>
+            <a-spin
+              tip="Loading..."
+              v-if="loading"
+              class="loading"
+              :style="{'margin-top': loadHeight}"
+            ></a-spin>
+            <tree-list :treelist="treelist" class="listtree"></tree-list>
+          </div>
+          <ul
+            class="floatingMenu"
+            v-if="treelist"
+            :style="{'right':  right,'bottom': ulHeight<0?0:( ulHeight+'px')}"
+          >
+            <li style="visibility:hidden">
+              <a-icon type="bars" class="iconcss" />
+            </li>
+            <li style="visibility:hidden">
+              <a-icon type="download" class="iconcss" />
+            </li>
+            <li @click="previous">
+              <a-icon type="left" class="iconcss" />
+            </li>
+            <li @click="nextIndex">
+              <a-icon type="right" class="iconcss" />
+            </li>
+          </ul>
+        </a-col>
+        <a-col :span="3" class="rightbox" :style="{'height':  boxHeight}">
+          <div class="rightdiv">
+            <div class="iconbox" @click="nextIndex" v-if="treelist">
+              <a-icon type="right" :style="{ fontSize: '30px', color: '#fff' }" />
+            </div>
+          </div>
+        </a-col>
+      </a-row>
+    </a-layout-content>
+  </a-layout>
+</template>
+<script>
+import { Layout, Row, Col, Icon, Spin } from "ant-design-vue";
+import TreeList from "./components/TreeList";
+import { catalogsList, catalogspost } from "@/person/api/booklet";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  name: "Catalogue",
+  data() {
+    return {
+      Id: "",
+      loading: false,
+      list: [],
+      date: "",
+      winWidth: "",
+      winHeight: "",
+      right: "",
+      boxHeight: "",
+      ulHeight: "",
+      loadHeight: ""
+    };
+  },
+  components: {
+    ALayout: Layout,
+    ALayoutContent: Layout.Content,
+    ARow: Row,
+    ACol: Col,
+    AIcon: Icon,
+    ASpin: Spin,
+    TreeList
+  },
+  created() {
+    this.getList();
+    this.date = this.$route.query.date;
+    this.gowindow();
+  },
+  computed: {
+    treelist() {
+      return this.toTree(this.list, 0);
+    }
+  },
+  mounted() {
+    window.addEventListener("resize", this.getwindow);
+  },
+  //注销window.onresize事件
+  beforeDestroy() {
+    window.removeEventListener("resize", this.getwindow);
+  },
+  methods: {
+    getwindow() {
+      //窗口可视区域发生变化的时候执行
+      window.onresize = () => {
+        this.winWidth =
+          document.body.clientWidth || document.documentElement.clientWidth;
+        //屏幕可视区域的高度
+        this.winHeight =
+          document.body.clientHeight || document.documentElement.clientHeight;
+        this.right = (this.winWidth - 1123) / 2 - 60 - 30 + "px";
+        // ulHeight = this.winHeight - 109 - 254 + "px";
+        this.boxHeight = this.winHeight - 109 - 12 - 22 + "px";
+        this.ulHeight = this.winHeight - 109 - 12 - 808;
+        this.loadHeight = (this.winHeight - 109 - 58) / 2 - 127 + "px";
+      };
+    },
+    gowindow() {
+      //屏幕可视区域的宽度
+      this.winWidth =
+        document.body.clientWidth || document.documentElement.clientWidth;
+      //屏幕可视区域的高度
+      this.winHeight =
+        document.body.clientHeight || document.documentElement.clientHeight;
+      this.right = (this.winWidth - 1123) / 2 - 60 - 30 + "px";
+      // let ulHeight = this.winHeight - 109 - 254 + "px";
+      this.boxHeight = this.winHeight - 109 - 12 - 22 + "px";
+      this.ulHeight = this.winHeight - 109 - 12 - 808;
+      this.loadHeight = (this.winHeight - 109 - 58) / 2 - 127 + "px";
+    },
+    //获取目录
+    getList() {
+      let bookid = this.$route.query.id;
+      this.Id = bookid;
+      this.loading = true;
+      catalogsList(bookid)
+        .then(res => {
+          if (res.code == "success") {
+            this.loading = false;
+            this.list = res.result;
+          } else {
+            this.loading = false;
+            this.list = [];
+            this.$message.info("暂无数据！");
+          }
+        })
+        .catch(error => {
+          this.loading = false;
+          showError(error);
+        });
+    },
+    //上一页
+    previous() {
+      this.$router.push({
+        name: "CountChartIndex",
+        query: {
+          id: this.Id,
+          date: this.$route.query.date
+        }
+      });
+    },
+    //下一页
+    nextIndex() {
+      let Id = this.$route.query.id;
+      sessionStorage.setItem("catalogId", this.list[0].id);
+      this.$router.push({
+        name: "SheetDetail",
+        query: {
+          id: Id,
+          date: this.$route.query.date
+        }
+      });
+    },
+    toTree(data, pid) {
+      let result = []
+      let temp
+      for (let i = 0; i < data.length; i++) {
+        if (data[i].pid == pid) {
+          temp = this.toTree(data, data[i].id)
+          if (temp.length > 0) {
+            data[i].children = temp
+          }
+          result.push(data[i])
+        }
+      }
+      return result
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ifmbox {
+  display: flex;
+  justify-content: center;
+}
+.coverimg {
+  padding: 60px;
+  min-height: 794px;
+  min-width: 1123px;
+  background: white;
+  margin: @layout-space-base 0px;
+  text-align: center;
+  overflow: auto;
+  // -moz-box-shadow: 0px 5px 25px #e0e0e0;
+  // -webkit-box-shadow: 0px 5px 25px #e0e0e0;
+  // box-shadow: 0px 5px 25px #e0e0e0;
+}
+.listtree {
+  position: relative;
+  text-align: left;
+}
+.floatingMenu {
+  z-index: 99;
+  width: 60px;
+  height: 300px;
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  margin-bottom: 1em;
+  li:last-of-type {
+    margin-bottom: 0px;
+  }
+  li {
+    margin-bottom: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #dedede;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    &:hover {
+      //box-shadow: 0px 5px 25px #000000;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+    .iconcss {
+      font-size: 30px;
+      color: #000;
+    }
+  }
+}
+.leftdiv {
+  z-index: 99;
+  position: fixed;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  &:hover .iconbox {
+    display: flex;
+  }
+}
+.leftbox {
+  margin-top: @layout-space-base;
+  // min-height: 794px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  // height: 100%;
+}
+.rightdiv {
+  position: fixed;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  &:hover .iconbox {
+    display: flex;
+  }
+}
+.rightbox {
+  margin-top: @layout-space-base;
+  // min-height: 794px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+.iconbox {
+  margin-bottom: 10px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #767676;
+  justify-content: center;
+  align-items: center;
+  &:hover {
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+  display: none;
+}
+.loading {
+  width: 58.83px;
+  height: 58.83px;
+  position: fixed;
+  margin-left: -30px;
+}
+</style>

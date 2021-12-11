@@ -1,0 +1,251 @@
+<template>
+  <div class="wrap">
+    <div class="person-head">
+      <div class="p-left">
+        <img
+          v-if="formData.avaterPhoto"
+          :src="uiConfigs['api.url'] + '/file/v2/file/download?uri=' + formData.avaterPhoto"
+        />
+        <img v-else :src="defaultPhoto" />
+      </div>
+      <div class="p-right">
+        <p class="name">{{formData.username}}</p>
+        <p class="identity">{{identitytype}}&nbsp;&nbsp;{{politicsface}}</p>
+        <ul class="info-item">
+          <li>{{formData.resumeposition || '无'}}</li>
+          <li>{{postkind || '无'}}</li>
+          <li>{{leaderpostlevel || '无'}}</li>
+        </ul>
+      </div>
+      <div class="p-btn">
+        <a-button type="primary" @click="visible=true">信息核验</a-button>
+      </div>
+      <div class="cover"></div>
+    </div>
+    <div class="org-main-panel">
+      <a-spin :spinning="loading">
+        <form-display
+          :formConfig="formConfig"
+          :formLayout="formLayout"
+          :formData="formData"
+          :editor="editor"
+          ref="formDisplay"
+        ></form-display>
+      </a-spin>
+    </div>
+    <a-modal
+      v-model="visible"
+      title="信息校验"
+      width="800px"
+      :bodyStyle="{ height: '520px', overflow: 'auto', padding: '0'}"
+      :centered="true"
+      :footer="null"
+    >
+      <inform-check :user="formData"></inform-check>
+    </a-modal>
+  </div>
+</template>
+<script>
+import FormDisplay from "@/formdesign/views/FormDisplay";
+import { modelForm, getUser, getRetireuser } from "@person/api/user";
+import { showError } from "@framework/utils";
+import data from "./components/data";
+import { Spin, Button, Modal } from "ant-design-vue";
+import informCheck from "./components/informCheck";
+export default {
+  name: "UserInfo",
+  components: {
+    ASpin: Spin,
+    AButton: Button,
+    AModal: Modal,
+    FormDisplay,
+    informCheck
+  },
+  data() {
+    return {
+      loading: true,
+      // 表单配置
+      formConfig: [],
+      // 表单初始化数据
+      formData: {},
+      // 表单可编辑
+      editor: true,
+      // 表单布局
+      formLayout: undefined,
+      defaultPhoto: require("@/framework/assets/img/head-default-70x98.png"),
+      visible: false
+    };
+  },
+  props: ["loadData"],
+  computed: {
+    userId() {
+      return this.$route.query.userid;
+    },
+    retireuser() {
+      return this.$route.query.retireuser;
+    },
+    identitytype() {
+      //本人身份
+      if (this.formData) {
+        let d = this.$store.getters.dictKey(
+          "usermanage.user.identitytype",
+          this.formData.identitytype
+        );
+        return d && d.text;
+      }
+    },
+    politicsface() {
+      //政治面貌
+      if (this.formData) {
+        let d = this.$store.getters.dictKey(
+          "usermanage.user.politicsface",
+          this.formData.politicsface
+        );
+        return d && d.text;
+      }
+    },
+    postkind() {
+      //人员分类
+      if (this.formData) {
+        let d = this.$store.getters.dictKey(
+          "usermanage.user.postkind",
+          this.formData.postkind
+        );
+        return d && d.text;
+      }
+    },
+    leaderpostlevel() {
+      // 领导职务层次
+      if (this.formData) {
+        let d = this.$store.getters.dictKey(
+          "usermanage.user.leaderpostlevel",
+          this.formData.leaderpostlevel
+        );
+        return d && d.text;
+      }
+    }
+  },
+  created() {
+    this.formConfig = data.list;
+    this.loading = false;
+    // this.getUserDetail();
+    // this.getFormConfig();
+  },
+  methods: {
+    getFormConfig() {
+      let namespace = this.retireuser ? "userretire" : "user";
+      modelForm(namespace, this.userId)
+        .then(res => {
+          let result = JSON.parse(res.result);
+          this.formConfig = result.list;
+          this.formLayout = result.formLayout;
+        })
+        .catch(err => {
+          this.formConfig = [];
+          showError(err);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    },
+    getUserDetail() {
+      let request = null;
+      if (this.retireuser) {
+        request = getRetireuser(this.userId);
+      } else {
+        request = getUser(this.userId);
+      }
+      request
+        .then(({ result: user }) => {
+          this.formData = user;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .person-head {
+    width: 100%;
+    height: 140px;
+    background-image: url("./../../../person/assets/img/person-background.jpg");
+    background-repeat: round;
+    padding: @padding-xs+2 @padding-lg;
+    position: relative;
+    display: flex;
+    .cover {
+      width: 100%;
+      height: 40px;
+      background: #d3d3d333;
+      position: absolute;
+      left: 0px;
+      bottom: 0px;
+    }
+    .p-left {
+      width: 60px;
+      height: 84px;
+      margin-right: 24px;
+      overflow: hidden;
+      cursor: pointer;
+      img {
+        object-fit: cover;
+        width: 100%;
+        height: 100%;
+      }
+    }
+    .p-right {
+      flex: 1;
+      width: auto;
+      height: 80px;
+      p {
+        margin: 0px;
+        &.name {
+          line-height: 30px;
+          font-size: 18px;
+          font-weight: 700;
+        }
+      }
+      .info-item {
+        margin: 0px;
+        display: flex;
+        li {
+          margin: 0px;
+          padding: 0px;
+          max-width: 20em;
+          line-height: 1.1em;
+          border-left: 4px solid #f39c2b;
+          text-indent: 5px;
+          margin: 5px 10px 5px 0;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+    .p-btn {
+      line-height: 80px;
+    }
+  }
+  .org-main-panel {
+    flex:1;
+    overflow: auto;
+    border-radius: @border-radius-base;
+    padding-bottom: @content-padding-v;
+    background: @white;
+    /deep/.ant-spin-nested-loading {
+      display: block;
+      margin: 0 auto;
+      height: 100%;
+      .ant-spin-container {
+        height: 100%;
+      }
+    }
+  }
+}
+</style>

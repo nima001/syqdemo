@@ -1,0 +1,111 @@
+<template>
+  <setting-tree v-model="schemaJson" :properties="properties" @input="updateSchema"/>
+</template>
+<script>
+import SettingTree from '@/framework/components/SettingTree'
+import {randomStr} from '@/framework/utils'
+
+export default {
+  components: {
+    SettingTree,
+  },
+  props: {
+    schema: {
+      required: true,
+    },
+    component: {
+      required: true,
+    }
+  },
+  data(){
+    return {
+      updateFlag: undefined,
+      properties: undefined,
+      schemaJson: this.schema.toJSON(),
+      baseProps: {
+        layout:{
+
+        },
+        widget: {
+          name: {
+            type: 'string',
+            title: '字段标识',
+            attrs: {},
+            validator: (value, context) => {
+              if(!value){
+                return '字段标识不能为空'
+              }
+              if(!/^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(value)){
+                return '字段标识不合法'
+              }
+              if(value != this.schema.name && this.schema.parent.properties[value]){
+                return '重复的字段标识'
+              }
+            }
+          },
+          title: {
+            type: 'string',
+            title: '字段名称',
+          },
+          required: {
+            type: 'boolean',
+            title: '必填',
+          },
+          readOnly: {
+            type: 'boolean',
+            title: '只读',
+          },
+          defaultValue: {
+            type: 'string',
+            title: '默认值',
+            attrs: {
+              
+            },
+          }
+        },
+      }
+    }
+  },
+  watch: {
+    schema(s, os){
+      if(!this.updateFlag || s.__updated__ != this.updateFlag){
+        let json = s.toJSON();
+        delete json.__updated__;//从schema转换过来的对象中含有__updated__属性，删除掉让其不具备响应性
+        this.schemaJson = json;
+        this.initData();
+      }
+      this.updateFlag = undefined;
+    },
+  },
+  created(){
+    this.initData();
+  },
+  methods: {
+    initData(status = {}){
+      let props = this.baseProps[this.component.type];
+      let properties = { ...props };
+      props = this.component.props;
+      for(let name in props){
+        const v = props[name];
+        const path = v.path || 'x-component-props.' + name;
+        properties[name] = { ...v, path };
+      }
+      this.properties = properties;
+    },
+    updateSchema(){
+      this.updateFlag = randomStr(10)
+      //通过Object.defineProperty添加，防止__updated__具有响应性
+      Object.defineProperty(this.schemaJson, '__updated__', {
+        value: this.updateFlag,
+        writable: false,
+        enumerable: true,
+        configurable: true
+      })
+      this.$emit('change', this.schemaJson);
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+
+</style>

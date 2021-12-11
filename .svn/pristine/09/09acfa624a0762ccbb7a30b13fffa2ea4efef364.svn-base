@@ -1,0 +1,46 @@
+
+import { uiConfigsCookies } from '@/framework/utils/auth'
+import axios from 'axios'
+
+// 上传文件
+export function upload(docFile) {
+    let uiConfigs = uiConfigsCookies();
+    return new Promise((resolve, reject) => {
+        let formdata = new FormData()
+        formdata.append("file", docFile)
+        let config = {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        }
+        axios.post(uiConfigs['api.url'] + '/file/v1/upload', formdata, config).then(res => {
+            resolve(res)
+        }).catch(error => {
+            reject(error)
+        })
+    })
+}
+//文件下载
+export function download(uri) {
+    let uiConfigs = uiConfigsCookies();
+    window.open(uiConfigs['api.url'] + '/file/v1/download?uri=' + encodeURIComponent(uri))
+}
+
+//文件上传V2版本
+export function uploadV2(docFile) {
+    let uiConfigs = uiConfigsCookies();
+    return new Promise((resolve, reject) => {
+        let formdata = new FormData()
+        formdata.append("file", docFile)
+        let config = {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        }
+        axios.post(uiConfigs['api.url'] + '/file/v2/file/upload', formdata, config).then(res => {
+            resolve(res)
+        }).catch(error => {
+            reject(error)
+        })
+    })    
+}

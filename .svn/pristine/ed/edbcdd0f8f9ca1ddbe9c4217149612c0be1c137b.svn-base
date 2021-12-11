@@ -1,0 +1,35 @@
+/** 
+ * 信息服务模块路由
+*/
+import Layout from '../../views/Layout'
+
+export const informationRoutes = {
+    path: '/person/information',
+    component: Layout,
+    children: [
+        {
+            path: 'intelligent',
+            component: () => import('../../views/information/intelligentSearch/Intelligent.vue'),
+            name: 'intelligent',
+            meta: { path: [{ name: '智能搜索', path: '/person/information/intelligent' }] }
+        },
+        {
+            path: 'orgline',
+            component: () => import('../../views/orgline/index.vue'),
+            name: 'orgline',
+            meta: { path: [{ name: '条线配置', path: '/person/information/orgline' }] }
+        },
+        {
+            path: 'docfiling',
+            component: () => import('../../views/information/document/docfiling.vue'),
+            name: 'docfiling',
+            meta: { path : [{ name: '文件归档', path: '/perosn/information/docfiling'}] }
+        },
+        {
+            path: 'organization',
+            component: () => import('../../views/information/organization/index.vue'),
+            name: 'organization',
+            meta: { path : [{ name: '机构编制文件', path: '/person/information/organization'}] }
+        }
+    ]
+}

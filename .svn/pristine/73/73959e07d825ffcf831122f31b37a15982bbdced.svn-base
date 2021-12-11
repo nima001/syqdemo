@@ -1,0 +1,119 @@
+<template>
+  <div class="wrap">
+    <div class="bj"></div>
+    <ul class="city">
+      <li :class="{'active':item['active']}" ref="loopDom"  :style="{left:item.left,top:item.top}"
+        v-for="(item,index) in city" :key="index" @click="loop(index)">
+        {{item.name}}</li>
+    </ul>
+    <div class="diamond"></div>
+  </div>
+</template>
+<script>
+import cloneDeep from "lodash/cloneDeep";
+import { mixins } from "../components/minxin";
+export default {
+  data() {
+    return {
+      city: [
+        { name: "市本级", district: "330600", top: "160px", left: "294px",active:true },
+        { name: "柯桥区", district: "330603", top: "170px", left: "460px" },
+        { name: "上虞区", district: "330604", top: "102px", left: "540px" },
+        { name: "越城区", district: "330602", top: "50px", left: "380px" },
+        { name: "新昌县", district: "330624", top: "50px", left: "200px" },
+        { name: "嵊州市", district: "330683", top: "102px", left: "52px" },
+        { name: "诸暨市", district: "330681", top: "170px", left: "120px" }
+      ]
+    };
+  },
+  mixins: [mixins],
+  mounted(){
+    
+  },
+  methods: {
+    loop(index) {
+      let domList = this.$refs.loopDom;
+      let newArr = [...domList.slice(index, domList.length),...domList.slice(0, index)];
+      this.dictCode.dictId = this.city[index]["district"];
+      for (let i = 0; i < newArr.length; i++) {
+        let newItem = newArr[i];
+        let oldItem = this.city[i];
+        newItem.style.left = oldItem.left;
+        newItem.style.top = oldItem.top;
+      }
+      let oldActiveIndex = undefined
+      this.city.forEach((item,index)=>{
+        if (item.active) {
+          oldActiveIndex = index;
+        }
+      });
+      let oldActiveObj = this.city[oldActiveIndex];
+      oldActiveObj.active = !oldActiveObj.active;
+      this.$set(this.city, oldActiveIndex, oldActiveObj);
+      let obj = this.city[index];
+      obj.active = !obj.active;
+      this.$set(this.city, index, obj);
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+@keyframes bounce-down {
+  25% {
+    transform: translateY(-10px);
+  }
+  50%,
+  100% {
+    transform: translateY(0);
+  }
+  75% {
+    transform: translateY(10px);
+  }
+}
+.wrap {
+  padding: 120px 0px 0px;
+  position: relative;
+  .bj {
+    width: 682px;
+    height: 170px;
+    background: url("../img/circle.png");
+    margin: 0 auto;
+  }
+  .diamond {
+    width: 72px;
+    height: 72px;
+    background: url("../img/diamond.png");
+    position: absolute;
+    top: 90px;
+    left: 310px;
+    animation: bounce-down 1.5s linear infinite;
+  }
+  .city {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0px;
+    left: 0px;
+    margin: 0px;
+    li {
+      width: 103px;
+      height: 41px;
+      background: url("../img/city-name.png");
+      font-size: 20px;
+      font-family: Microsoft YaHei;
+      font-weight: 400;
+      line-height: 26px;
+      color: #ffffff;
+      text-align: center;
+      line-height: 41px;
+      position: absolute;
+      opacity: 0.4;
+      cursor: pointer;
+      transition: left 0.3s ease 0s, top 0.3s ease 0s;
+      &.active {
+       opacity: 1;
+      }
+    }
+  }
+}
+</style>

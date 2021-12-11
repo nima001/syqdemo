@@ -1,0 +1,421 @@
+<!-- 业务发布 -->
+<template>
+  <div>
+    <div class="body">
+      <p>
+        了解应用接入，
+        <a href @click="intro">请点击这里></a>
+      </p>
+      <a-form :form="form">
+        <a-form-item label="业务名称">
+          <a-input
+            v-decorator="[
+              'name',
+              { rules: [{ required: true, message: '请输入业务全称' }] },
+            ]"
+          ></a-input>
+        </a-form-item>
+
+        <a-form-item label="分类">
+          <a-select
+            v-decorator="[
+              'businesstype',
+              { rules: [{ required: true, message: '请输入分类' }] },
+            ]"
+          >
+            <a-select-option
+              v-for="(i, index) in arr"
+              :value="i"
+              :key="index"
+              >{{ i }}</a-select-option
+            >
+          </a-select>
+        </a-form-item>
+
+        <a-form-item label="主题">
+          <a-select
+            v-decorator="[
+              'category',
+              { rules: [{ required: true, message: '请选择业务主题' }] },
+            ]"
+            mode="tags"
+            style="width: 100%;margin-bottom: 30px;"
+            placeholder="请选择主题"
+          >
+            <a-select-option v-for="i in 3" :key="(i + 9).toString(36) + i">{{
+              (i + 9).toString(36) + i
+            }}</a-select-option>
+          </a-select>
+        </a-form-item>
+
+        <a-form-item label="是否有子项">
+          <a-radio-group
+            v-decorator="[
+              'isHasChildren',
+              { rules: [{ required: true, message: '请选择是否有子项' }] },
+            ]"
+          >
+            <a-radio value="1" @click="dui">是</a-radio>
+            <a-radio value="0" @click="cuo">否</a-radio>
+          </a-radio-group>
+        </a-form-item>
+
+        <!-- <a-form-item label="业务图标">
+                <p>请上传系统图标高清图片 200*200像素，仅支持jpg、png格式，大小不超过300kb。</p>
+                <div class="upload">
+                    <a-upload>
+                    <a-icon type="plus" />
+                    </a-upload>
+                    <img src="@/views/manage/img/shangchang .png" alt="">
+                </div>
+                 <a-input
+                    v-decorator="[
+                    'icon',
+                    {rules: [{ required: true, message: '请上传业务图标' }]}
+                    ]"
+                ></a-input>
+        </a-form-item>-->
+
+        <a-form-item label="业务说明">
+          <a-textarea
+            :rows="4"
+            v-decorator="[
+              'introduce',
+              { rules: [{ required: true, message: '请选择是否有子项' }] },
+            ]"
+          />
+        </a-form-item>
+
+        <template v-if="val">
+          <a-form-item class="short" label="PC端单点登入地址">
+            <a-input v-decorator="['pcUrl']"></a-input>
+            <a-button>单点登入测试</a-button>
+          </a-form-item>
+
+          <a-form-item class="short" label="移动端单点登入地址">
+            <a-input v-decorator="['appUrl']"></a-input>
+            <a-button>单点登入测试</a-button>
+          </a-form-item>
+        </template>
+
+        <template v-else>
+          <a-button type="primary" @click="add">添加子项</a-button>
+          <a-table :columns="columns" :dataSource="data" :pagination="false">
+            <template slot="name" slot-scope="text, record, index">
+              <div>
+                <template v-if="record.editable">
+                  <a-input v-model="data[index].name" />
+                </template>
+
+                <template v-else>{{ text }}</template>
+              </div>
+            </template>
+
+            <template slot="address" slot-scope="text, record, index">
+              <div>
+                <template v-if="record.editable">
+                  <p class="tab-p">
+                    <span>PC端：</span>
+                    <a-input
+                      style="width: 70%"
+                      v-model="data[index].address[0]"
+                    />
+                  </p>
+                  <p class="tab-p">
+                    <span>APP端：</span>
+                    <a-input
+                      style="width: 70%"
+                      v-model="data[index].address[1]"
+                    />
+                  </p>
+                </template>
+
+                <template v-else>
+                  <p>PC端：{{ text[0] }}</p>
+                  <p>APP端：{{ text[1] }}</p>
+                </template>
+              </div>
+            </template>
+
+            <template slot="operation" slot-scope="text, record">
+              <div class="editable-row-operations">
+                <span v-if="record.editable">
+                  <a @click="save(record.key)" style="margin-right: 10px;"
+                    >确定</a
+                  >
+                  <a @click="cancel(record.key)">删除</a>
+                </span>
+                <span v-else>
+                  <a @click="edit(record.key)">修改</a>
+                </span>
+              </div>
+            </template>
+          </a-table>
+        </template>
+
+        <a-button type="primary" style="margin-top: 20px;" @click="submit"
+          >创建业务</a-button
+        >
+      </a-form>
+    </div>
+  </div>
+</template>
+
+<script>
+import {
+  Form,
+  Button,
+  Input,
+  Radio,
+  Upload,
+  Icon,
+  Table,
+  notification,
+  Select,
+} from "ant-design-vue";
+import { bizadd, business } from "@/dev/api/biz";
+export default {
+  data() {
+    return {
+      arr: [],
+      form: this.$form.createForm(this),
+      columns,
+      data,
+      val: true,
+    };
+  },
+  created() {
+    business().then((res) => {
+      this.arr = res.result;
+    });
+  },
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    AButton: Button,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    ARadioGroup: Radio.Group,
+    ARadio: Radio,
+    AUpload: Upload,
+    AIcon: Icon,
+    ATable: Table,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    notification,
+  },
+
+  methods: {
+    // 了解接入
+    intro() {
+      this.$router.push("/dev/index");
+    },
+    add() {
+      const newData = {
+        key: this.data.length + 1,
+        name: "子项" + this.data.length,
+        address: ["http://www.fladjfd.com", "http://www.fladjfd.com"],
+        editable: true,
+      };
+      this.data.push(newData);
+    },
+    edit(key) {
+      const newData = [...this.data];
+      const target = newData.filter((item) => key === item.key)[0];
+      if (target) {
+        target.editable = true;
+        this.data = newData;
+      }
+    },
+    save(key) {
+      const newData = [...this.data];
+      const target = newData.filter((item) => key === item.key)[0];
+      if (target) {
+        delete target.editable;
+        this.data = newData;
+      }
+    },
+    cancel(key) {
+      const newData = [...this.data];
+      this.data = newData.filter((item) => item.key !== key);
+      this.data.forEach((element, i) => {
+        element.key = i + 1;
+      });
+    },
+
+    submit() {
+      this.form.validateFields((err, values) => {
+        if (err) {
+          notification.error({
+            message: "提示",
+            description: "请填写必填信息！",
+            duration: 2,
+          });
+        } else {
+          let obj = {
+            appId: this.$store.state.appinfo.appInfo.id,
+            businesstype: values.businesstype,
+            mainBusinessVo: {
+              icon: "string",
+              introduce: values.introduce,
+              isHasChildren: values.isHasChildren,
+              name: values.name,
+              devInterfaceId: 0,
+              state: 0,
+            },
+            subject: values.category,
+          };
+          if (values.isHasChildren == 1) {
+            let children = [];
+            this.data.forEach((i) => {
+              let objs = {};
+              objs.name = i.name;
+              objs.interfaceVo = {
+                appUrl: i.address[1],
+                isdevApp: 1,
+                isdevPc: 1,
+                pcUrl: i.address[0],
+                spreadingParameterApp: "string",
+                spreadingParameterPc: "string",
+                type: 0,
+              };
+              children.push(objs);
+              obj.chiBusinessVoList = children;
+            });
+          } else {
+            let objs = {
+              appUrl: values.appUrl,
+              isdevApp: 1,
+              isdevPc: 1,
+              pcUrl: values.pcUrl,
+              spreadingParameterApp: "string",
+              spreadingParameterPc: "string",
+              type: 0,
+            };
+            obj.interfaceVo = objs;
+          }
+          bizadd(obj).then((res) => {
+            if (res.code == "success") {
+              // this.$router.push({ path: "/manage/bizaddcg" });
+            } else {
+              if (res.code == "form_valid_failed") {
+                let a = eval("(" + res.desc + ")");
+                const value = Object.values(a);
+                const keys = Object.keys(a);
+                const arr = [
+                  {
+                    message: value[0],
+                    field: keys[0],
+                  },
+                ];
+                this.form.setFields({
+                  [keys[0]]: { value: values[keys[0]], errors: arr },
+                });
+              } else {
+                notification.error({
+                  message: "提示",
+                  description: res.desc,
+                  duration: 1.5,
+                });
+              }
+            }
+          });
+        }
+      });
+    },
+    dui() {
+      this.val = false;
+    },
+    cuo() {
+      this.val = true;
+    },
+  },
+};
+
+const columns = [
+  {
+    title: "序号",
+    dataIndex: "key",
+    width: "15%",
+    scopedSlots: { customRender: "key" },
+  },
+  {
+    title: "子项名称",
+    dataIndex: "name",
+    width: "25%",
+    scopedSlots: { customRender: "name" },
+  },
+  {
+    title: "单点登录",
+    dataIndex: "address",
+    width: "40%",
+    scopedSlots: { customRender: "address" },
+  },
+  {
+    title: "操作",
+    dataIndex: "operation",
+    scopedSlots: { customRender: "operation" },
+  },
+];
+
+const data = [
+  {
+    key: 1,
+    name: "默认子项",
+    address: ["http://www.fladjfd.com", "http://www.fladjfd.com"],
+  },
+];
+</script>
+<style lang="less" scoped>
+.body {
+  width: 80%;
+  padding: 20px 0;
+  margin: 0 auto;
+}
+.ant-form {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  width: 700px;
+  margin: 0 auto;
+  .ant-form-item {
+    width: 100%;
+  }
+  .short {
+    .ant-input {
+      width: 70%;
+      margin-right: 15px;
+    }
+  }
+}
+.big {
+  height: 155px;
+}
+.upload {
+  margin-top: 36px;
+  display: flex;
+  img {
+    margin-left: 116px;
+    padding: 34px 40px;
+    border: dashed 1px #e6e6e6;
+  }
+  .anticon {
+    padding: 56px;
+    border: dashed 1px #e6e6e6;
+    & > svg {
+      width: 40px;
+      height: 40px;
+    }
+  }
+}
+.ant-table-wrapper {
+  width: 100%;
+}
+.tab-p {
+  display: flex;
+  justify-content: space-between;
+}
+.ant-form-item {
+  margin-bottom: 0;
+}
+</style>

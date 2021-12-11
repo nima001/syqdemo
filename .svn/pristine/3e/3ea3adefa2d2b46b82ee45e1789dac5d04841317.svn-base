@@ -1,0 +1,84 @@
+<template>
+  <div class="business-number">
+    <a-row :gutter="20">
+      <a-col :span="12">
+        <a-table 
+          :rowKey="generateRowKey"
+          :columns="columns" 
+          :dataSource="tableData" 
+          :pagination="false"
+          >
+        </a-table>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**  事业机构领导职数配置
+*/
+import { Row, Col, Table } from "ant-design-vue";
+export default {
+  props: {
+    data: Object
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+    ATable: Table
+  },
+  data() {
+    return {
+      columns: [
+        { 
+          title: '处级事业单位', 
+          dataIndex: 'useNum',
+          colSpan: 2,
+        },
+        { 
+          title: 'name', 
+          dataIndex: 'allowNum', 
+          colSpan: 0,
+        },
+        { 
+          title: '处级事业单位内设机构', 
+          dataIndex: 'suggestNum', 
+          colSpan: 2,
+        },
+        { 
+          title: 'opt', 
+          dataIndex: 'averageInternalCopileNum', 
+          colSpan: 0,
+        },
+      ],
+      tableData: []
+    };
+  },
+  watch: {},
+  computed: {
+  },
+  created() {
+    let obj = [{
+      useNum: '核定编制数',
+      allowNum: '建议配置数',
+      suggestNum: '剔除领导职数内设机构平均编制数',
+      averageInternalCopileNum: '建议配置数'
+    }];
+    this.tableData = obj.concat(this.data);
+  },
+  mounted() {},
+  methods: {
+    generateRowKey() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.business-number{  
+  /deep/.ant-row{
+    line-height: 30px;
+  }
+}
+</style>

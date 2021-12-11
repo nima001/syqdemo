@@ -1,0 +1,68 @@
+<template>
+  <div class="body">
+    <div class="circular" @click="() => $router.push('/person/screen/assessment/chargedepart')">
+      <!-- <svg viewBox="0 0 100 100">
+        <path d="M 0,50 a 50,50 0 1,1 0,1 z" id="circle" />
+        <text font-size="11" fill="#fff" x="50%" y="50%">
+          <tspan x="28" y="48">事业单位</tspan>
+          <tspan x="28" y="62">质效评估</tspan>
+        </text>
+        <text fill="#fff">
+          <textPath xlink:href="#circle" font-size="8" font-weight="200">
+            <tspan x="23">评估先行</tspan>
+            <tspan x="100">点面结合</tspan>
+            <tspan x="179">分类分步</tspan>
+            <tspan x="260">数字赋能</tspan>
+          </textPath>
+        </text>
+      </svg> -->
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {};
+  },
+};
+</script>
+<style lang="less" scoped>
+.body {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  .circular {
+    // width: 18em;
+    // height: 18em;
+    margin: 3em auto 0;
+    position: relative;
+
+    width: 595px;
+    height: 300px;
+    background: url('../../../assets/img/screen/assess-index.png') no-repeat;
+    background-size: 100% 100%;
+    cursor: pointer;
+
+    // &::before {
+    //   content: "";
+    //   position: absolute;
+    //   top: 0;
+    //   left: 0;
+    //   width: 100%;
+    //   height: 100%;
+    // }
+    // path {
+    //   fill: none;
+    // }
+    // svg {
+    //   display: block;
+    //   overflow: visible;
+    //   text {
+    //     color: #fff;
+    //   }
+    // }
+  }
+}
+</style>

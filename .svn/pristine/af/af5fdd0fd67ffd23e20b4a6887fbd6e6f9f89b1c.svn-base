@@ -1,0 +1,59 @@
+<template>
+  <a-col :span="span" :class="{'drag-area': true, empty: empty === true }">
+    <slot/>
+  </a-col>
+</template>
+<script>
+import { Col, Icon } from 'ant-design-vue'
+import { connect, mapProps, observer, useForm, useField, useFieldSchema, Schema } from '@formily/vue'
+import { ObjectfromEntries } from '@/framework/utils'
+
+export default {
+  components: {
+    ACol: Col,
+  },
+  props: {
+    span: Number
+  },
+  setup(){
+    const form = useForm().value;
+    const schema = useFieldSchema().value
+    return {
+      _isFormComponent: true,
+      form,
+      schema,
+    }
+  },
+  data(){
+    return {
+      empty: undefined,
+    }
+  },
+  mounted(){
+    console.log(this.schema.name, 'mounted')
+    let [node] = this.$slots.default || [];
+    let children = node && node.componentInstance && node.componentInstance.$children;
+    this.empty = !(children && children.length);
+  },
+  methods: {
+    addProperty(prop, index){
+      let s = new Schema(prop, this.schema);
+      const props = Schema.getOrderProperties(this.schema);
+      if(index >= 0  && props.length > index){
+        props.splice(index, 0, { key: s.name, schema: s });
+      }else{
+        props.push({ key: s.name, schema: s })
+      }
+      this.schema.properties = ObjectfromEntries(props, 'key', 'schema');
+      this.schema.parent.properties[this.schema.name] = this.schema;
+    },
+    removeProperty(index){
+
+    }
+
+  }
+}
+</script>
+<style>
+
+</style>

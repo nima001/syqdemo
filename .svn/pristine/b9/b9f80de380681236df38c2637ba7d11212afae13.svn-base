@@ -1,0 +1,276 @@
+<template>
+  <div class="report-detail">
+    <div class="main">
+      <div class="main-top">
+        <a-button type="primary" v-if="!this.$route.query.id" @click="saveReport">保存</a-button>
+        <a-button type="primary" v-if="!this.$route.query.id" @click="onAdd">变更</a-button>
+        <a-button type="primary" @click="onExport">一键导出</a-button> 
+        <a-button type="primary" v-if="this.$route.query.id && isChecked">检查更新</a-button> 
+      </div>
+      <div class="main-content">
+        <Content v-if="detailData" :content="detailData" ref="content" />
+      </div>
+    </div>
+    <a-modal
+      title="变更"
+      ok-text="确定"
+      cancel-text="取消"
+      v-model="addvisible"
+      :width="800"
+      :destroyOnClose="true"
+      :bodyStyle="{height: '500px'}"
+      @ok="addOk"
+      @cancel="addCancel">
+      <add-report ref="AddReport" :spin="spinning"></add-report>
+    </a-modal>
+    <a-modal
+      title="检查更新"
+      ok-text="确定"
+      cancel-text="取消"
+      v-model="updatevisible"
+      :width="800"
+      :destroyOnClose="true"
+      :bodyStyle="{height: '500px'}"
+      @ok="updateOk"
+      @cancel="updateCancel">
+      <add-report ref="updateReport" :spin="spinning"></add-report>
+    </a-modal>
+    <a-modal
+      title="标题"
+      ok-text="确定"
+      cancel-text="取消"
+      v-model="titlevisible"
+      :width="500"
+      :destroyOnClose="true"
+      @ok="handleOk"
+      @cancel="titleCancel">
+      <div class="add-title">
+        <a-form class="title-form" :form="form">
+          <a-form-item
+            label="页面标题"
+            >
+            <a-input
+              v-decorator="[
+                'title',
+                { rules: [{ required: true, message: '请输入页面标题!' }]},
+              ]"
+            />
+          </a-form-item>
+        </a-form>
+      </div>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Button, Modal, Form, Input } from "ant-design-vue";
+import AddReport from '@/person-shaoxing/views/assessment/compileAssist/components/AddReport';
+import Content from "./components/Content";
+import { newestReport, addReport, listHistory, checkUpdate } from "@/person-shaoxing/api/assessment";
+import {convertHtml2Pdf} from '@framework/api/file';
+import { showError } from "@/framework/utils/index";
+import { loadData } from './components/contentItems';
+
+export default {
+  components: {
+    AButton: Button,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    AddReport,
+    Content
+  },
+  computed: {
+    assessData() {
+      return this.$store.getters.assessData
+    },
+    reportArgs() {
+      return this.$store.getters.reportArgs
+    }
+  },
+  data() {
+    return {
+      detailData: undefined,
+      addvisible: false,
+      spinning: false,
+      titlevisible: false,
+      updatevisible: false,
+      title: '',
+      isChecked: false
+    }
+  },
+  beforeCreate() {
+    this.form = this.$form.createForm(this);
+  },
+  created() {
+    if(this.$route.query.id) {
+      //  历史详情
+      if (this.$route.query.isHistory) {
+        this.getHistoryDetail()
+      } else {//  查看最新
+        this.getData();
+      }
+    }else{//  新增
+      this.detailData = this.assessData.details;
+    }
+  },
+  methods: {
+    getData() {
+      newestReport(this.$route.query.id)
+      .then(({result}) => {
+        this.detailData = JSON.parse(result.details);
+      })  
+      .catch(err => {
+        showError(err);
+      })
+    },
+    getHistoryDetail() {
+      listHistory({
+        id: this.$route.query.id,
+        needtotal: false
+      })
+      .then(({result}) => {
+        this.isChecked = result.rows[0].status ? false : true;
+        this.detailData = JSON.parse(result.rows[0].details);
+      })  
+      .catch(err => {
+        showError(err);
+      })
+    },
+    saveReport() {
+      let data = {};
+      data.details = JSON.stringify(this.detailData);
+      data.configid = this.assessData.configid;
+      data.orgname = this.assessData.name;
+      data.args = this.reportArgs;
+      addReport(data)
+      .then(({result}) =>{
+        this.showCloseWindow();
+        return;
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    onAdd() {
+      this.addvisible = true;
+    },
+    async addOk() {
+      this.spinning = true;
+      let value = await this.$refs.AddReport.getFormValue();
+      if(value) {
+        let data = await loadData(value.target, value.itemArr);
+        let assessData = {
+          configid: value.content,
+          name: value.target.hasOwnProperty('org') ? value.target.org.name : value.target.orgname,
+          details: data
+        }
+        if(data) {
+          this.detailData = assessData.details;
+          this.spinning= false;
+          this.addvisible = false;
+        }else{
+          this.spinning = false;
+        }
+      }else{
+        this.spinning = false;
+      }
+    },
+    addCancel() {
+      this.addvisible = false;
+    },
+    showCloseWindow(){
+      let secondsToGo = 3;
+      const modal = Modal.info({
+        title: '提示', 
+        content: `提交成功，窗口将在 ${secondsToGo} 后自动关闭`,
+        okText: '关闭窗口',
+        keyboard: false,
+        onOk: () => {
+          this.$router.push('/person/assessment/compileassist');
+          return;
+        }
+      })
+      const interval = setInterval(() => {
+        secondsToGo -= 1;
+        modal.update({
+          content: `提交成功，窗口将在 ${secondsToGo} 后自动关闭`,
+        });
+      }, 1000);
+      setTimeout(() => {
+        clearInterval(interval);
+        modal.destroy();
+        this.$router.push('/person/assessment/compileassist');
+      }, secondsToGo * 1000);
+    },
+    onExport() {
+      this.titlevisible = true;
+    },
+    titleCancel() {
+      this.titlevisible = false;
+    },
+    handleOk() {
+      this.form.validateFields((err, values) => {
+        if(err){
+          return;
+        } else {
+          this.title = values.title;
+          this.titlevisible = false;
+          this.exportPDF();
+        }
+      })
+    },
+    onUpdate() {
+      this.updatevisible = true;
+    },
+    updateOk() {
+
+    },
+    updateCancel() {
+
+    },
+    exportPDF() {
+      //  获取评估项
+      const item = this.$refs.content.getVal();
+      convertHtml2Pdf({
+        children: item,
+        margin: ['96', '96', '120', '120'],
+        title: this.title,
+        pagesize: 'A4',
+        rotate: false
+      })
+      .then(res => {
+      })
+      .catch(err => {
+        showError(err)
+      })
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.report-detail{
+  padding: 10px;
+  height: 100%;
+  .main{
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    overflow: hidden;
+    background: @white;
+    height: 100%;
+    .main-top{
+      padding: 18px @content-padding-h @content-padding-h;
+      button{
+        margin-right: 16px;
+      }
+    }
+    .main-content{
+      flex-shrink: 1;
+      overflow-y: auto;
+    }
+  }
+}
+</style>

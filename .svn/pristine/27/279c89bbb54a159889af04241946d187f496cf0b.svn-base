@@ -1,0 +1,613 @@
+<template>
+  <div class="content">
+    <div class="panel">
+      <div class="toolbar">
+        <a-form :form="form" class="ant-advanced-search-form">
+          <div class="box">
+            <ul class="in-box">
+              <li class="li-content" v-show="Number(this.pagination.type) !== 10" >
+                <div>
+                  <span class="name">文件类型：</span>
+                  <a-select v-model="DocumentSubtype ? subtype : undefined"  @change="changetype" >
+                    <a-select-option v-for="item in DocumentSubtype" :key="item.value" >
+                      {{ item.text }}
+                    </a-select-option>
+                  </a-select>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">批准文号：</span>
+                  <a-input-group compact class="pzwh">
+                    <a-input type="text" v-model="pagination.zihao" style="width: 28%" />
+                    <a-input v-model="pagination.year" addonBefore="〔" addonAfter="〕" type="text" style="width: 40%; top: 0" />
+                    <a-input v-model="pagination.ordinal" addonAfter="号" type="text" style="width: 32%; top: 0" />
+                  </a-input-group>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">发文时间：</span>
+                  <a-input-group compact style="top: 0">
+                    <a-date-picker placeholder="开始时间" style="width: 50%" v-model="startValue" :disabled-date="disabledStartDate" />
+                    <a-date-picker placeholder="结束时间" style="width: 50%" v-model="endValue" :disabled-date="disabledEndDate" />
+                  </a-input-group>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">关键字:</span>
+                  <div>
+                    <a-input v-model="pagination.searchkey" placeholder="标题或文件内容" />
+                  </div>
+                </div>
+              </li>
+              <li class="li-button">
+                <div>
+                  <span class="name"></span>
+                  <div>
+                    <a-button @click="search" type="primary" style="margin-right: 10px" >搜索</a-button>
+                    <a-button @click="onreset">重置</a-button>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </a-form>
+      </div>
+    </div>
+    <div class="tablelist">
+      <a-table
+        :scroll="{ y: 380 }"
+        :loading="loading"
+        :rowKey="(row) => row.id"
+        :pagination="false"
+        :form="form"
+        :data-source="tableData"
+        :columns="columns"
+      >
+        <template slot="action" slot-scope="text, record">
+          <span @click="downDoc(record)">下载</span>
+          <span @click="showModal(record)">修改</span>
+          <span @click="showFile(record.id)">附件管理</span>
+        </template>
+      </a-table>
+      <a-pagination
+        v-if="tableData.length&&!this.loading"
+        showSizeChanger
+        :current="this.pagination.pagenum"
+        :pageSize="this.pagination.pagesize"
+        :total="this.pagination.total"
+        :showTotal="(total) => `总共：${total}条`"
+        @change="onChange"
+        @showSizeChange="onShowSizeChange"
+      />
+    </div>
+    <edit-content 
+      @documentList="documentList"
+      :orgidselected="orgidselected" 
+      :documentsubtype="documentsubtype" 
+      :orgsvisible.sync="orgsvisible" 
+      :subtypevisible.sync="subtypevisible" 
+      :doctype="doctype" 
+      :visible.sync="visible" 
+      :record.sync="record"/>
+    <FileManage :docid="docid" :filemanageModal.sync="filemanageModal"/>
+  </div>
+</template>
+
+<script>
+import { Form, Input, DatePicker, Button, Select, Modal, Table, Pagination } from "ant-design-vue";
+import EditContent from "./components/EditContent";
+import FileManage from '@framework/components/FileManage.vue';
+import { includes, assign } from "lodash";
+import { organization } from '@/person/api/org';
+import { documentlist, documentbyid } from "@/person-shaoxing/api/information";
+import { download } from "@/framework/api/file";
+import { showError } from "@/framework/utils";
+export default {
+  components: {
+    FileManage,
+    AForm: Form,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    ADatePicker: DatePicker,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AModal: Modal,
+    ATable: Table,
+    APagination: Pagination,
+    EditContent,
+  },
+  data() {
+    return {
+      record: {},
+      visible: false,
+      subtype: "all",
+      startValue: null,
+      endValue: null,
+      loading: false,
+      orgsvisible: false,
+      subtypevisible: false,
+      orgidselected: undefined,
+      filemanageModal: false,
+      docid: undefined,
+      pagination: {
+        statusIn: ["1"],
+        type: undefined, //代表人事任免文件
+        subtype: undefined,
+        ordinal: undefined,
+        year: undefined,
+        zihao: undefined,
+        starttime: undefined,
+        endtime: undefined,
+        searchkey: undefined,
+        pagenum: 1,
+        pagesize: 10,
+        total: 0,
+        needtotal: true,
+        rows: [],
+      },
+      columns: undefined,
+      personnelcolumns: [
+        {
+          title: "序号",
+          dataIndex: "index",
+          key: "index",
+          width: "5%",
+          customRender: (text, record, index) => `${index + 1}`,
+        },
+        {
+          title: "人事任免名称",
+          dataIndex: "title",
+          key: "title",
+        },
+        {
+          title: "发文单位",
+          dataIndex: "unit",
+          key: "unit",
+          width: "15%",
+        },
+        {
+          title: "批准文号",
+          dataIndex: "num",
+          key: "num",
+          width: "20%",
+        },
+        {
+          title: "文件来源",
+          dataIndex: "source",
+          key: "source",
+          width: "10%",
+          customRender: this.docsourceRender('library.docsource'),
+        },
+        {
+          title: "发文时间",
+          dataIndex: "dispatchdate",
+          key: "dispatchdate",
+          width: "15%",
+        },
+        {
+          title: "操作",
+          dataIndex: "action",
+          key: "action",
+          scopedSlots: { customRender: "action" },
+          width: "15%",
+        },
+      ],
+      policycolumns: [
+        {
+          title: "序号",
+          dataIndex: "index",
+          key: "index",
+          width: "10%",
+          customRender: (text, record, index) => `${index + 1}`,
+        },
+        {
+          title: "文件标题",
+          dataIndex: "title",
+          key: "title",
+        },
+        {
+          title: "批准文号",
+          dataIndex: "num",
+          key: "num",
+          width: "15%",
+        },
+        {
+          title: "文件来源",
+          dataIndex: "source",
+          key: "source",
+          width: "10%",
+          customRender: this.docsourceRender('library.docsource'),
+        },
+        {
+          title: "发文时间",
+          dataIndex: "dispatchdate",
+          key: "dispatchdate",
+          width: "15%",
+        },
+        {
+          title: "操作",
+          dataIndex: "action",
+          key: "action",
+          scopedSlots: { customRender: "action" },
+          width: "15%",
+        },
+      ],
+      comprehensivecolumns: [
+        {
+          title: "序号",
+          dataIndex: "index",
+          key: "index",
+          width: "10%",
+          customRender: (text, record, index) => `${index + 1}`,
+        },
+        {
+          title: "文件名称",
+          dataIndex: "title",
+          key: "title",
+        },
+        {
+          title: "批准文号",
+          dataIndex: "num",
+          key: "num",
+          width: "15%",
+        },
+        {
+          title: "文件来源",
+          dataIndex: "source",
+          key: "source",
+          width: "10%",
+          customRender: this.docsourceRender('library.docsource'),
+        },
+        {
+          title: "发文时间",
+          dataIndex: "dispatchdate",
+          key: "dispatchdate",
+          width: "15%",
+        },
+        {
+          title: "操作",
+          dataIndex: "action",
+          key: "action",
+          scopedSlots: { customRender: "action" },
+          width: "15%",
+        },
+      ],
+      form: this.$form.createForm(this, { name: "docform" }),
+    };
+  },
+  computed: {
+    doctype() {
+      //发文类型 即文件归档
+      return this.$store.getters.dict("library.doctype");
+    },
+    documentsubtype() {
+      return this.$store.getters.dict("library.documentsubtype");
+    },
+    tableData: {
+      set(val) {
+        this.pagination.rows = val;
+        return this.pagination.rows;
+      },
+      get() {
+        return this.pagination.rows;
+      },
+    },
+    DocumentSubtype() {
+      if (this.$store.getters.dict("library.documentsubtype")) {
+        let document = undefined;
+        this.subtype = "all";
+        if (this.$route.name === "personnel") {
+          this.pagination.type = 10;
+          this.columns = this.personnelcolumns;
+          document = this.$store.getters.dict("library.documentsubtype").filter((item) => includes(item.group, "人事任免"));
+          if (document.length) {
+            document.unshift({ group: "人事任免", text: "全部", value: "all" });
+          }
+        } else if (this.$route.name === "policy") {
+          this.pagination.type = 11;
+          this.columns = this.policycolumns;
+          document = this.$store.getters.dict("library.documentsubtype").filter((item) => includes(item.group, "政策口径"));
+          if (document.length) {
+            document.unshift({ group: "政策口径", text: "全部", value: "all" });
+          }
+        } else if (this.$route.name === "comprehensive") {
+          this.pagination.type = 2;
+          this.columns = this.comprehensivecolumns;
+          document = this.$store.getters.dict("library.documentsubtype").filter((item) => includes(item.group, "综合文件"));
+          if (document.length) {
+            document.unshift({ group: "综合文件", text: "全部", value: "all" });
+          }
+        }
+        return document;
+      }
+    },
+  },
+  watch: {
+    startValue(val) {
+      this.pagination.starttime = val;
+    },
+    endValue(val) {
+      this.pagination.endtime = val;
+    },
+    subtype(val) {
+      if (val !== "all") {
+        this.pagination.subtype = val;
+      } else {
+        this.pagination.subtype = undefined;
+      }
+    },
+    record(val) {
+      return val;
+    },
+    $route(to, from) {
+      this.onreset();
+      this.tableData = [];
+      this.documentList();
+    }
+  },
+  beforeRouteEnter(to, from, next){
+    next(vm => {
+      vm.orgsvisible = false;
+      if(to.name==='personnel') {
+        vm.pagination.type = 10;
+        vm.subtypevisible = false;
+      }else if(to.name==='policy') {
+        vm.pagination.type = 11;
+        vm.subtypevisible = true;
+      }else if(to.name==='comprehensive') {
+        vm.pagination.type = 2;
+        vm.subtypevisible = true;
+      }
+    });
+  },
+  mounted() {
+    this.documentList();
+  },
+  methods: {
+    docsourceRender(key) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key, text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    showFile(id) {
+      this.docid = id;
+      this.filemanageModal = true;
+    },
+    async showModal(value){
+      this.record = value;
+      await this.documentbyId(value.id);
+    },
+    changetype(value) {
+      this.subtype = value;
+    },
+    disabledStartDate(startValue) {
+      const endValue = this.endValue;
+      if (!startValue || !endValue) {
+        return false;
+      }
+      return startValue.valueOf() > endValue.valueOf();
+    },
+    disabledEndDate(endValue) {
+      const startValue = this.startValue;
+      if (!endValue || !startValue) {
+        return false;
+      }
+      return startValue.valueOf() >= endValue.valueOf();
+    },
+    onreset() {
+      this.pagination.ordinal = undefined;
+      this.pagination.year = undefined;
+      this.pagination.zihao = undefined;
+      this.pagination.starttime = undefined;
+      this.pagination.endtime = undefined;
+      this.pagination.searchkey = undefined;
+      this.startValue = null;
+      this.endValue = null;
+    },
+    search() {
+      if (this.pagination.rows) {
+        this.pagination.rows = [];
+      }
+      this.pagination.pagenum = 1;
+      this.documentList();
+    },
+    //翻页
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.documentList();
+    },
+    //pagesize改变回调
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagesize, pagenum: 1 });
+      this.documentList();
+    },
+    downDoc(record) {
+      if (record.fileuri) {
+        download(record.fileuri);
+      } else {
+        this.$notification.warning({
+          message: "提示",
+          description: "暂无可下载内容!",
+          duration: 3,
+        });
+      }
+    },
+    //查询当前编辑项详细信息（发文单位名称需通过organization进一步查询）
+    documentbyId(id) {
+      this.loading = true;
+      documentbyid(id).then((res)=>{
+        assign(this.record, res.result);
+        if(this.record.orgid) {
+          if(this.pagination.type === 10) {
+            this.loading = false; 
+            this.orgidselected={ orgname: this.record.unit, orgid: this.record.orgid };
+            this.visible = true;
+          }else{
+            this.organization(this.record.orgid);
+          }
+        }else{
+          this.loading = false;
+          this.visible = true;
+        }
+      }).catch((err) => {
+        this.loading = false;
+        showError(err);
+      });
+    }, 
+    //查找当前编辑项对应发文单位
+    organization(id,index,data) {
+      organization(id).then((res)=>{
+        if(this.pagination.type === 10) {
+          this.$set(this.pagination.rows[index],'unit',res.result.name);
+          if(index===data.length-1) {
+            this.loading = false;
+          }
+        }else{
+          this.loading = false; 
+          this.orgidselected={ orgname:res.result.name,orgid: this.record.orgid };
+          this.visible = true;
+        }
+      }).catch((err)=>{
+        this.loading = false;
+        showError(err);
+      })
+    },
+    //查询表格中发文单位名称
+    getUnit(data) {
+      data.forEach((item,index)=>{
+        this.organization(item.orgid,index,data)
+      });
+    },
+    documentList() {
+      this.loading = true;
+      if (this.pagination.rows.length) {
+        this.pagination.rows = [];
+      }
+      documentlist(this.pagination)
+        .then((res) => {
+          if (res.result.rows.length) {
+            assign(this.pagination, res.result);
+            if(this.pagination.type === 10) {
+              this.getUnit(this.pagination.rows);
+            }else{
+              this.loading = false;
+            }
+          } else {
+            this.loading = false;
+            this.pagination.rows = [];
+            this.$notification.warning({
+              message: "提示",
+              description: "暂无数据!",
+              duration: 3,
+            });
+          }
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+      
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+.content {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .panel {
+    background: #ffffff;
+    padding: @layout-space-base @content-padding-h;
+    margin: @layout-space-base;
+    margin-bottom: 0;
+    .toolbar {
+      width: 100%;
+      margin: 0 auto;
+      .ant-advanced-search-form {
+        .in-box {
+          display: flex;
+          flex-wrap: wrap;
+          margin-bottom: 0;
+        }
+        .li-content:not(:last-child) {
+          width: 20%;
+          min-width: 250px;
+        }
+        .li-content{
+          flex: 1;
+        }
+        /deep/.li-content {
+          padding: @layout-space-base;
+          padding-left: 0;
+          & .pzwh {
+            top: 0;
+            display: inline-block;
+            vertical-align: middle;
+          }
+          & .pzwh .ant-input {
+            border: none;
+            height: 30px;
+          }
+          & span.pzwh.ant-input-group {
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+          }
+          & span.ant-input-group-addon {
+            border: none;
+            background: none;
+            padding: 0 4px;
+          }
+        }
+        .li-button {
+          padding: @layout-space-base;
+          padding-left: 0;
+        }
+        .name {
+          line-height: 32px;
+          padding-right: 5px;
+        }
+      }
+    }
+  }
+  .tablelist {
+    background: #ffffff;
+    flex: 1;
+    padding: @layout-space-base @content-padding-h;
+    margin: @layout-space-base;
+    margin-top: 0;
+    /deep/.ant-table-fixed-header .ant-table-scroll .ant-table-header {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      overflow-y: visible;
+    }
+    /deep/.ant-table-body {
+      overflow-y: auto !important;
+    }
+    & ul.ant-pagination {
+      float: right;
+      margin-top: 10px;
+    }
+    /deep/.ant-table-tbody {
+      & > tr > td {
+        max-width: 160px;
+        overflow: hidden;
+        word-break: keep-all;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      & tr td:last-child span {
+        margin-right: 8px;
+        cursor: pointer;
+        color: @primary-color;
+      }
+    }
+  }
+}
+</style>

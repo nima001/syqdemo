@@ -1,0 +1,340 @@
+<template>
+  <div>
+    <Title title="编制资源分析"/>
+    <div class="container" style="height:545px">
+      <SwiperChart :size="200">
+        <div slot="content">
+          <div class="swiper-content">
+            <div class="detail">
+              <div class="title">党政群待分配数</div>
+              <div class="num" @click="()=>{this.show = true}">{{data.dzqbzdfps||0}}</div>
+              <div class="total">省核定基数<span>{{data.dzqbzsdjs||0}}</span></div>
+              <div class="total">实际分配数<span>{{data.dzqbzsjfps||0}}</span></div>
+            </div>
+            <div class="detail">
+              <div class="title">党政群空编数</div>
+              <div class="num" @click="()=>{this.show = true}">{{data.dzqbzkbs||0}}</div>
+              <div class="total">省核定基数<span>{{data.dzqbzsdjs||0}}</span></div>
+              <div class="total">实有人数<span>{{data.dzqbzsyrs||0}}</span></div>
+            </div>
+            <div class="detail">
+              <div class="title">政法待分配数</div>
+              <div class="num" @click="()=>{this.show = true}">{{data.zfzxbzdfps||0}}</div>
+              <div class="total">省核定基数<span>{{data.zfzxbzsdjs||0}}</span></div>
+              <div class="total">实际分配数<span>{{data.zfzxbzsjfps||0}}</span></div>
+            </div>
+            <div class="detail">
+              <div class="title">政法空编数</div>
+              <div class="num" @click="()=>{this.show = true}">{{data.zfzxbzkbs||0}}</div>
+              <div class="total">省核定基数<span>{{data.zfzxbzsdjs||0}}</span></div>
+              <div class="total">实有人数<span>{{data.zfzxbzsyrs||0}}</span></div>
+            </div>
+          </div>
+          <div class="chart-detail">
+            <RingChart
+              :data="dataXz"
+              :settings="{
+                title: '行政编制分布情况',
+                padding: [-10,0,0,-40],
+                canvas: { width: 400, height: 150 },
+                legend: {
+                  visible: true,
+                  layout: 'horizontal',
+                  position: 'right',
+                  flipPage: false,
+                  offsetX: -80,
+                  offsetY: -30,
+                  marker: 'square',
+                },
+                radius: 0.75,
+                innerRadius: 0.8,
+                infoText: {
+                  title: dataXz.rows?dataXz.rows[0].k0:undefined,
+                  offsetY: -20,
+                  style: { fontSize: 13, fill: '#fff', textAlign: 'center' },
+                },
+                contentStyle: {
+                  offsetY: 10,
+                  fontSize: 25, fill: '#fff', textAlign: 'center'
+                }
+              }"
+            />
+          </div>
+          <div class="bottom-total">
+            <div class="total-user">
+              <img src="../../../assets/img/screen/icon-user.png">
+              编外人员数
+            </div>
+            <div class="total-num">
+              <LcdFont :length="7" :realNumber="data.bwrysysxz" :realStyle="realStyle" :fakeStyle="fakeStyle"/>
+            </div>
+          </div>
+        </div>
+        <div slot="content">
+          <div class="swiper-content">
+            <div class="detail">
+              <div class="title">事业待分配数</div>
+              <div class="num" @click="()=>{this.show = true}">{{data.sybzdfps||0}}</div>
+              <div class="total">省核定基数<span>{{data.sybzsdjs||0}}</span></div>
+              <div class="total">实际分配数<span>{{data.sybzsjfps||0}}</span></div>
+            </div>
+            <div class="detail">
+              <div class="title">事业空编数</div>
+              <div class="num" @click="()=>{this.show = true}">{{data.sybzkbs||0}}</div>
+              <div class="total">省核定基数<span>{{data.sybzsdjs||0}}</span></div>
+              <div class="total">实有人数<span>{{data.sybzsyrs||0}}</span></div>
+            </div>
+            <div class="detail">
+              <div class="title">报备员额空额数</div>
+              <div class="num" @click="()=>{this.show = true}">{{data.bbyekes||0}}</div>
+              <div class="total">省核定基数<span>{{data.bbyehds||0}}</span></div>
+              <div class="total">实际分配数<span>{{data.bbyesyrs||0}}</span></div>
+            </div>
+          </div>
+          <div class="chart-detail">
+            <RingChart
+              :data="dataSy"
+              :settings="{
+                title: '事业编制(报备员额)分布情况',
+                padding: [-10,0,0,-40],
+                canvas: { width: 400, height: 150 },
+                legend: {
+                  visible: true,
+                  layout: 'horizontal',
+                  position: 'right',
+                  flipPage: false,
+                  offsetX: -80,
+                  offsetY: -30,
+                  marker: 'square',
+                },
+                radius: 0.75,
+                innerRadius: 0.8,
+                infoText: {
+                  title: dataSy.rows?dataSy.rows[0].k0:undefined,
+                  offsetY: -20,
+                  style: { fontSize: 13, fill: '#fff', textAlign: 'center' },
+                },
+                contentStyle: {
+                  offsetY: 10,
+                  fontSize: 25, fill: '#fff', textAlign: 'center'
+                }
+              }"
+            />
+          </div>
+          <div class="bottom-total">
+            <div class="total-user">
+              <img src="../../../assets/img/screen/icon-user.png">
+              编外人员数
+            </div>
+            <div class="total-num">
+              <LcdFont :length="7" :realNumber="data.bwrysyssy" :realStyle="realStyle" :fakeStyle="fakeStyle"/>
+            </div>
+          </div>
+        </div>
+      </SwiperChart>
+    </div>
+    <!-- <KongBianDetail v-model="show" v-bind="detail" /> -->
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+import SwiperChart from './SwiperChart'
+import RingChart from "@person/components/chart/RingChart";
+import LcdFont from './LcdFont';
+import KongBianDetail from './KongBianDetail';
+import { areaStatistics } from '@/person-shaoxing/api/orgStaffReport'
+import { staffAnalyzeSy, staffAnalyzeXz } from '../../../api/analyze';
+import { showError } from '../../../../framework/utils';
+
+export default {
+  props: {
+    districtCode: {
+      type: String
+    }
+  },
+  components: {
+    Title,
+    SwiperChart,
+    RingChart,
+    LcdFont,
+    KongBianDetail
+  },
+  data(){
+    return {
+      dataXz: {},
+      dataSy: {},
+      data: {},
+      detail: {
+        num: 20,
+        total: 30,
+        used: 10,
+        unittypes: undefined,
+        field: undefined
+      },
+      show: false,
+      realStyle: {
+        color: "#01E3FC",
+        textStroke: "1 #ECA066",
+        opacity: 0.95,
+        fontSize: '1.8em',
+      },
+      fakeStyle: {
+        fontSize: '1.8em',
+      }
+    }
+  },
+  watch: {
+    districtCode(val) {
+      this.getStaffData(val);
+      this.loadData(val);
+      return val;
+    }
+  },
+  methods: {
+    loadData(val) {
+      staffAnalyzeXz(val).then(({result})=>{
+        this.dataXz = result;
+      }).catch(error=>{
+        showError(error);
+      })
+      staffAnalyzeSy(val).then(({result})=>{
+        this.dataSy = result;
+      }).catch(error=>{
+        showError(error);
+      })
+    },
+    getStaffData(district){
+      areaStatistics(district, [
+        'dzqbzdfps', 'dzqbzkbs',
+        'zfzxbzdfps', 'zfzxbzkbs',
+        'dzqbzsdjs', 'dzqbzsjfps',
+        'zfzxbzsdjs', 'zfzxbzsjfps',
+        'dzqbzsyrs', 'zfzxbzsyrs',
+        'sybzdfps', 'sybzkbs',
+        'bbyekes', 'sybzsyrs',
+        'sybzsjfps', 'bbyehds',
+        'bbyesyrs', 'sybzsdjs',
+        'bwrysysxz', 'bwrysyssy'
+      ]).then(({result}) => {
+        this.data = result;
+      }).catch(error => {
+        showError(error)
+      });
+    },
+  }
+}
+</script>
+
+<style scoped lang='less'>
+@font-face {
+  font-family: LESLIEB;
+  src: url("../../../assets/img/screen/LESLIEB_.TTF") format("truetype");
+}
+.container {
+  /deep/.ant-carousel {
+    display: flex;
+    justify-content: center;
+    .slick-slider {
+      width: 95%;
+      padding: 0 @layout-space-base;
+      .slick-slide {
+        padding: @layout-space-base 0;
+        background: fade(#000, 30%);
+      }
+    }
+  }
+  /deep/.swiper-content {
+    display: flex;
+    flex-wrap: wrap;
+    .detail {
+      width: 48%;
+      margin-top: @layout-space-base;
+      margin-bottom: @layout-space-base;
+      margin-left: 5px;
+      &:nth-child(2n-1) .title {
+        background: url('../../../assets/img/screen/head-top-left.png') no-repeat;
+        background-size: 100% 100%;
+      }
+      &:nth-child(2n) .title {
+        background: url('../../../assets/img/screen/head-top-right.png') no-repeat;
+        background-size: 100% 100%;
+      }
+      .title {
+        margin: 0;
+        padding: @padding-xs/2 36px;
+        font-size: 1em;
+        color: #fff;
+      }
+      .num {
+        font-family: LESLIEB;
+        padding: 0 @padding-lg;
+        text-align: center;
+        font-size: 1.3em;
+        font-weight: 500;
+        cursor: pointer;
+        color: #01E3FC;
+      }
+      .total {
+        padding: 0 @padding-lg 0 @padding-lg;
+        font-size: 0.8em;
+        color: fade(#fff, 80%);
+        span {
+          float: right;
+        }
+      }
+    }
+  }
+  .chart-detail {
+    padding-top: @padding-sm;
+    background: url('../../../assets/img/screen/icon-division.png') no-repeat;
+    .ring-chart {
+      height: auto;
+      // background: url('../../../assets/img/screen/pie-bg.png') no-repeat;
+      background-size: 39%;
+      background-position: 22.5% 98%;
+    }
+    /deep/.ring-chart {
+      h2 {
+        font-weight: 100;
+        font-size: 1.1em;
+        color: #fff;
+      }
+      & .chart canvas {
+        position: relative;
+        ::before {
+          content: '';
+          position: absolute;
+          top: 0%;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: #000;
+        }
+      }
+    }
+  }
+  .bottom-total {
+    padding-top: @padding-sm;
+    background: url('../../../assets/img/screen/icon-division.png') no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    .total-user {
+      width: 60%;
+      padding: @padding-xs;
+      color: #fff;
+      font-size: 1.1em;
+      background: url('../../../assets/img/screen/icon-user-background.png') no-repeat;
+      background-size: 100%;
+      img {
+        margin-right: @layout-space-base;
+        display: inline-block;
+      }
+    }
+    .total-num {
+      margin-right: @layout-space-base;
+    }
+  }
+}
+</style>

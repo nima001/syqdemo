@@ -1,0 +1,288 @@
+<template>
+  <div class="business-center">
+    <div class="header">
+      <div class="search">
+        <a-input-search v-model.trim="inputkey"
+          allowClear
+          @search="onSearch"
+          style="width: 600px" class="search-input" size="large" 
+          placeholder="请输入单位名称/人员姓名/身份证号"
+        >
+          <a-button slot="enterButton" class="search-btn">
+            <a-icon :type="loading ? 'loading' : 'search'" />搜索
+          </a-button>
+        </a-input-search>
+        <UserOrgQueryModal v-model="searchkey" @loaded="loading = false"/>
+      </div>
+    </div>
+    <div class="panel widget apps">
+      <div class="title">业务系统</div>
+      <div class="content">
+        <div class="item" v-for="item in apps" :key="item.id">
+          <div class="app card" @click="onAppClick(item)">
+            <CustomIcon class="icon" :type="item.icon"/>
+            <div class="text">{{item.text}}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel body">
+      <div class="left">
+        <div class="widget">
+          <div class="title">工作任务<router-link to="/person/worktask/work" v-if="hasPermit('/person/worktask')">更多<a-icon type="right"/></router-link></div>
+          <work-task class="content" />
+        </div>
+        <div class="widget">
+          <div class="title">常用业务</div>
+          <StarMenu class="content" />
+        </div>
+        <div class="widget">
+          <div class="title">事项办理</div>
+          <business class="content" />
+        </div>
+      </div>
+      <div class="right">
+        <div class="widget message">
+          <div class="title">我的消息<router-link to="/main/message">更多<a-icon type="right"/></router-link></div>
+          <new-message class="content" />
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Icon, Button, Input } from 'ant-design-vue'
+import UserOrgQueryModal from '@person/widgets/components/UserOrgQueryModal'
+import CustomIcon from "@framework/components/CustomIcon";
+import WorkTask from './components/WorkTask'
+import NewMessage from './components/NewMessage'
+import StarMenu from '@framework/widgets/StarMenu'
+import Business from './components/Business'
+
+/**
+ * 业务办理
+ */
+export default {
+  components: {
+    AInputSearch: Input.Search,
+    AButton: Button,
+    AIcon: Icon,
+    CustomIcon,
+    UserOrgQueryModal,
+    WorkTask,
+    NewMessage,
+    StarMenu,
+    Business,
+  },
+  data(){
+    return {
+      loading: false,
+      inputkey: undefined,
+      searchkey: undefined,
+      messageList: undefined,
+      apps: [
+        { 
+          id: 'smz', 
+          icon: 'idcard', 
+          text: '实名制',
+          url: 'sxsbbxx'
+        },
+        { 
+          id: 'xtbg',
+          icon: 'letter', 
+          text: '协同办公',
+          url: 'sxxtbg'
+        },
+        { 
+          id: 'np', 
+          icon: 'run-man', 
+          text: '内跑平台',
+          url: 'sxnppt'
+        },
+        { 
+          id: 'djgl', 
+          icon: 'edit', 
+          text: '事登系统',
+          url: 'ssdxt'
+        },
+        { 
+          id: 'qlqd', 
+          icon: 'cachet', 
+          text: '权力事项',
+          url: 'sxqlsx'
+        },
+      ],
+    }
+  },
+  computed: {
+    idmUrl(){
+      return this.$store.getters.getConfig('idm.url');
+    }
+  },
+  created(){
+    // this.loadMessage();
+  },
+  methods: {
+    onSearch(){
+      this.loading = !!this.inputkey;
+      this.searchkey = this.inputkey;
+    },
+    onAppClick(app){
+      let url = app.url;
+      if(url){
+        if(url.startsWith('http:') || url.startsWith('https:')){
+          window.open(url);
+        }else if(this.idmUrl){
+          window.open(this.idmUrl + '/sso/login?servicecode=' + app.url);
+        }
+      }
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.business-center{
+  background-color: #EEF2F5;
+  height: 100%;
+  min-width: 1300px;
+  overflow-y: auto;
+  .panel{
+    width: 1200px;
+    margin: auto;
+    margin-bottom: 20px;
+    .title{
+      line-height: 1em;
+      font-size: 18px;
+      padding: 20px 0;
+      &::before{
+        content: '';
+        display: inline-block;
+        width: 4px;
+        height: 1em;
+        margin-right: 10px;
+        vertical-align: -0.12em;
+        background-color: @primary-color;
+      }
+      a{
+        float: right;
+        font-size: @font-size-base;
+        color: @primary-color;
+      }
+    }
+  }
+  .content{
+    background: white;
+    border-radius: @border-radius-base;
+  }
+  .card{
+    border-radius: @border-radius-base;
+    // box-shadow: 0px 0px 10px -2px #dad9d9;
+    background-color: white;
+    transition: all .2s cubic-bezier(.645,.045,.355,1);
+    &:hover{
+      // box-shadow: 2px 2px 15px 0px #dad9d9;
+      box-shadow: 1px 1px 15px -9px #1B5293;
+    }
+  }
+  .header{
+    background: linear-gradient(to bottom, rgba(55, 162, 234, 0.4) 50%, rgba(27, 81, 147, 0.4));
+    position: relative;
+    height: 130px;
+    .search{
+      position: absolute;
+      left: 50%;
+      width: 1200px;
+      height: 150px;
+      margin-left: -600px;
+      background-image: url('../../assets/img/bg-business-head.png');
+      background-repeat: no-repeat;
+      .search-input{
+        margin-top: 45px;
+      }
+      .search-btn{
+        background-color: @primary-2;
+        color: @primary-color;
+        border: none;
+      }
+    }
+  }
+  .body{
+    display: flex;
+    & > .left{
+      flex: auto;
+    }
+    & > .right{
+      flex: none;
+      width: 400px;
+      margin-left: 20px;
+    }
+  }
+  .apps > .content{
+    margin: -10px;
+    overflow: hidden;
+    background: unset;
+    .item{
+      width: 20%;
+      float: left;
+      padding: 10px;
+      & > div{
+        display: flex;
+        height: 100px;
+        padding: 10px 30px;
+        cursor: pointer;
+        .icon{
+          flex: none;
+          width: 48px;
+          height: 48px;
+          margin: 10px;
+          align-self: center;
+          padding: 8px;
+          border-radius: 24px;
+        }
+        .text{
+          align-self: center;
+          font-size: 1.1em;
+        }
+      }
+    }
+    .item:nth-child(1){
+      .icon{
+        color:#64a5f1;
+        background-color: fade(#64a5f1, 15%);
+      }
+    }
+    .item:nth-child(2){
+      .icon{
+        color:#ea9744;
+        background-color: fade(#ea9744, 15%);
+      }
+    }
+    .item:nth-child(3){
+      .icon{
+        color:#4da556;
+        background-color: fade(#4da556, 15%);
+      }
+    }
+    .item:nth-child(4){
+      .icon{
+        color:#a197d4;
+        background-color: fade(#a197d4, 15%);
+      }
+    }
+    .item:nth-child(5){
+      .icon{
+        color:#f06364;
+        background-color: fade(#f06364, 15%);
+      }
+    }
+  }
+  .message{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    & > .content{
+      flex: auto;
+    }
+  }
+}
+</style>

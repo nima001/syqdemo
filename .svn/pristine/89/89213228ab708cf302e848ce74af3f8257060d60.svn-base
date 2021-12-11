@@ -1,0 +1,146 @@
+<template>
+  <div class="logWrap">
+    <div class="top">
+      <a-input
+        allowClear
+        v-model="namelike"
+        placeholder="请输入操作内容"
+        @pressEnter="getChangLog"
+        :style="{width:'200px'}"
+      />
+      <a-button type="primary" @click="getChangLog">搜索</a-button>
+      <a-button type="primary" @click="resetsearch">重置</a-button>
+    </div>
+    <div class="middle">
+      <a-table
+        rowKey="id"
+        :loading="loading"
+        :columns="columns"
+        :data-source="dataSource"
+        :pagination="false"
+      ></a-table>
+    </div>
+    <div class="bottom">
+      <a-pagination
+        :total="pagination.total"
+        :showSizeChanger="true"
+        @showSizeChange="onShowSizeChange"
+        :page-size-options="pageSizeOptions"
+        :pageSize="pagination.pagesize"
+        v-model="pagination.pagenum"
+        @change="onPageChange"
+        :showTotal="(total) => `总共：${total}条`"
+      />
+    </div>
+  </div>
+</template>
+<script>
+import { Button, Input, Table, Pagination } from "ant-design-vue";
+import { operationlog } from "@/dev/api/app";
+import { showError } from "@/framework/utils";
+export default {
+  components: {
+    AButton: Button,
+    AInput: Input,
+    ATable: Table,
+    APagination: Pagination
+  },
+  data() {
+    return {
+      namelike: undefined,
+      columns: [
+        {
+          title: "操作对象",
+          dataIndex: "operation",
+          width: "15%"
+        },
+        {
+          title: "操作内容",
+          dataIndex: "desc",
+          width: "40%"
+        },
+        {
+          title: "操作人",
+          dataIndex: "createuser",
+          width: "25%"
+        },
+        {
+          title: "操作时间",
+          dataIndex: "createtime",
+          width: "20%"
+        }
+      ],
+      dataSource: [],
+      pageSizeOptions: ["10", "20", "30", "40", "50"],
+      loading: false,
+      pagination: {
+        pagesize: 10,
+        pagenum1: 1,
+        total: 0,
+        needtotal:true
+      }
+    };
+  },
+  created() {
+    this.getChangLog();
+  },
+  methods: {
+    getChangLog() {
+      this.loading = true;
+      operationlog({ appid: this.$route.query.id,desc: this.namelike,orders: [{orderby: "createtime",ordertype: "DESC"}],...this.pagination})
+        .then(res => {
+          let { pagenum, pagesize, rows, total } = res.result;
+          this.pagination.pagenum = pagenum;
+          this.pagination.pagesize = pagesize;
+          this.pagination.total = total;
+          this.dataSource = rows;
+        })
+        .catch(err => {
+          showError(err);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    },
+    onPageChange(page, pageSize) {
+      this.pagination.pagenum = page;
+      this.getChangLog();
+    },
+    onShowSizeChange(current, size) {
+      this.pagination.pagenum = 1;
+      this.pagination.pagesize = size;
+      this.getChangLog();
+    },
+    resetsearch() {
+      this.pagesize = 10;
+      this.pagenum = 1;
+      this.namelike = "";
+      this.getChangLog();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.logWrap {
+  height: 100%;
+  padding: @content-padding-v @content-padding-h;
+  display: flex;
+  flex-direction: column;
+  .top {
+    padding: @content-padding-v auto 0px;
+    text-align: right;
+    button {
+      margin-left: @layout-space-base;
+    }
+  }
+  .middle {
+    padding: @content-padding-v 0px;
+    flex-shrink: 1;
+    overflow-y: auto;
+  }
+  .bottom {
+    text-align: right;
+    padding: @content-padding-v 0px;
+  }
+}
+</style>

@@ -1,0 +1,487 @@
+<template>
+  <div class="layout">
+    <a-spin :spinning="spinning">
+      <div>
+        <div class="top">
+          <a-form :form="taskForm" :label-col="{ span: 4 }" :wrapper-col="{ span: 10 }" >
+            <a-form-item label="标题">
+              <a-input placeholder="请输入标题" allowClear v-decorator="['title', { rules: [{ required: true, message: '请输入标题!' }] } ]"/>
+            </a-form-item>
+            <a-form-item label="分类">
+              <ul class="category">
+                <li v-for="item in taskcategory"  :key="item.key" @click="changeCate(item.value)"><span :class="{'active': isCateActive(item.value)}">{{item.text}}</span></li>
+              </ul>
+            </a-form-item>
+            <a-form-item label="任务类型">
+              <ul class="category">
+                <li v-for="item in tasktypeList"  :key="item.key" @click="changeType(item.value)"><span :class="{'active': isTypeActive(item.value)}">{{item.text}}</span></li>
+              </ul>
+            </a-form-item>
+            <a-form-item label="任务说明">
+              <a-textarea allowClear :rows="4" placeholder="请输入任务内容" v-decorator="['content']"></a-textarea>
+            </a-form-item>
+            <a-form-item label="附件">
+              <a-upload
+                name="file"
+                :multiple="true"
+                :before-upload="beforeUpload"
+                :file-list="this.fileList"
+                :remove="remove"
+                @change="changefile"
+              >
+                <a-button type="primary" icon="upload" ghost>上传</a-button>
+              </a-upload>
+            </a-form-item>
+            <a-row>
+              <a-col :span="9">
+                <a-form-item label="主办处室" class="horizontal" :label-col="{ span: 6 }" :wrapper-col="{ span: 10 }">
+                  <a-select allowClear placeholder="--请选择科室--"  v-decorator="['orgid', { rules: [{ required: true, message: '请选择科室!' }] }]">
+                    <a-select-option v-for="item in orgs" :value="item._id" :key="item._id">
+                      {{item.name}}
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+              <a-col :span="9" class="horizontal-person">
+                <a-form-item  label="主办人" :label-col="{ span: 6 }" :wrapper-col="{ span: 10 }">
+                  <a-input
+                    :read-only="true"
+                    :class="{'mouseover': over}"
+                    placeholder="请选择主办人"
+                    v-decorator="[ 'createusername', {rules: [{ required: true, message: '请选择主办人'}]}]"
+                    @mouseover.prevent="mouseover()"
+                    @mouseleave.prevent="mouseleave()"
+                    @click="showSelectUser = true"
+                  >
+                    <a-icon v-if="!search.createusername" slot="suffix" type="user" />
+                    <a-icon v-else slot="suffix" class="clear-user" theme="filled" type="close-circle" @mouseover.prevent="mouseover()" @click="clear" />
+                  </a-input>
+                  <a-modal
+                    v-model="showSelectUser"
+                    :title="'请选择主办人'"
+                    :footer="null"
+                    :width="500"
+                    :bodyStyle="{ height: '600px', padding: '0' }"
+                  >
+                    <org-user-select
+                      mode="user"
+                      :selected.sync="selected"
+                      :maxSelect="1"
+                      defaultRoot="04e19e21ed48425b8aa3f17a0015452f"
+                      @finish="onUserSelected"
+                    />
+                  </a-modal>
+                </a-form-item>
+              </a-col>
+              <a-col :span="9">
+                <a-form-item label="协办处室" class="horizontal" :label-col="{ span: 6 }" :wrapper-col="{ span: 10 }">
+                  <a-select allowClear placeholder="--请选择科室--"  v-decorator="['joinorgid']">
+                    <a-select-option v-for="item in orgs" :value="item._id" :key="item._id">
+                      {{item.name}}
+                    </a-select-option>
+                  </a-select>
+                </a-form-item>
+              </a-col>
+              <a-col :span="9" class="horizontal-person">
+                <a-form-item label="协办人" :label-col="{ span: 6 }" :wrapper-col="{ span: 10 }">
+                  <UserSelect :search.sync="search" :title="'请选择协办人'" :name="'joinusername'" :value="'joinid'" @changesearch="changesearch"/>
+                </a-form-item>
+              </a-col>
+            </a-row>
+            <a-form-item :wrapper-col="{ span: 24 }" style="margin: 0;">
+              <addAssister :search="search" :span="9" :horizontal="true" @changesearch="changesearch"/>
+            </a-form-item>
+            <a-form-item label="截止时间">
+              <a-date-picker allowClear style="width: 50%" v-decorator="['deadtime']"/>
+            </a-form-item>
+            <a-form-item label="相关领导">
+              <UserSelect :search.sync="search" :alwaysMulti="true" :maxSelect="100" :title="'请选择相关领导'" :name="'leadname'" :value="'leadid'" @changesearch="changesearch"/>
+            </a-form-item>
+          </a-form>
+        </div>
+        <div class="footer">
+          <a-button @click="onSubmit">发布</a-button>
+        </div>
+      </div>
+    </a-spin>
+  </div>
+</template>
+<script>
+
+/**
+ * 发布任务表单
+ */
+import { Form, Input, Select, Upload, Button, Modal, DatePicker, Row, Col, Spin, Icon } from 'ant-design-vue';
+import OrgUserSelect from '@person/components/OrgUserSelect';
+import UserSelect from './components/UserSelect';
+import addAssister from './components/addAssister';
+import { has } from 'lodash';
+import { orgquery } from '@/person/api/org';
+import { uploadV2 } from "@/framework/api/file";
+import { showError } from '@/framework/utils';
+import { save } from "@/person-shaoxing/api/workTask";
+export default {
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATextarea: Input.TextArea,
+    AUpload: Upload,
+    AButton: Button,
+    AModal: Modal,
+    OrgUserSelect,
+    ADatePicker: DatePicker,
+    ARow: Row,
+    ACol: Col,
+    ASpin: Spin,
+    AIcon: Icon,
+    UserSelect,
+    addAssister,
+  },
+  data() {
+    return {
+      selected: [],
+      over: false,
+      orgs: undefined,
+      categoryActive: 1,
+      TypeActive: 1,
+      fileList: [],
+      uploadid: '',
+      spinning: false,
+      showSelectUser: false,
+      taskForm: this.$form.createForm(this,{ name: 'taskForm' }),
+      search: {
+        leadid: undefined,
+        leadname: undefined,
+        joinid: undefined,
+        joinusername: undefined,
+        createuser: undefined,
+        createusername: undefined,
+        orgs: undefined,
+      }
+    }
+  },
+  computed: {
+    taskcategory() {
+      return this.$store.getters.dict('person.work.taskcategory');
+    },
+    tasktypeList(){
+      return this.$store.getters.dict('person.work.tasktype');
+    },
+  },
+  watch: {
+    search: {
+      deep: true,
+      handler(val) {
+        return val;
+      }
+    }
+  },
+  mounted() {
+    this.orgQuery();
+  },
+  methods: {
+    mouseover() {
+      this.over = true;
+    },
+    mouseleave() {
+      this.over = false;
+    },
+    clear() {
+      this.search.createusername = undefined;
+      this.search.createuser = undefined;
+      this.selected = [];
+      this.taskForm.setFieldsValue({'createusername': undefined});
+    },
+    changesearch(name,value,id,username) {
+      this.$set(this.search,name,username);
+      this.$set(this.search,value,id);
+      this.search = Object.assign({},this.search);
+    },
+    remove(file) {
+      let index = this.fileList.indexOf(file);
+      this.fileList.splice(index,1);
+      let array = this.uploadid.split(',');
+      array.splice(index,1);
+      if(array.length) {
+        this.uploadid = array.join(',');
+      }else{
+        this.uploadid = '';
+      }
+    },
+    reset() {
+      this.taskForm.resetFields();
+      this.fileList = [];
+      this.uploadid = '';
+      this.categoryActive = 1,
+      this.TypeActive = 1,
+      this.search = {
+        leadid: undefined,
+        leadname: undefined,
+        joinid: undefined,
+        joinusername: undefined,
+        createuser: undefined,
+        createusername: undefined,
+        orgs: this.orgs,
+      };
+    },
+    onUserSelected(type, list){
+      if(type == 'ok'){
+        let { _id, username } = list[0];
+        if(this.showSelectUser){
+          this.search.createuser = _id;
+          this.search.createusername = username;
+          if(!this.isrepeat(_id)) {
+            this.taskForm.setFieldsValue({'createusername': this.search.createusername});
+          }
+        }
+      }
+      this.showSelectUser = false;
+    },
+    isrepeat(id) {
+      let result =false;
+      Object.keys(this.search).forEach((item)=> {
+        if(item!=='createuser'&&id===this.search[item]) {
+          this.$notification.warning({
+            message: '提示',
+            description: '同一个用户不能既是主办人又是协办人！',
+            duration: 3,
+          })
+          this.clear();
+          result = true;
+        }
+      });
+      return result;
+    },
+    notify(val) {
+      this.$notification.warning({
+        message: "提示",
+        description: val,
+        duration: 3,
+      });
+    },
+    success(val) {
+      this.$notification.success({
+        message: "提示",
+        description: val,
+        duration: 3,
+      });
+    },
+    beforeUpload(file) {
+      return false;
+    },
+    changeType(val) {
+      this.TypeActive = val;
+    },
+    isTypeActive(val) {
+      if(this.TypeActive === val) {
+        return true;
+      }
+      return false;
+    },
+    changeCate(val) {
+      this.categoryActive = val;
+    },
+    isCateActive(val) {
+      if(this.categoryActive === val) {
+        return true;
+      }
+      return false;
+    },
+    onSubmit() {
+      this.taskForm.validateFields((err, values) => {
+        if(!err) {
+          let data = {};
+          data.title = values.title;
+          data.category = this.categoryActive;
+          data.tasktype = this.TypeActive;
+          data.content = values.content;
+          data.deadtime = values.deadtime;
+          data.contenttype = 1;
+          data.assistusers = undefined;
+          if(values.orgid&&this.search.createuser) {
+            data.mainuserid = this.search.createuser;
+            data.mainorgid = values.orgid;
+          }
+          if(values.joinorgid&&this.search.joinid) {
+            data.assistusers = [];
+            data.assistusers.push(
+              {
+                orgid: values.joinorgid, 
+                userid: this.search.joinid,
+              }
+            )
+          }
+          let keys = Object.keys(this.search).filter((item)=>item.indexOf('joinid')>=0);
+          if(keys.length>0) {
+            for(let i =1; i<=keys.length-1; i++) {
+              if(values[`orgid${i}`]&&this.search[`joinid${i}`]) {
+                if(!data.assistusers) {
+                  data.assistusers = [];
+                }
+                data.assistusers.push({orgid: values[`orgid${i}`],  userid: this.search[`joinid${i}`] });
+              }
+            }
+          }
+          if(this.search.leadid) {
+            data.leaders = `${this.search.leadid}`;
+          }
+          data.attachments =  this.uploadid!==''?this.uploadid:undefined;
+          this.Save(data);
+        }
+      })
+    },
+    changefile(info) {
+      if(!has(info.file,'status')) {
+        this.fileList = info.fileList;
+        if(this.fileList.length){
+          this.spinning = true;
+          uploadV2(info.file)
+          .then((res) => {
+            this.spinning = false;
+            if (res.data.code==='success') {
+              this.success("文件上传成功!");
+              if(this.uploadid) {
+                this.uploadid+=`,${res.data.result.uploadid}`;
+              }else{
+                this.uploadid+=`${res.data.result.uploadid}`;
+              }
+            }else{
+              this.notify("文件上传失败!");
+              this.uploadid = '';
+            }
+          })
+          .catch((err) => {
+            this.spinning = false;
+            this.uploadid = '';
+            showError(err);
+          });
+        }
+      }
+    },
+    //查询下设
+    orgQuery() {
+       orgquery({
+        pagesize: 50,
+        suporgid: "04e19e21ed48425b8aa3f17a0015452f",
+        unittypes: [9],
+      }).then((res)=>{
+        this.search.orgs = res.result.rows;
+        this.orgs = res.result.rows;
+      }).catch((err)=> {
+        showError(err);
+      });
+    },
+    Save(data) {
+      this.spinning = true;
+      save(data).then((res)=>{
+        this.spinning = false;
+        if(res.code==='success') {
+          this.success("任务发布成功!");
+        }else{
+          this.notify("任务发布失败!");
+        }
+        this.reset();
+      }).catch((err)=>{
+        this.spinning = false;
+        showError(err);
+      })
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.layout{
+  height: 100%;
+  padding: 10px;
+  border-radius: @border-radius-base;
+  background: white;
+  position: relative;
+  /deep/.ant-spin-nested-loading {
+    height: 100%;
+    .ant-spin-container {
+      height: 100%;
+      & > div {
+        height: 100%;
+      }
+    }
+  }
+  .top {
+    height: 100%;
+    overflow: scroll;
+    /deep/.ant-form {
+      margin-top: 10px;
+      margin-bottom: 9%;
+      #taskForm_content {
+        resize: none;
+      }
+      i.clear-user {
+        opacity: 0;
+        font-size: 12px;
+        transition: opacity .3s;
+        color: transparent;
+      }
+      i.anticon-close-circle {
+        font-size: 13px;
+        color: rgba(0, 0, 0, 0.35);
+      }
+      .mouseover i.clear-user {
+        opacity: 1;
+        cursor: pointer;
+        color: rgba(0, 0, 0, .25);
+      }
+      textarea#taskForm_content {
+        resize: none;
+      }
+      .category {
+        display: flex;
+        margin: 0;
+        li {
+          span {
+            padding: 5px 10px;
+            text-align: center;
+            border: 1px solid #e8e8e8;
+            border-radius: @border-radius-base;
+            margin-right: 10px;
+            transition: all .3s;
+            cursor: pointer;
+            user-select: none;
+          }
+          span.active {
+            color: white;
+            background: @primary-color;
+            border: 1px solid @primary-color;
+          }
+        }
+      }
+      .horizontal {
+        margin-left: 26%;
+      }
+      .horizontal-person {
+        position: relative;
+        left: -12%;
+      }
+    }
+  }
+  .footer {
+    position: fixed;
+    left: @layout-space-base;
+    right: @layout-space-base;
+    bottom: @layout-space-base;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 -1px 5px 5px #dadada;
+    background: white;
+    z-index: 999;
+    .ant-btn {
+      padding: 0 25px;
+      color: white;
+      margin-left: 20%;
+      background: @primary-color;
+    }
+  }
+}
+</style>

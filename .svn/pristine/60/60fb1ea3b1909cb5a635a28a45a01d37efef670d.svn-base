@@ -1,0 +1,211 @@
+<template>
+  <div class="wrap">
+    <a-spin :spinning="loading">
+      <div class="list">
+        <span class="title">行政机构</span>
+        <ul>
+          <li>
+            <div class="top">
+              <span class="img">
+                <img src="@/person-shaoxing/assets/img/icon-monitor-increase.png" />
+              </span>
+              <span class="text">限额</span>
+            </div>
+            <div class="num">{{org_limit}}</div>
+          </li>
+          <li>
+            <div class="top">
+              <span class="img">
+                <img src="@/person-shaoxing/assets/img/icon-monitor-reduce.png" />
+              </span>
+              <span class="text">实有</span>
+            </div>
+            <div class="num-right">{{org_real}}</div>
+          </li>
+        </ul>
+      </div>
+      <div class="list">
+        <span class="bottom">事业单位</span>
+        <ul>
+          <li>
+            <div class="top">
+              <span class="img">
+                <img src="@/person-shaoxing/assets/img/icon-monitor-increase.png" />
+              </span>
+              <span class="text">限额</span>
+            </div>
+            <div class="num">{{sy_limit}}</div>
+          </li>
+          <li>
+            <div class="top">
+              <span class="img">
+                <img src="@/person-shaoxing/assets/img/icon-monitor-reduce.png" />
+              </span>
+              <span class="text">实有</span>
+            </div>
+            <div class="num-right">{{sy_real}}</div>
+          </li>
+        </ul>
+      </div>
+    </a-spin>
+  </div>
+</template>
+
+<script>
+import { orgCountReport } from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@framework/utils";
+import { Spin } from "ant-design-vue";
+// 全市机构限额
+export default {
+  data() {
+    return {
+      key: [
+        "_id@organization.statistic.dzhgzl_xe",
+        "_id@organization.statistic.dzjgzl_sy",
+        "_id@organization.statistic.syjg_xe",
+        "_id@organization.statistic.syjg_sy"
+      ],
+      org_limit: undefined,
+      org_real: undefined,
+      sy_limit: undefined,
+      sy_real: undefined,
+      loading: true
+    };
+  },
+  components: {
+    ASpin: Spin
+  },
+  mounted() {
+    orgCountReport()
+      .then(res => {
+        this.createData(res.result);
+      })
+      .catch(err => {
+        showError;
+      })
+      .finally(() => {
+        this.loading = false;
+      });
+  },
+  methods: {
+    sum(list, valueCols) {
+      //求和
+      let sum = {};
+      (list || []).forEach(item => {
+        valueCols.forEach(col => {
+          let key = col.column;
+          sum[key] = (sum[key] || 0) + (item[key] || 0);
+        });
+      });
+      return sum;
+    },
+    getValue(value, valueCols, valueObj) {
+      let item = (valueCols || []).filter(item => {
+        return item.key == value;
+      });
+      return valueObj[item[0]["column"]];
+    },
+    createData(dataTable) {
+      let valueCols = (dataTable.header || []).filter(item => {
+        return this.key.includes(item.key);
+      });
+      let rows = dataTable.rows || [];
+      let sum = this.sum(rows, valueCols);
+      this.org_limit = this.getValue(
+        "_id@organization.statistic.dzhgzl_xe",
+        valueCols,
+        sum
+      );
+      this.org_real = this.getValue(
+        "_id@organization.statistic.dzjgzl_sy",
+        valueCols,
+        sum
+      );
+      this.sy_limit = this.getValue(
+        "_id@organization.statistic.syjg_xe",
+        valueCols,
+        sum
+      );
+      this.sy_real = this.getValue(
+        "_id@organization.statistic.syjg_sy",
+        valueCols,
+        sum
+      );
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  height: 100%;
+  position: relative;
+  .ant-spin {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .list {
+    width: 100%;
+    height: 50%;
+    display: flex;
+    flex-direction: column;
+    .title,
+    .bottom {
+      display: block;
+      text-align: center;
+      padding-bottom: @layout-space-base / 2;
+      color: @text-color-secondary;
+    }
+    .bottom {
+      text-align: center;
+      padding: @layout-space-base / 2 0;
+    }
+    ul {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      margin: 0;
+      justify-content: space-around;
+      li {
+        width: 45%;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        padding: @layout-space-base / 2;
+        display: flex;
+        flex-direction: column;
+        .top {
+          height: 50%;
+          text-align: center;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          flex: 1;
+          .img {
+            width: 15px;
+            height: 15px;
+            display: flex;
+          }
+          .text {
+            padding: 0 @layout-space-base / 2;
+            color: @text-color-secondary;
+          }
+        }
+        .num,
+        .num-right {
+          text-align: center;
+          height: 50%;
+          font-size: 22px;
+          font-weight: bold;
+          color: #d15456;
+          height: 25px;
+          line-height: 25px;
+          &.num-right {
+            color: #5488d1;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,53 @@
+/**
+ * 常量字典
+ */
+import store from '../../store'
+import request from '../../utils/request'
+
+const loading = new Set();
+
+const  dict = {
+	state: {
+		dict: {},
+	},
+	mutations: {
+		addDict(state, dict){
+			state.dict = {...state.dict, ...dict}
+		},
+	},
+	actions: {
+		loadDict(context, key){
+			if(!loading.has(key)){
+				loading.add(key);
+				request({
+					url: `base/constant/dict?key=${encodeURIComponent(key)}`,
+					method: 'get'
+				}).then(resp => {
+					loading.delete(key);
+					context.commit('addDict', {
+						[key]: resp.result
+					});
+				}).catch(error => {
+					loading.delete(key);
+				})
+			}
+		},
+	},
+	getters: {
+		dict: (state) => (key) => {
+			let s = state.dict[key]
+			if(s === undefined){
+				store.dispatch("loadDict", key);
+			}
+			return s;
+		},
+		dictKey: (state, getters) => (key, value) => {
+			let list = getters.dict(key);
+			if(list){
+				return list.find(item => item.value == value);
+			}
+		},
+	}
+}
+
+export default dict

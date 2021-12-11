@@ -1,0 +1,48 @@
+
+import { connect, mapProps } from '@formily/vue'
+import Input from './Input'
+
+const TextInput = connect(
+  Input,
+  mapProps(
+    (props, field) => {
+      return {
+        allowClear: !field.required,
+      }
+    }
+  ),
+)
+
+export default TextInput;
+
+export const Meta = {
+  name: 'TextInput',
+  type: 'widget',
+  title: '文本输入',
+  icon: 'string',
+  component: TextInput,
+  index: 1,
+  initProps: () => {
+    return {
+      type: 'string',
+      title: "文本输入",
+      'x-decorator': 'FieldDecorator',
+      'x-component': 'TextInput',
+    }
+  },
+  props: {
+    required: {
+      type: Boolean,
+      title: '是否必填',
+    },
+    defaultValue: {
+      type: String,
+      title: '默认值'
+    },
+    placeholder: {
+      type: String,
+      title: '提示信息'
+    }
+  }
+};
+

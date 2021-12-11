@@ -1,0 +1,239 @@
+<!-- 创建应用 -->
+<template>
+  <a-modal title="创建应用" :visible="value" :confirm-loading="creatLoading" @ok="submit" 
+    @cancel="creatCancel" width="900px" okText="创建应用">
+    <div class="body">
+      <p>了解应用接入，<a @click="goAccessInfo">请点击这里</a></p>
+      <a-form class="app-form" :form="form" layout="horizontal">
+        <a-row :gutter='24'>
+          <a-col :span="20">
+            <a-row :gutter='24'>
+              <a-col :span='8'>
+                <!--应用名称限制规则  数字,字母,中文且第一个字符不能是数字-->
+                <a-form-item label="应用全称">
+                  <a-input allowClear placeholder="请输入应用全称" v-decorator="['name', { rules: [{ required: true, message: '请输入应用全称(2-20个字符)' }] }]"></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span='8'>
+                <a-form-item label="PC端应用地址：">
+                  <a-input placeholder='请输入PC端应用地址' allowClear v-decorator="['pcAddress']"></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span='8'>
+                <a-form-item label="移动端应用地址：">
+                  <a-input placeholder="请输入移动端应用地址" allowClear v-decorator="['mobileAddress']"></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span='8'>
+                <a-form-item label="接入单位">
+                  <a-input placeholder="请输入接入单位" allowClear v-decorator="['unit',{ rules: [{ required: true, message: '请输入接入单位' }] }]"></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span='8'>
+                <a-form-item label="接入单位联系人"  >
+                  <a-input placeholder='请输入接入单位联系人' allowClear v-decorator="['unitContact',{ rules: [{ required: true, message: '请输入接入单位联系人' }] }]"></a-input>
+                </a-form-item>                
+              </a-col>
+              <a-col :span='8'>
+                <a-form-item label="接入单位联系方式">
+                  <a-input placeholder="请输入联系方式" allowClear v-decorator="['unitPhone',{ rules: [{ required: true, message: '请输入正确的联系方式' }] }]"></a-input>
+                </a-form-item>
+              </a-col>
+            </a-row>
+          </a-col>
+          <a-col :span="4">
+            <a-form-item label="应用图标:">
+              <a-upload
+                v-decorator="['icon',{rules: [{ required: true, message: '请上传图标' }]}]"
+                list-type="picture-card"  
+                :show-upload-list="false"
+                :before-upload="beforeUpload"
+                :customRequest = 'customRequest'
+              >
+                <div class="iconCell"><img :src="url" v-if="iconid"><a-icon v-else :type="loading ? 'loading' : 'plus'" /></div>
+              </a-upload>
+              <!-- <p class="tiptext">200*200像素，仅支持png、jpg格式，大小不超过300KB。</p> -->
+            </a-form-item>            
+          </a-col>
+        </a-row>
+        <a-row>
+          <a-col :span='20'>
+            <a-row :gutter='24'>
+              <a-col :span='8'>
+                <a-form-item label="开发公司">
+                  <a-input placeholder="请输入开发公司" allowClear v-decorator="['devCompany',{ rules: [{ required: true, message: '请输入开发公司' }] }]"></a-input>
+                </a-form-item>            
+              </a-col>
+              <a-col :span='8'>
+                <a-form-item label="开发公司联系人">
+                  <a-input placeholder="请输入开发公司联系人" allowClear v-decorator="['devCompanyContact',{ rules: [{ required: true, message: '请输入开发联系人' }] }]"></a-input>
+                </a-form-item>            
+              </a-col>
+              <a-col :span='8'>
+                <a-form-item label="开发公司联系方式" >
+                  <a-input allowClear v-decorator="['devCompanyPhone',{ rules: [{ required: true, message: '请输入正确的联系方式' }] }]" ></a-input>
+                </a-form-item>            
+              </a-col>
+              <a-col :span='8'>
+                <a-form-item label="Host地址：">
+                  <a-input placeholder="请输入Host地址" allowClear v-decorator="['hostAddress',{ rules: [{ required: true, message: '请输入正确的Host地址' }] }]"></a-input>
+                </a-form-item>
+              </a-col>
+              <a-col :span='8'>
+                <a-form-item label="运维联系人">
+                  <a-input allowClear v-decorator="['operationContact']"></a-input>
+                </a-form-item>            
+              </a-col>
+              <a-col :span='8'>
+                <a-form-item label="运维联系方式">
+                  <a-input allowClear v-decorator="['operationPhone']" ></a-input>
+                </a-form-item>            
+              </a-col>
+            </a-row>
+          </a-col>
+        </a-row>
+        <a-row :gutter='24'>
+          <a-col :span='24'>
+            <a-form-item label="应用简介">
+              <a-textarea :rows="4" allowClear :autoSize="false" v-decorator="['desc',{ rules: [{ required: true, message: '请输入应用简介' }] }]"/>
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
+    </div>
+  </a-modal>
+</template>
+<script>
+import {Form,Button,Input,notification,Upload,Icon,Modal,Row,Col} from "ant-design-vue";
+import { appadd, generate, appcodeIsExist } from "@/dev/api/app";
+import { showError } from "@/framework/utils/index";
+import { uploadV2,downloadV2 } from "@/framework/api/file";
+import { uiConfigsCookies } from '@/framework/utils/auth';
+export default {
+  data() {
+    return {
+      form: this.$form.createForm(this),
+      //创建应用加载状态
+      creatLoading: false,
+      // 上传图片 进度
+      loading : false,
+      iconid: undefined,
+    };
+  },
+  props: {
+    value: Boolean
+  },
+  components: {
+    AForm: Form,
+    ARow:Row,
+    ACol:Col,
+    AFormItem: Form.Item,
+    AButton: Button,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    notification,
+    AUpload: Upload,
+    AIcon: Icon,
+    AModal: Modal
+  },
+  computed:{
+    url(){
+      return downloadV2(this.iconid)
+    }
+  },
+  methods: {
+    //上传图片之前校验
+    beforeUpload(file) {
+      const isJpgOrPng =
+        file.type === "image/jpeg" || file.type === "image/png";
+      if (!isJpgOrPng) {
+        this.$message.error("只能上传图片!");
+      }
+      const isLt300K = file.size / 1024 < 300;
+      if (!isLt300K) {
+        this.$message.error("图片大小不能超过300KB!");
+      }
+      return isJpgOrPng && isLt300K;
+    },
+    //上传图片
+    customRequest(options){
+      this.loading = true;
+      const { onSuccess, onError, file, onProgress } = options;
+        uploadV2(file)
+        .then(res => {
+          this.iconid = res.data.result.uploadid;
+          this.$message.success('上传成功!');
+        })
+        .catch(error => {
+          showError(error);
+        }).finally(()=>{
+          this.loading = false;
+        })
+    },
+    // 提交表单
+    submit() {
+      this.creatLoading = true;
+      if (this.iconid !== undefined) {
+        this.form.setFieldsValue({ icon: this.iconid });
+      }
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          appadd(values)
+            .then(res => {
+              this.$store.commit("appInfo_change", res.result);
+              this.creatCancel();
+              this.$router.push({
+                path: "/dev/manage/app"
+              });
+            })
+            .catch(err => {
+              showError(err);
+            }).finally(()=>{
+              this.creatLoading = false;
+            });
+        }else{
+          this.creatLoading = false;
+        }
+      });
+    },
+    //取消 关闭弹窗
+    creatCancel() {
+      this.form.resetFields();
+      this.iconid = undefined;
+      this.$emit("input",false);
+    },
+    goAccessInfo() {
+      this.creatCancel();
+      this.$router.push({
+        path: "/dev/index"
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+  .body {
+    width: 100%;
+    height: 100%;
+    p{
+      color: @primary-color;
+    }
+    /deep/ .ant-form-item-label{
+      line-height: 26px;
+    }
+    /deep/ .iconCell{
+      width: 100%;
+      height: 100%;
+      position: relative;
+      i{
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%,-50%)
+      }
+      img{
+        max-width: 100%;
+      }
+    }
+  }
+</style>

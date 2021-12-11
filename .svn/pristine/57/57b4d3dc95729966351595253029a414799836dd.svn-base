@@ -1,0 +1,150 @@
+<template>
+  <div class="org-main-panel">
+    <div class="header">
+      <div class="title">{{loadData && loadData.node.name}}</div>
+      <div class="tabs">
+        <a
+          v-for="item in tabs"
+          :key="item.id"
+          :class="{active: active && active.id == item.id}"
+          @click="active = item"
+        >{{item.title}}</a>
+      </div>
+    </div>
+    <div class="body">
+      <component
+        v-if="active"
+        :is="active.component"
+        :org="org"
+        :nodeid="loadData && loadData.node.id"
+        :treeid="loadData && loadData.treeid"
+        :orgid="org && org._id"
+        :unittype="active.unittype"
+      >
+        <template v-slot:table>
+          <org-info-table v-if="active.component == 'OrgInfo'"></org-info-table>
+        </template>
+      </component>
+    </div>
+  </div>
+</template>
+<script>
+import { Button } from "ant-design-vue";
+import OrgInfo from "./components/OrgInfo";
+import OrgMainDuty from "@person/views/org/components/OrgMainDuty";
+import PowerList from "@person/views/org/components/PowerList";
+import AdminiStration from "./components/AdminiStration";
+import BusinessType from "./components/BusinessType";
+// import PersonDetail from '@person/views/org/components/PersonDetail'
+import PersonDetail from "./components/PersonDetail";
+export default {
+  props: {
+    loadData: {
+      type: Object
+    }
+  },
+  components: {
+    AButton: Button,
+    OrgInfo,
+    OrgMainDuty,
+    PowerList,
+    PersonDetail,
+    AdminiStration,
+    BusinessType
+  },
+  data() {
+    return {
+      tabs: [],
+      active: undefined
+    };
+  },
+  computed: {
+    org() {
+      if (this.loadData) {
+        let { node, dept } = this.loadData;
+        return dept || node.data;
+      }
+    }
+  },
+  created() {
+    this.init();
+  },
+  watch: {
+    org() {
+      this.init();
+    },
+    loadData(v) {
+      console.log(v.node.data);
+    }
+  },
+  methods: {
+    init() {
+      if (this.org && this.org.orgtype == 1) {
+        // 单位
+        this.tabs = [
+          { id: 1, title: "机构信息", component: "OrgInfo" },
+          { id: 2, title: "主要职责", component: "OrgMainDuty" },
+          { id: 3, title: "权力清单", component: "PowerList" },
+          { id: 4, title: "三定一评", component: "div" },
+          { id: 5, title: "事业单位年报", component: "div" },
+          { id: 6, title: "人员列表", component: "PersonDetail" }
+        ];
+      } else {
+        // 市区县
+        this.tabs = [
+          { id: 7, title: "行政", component: "AdminiStration" ,unittype:1},
+          { id: 8, title: "事业", component: "BusinessType" ,unittype:3}
+        ];
+      }
+      this.active = this.tabs[0];
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.org-main-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: @border-radius-base;
+  background: @white;
+
+  & > .header {
+    margin-top: 10px;
+    padding: @content-padding-v @content-padding-h;
+    .title {
+      float: left;
+      font-weight: bold;
+      font-size: 18px;
+      line-height: 26px;
+    }
+    .tabs {
+      float: right;
+      margin-left: 30px;
+      a {
+        display: inline-block;
+        height: 26px;
+        line-height: 26px;
+        padding: 0 12px;
+        margin-left: 6px;
+        border-radius: @border-radius-base;
+        &:hover {
+          background: @primary-1;
+        }
+      }
+      a.active {
+        background-color: @primary-color;
+        color: white;
+        &:hover {
+          background: lighten(@primary-color, 5%);
+        }
+      }
+    }
+  }
+
+  & > .body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+}
+</style>

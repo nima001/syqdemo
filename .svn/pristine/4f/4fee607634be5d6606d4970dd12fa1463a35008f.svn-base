@@ -1,0 +1,287 @@
+<template>
+  <div class="dict-list">
+    <div class="table">
+      <div class="thead">
+        <div class="tr">
+          <div class="selection td">
+            <a-checkbox 
+              :checked="checkAll" 
+              :indeterminate="!checkAll && filter.length > 0"
+              @change="onCheckAllChange"
+            />
+          </div>
+          <div class="content">
+            <div class="td name">名称</div><div class="td value">值</div>
+          </div>
+        </div>
+      </div>
+      <a-check-group v-if="options && options.length"
+        v-model="filter"
+      >
+        <draggable class="tbody" 
+          v-model="options"
+          :disabled="options !== propValue"
+          :animation="200"
+          @start="dragging = true"
+          @end="dragging = false"
+        >
+          <transition-group>
+            <div v-for="(item, index) in options" :key="item.key" 
+              class="tr" :class="{dragging: dragging}" 
+              @dblclick="editItem(item, index)"
+            >
+              <div class="selection td"><a-checkbox :value="item.value" @dblclick.native="e => e.stopPropagation()"/></div> 
+              <div>
+                <div v-if="item.group" class="group">{{item.group}}</div>
+                <div class="content">
+                  <div class="td name">{{item.text}}</div><div class="td value">{{item.value}}</div>
+                </div>
+              </div>
+              <a class="delete" v-if="options === propValue" @click="deleteItem(item, index)"><a-icon type="delete"/></a>
+            </div>  
+          </transition-group>
+        </draggable>
+      </a-check-group>
+      <empty-data v-else style="height: 100px"/>
+    </div>
+    <a-button v-if="options === propValue" icon="plus" type="dashed" class="add-btn" @click="addItem">添加选项</a-button>
+    <a-modal v-model="editor.visible" title="选项设置" :width="480"
+      @ok="onEdited"
+    >
+      <a-form :model="editor.data" :rules="editor.rules" ref="form">
+        <a-form-item label="名称" prop="text">
+          <a-input v-model="editor.data.text"/>
+        </a-form-item>
+        <a-form-item label="值" prop="value">
+          <a-input v-model="editor.data.value"/>
+        </a-form-item>
+        <a-form-item label="分组（多级分组可用“/”分隔，如：A/B/C）" prop="group">
+          <a-input v-model="editor.data.group"/>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Select, Icon, Button, Checkbox, Modal, FormModel, Input } from 'ant-design-vue'
+import SettingMixin from '../../mixin/setting'
+import EmptyData from '@/framework/components/EmptyData'
+import draggable from 'vuedraggable'
+import { randomStr } from '@/framework/utils'
+
+export default {
+  components: {
+    AButton: Button,
+    ACheckbox: Checkbox,
+    ACheckGroup: Checkbox.Group,
+    AModal: Modal,
+    AForm: FormModel,
+    AFormItem: FormModel.Item,
+    AInput: Input,
+    AIcon: Icon,
+    EmptyData,
+    draggable
+  },
+  mixins: [SettingMixin],
+  data(){
+    return {
+      filter: [],
+      dragging: false,
+      editor: {
+        visible: false,
+        data: {},
+        rules: {
+          text: [
+            { required: true, message: '请输入选项名称', trigger: 'blur' },
+          ],
+          value: [
+            { required: true, message: '请输入选项值', trigger: 'blur' },
+            { trigger: 'blur', validator: (rule, value, callback) => {
+              let { key } = this.editor.data;
+              let idx = (this.options || []).findIndex(item => item.key != key && item.value == value);
+              if(idx >= 0){
+                callback('重复的值');
+              }else{
+                callback();
+              }
+            }},
+          ],
+          group: [
+            { trigger: 'blur' , validator: (rule, value, callback) => {
+              if(value){
+                if(value.split('/').findIndex(item => !item) >= 0){
+                  callback('多级分组存在空的子组名称');
+                  return;
+                }
+              }
+              callback();
+            }}
+          ]
+        }
+      }
+    }
+  },
+  computed:{
+    options: {
+      get(){
+        if(Array.isArray(this.propValue) || !this.propValue){//为空或数组时自定义
+          if(this.propValue){
+            this.propValue.forEach(item => {
+              if(!item.key){
+                item.key = this.generateKey();
+              }
+            })
+          }
+          return this.propValue
+        }else{
+          return this.$store.getters.dict(this.propValue) || [];
+        }
+      },
+      set(v){
+        if(Array.isArray(this.propValue) || !this.propValue){
+          this.propValue = v;
+        }
+      }
+    },
+    checkAll(){
+      let length = this.options && this.options.length || 0;
+      return length > 0 && length == this.filter.length;
+    },
+  },
+  watch: {
+    filter(v){
+      this.setComponentProp('filter', v.length ? v : undefined);
+    }
+  },
+  methods: {
+    onCheckAllChange(v){
+      if(this.checkAll){
+        this.filter = [];
+      }else{
+        this.filter = (this.options || []).map(item => item.value);
+      }
+    },
+    addItem(){
+      this.editor.visible = true;
+      this.editor.data = { text: undefined, value: undefined, group: undefined };
+    },
+    editItem(item, index){
+      if(this.options === this.propValue){
+        this.editor.visible = true;
+        this.editor.data = {...item};
+      }
+    },
+    deleteItem(item, index){
+      this.options.splice(index, 1);
+    },
+    onEdited(){
+      this.$refs.form.validate((valid, errors) => {
+        if(valid){
+          let data = this.editor.data;
+          if(data.key){//编辑
+            let item = this.options.find(item => item.key == data.key);
+            Object.assign(item, data);
+          }else{//新增
+            data.key = this.generateKey();
+            if(!this.options){
+              this.options = [data];
+            }else{
+              this.options.push(data);
+            }
+          }
+          this.editor.visible = false;
+        }
+      })
+    },
+    generateKey(){
+      return 'k_' + randomStr(6);
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.table{
+  width: 100%;
+  .tr{
+    display: flex;
+    align-items: center;
+    min-height: 30px;
+    .selection{
+      width: 28px;
+      flex: none;
+    }
+    & > div{
+      flex: auto;
+    }
+    .td{
+      padding: 2px 4px;
+      word-break: break-all;
+      line-height: 1.2em;
+      &.name{
+        width: 60%;
+      }
+      &.value{
+        width: 40%;
+      }
+    }
+    .content{
+      display: flex;
+      align-items: center;
+      & > div{
+        flex: 1 1 auto;
+      }
+    }
+  }
+  .thead{
+    font-weight: 500;
+    border-bottom: 1px solid @border-color-split;
+  }
+  .tbody{
+    .tr{
+      border-bottom: 1px solid @border-color-split;
+      cursor: default;
+      position: relative;
+      &:last-child{
+        border-bottom: none;
+      }
+      &:not(.dragging):hover{
+        background-color: @primary-1;
+        .delete{
+          display: block;
+        }
+      }
+      &.ghost.dragging{
+        background-color: @primary-1;
+      }
+    }
+    .delete{
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      padding: 0 4px;
+      background-color: fade(@accent-color, 60%);
+      box-shadow: 0 0 3px 1px #eee;
+      color: white;
+      border-radius: 4px;
+      display: none;
+      transition: all .2s cubic-bezier(.645,.045,.355,1); 
+      &:hover{
+        color: @error-color;
+      }
+    }
+    .group{
+      font-size: 14px;
+      color: @text-color-secondary;
+      padding: 0 4px;
+    }
+  }
+}
+.ant-checkbox-group{
+  width: 100%;
+}
+.add-btn{
+  width: 100%;
+  margin-top: 10px;
+}
+</style>

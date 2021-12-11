@@ -1,0 +1,606 @@
+<template>
+  <div class="layout-intelligent">
+    <div class="header">
+      <ul>
+        <li>
+          <div>
+            <a-button type="primary" @click="showModal">新增</a-button>
+            <a-button @click="showImport">导入</a-button>
+          </div>
+        </li>
+        <li class="middle">
+          <div class="searchkey">
+            <span>关键字：</span>
+            <a-input v-model="pagination.searchkey" allow-clear/>
+          </div>
+        </li>
+        <li>
+          <div>
+            <a-button type="primary" @click="search()">搜索</a-button>
+          </div>
+        </li>
+      </ul>
+    </div>
+    <div class="main">
+      <a-layout>
+        <a-layout-sider :style="{ marginRight: '10px', padding: '10px 24px', minWidth: '10%', }" theme="light">
+          <ul>
+            <li v-for="(item,index) in category" :class="{'choose':active===item.id}" :key="item.id" @click="choose(item.id)">{{item.category}}</li>
+          </ul>
+        </a-layout-sider>
+        <a-layout-content>
+          <a-list item-layout="vertical" :loading="spinning" :data-source="data">
+            <a-list-item slot="renderItem" slot-scope="item, index">
+              <a-list-item-meta>
+                <span slot="title" style="fontWeight: bold;" v-html="item.name||'undefinded'"/>
+                <p slot="title" v-html="item.desc"/>
+              </a-list-item-meta>
+              <p slot="actions">
+                <span>类别：{{item.category}}</span>
+              </p>
+              <p slot="extra">
+                <span>
+                  <a-button @click="showDetail(item)">查看详情</a-button>
+                  <a-button type="primary" @click="onDelete(item.id)">删除</a-button>
+                </span>
+              </p>
+            </a-list-item>
+          </a-list>
+          <a-pagination 
+            v-if="data.length"  
+            showSizeChanger
+            :current="this.pagination.pagenum"
+            :pageSize="this.pagination.pagesize"
+            :total="this.pagination.total"
+            :showTotal="(total) => `总共：${total}条`"
+            @change="onChange"
+            @showSizeChange="onShowSizeChange"/>
+        </a-layout-content>
+      </a-layout>
+    </div>
+    <a-modal
+      :title="title"
+      v-model="visible"
+      centered
+      :width="this.importinfo?600:700"
+      :bodyStyle="{height: this.importinfo?'107px':'auto'}"
+      :destroyOnClose="true"
+      :footer="detailinfo?null:undefined"
+      @ok="handleOk"
+      @cancel="handleCancel"
+    >
+      <div v-if="detailinfo">
+        <div class="title">
+          {{detailinfo.name}}
+        </div>
+        <div class="category">
+          {{detailinfo.category}}
+        </div> 
+        <div class="desc">
+          <p v-html="transformationContent(detailinfo.desc)" style="line-height: 25px; text-indent: 2em"></p>
+        </div>
+      </div>
+      <div v-else-if="importinfo" class="import">
+        <a-form :form="form">
+          <a-form-item style="margin-bottom: 0;">
+            <a-upload
+              accept=".csv, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              :before-upload="beforeUpload"
+              :file-list="this.fileList"
+              v-decorator="['file',{rules:[{required: true, message: '请选择文件！'},{ validator: validator }]}]"
+              @change="handleChange"
+            >
+              <a-button icon="upload" type="primary">文件导入 </a-button>
+            </a-upload>
+            <span v-if="!this.fileList.length" style="margin-left: 8px;">未选择任何文件</span>
+          </a-form-item>
+        </a-form>
+      </div>
+      <a-form v-else :form="form" :label-col="{ span: 3 }" :wrapper-col="{ span: 20 }">
+        <a-form-item label="用语类别">
+          <a-select label-in-value @change="selectCategory" v-decorator="['category',{initialValue: category.length?{key: category[1].id, label: category[1].category}:undefined,rules: [{ required: true,}], }, ]">
+            <a-select-option v-for="(item,index) in category.filter(Item=>Item.id)" :key="index" :value="item.id">
+            {{item.category}}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="编制用语">
+          <a-input v-decorator="['name',{ rules: [{ required: true, message: '请输入编制用语！' }] }]" ></a-input>
+        </a-form-item>
+        <a-form-item label="用语解释">
+          <a-textarea :rows="4" v-decorator="['desc',{ rules: [{ required: true, message: '请输入用语解释！' }] }]" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import { Button, Input, Modal, Layout, Form, Select, Pagination, List, Upload, message } from "ant-design-vue";
+import { orgtermsearch, orgtermcategory, orgtermsave, orgtermimport, orgtermdelete } from "@/person-shaoxing/api/information";
+import { showError } from '@/framework/utils';
+import { assign, trim } from 'lodash';
+import { duration } from 'moment';
+export default {
+  components: {
+    AButton: Button,
+    AInput: Input,
+    ALayout: Layout,
+    ALayoutContent: Layout.Content,
+    ALayoutSider: Layout.Sider,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATextarea: Input.TextArea,
+    APagination: Pagination,
+    AList: List,
+    AListItem: List.Item,
+    AListItemMeta: List.Item.Meta,
+    AUpload: Upload,
+  },
+  data() {
+    return {
+      title: undefined,
+      spinning: false,
+      data: [],
+      category:[],
+      addinfo: undefined,
+      detailinfo: undefined,
+      importinfo: false,
+      visible: false,
+      fileList: [],
+      file: undefined,
+      active: 0,
+      pagination: {
+        needtotal: true,
+        category: undefined,
+        pagenum:1,
+        pagesize:10,
+        total:0,
+        searchkey: undefined,
+      },
+      form: this.$form.createForm(this, { name: 'orgtermform' }),
+    };
+  },
+  watch: {
+    category(val) {
+      this.active = val[0].id;
+    }
+  },
+  mounted() {
+    this.orgtermCategory();
+    this.orgtermSearch();
+  },
+  methods: {
+    transformationContent(content) {
+      //原始字符串
+      let string = content;
+      //替换所有的换行符
+      string = string.replace(/\r\n/g, "<br>");
+      string = string.replace(/\n/g, "<br>");
+      string = string.replace(/(\r\n)|(\n)/g, "<br>");
+      //替换所有的空格（中文空格、英文空格都会被替换）
+      string = string.replace(/\s/g, " ");
+      //输出转换后的字符串
+      return string;
+    },
+    //判断搜索记录是否包含某个关键字
+    brightenKeyword(content) {
+      // inputvalue为搜索框中的value
+      if(content){
+        let inputvalue = this.pagination.searchkey;
+        let index = content.indexOf(inputvalue);
+        if (content.length < 200) {
+          return this.mark(content,inputvalue,index);
+        } else if (index < 20) {
+          return this.nomark(content,inputvalue,index);
+        } else {
+          let newtext = content.slice(index - 15, index + 185);
+          let newcontent = `......${newtext}......`;
+          const Reg = new RegExp(inputvalue);
+          let res = "";
+          if(inputvalue&&index>=0){
+            res = newcontent.replace(
+              Reg,
+              `<span style="color: #d60002;">${inputvalue}</span>`
+            );
+          }else{
+            if(content.length>200){
+              return `${content.slice(0,200)}......`;
+            }else{
+              return content;
+            }
+          }
+          return res;
+        }
+      }
+    },
+    mark(content,inputvalue,index) {
+    const Reg = new RegExp(inputvalue, "g");
+    let res = "";
+    if(inputvalue&&index>=0){
+      res = content.replace(
+        Reg,
+        `<span style="color: #d60002;">${inputvalue}</span>`
+      );
+    }else{
+      if(content.length>200){
+        return `${content.slice(0,200)}......`;
+      }else{
+        return content;
+      }
+    }
+    return res;
+    },
+    nomark(content,inputvalue,index) {
+      let newtext = content.slice(index, index + 200);
+      let newcontent = `......${newtext}......`;
+      const Reg = new RegExp(inputvalue);
+      let res = "";
+      if(inputvalue&&index>=0){
+        res = newcontent.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+      }else{
+        if(content.length>200){
+          return `${content.slice(0,200)}......`;
+        }else{
+          return content;
+        }
+      }
+      return res;
+    },
+    validator(rule, value, callback) {
+      if (!value) {
+        callback();
+      }
+      if(this.fileList.length){
+        callback()
+      }else{
+        callback("请选择文件！");
+      }
+    },
+    onDelete(id) {
+      let that = this;
+      this.$confirm({
+        title: "确定删除?",
+        okText: "确定",
+        cancelText: "取消",
+        onOk() {
+          that.deleteOrgterm(id);
+        },
+      });
+    },
+    beforeUpload(file) {
+      return false;
+    },
+    handleChange(info) {
+      if(this.checkType(info.file)){
+        this.fileList = info.fileList.slice(-1);
+        if(this.fileList.length){
+          this.file = info.file;
+        }
+      }
+    },
+    checkType(file){
+      if(file.type!=='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'&&file.type!=='application/vnd.ms-excel'&&file.type!=='.csv'){
+        this.$notification.warning({
+          title: '提示',
+          message: '请选择excel文件',
+          duration: 3,
+        })
+        this.fileList = [];
+        return false;
+      }
+      return true;
+    },
+    showModal() {
+      this.visible = true;
+      this.detailinfo = undefined;
+      this.importinfo = false;
+      this.file = undefined;
+      this.title = '上传用语';
+    },
+    showDetail(item){
+      this.showModal();
+      this.title = '查看详情'
+      this.detailinfo = item;
+    },
+    showImport() {
+      this.showModal();
+      this.title = '文件导入';
+      this.importinfo = true;
+    },
+    choose(item) {
+      this.active = item;
+      this.pagination.pagenum = 1;
+      if(item===0){
+        this.pagination.category = undefined;
+      }else{
+        this.pagination.category = item;
+      }
+      this.orgtermSearch();
+    },
+    selectCategory(val) {
+      this.addinfo = { categoryid: val.key, category: trim(val.label) };
+    },
+    //翻页
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.orgtermSearch();
+    },
+    //pagesize改变回调
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagesize, pagenum: 1 });
+      this.orgtermSearch();
+    },
+    handleCancel() {
+      this.fileList = [];
+      this.visible = false;
+    },
+    search() {
+      this.pagination.pagenum = 1;
+      this.orgtermSearch();
+    },
+    handleOk() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          if(this.importinfo){
+            orgtermimport(this.file).then((res)=>{
+              if(res.data.code === 'success'){
+                this.$notification.success({
+                  title: '提示',
+                  message: '文件导入成功！',
+                  duration: 3,
+                });
+                this.pagination.pagenum = 1;
+                this.orgtermSearch();
+              }else{
+                this.$notification.warning({
+                  title: '提示',
+                  message: '文件导入失败！',
+                  duration: 3,
+                })
+              }
+            }).catch((err)=>{
+              showError(err);
+            })
+          }else{
+            if(!this.addinfo){
+              this.addinfo = { categoryid: values.category.key, category: trim(values.category.label) };
+            }
+            assign(values,this.addinfo);
+            this.orgtermSave({...values});
+          }
+          this.handleCancel();
+        }
+      });
+    },
+    orgtermSave(data){
+      orgtermsave(data).then((res)=>{
+        if (res.code === "success") {
+            this.$notification.success({
+              title: "提示",
+              message: "新增成功！",
+              duration: 3,
+            });
+            this.orgtermSearch();
+          } else {
+            that.$notification.warning({
+              message: "提示",
+              description: "新增失败！",
+              duration: 3,
+            });
+          }
+      }).catch((err)=>{
+        showError(err);
+      })
+    },
+    deleteOrgterm(id) {
+      orgtermdelete({orgtermid: id}).then((res)=>{
+        if(res.code === 'success'){
+          this.$notification.success({
+            title: '提示',
+            message: '删除成功！',
+            duration: 3,
+          });
+          this.orgtermSearch();
+        }else{
+          this.$notification.warning({
+            title: '提示',
+            message: '删除失败',
+            duration: 3,
+          })
+        }
+      }).catch((err)=>{
+        showError(err);
+      })
+    },
+    orgtermCategory() {
+      orgtermcategory().then((res)=>{
+        this.category = res.result;
+        this.category.unshift({"category":"全部","id":undefined});
+      }).catch((err)=>{
+        showError(err);
+      })
+    },
+    orgtermSearch(){
+      this.spinning = true;
+      if(this.pagination.rows){
+        this.pagination.rows = [];
+      }
+      if(this.pagination.searchkey === ""||this.pagination.searchkey === ''){
+        this.pagination.searchkey = undefined;
+      }
+      orgtermsearch(this.pagination).then((res)=>{
+        if (!res.result.rows.length) {
+            this.$notification.warning({
+              message: "提示",
+              description: "暂无数据！",
+              duration: 3,
+            });
+          }
+        this.spinning = false;
+        assign(this.pagination,res.result);
+        res.result.rows.forEach((item,index)=>{
+          res.result.rows[index].name=this.brightenKeyword(item.name);
+          res.result.rows[index].desc=this.brightenKeyword(item.desc);
+        });
+        this.data = res.result.rows;
+      }).catch((err)=>{
+        this.spinning = false;
+        showError(err);
+      })
+    }
+  },
+};
+</script>
+<style scoped lang="less">
+.layout-intelligent {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  .header {
+    background: #ffffff;
+    margin: @layout-space-base;
+    padding: @layout-space-base @content-padding-h;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    ul {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      margin-bottom: 0;
+      li {
+        .ant-btn {
+          margin-left: @padding-xs;
+        }
+      }
+      li.middle {
+        flex: 1;
+        .searchkey {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          .ant-input-affix-wrapper {
+            width: 80%;
+          }
+        }
+      }
+    }
+  }
+  .main {
+    margin:@layout-space-base;
+    margin-top: 0;
+    display: flex;
+    flex: 1;
+    .ant-layout {
+      flex: 1;
+      border-radius: 0 0 @border-radius-base @border-radius-base;
+      ul li {
+        cursor: pointer;
+        margin-top: @padding-xs;
+        transition: all .3s;
+      }
+      li.choose {
+        color: @primary-color;
+      }
+      .ant-list-item-meta{
+        margin-bottom: 0;
+      }
+      /deep/.ant-layout-content {
+        position: relative;
+        padding: @layout-space-base @content-padding-h;
+        background-color: #ffffff;
+        margin-bottom: 0;
+        & h4 {
+          font-size: 14px;
+          margin-bottom: 0;
+        }
+        & p{
+          font-size: 14px;
+          margin-bottom: 0;
+          color:rgba(0, 0, 0, 0.6);
+        }
+        & .ant-list-split,& .ant-spin-container,& .ant-spin-nested-loading {
+          position: static;
+        }
+        .ant-spin-nested-loading{
+          overflow-y: auto;
+          height: 665px;
+        }
+        .ant-spin,/deep/.ant-list-empty-text{
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%,-50%);
+          z-index: 998;
+        }
+        .ant-spin{
+          z-index: 999;
+        }
+        .ant-pagination{
+          float: right;
+          margin-top: 10px;
+        }
+        ul.ant-list-item-action {
+          & li {
+            width: 100%;
+            & p span {
+              float: left;
+              color: #AAAAAA;
+            }
+          }
+        }
+        .ant-list-item-extra {
+          display: flex;
+          align-items: flex-end;
+          margin-left: 8px;
+          & .ant-btn {
+            margin-right: 8px;
+          }
+        }
+        .ant-list-item-meta-title p {
+          word-break: break-all;
+          word-wrap: break-word;
+        }
+      }
+    }
+  }
+}
+.ant-modal-body{
+  textarea.ant-input {
+    resize: none;
+  }
+  .title {
+    font-weight: 700;
+    font-size: 16px;
+    width: 600px;
+    overflow: hidden;
+    margin: 0;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .category {
+    color: #c9c9c9
+  }
+  & .ant-form /deep/.ant-form-item-children .ant-upload-list {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    max-width: 200px;
+    display: inline-block;
+    & .ant-upload-list-item{
+      margin-top: 0;
+      & .ant-upload-list-item-name {
+        padding-right: 8px;
+      }
+    }
+  }
+} 
+
+</style>

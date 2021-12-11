@@ -1,0 +1,179 @@
+<template>
+  <div class="wrap" :id="id">
+    <a-spin :spinning="loading" v-if="loading"></a-spin>
+  </div>
+</template>
+<script>
+import { Chart } from "@antv/g2";
+import { problemAndOrg } from "@/person-shaoxing/api/monitor";
+import { showError } from "@framework/utils";
+import { Spin } from "ant-design-vue";
+import {getChartById} from '@/person/api/chart';
+export default {
+  data() {
+    return {
+      id: Math.random()
+        .toString(32)
+        .substr(2),
+      list: [
+        { key: "党委", value: 160 },
+        { key: "人大", value: 162 },
+        { key: "政府", value: 205 },
+        { key: "政府派出", value: 219 },
+        { key: "其它", value: 99 },
+        { key: "群众团体", value: 84 },
+        { key: "民主党派", value: 212 },
+        { key: "街道", value: 143 },
+        { key: "乡镇", value: 205 },
+        { key: "政协", value: 121 }
+      ],
+      loading: false,
+      plot: undefined,
+      color:['#d15456','#5488d1','#d28164','#91c7ae','#739e82','#bda299','#6d6f73','#d8d3c9','#ecd294','#7f5507']
+    };
+  },
+  components: {
+    ASpin: Spin
+  },
+  props:{
+    //  117->机构行政  118-> 机构事业
+    unittype:{
+      type:Number,
+      required:true
+    }
+  },
+  mounted() {
+    this.getChart(this.chartId)
+  },
+  computed:{
+    //  117 -> 机构行政   118 -> 机构事业
+    chartId(){
+      if(this.unittype == 1){
+        return 117
+      }else{
+        return 118
+      }
+    }
+  },
+  watch:{
+    chartId:{
+      handler(v){
+        if (this.plot) {
+          this.plot.destroy();
+        }
+        this.getChart(v)
+      }
+    }
+  },
+  methods: {
+    total(list){
+      let  sum = 0;
+      list.forEach((item)=>{
+          sum += item.value;
+      })
+      return sum;
+    },
+    getChart(id){
+      this.loading = true;
+      getChartById(id).then(res=>{
+        let {rows,keyCols,valueCols} = res.result.data;
+        let kCol = keyCols[0]['column'];
+        let vCol = valueCols[0]['column']
+        rows = rows.map(item=>{
+          return {
+            key : item[kCol],
+            value:item[vCol]
+          }
+        })
+        this.draw(rows)
+      }).catch(err=>{
+        showError(err)
+      }).finally(()=>{
+        this.loading = false;
+      })
+    },
+    draw(list) {
+      let total = this.total(list);
+      const chart = new Chart({
+        container: this.id,
+        autoFit: true
+      });
+      chart.data(list);
+      chart.scale("value", {
+        formatter: val => {
+          return val;
+        }
+      });
+      chart.coordinate("theta", {
+        radius: 0.75,
+        innerRadius: 0.6
+      });
+      chart.tooltip({
+        showTitle: true,
+        showMarkers: false,
+        title:'机构'
+      });
+      // 辅助文本
+      chart
+        .annotation()
+        .text({
+          position: ["50%", "50%"],
+          content: "机构总量",
+          style: {
+            fontSize: 14,
+            fill: "#8c8c8c",
+            textAlign: "center"
+          },
+          offsetY: -10
+        })
+        .text({
+          position: ["50%", "50%"],
+          content: total,
+          style: {
+            fontSize: 20,
+            fill: "#8c8c8c",
+            textAlign: "center"
+          },
+          offsetY: 10
+        });
+      chart
+        .interval()
+        .adjust("stack")
+        .position("value")
+        .color("key",this.color)
+        .label("value", value => {
+          return {
+            content: data => {
+              return `${data.key}: ${value}`;
+            }
+          };
+        })
+        .tooltip("key*value", (key, value) => {
+          let percent = (Math.round(value / total * 10000) / 100.00)+"%";
+          return {
+            name: key,
+            value: value +'&nbsp;&nbsp;' + percent
+          };
+        });
+      chart.interaction("element-active");
+      chart.render();
+      this.plot = chart;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  .ant-spin {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+  }
+}
+</style>

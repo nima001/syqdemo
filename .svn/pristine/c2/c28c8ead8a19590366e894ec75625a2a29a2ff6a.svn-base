@@ -1,0 +1,369 @@
+<template>
+  <div class="form-panel">
+    <div class="top_card">
+      <div class="card" v-for="(item, index) in cardList" :key="index" @click="item.onClick && item.onClick()">
+        <div class="title">{{item.title}}</div>
+        <proportion 
+          :totalText="item.totalText" 
+          :total="data[item.total]" 
+          :numText="item.numText" 
+          :num="data[item.num]" 
+          :surplusText="item.surplusText" 
+          class="content"
+        />
+      </div>
+      <div class="card" @click="showXzOrgList('行政编制超编机构', null, 'dzqjgbzcks')">
+        <div class="title">行政编制超编机构数</div>
+        <div class="content num" 
+          :class="{error: orgCount['行政编制超编机构数'] > 0}"
+        >{{orgCount['行政编制超编机构数']}}</div>
+      </div>
+      <div class="card" @click="showSyOrgList('事业编制超编机构', null, 'sybzcks')">
+        <div class="title">事业编制超编机构数</div>
+        <div class="content num"
+          :class="{error: orgCount['事业编制超编机构数'] > 0}"
+        >{{orgCount['事业编制超编机构数']}}</div>
+      </div>
+    </div>
+    <div class="bottom_table">
+      <div class="table_container">
+        <p class="title">序列行政编制分布明细表——核定机关编制</p>
+        <chart-table class="ant-table-wrapper"
+          :table="dataSource_xz"
+          :warnCols="['_id@organization.statistic.dzqjgbzcks']"
+          @click="showXzOrgList($event.k0, $event.k0)"
+        />
+      </div>
+      <div class="table_container">
+        <p class="title">序列事业编制分布明细表——核定事业（含报备员额）编制</p>
+        <chart-table class="ant-table-wrapper"
+          :table="dataSource_sy"
+          :warnCols="['_id@organization.statistic.sybzcks']"
+          @click="showSyOrgList($event.k0, $event.k0)"
+        />
+      </div>
+    </div>
+    <a-modal v-model="orgList.show" :title="orgList.title"
+      :width="orgList.width" :footer="null" :bodyStyle="{padding: 0, height: '580px'}"
+    >
+      <OrgList v-bind="orgList.props"/>
+    </a-modal>
+    <a-modal v-model="orgVisible" :title="title" width="1000px"
+       :footer="null" :bodyStyle="{padding: 0, height: '580px'}"
+    >
+      <OfficeList :district="district" :unittypes="unittypes" :type="type"/>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Modal} from "ant-design-vue"
+import Proportion from './Proportion'
+import ChartTable from './ChartTable'
+import OrgList from './OrgList'
+import OfficeList from './OfficeList'
+import { areaStatistics, chartBySystype,chartByOrg } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '../../../../framework/utils';
+
+/**
+ * 机构编制数监测
+ */
+export default {
+  name: 'StaffReport',
+  components: {
+    AModal: Modal,
+    Proportion,
+    ChartTable,
+    OrgList,
+    OfficeList
+  },
+  props: {
+    district: {
+      type: String,
+    },
+    orgCount: {
+      type: Object
+    }
+  },
+  data(){
+    return {
+      data: {},
+      title:undefined,
+      unittypes:undefined,
+      type:undefined,
+      cardList: [
+        { 
+          title: '省定行政编制', 
+          total: 'zgbzzl', totalText: '省定限额', 
+          num: 'hdxzbzqygq', numText: '核定', 
+          surplusText: '待分配数' 
+        },
+        { 
+          title: '省定事业编制', 
+          total: 'sybzzl', totalText: '省定限额', 
+          num: 'hesybzqy', numText: '核定', 
+          surplusText: '待分配数' 
+        },
+        { 
+          title: '核定机关编制', 
+          total: 'hdxzbzqy', totalText: '核定', 
+          num: 'hdxzbzqy_sy', numText: '实有', 
+          surplusText: '超空编数' ,
+          onClick:()=>{
+            this.type = "xz";
+            this.title = this.cardList[2].title;
+            this.unittypes =[1,5,7];
+            
+            this.orgVisible = true;
+          }
+        },
+        { 
+          title: '核定事业（含报备员额）编制', 
+          total: 'hdsybzbbqy', totalText: '核定', 
+          num: 'hdsybzqy_sy', numText: '实有', 
+          surplusText: '超空编数' ,
+          onClick:()=>{
+            this.type = "sy";
+            this.title = this.cardList[3].title;
+            this.unittypes =[3,2,11];
+            
+            this.orgVisible = true;
+          }
+        },
+      ],
+      dataSource_xz: {},
+      dataSource_sy: {},
+      orgVisible:false,
+      loading_xz: false,
+      loading_sy: false,
+      orgList: {
+        show: false,
+        title: undefined,
+        width: undefined,
+        props: {
+          district: undefined,
+          unittypes: undefined,
+          systype: undefined,
+          filters: undefined,
+          fields: undefined
+        }
+      }
+    }
+  },
+  watch: {
+    district(district){
+      this.getAllData(district);
+    },
+  },
+  created(){
+    this.getAllData(this.district);
+  },
+  methods: {
+    getAllData(district) {
+      
+      areaStatistics(district, [
+        'zgbzzl', "hdxzbzqygq",
+        'hdxzbzqy', 'hdxzbzqy_sy',
+        'sybzzl', 'hdsybzbbqy', 
+        'hesybzqy', 'hdsybzqy_sy',
+      ]).then(({result}) => {
+        this.data = result;
+      }).catch(err => {
+        showError(err)
+      });
+      this.loading_xz = true;
+      chartBySystype(district, [1,5,7], [
+        { code: "jghdbzs", name: "编制数" },
+        { code: "jgbzsyzj", name: "实有数" },
+        { code: "dzqjgbzcks", name: "超(-)空(+)数" },
+        { code: "xzkybzs", name: "编制可用数" },
+      ]).then(({result}) => {
+        this.dataSource_xz = result.data;
+      }).catch(err => {
+        showError(err)
+      }).finally(() => { 
+        this.loading_xz = false; 
+      });
+      
+      this.loading_sy = true;
+      chartBySystype(district, [2,3,11], [
+        {code: "syhdbzs", name: "编制数" },
+        {code: "sybzsys", name: "实有数" },
+        {code: "sybzcks", name: "超(-)空(+)数" },
+        {code: "sykybzs", name: "编制可用数" },
+      ]).then(({result}) => {
+        this.dataSource_sy = result.data;
+      }).catch(err => {
+        showError(err)
+      }).finally(() => { 
+        this.loading_sy = false; 
+      });
+      // chartByOrg(district, [3,2,11], [
+      //   {code: "dzqjgxzbz", name: "党政群机关行政编制" },
+      //   {code: "dzqjgxzbz_sy", name: "党政群机关行政编制实有数" },
+      //   {code: "jdxzbz", name: "街道行政编制" },
+      //   {code: "jdxzbz_sy", name: "街道编制实有" },
+      //   {code: "xzxzbz", name: "乡镇行政编制" },
+      //   {code: "xzxzbz_sy", name: "乡镇行政编制实有" },
+      //   {code: "gqbz", name: "工勤编制" },
+      //   {code: "gqbz_sy", name: "工勤编制实有数" },
+      //   {code: "fcgsybz", name: "非参公事业编制" },
+      //   {code: "fcgsybz_sy", name: "非参公事业编制实有" },
+      //   {code: "czgwyfglsybz", name: "参照公务员法管理事业编制" },
+      //   {code: "czgwyfglsybz_sy", name: "参照公务员法管理事业编制实有数" },
+      //   {code: "bbye_bzajfxs", name: "报备员额-编制按经费形式" },
+      //   {code: "bbye_bzajfxs_sy", name: "报备员额-编制按经费形式实有数" },
+      // ]).then(({result}) => {
+      //   this.dataSource_cause = result.data.rows
+      //   console.log(this.dataSource_cause)
+      // }).catch(err => {
+      //   showError(err)
+      // }).finally(() => { 
+      //   this.loading_sy = false; 
+      // });
+      // chartByOrg(district, [1,5,7], [
+      //   {code: "dzqjgxzbz", name: "党政群机关行政编制" },
+      //   {code: "dzqjgxzbz_sy", name: "党政群机关行政编制实有数" },
+      //   {code: "jdxzbz", name: "街道行政编制" },
+      //   {code: "jdxzbz_sy", name: "街道编制实有" },
+      //   {code: "xzxzbz", name: "乡镇行政编制" },
+      //   {code: "xzxzbz_sy", name: "乡镇行政编制实有" },
+      //   {code: "gqbz", name: "工勤编制" },
+      //   {code: "gqbz_sy", name: "工勤编制实有数" },
+      //   {code: "fcgsybz", name: "非参公事业编制" },
+      //   {code: "fcgsybz_sy", name: "非参公事业编制实有" },
+      //   {code: "czgwyfglsybz", name: "参照公务员法管理事业编制" },
+      //   {code: "czgwyfglsybz_sy", name: "参照公务员法管理事业编制实有数" },
+      //   {code: "bbye_bzajfxs", name: "报备员额-编制按经费形式" },
+      //   {code: "bbye_bzajfxs_sy", name: "报备员额-编制按经费形式实有数" },
+      // ]).then(({result}) => {
+      //   this.dataSource_org = result.data.rows
+      //   console.log(this.dataSource_org)
+      // }).catch(err => {
+      //   showError(err)
+      // }).finally(() => { 
+      //   this.loading_sy = false; 
+      // });
+    },
+    showXzOrgList(title, systype, field){
+      let filters;
+      if(field){
+        filters = [{ field: '_id@organization.statistic.' + field, op: 'lt', value: 0}];
+      }
+      this.orgList = {
+        show: true,
+        title,
+        width: '1200px',
+        props: {
+          district: this.district,
+          unittypes: [1,5,7],
+          systype,
+          filters,
+          fields: [
+            { key: "_id@organization.statistic.jghdbzs", showname: "总计", sort: '核定编制数' },
+            { key: "_id@organization.statistic.xzbzhds", showname: "行政编制数", sort: '核定编制数' },
+            { key: "_id@organization.statistic.zfzxbz_hd", showname: "政法专项编制数", sort: '核定编制数' },
+            { key: "_id@organization.statistic.gqbz", showname: "后勤编制数", sort: '核定编制数' },
+            { key: "_id@organization.statistic.jgbzsyzj", showname: "总计", sort: '实有人数' },
+            { key: "_id@organization.statistic.bzbxds", showname: "不占编选调生", sort: '实有人数' },
+            { key: "_id@organization.statistic.dlxzbz", showname: "单列人员", sort: '实有人数' },
+            { key: "_id@organization.statistic.dzqjgbzcks", showname: "超(-)空(+)数", warn: true },
+            { key: "_id@organization.statistic.bmldkqzs", showname: "部门空缺领导职数", sort: '其他情况' },
+            { key: "_id@organization.statistic.wsyybjhs", showname: "未使用用编计划数", sort: '其他情况' },
+            { key: "_id@organization.statistic.xzkybzs", showname: "可用编制数" },
+          ]
+        }
+      }
+    },
+    showSyOrgList(title, systype, field){
+      let filters;
+      if(field){
+        filters = [{ field: '_id@organization.statistic.' + field, op: 'lt', value: 0}];
+      }
+      this.orgList = {
+        show: true,
+        title,
+        width: '700px',
+        props: {
+          district: this.district,
+          unittypes: [2,3,11],
+          systype,
+          filters,
+          fields: [
+            { key: "_id@organization.statistic.syhdbzs", showname: "编制数" },
+            { key: "_id@organization.statistic.sybzsys", showname: "实有数" },
+            { key: "_id@organization.statistic.sybzcks", showname: "超(-)空(+)数", warn: true },
+            { key: "_id@organization.statistic.sykybzs", showname: "编制可用数" },
+          ]
+        }
+      }
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  width: 100%;
+  > div{
+    display: flex;
+    justify-content: space-between;
+  }
+  .top_card{
+    .card{
+      width: 200px;
+      border: 1px solid @border-color-split;
+      border-radius: 5px;
+      cursor: pointer;
+      &:hover{
+        border-color: @primary-3;
+        background-color: @primary-1;
+        .title{
+          border-color: @primary-3;
+        }
+      }
+      .title{
+        white-space: nowrap;
+        overflow: hidden;
+        line-height: 50px;
+        text-align: center;
+        font-weight: bold;
+        border-bottom: 1px solid @border-color-split;
+      }
+      .content{
+        margin-top: 10px;
+        padding: 10px 0;
+        &.num{
+          height: 171px;
+          line-height: 138px;
+          font-size: 1.5em;
+          text-align: center;
+          font-weight: bold;
+          color: #fec400;
+        }
+        &.num.error{
+          color: #e76043;
+        }
+      }
+    }
+  }
+  .bottom_table{
+    margin-top: @padding-lg;
+    .table_container{
+      width: 50%;
+      border: 1px solid #e8e8e8;
+      border-radius: 5px;
+      &:nth-child(2){
+        margin-left: 32px;
+      }
+      .title{
+        font-weight: bold;
+        line-height: 45px;
+        margin: 0;
+        text-indent: 1em;
+      }
+      .ant-table-wrapper{
+        margin: 10px;
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,373 @@
+<template>
+  <div class="examine">
+    <div class="funWrap">
+      <div class="left">
+        <template>
+          <span class="title" v-if="currentYear">{{currentYear}}年考核办法</span>
+          <span class="title" v-else>考核办法</span>
+        </template>
+        <template>
+          <span class="edit" v-if="hasPermit('/person/examine/govstreetmanager/edit') && isEditor" @click="handleEidit">
+            <a v-if="editAll" @click="updateAll">保存</a>
+            <a v-else>编辑</a>
+          </span>
+        </template>
+      </div>
+      <div class="right">
+        <a-select 
+          showSearch
+          :allowClear="true"
+          placeholder="年份选择" 
+          style="width: 200px"
+          optionFilterProp="children"
+          @change="handleChange">
+          <a-select-option v-for="(item, index) in datasourceSelect" :key="index" :value="index">{{item}}</a-select-option>
+        </a-select>
+      </div>
+    </div>
+    <a-divider />
+    <div class="editorWrap">
+      <div class="editor">
+        <p class="title">考核细则</p>
+        <div class="file">
+          <span class="fileName">{{file.name}}</span>
+          <div class="fileOperator">
+            <a-upload
+              name="file"
+              :customRequest="customRequest"
+              class="upload-button"
+              :showUploadList="false"
+              accept=".doc,.docx,.wps"
+              >
+              <!-- true => 管理员，可以上传 -->
+              <a-button :disabled="!hasPermit('/person/examine/govstreetmanager/edit') && !isUpload"> 
+                <a-icon type="upload" />上传
+              </a-button>
+            </a-upload>
+            <a-button icon="download" @click="download">下载</a-button>
+          </div>
+        </div>
+      </div>
+      <a-divider />
+      <div class="editor">
+        <p class="title">平均系数</p>
+        <ul>
+          <li class="header">
+            <span>正职平均系数</span>
+            <span>副职平均系数</span>
+            <template>
+              <a-input v-if="editAll" style="width: 200px;" v-model="average.userdefinedindexname"></a-input>
+              <span v-else>{{average.userdefinedindexname}}</span>
+            </template>
+          </li>
+          <li>
+            <template>
+              <span>
+                <a-input-number :min="0" v-if="editAll" v-model="average.principalaverage" />
+                <template v-else>{{average.principalaverage}}</template>
+              </span>
+              <span>
+                <a-input-number :min="0" :step="0.1" v-if="editAll" v-model="average.deputyaverage" />
+                <template v-else>{{average.deputyaverage}}</template>
+              </span>
+              <span>
+                <a-input-number :min="0" v-if="editAll" v-model="average.other" />
+                <template v-else>{{average.other}}</template>
+              </span>
+            </template>
+          </li>
+        </ul>
+      </div>
+      <a-divider />
+      <div class="editor">
+        <p class="title">预设比例</p>
+        <ul>
+          <li class="header">
+            <span>参加考核人数</span>
+            <span>优秀比例</span>
+            <span>优秀人数</span>
+          </li>
+          <li>
+            <template>
+              <span>
+                <a-input-number :min="0" v-if="editAll" v-model="preset.pretotal" />
+                <template v-else>{{preset.pretotal}}</template>
+              </span>
+              <span>
+                <a-input-number :min="0" :max="1" :step="0.1" v-if="editAll" v-model="preset.excellentPercent" />
+                <template v-else>{{preset.excellentPercent}}</template>
+              </span>
+              <span>
+                <template>{{preset.preexcellent}}</template>
+              </span>
+            </template>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Button, Divider, Input, InputNumber, Upload, Icon, Select } from "ant-design-vue";
+import { getexamine, updateoradd, exportexamine } from "@/person/api/examineManage";
+import { upload } from "@/framework/api/file";
+import { uiConfigsCookies } from '@/framework/utils/auth';
+import { showError } from "@/framework/utils/index";
+export default {
+  props: ['loadData'],
+  data() {
+    return {
+      orgid: '',
+      nodeid: '',
+      file: {
+        name: '',
+        url: ''
+      },
+      datasourceSelect: [],
+      editAll: false,
+      isEditor: false,
+      isUpload: true,
+      currentYear: undefined,
+      average: {
+        principalaverage: undefined,
+        deputyaverage: undefined,
+        userdefinedindexname: "其他平均系数",
+        other: undefined,
+      },
+      preset: {
+        pretotal: undefined,
+        excellentPercent: undefined,
+        preexcellent: undefined
+      }
+    };
+  },
+  components: {
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ADivider: Divider,
+    AInput: Input,
+    AInputNumber: InputNumber,
+    AUpload: Upload,
+    AIcon: Icon,
+  },
+  watch: {
+    loadData: function(data) {
+      if (data) {
+        this.orgid = data.node.data._id;
+        this.nodeid = data.node.id;
+        this.editAll = false;
+        this.getData(this.orgid, this.nodeid, this.currentYear);
+      }
+    }
+  },
+  created() {
+    if(this.loadData) {
+      this.orgid = this.loadData.node.data._id;
+      this.nodeid = this.loadData.node.id;
+      this.getData(this.orgid, this.nodeid); 
+    }
+    this.createYear();
+  },
+  methods: {
+    getData(orgid, nodeid, year) {
+      if (this.loadData && this.loadData.node && this.loadData.node.data) {
+        getexamine({
+          orgid,
+          nodeid,
+          year
+        })
+        .then(data => {
+          let res = data.result;
+          let time = new Date().getFullYear();
+          Object.keys(this.average).forEach(key => {
+            this.average[key] = res[key];
+          })
+          Object.keys(this.preset).forEach(key => {
+            this.preset[key] = res[key];
+          })
+          this.preset.excellentPercent = this.preset.pretotal?(this.preset.preexcellent/this.preset.pretotal).toFixed(2):'';
+          this.file.name = res.checklawsname?`《${res.checklawsname}》`:'';
+          this.file.url = res.checklawsurl?res.checklawsurl:'';
+          if(!year) {
+            this.currentYear = res.year?res.year:time -1;
+          }
+          //  实际总人数为空 且年份为今年和去年 => 可编辑 反之
+          if(this.currentYear == (time -1)) {
+            if(res.importchecklawsflag) {
+              this.isEditor = true;
+            }else{
+              this.isEditor = false;
+            }
+          }else if(this.currentYear == time) {
+            this.isEditor = true;
+          }else{
+            this.isEditor = false;
+          }
+          if(res.importchecklawsflag && this.currentYear >= (time -1)) {
+            this.isUpload = true;
+          }else{
+            this.isUpload = false;
+          }
+        })
+        .catch(err => {
+          showError(err);
+        })
+      }
+    },
+    updateAll() {
+      let { pretotal, excellentPercent } = this.preset;
+      if(!pretotal || !excellentPercent) {
+        this.preset.preexcellent = 0;
+      }else{
+        this.preset.preexcellent = parseInt(pretotal*excellentPercent);
+      }
+      updateoradd({
+        orgid: this.orgid,
+        year: this.currentYear,
+        principalaverage: this.average.principalaverage,
+        deputyaverage: this.average.deputyaverage,
+        other: this.average.other,
+        userdefinedindexname: this.average.userdefinedindexname,
+        preexcellent: this.preset.preexcellent,
+        pretotal
+      })
+      .then(data => {
+      })
+      .catch(err => {
+        showError(err);
+      }) 
+    },
+    customRequest(info) {
+      let fileName = info.file.name;
+      upload(info.file)
+      .then(data => {
+        this.$message.success("文件上传成功！");
+        this.file.url = data.data.result;
+        this.file.name = info.file.name;
+        return updateoradd({
+          orgid: this.orgid,
+          year: this.currentYear,
+          checklawsname: this.file.name,
+          checklawsurl: this.file.url
+        })
+      })
+      .then(data => {
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    download() {
+      let uiConfigs = uiConfigsCookies();
+      if(this.file.url) {
+        window.open(uiConfigs['api.url'] + '/file/v1/download?uri=' + encodeURIComponent(this.file.url));
+      }else{
+        this.$message.warning('请先上传文件');
+      }
+    },
+    createYear() {
+      let year = new Date().getFullYear();
+      for(let i = year; i > 1970; i --) {
+        this.datasourceSelect.push(i);
+      }
+    },
+    handleChange(value) {
+      this.editAll = false;
+      this.currentYear = this.datasourceSelect[value];
+      this.getData(this.orgid, this.nodeid, this.currentYear);
+    },
+    handleEidit() {
+      this.editAll = !this.editAll;
+    },
+  }
+};
+</script>
+<style lang='less' scoped>
+.examine {
+  background: @white;
+  padding: @padding-md;
+  height: 100%;
+  .funWrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: @content-padding-v 0;
+    .left {
+      .title {
+        font-size: 15px;
+        font-weight: bold;
+      }
+      .edit{
+        margin-left: 20px;
+        color: @primary-color;
+        cursor: pointer;
+      }
+    }
+  }
+  .editorWrap {
+    .file {
+      display: flex;
+      align-items: center;
+      .fileName {
+        width: 600px;
+      }
+      .fileOperator {
+        button{
+          color: @primary-color;
+          border-color: @primary-color;
+        }
+        /deep/.upload-button{
+          display: inline-block;
+        }
+        span {
+          margin-right: 60px;
+          color: @primary-color;
+          cursor: pointer;
+          &:hover {
+            color: @accent-color;
+          }
+        }
+      }
+    }
+    .title {
+      position: relative;
+      height: 30px;
+      line-height: 30px;
+      color: @primary-color;
+      font-size: 16px;
+      font-weight: bold;
+      padding: 0px 10px;
+      margin-bottom: 0.5em;
+      &::after {
+        content: "";
+        width: 2px;
+        height: 18px;
+        position: absolute;
+        top: 50%;
+        left: 0px;
+        transform: translateY(-50%);
+        background: @primary-color;
+      }
+    }
+    li {
+      display: flex;
+      align-items: center;
+      span {
+        width: 200px;
+        line-height: 40px;
+        padding-right: 30px;
+        &.editor {
+          color: @primary-color;
+          width: 65px;
+          cursor: pointer;
+          &:hover {
+            color: @accent-color;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

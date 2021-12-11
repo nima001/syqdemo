@@ -1,0 +1,28 @@
+/**
+ * 将层级表头展开
+ * @param {Array} cols 
+ */
+export function foldValueCols(cols){
+  let columns = [], path = [];
+  let stack = [...cols].reverse();
+  while (stack.length) {
+    let c = stack.pop();
+    if(!c){
+      path.pop();
+      continue
+    }
+    let list = c.columns;
+    if(list && list.length){
+      if(c.showname){
+        path.push(c.showname);
+        stack.push(null);
+      }
+      for(let i = list.length - 1; i >= 0; i--){
+        stack.push(list[i]);
+      }
+      continue;
+    }
+    columns.push({column: c.column, showname: path.join('') + (c.showname || '')});
+  }
+  return columns;
+}

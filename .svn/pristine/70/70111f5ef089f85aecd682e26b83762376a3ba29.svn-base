@@ -1,0 +1,122 @@
+// 开放平台模块路由
+import Layout from '../../views/Layout';
+export const dev = {
+  path: '/dev',
+  component: Layout,
+  redirect: '/dev/index',
+  children: [
+    {
+      path: 'index',
+      component: () => import('@/dev/views/index'),
+      name: 'dev',
+      meta: { path: [] }
+    },
+    {
+      path: 'managementcenter',
+      component: () => import('@/dev/views/ManagementCenter'),
+      name: 'managementcenter',
+      meta: { path: [], access: 'login' },
+    },
+    {
+      path: 'manageapp',
+      component: () => import('@/dev/views/app/ManageApp'),
+      name: 'manageapp',
+      meta: {
+        path: [{ name: '应用中心', path: '/dev/managementcenter' },
+        { name: '应用管理', path: '/dev/manageapp' },], access: 'login'
+      },
+    },
+    {
+      path: 'appadd',
+      component: () => import('@/dev/views/app/AppAdd'),
+      name: 'appadd',
+      meta: { path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '创建应用', path: '/dev/appadd' }], access: 'login' },
+    },
+    {
+      path: 'developdoc',
+      component: () => import('@/dev/views/developDoc'),
+      name: 'developDoc',
+      meta: {}
+    },
+
+    {
+      path: 'addbusiness',
+      component: () => import('@/dev/views/business/AddBusiness'),
+      name: 'addbusiness',
+      meta: { path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '创建业务', path: '/dev/addbusiness' }], access: 'login' },
+    },
+    {
+      path: 'authmanage',
+      component: () => import('@/dev/views/app/RolePermission'),
+      name: 'authmanage',
+      meta: {
+        path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+        { name: '权限管理', path: '/dev/authmanage' }
+        ], access: 'login'
+      },
+    },
+    {
+      path: 'addaccess',
+      component: () => import('@/dev/views/accesslibrary/AddAccess'),
+      name: 'addaccess',
+      meta: {
+        path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+        { name: '权限管理', path: '/dev/authmanage' }, { name: '权限新增', path: '/dev/addaccess' }
+        ], access: 'login'
+      },
+    },
+    {
+      path: 'addrole',
+      component: () => import('@/dev/views/accesslibrary/AddRole'),
+      name: 'addrole',
+      meta: {
+        path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+        { name: '角色新增', path: '/dev/addrole' }
+        ], access: 'login'
+      },
+    },
+    {
+      path: 'operationcontrol',
+      component: () => import('@/dev/views/business/OperationControl'),
+      name: 'operationcontrol',
+      meta: {
+        path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+        { name: '业务管理', path: '/dev/OperationControl' }
+        ], access: 'login'
+      },
+    },
+    {
+      path: 'serviceauthority',
+      component: () => import('@/dev/views/business/ServiceAuthority'),
+      name: 'serviceauthority',
+      meta: {
+        path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+        { name: '权限配置', path: '/dev/serviceauthority' }
+        ], access: 'login'
+      },
+    },
+    {
+      path: 'createsuccessful',
+      component: () => import('@/dev/views/createsuccessful/createSuccessful'),
+      name: 'createsuccessful',
+      meta: { path: [{ name: '应用中心', path: '/dev/createsuccessful' }], access: 'login' },
+    },
+    {
+      path: 'userservice',
+      component: () => import('@/dev/views/service/UserService'),
+      name: 'userservice',
+      meta: { path: [{ name: '应用管理', path: '/dev/manageapp' }, { name: '用户服务', path: '/dev/userservice' }], access: 'login' },
+    },
+    {
+      path: 'serviceOrg',
+      component: () => import('@/dev/views/service/ServiceOrg'),
+      name: 'serviceOrg',
+      meta: { path: [{ name: '应用管理', path: '/dev/manageapp' }, { name: '组织服务', path: '/dev/serviceOrg' }], access: 'login' },
+    },
+    {
+      path: 'message',
+      component: () => import('@/dev/views/message'),
+      name: 'message',
+    },
+  ]
+}

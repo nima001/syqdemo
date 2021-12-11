@@ -1,0 +1,89 @@
+<template>
+<div>
+  <h2 v-if="settings&&settings.title" :style="{textAlign:'center'}">{{settings.title}}</h2>
+  <div style="height: 100%" ref="pieChart"></div>
+</div>
+</template>
+<script>
+import { Line } from '@antv/g2plot';
+
+export default {
+  props: {
+    dataTable: {//数据表(dimension:维度列 measure:指标列 rows:数据列)
+      type: Object
+    },
+    settings: {
+      type: Object
+    }
+  },
+  data(){
+    return {
+      plot: undefined,
+      color:["#D15456","#5488D1","#EDBA55","#D48265","#91C7AE","#749F83","#BDA29A","#6E7074","#585470","#706254"]
+    }
+  },
+  watch: {
+    dataTable(dataTable){
+      this.updateData(dataTable);
+    }
+  },
+  mounted(){
+    this.updateData(this.dataTable);
+  },
+  methods: {
+    createData(dataTable){
+      if(!dataTable){
+        return;
+      }
+      let { keyCols, valueCols, rows } = dataTable;
+      this.singleColumn = keyCols.length == 1;
+      return rows.map(item => {
+        let key = keyCols[0];
+        let names;
+        if(keyCols.length){
+          names = [];
+          for(let i = 1; i < keyCols.length; i++){
+            names.push(item[keyCols[i].column]);
+          }
+        }
+        return {
+          key: item[key.column],
+          type: names && names.join('-'),
+          value: item[valueCols[0].column] || 0 //饼图指标暂时只能显示一个数据
+        }
+      })
+    },
+    updateData(dataTable){
+      let data = this.createData(dataTable);
+      if(!data){
+        return;
+      }
+      if(this.plot){
+        this.plot.destroy();
+      }
+      this.plot = new Line(this.$refs.pieChart, {
+        padding: 'auto',
+        forceFit: true,
+        data,
+        xField: 'key',
+        yField: 'value',
+        legend: {
+          position: 'right-top',
+        },
+        color:this.color,
+        meta: {
+          key: {
+            alias: dataTable.keyCols[0].showname,
+          },
+          value: {
+            alias: dataTable.valueCols[0].showname,
+          },
+        },
+        seriesField: 'type',
+        responsive: true,
+      });
+      this.plot.render();
+    }
+  }
+}
+</script>

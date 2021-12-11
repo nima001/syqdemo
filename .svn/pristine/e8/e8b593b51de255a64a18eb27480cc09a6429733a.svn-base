@@ -1,0 +1,930 @@
+<template>
+  <div class="chart-layout">
+    <div class="layout-content">
+      <div class="settings-panel">
+        <div class="top">
+          <div class="subject">
+            <div class="title title-font">主题:</div>
+            <div class="title-option">
+              <ul>
+                <li v-for="(item, index) in options" @click="choose(index, item)" :class="[item.choose ? 'active' : '', { disabled: loading }]" >
+                  {{ item.name }}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <selectcontent
+          :active="this.active"
+          @orgsubmit="orgsubmit"
+          @regionsubmit="regionsubmit"
+          @orglinesubmit="orglinesubmit"
+          @datelinesubmit="datelinesubmit"
+          @qlsxsearchCode="qlsxsearchCode"
+        />
+      </div>
+      <div class="content-panel">
+        <div class="chart">
+          <div class="top-right">
+            <div class="left">
+              <a-select
+                :disabled="this.loading"
+                :value="this.selectedItems"
+                @change="this.selectChange"
+                :class="{ disabled: this.loading }"
+                style="width: 150px; margin-right: 16px"
+                v-if="this.active === 0 || this.active === 1 || this.active === 2"
+              >
+                <a-select-option :key="item.value" v-for="item in selectoptioins" :value="item.value">
+                  {{ item.name }}
+                </a-select-option>
+              </a-select>
+            </div>
+            <div class="right">
+              <span class="icon" @click="choosechart(item)" v-for="item in this.chartTypes.filter((obj) => obj.disabled === false)" :class="item.choose ? 'choose' : ''">
+                <a-icon :type="item.icon" :class="{ disabled: loading }" />
+              </span>
+            </div>
+          </div>
+          <div class="content-right">
+            <div v-show="this.loading">
+              <a-spin class="spinning" :spinning="this.loading" />
+            </div>
+            <keep-alive>
+              <component
+                :title="this.title"
+                :active="this.active"
+                v-show="!this.loading"
+                :is="this.componttype"
+                :columns="this.columns"
+                :settings="this.settings"
+                :queryData="this.queryData"
+                :tableData="this.tableData"
+                :chartType="this.chartType"
+              >
+                <a-pagination
+                  showSizeChanger
+                  slot="pagination"
+                  @change="onChange"
+                  :total="this.pagination.total"
+                  :pageSize="pagination.pagesize"
+                  @showSizeChange="onShowSizeChange"
+                  :current="this.pagination.pagenum"
+                  :showTotal="(total) => `总共：${total}条`"
+                  v-if="this.tableData.length && this.pagination.total"
+                />
+                <a-empty-data slot="empty" class="empty" />
+              </component>
+            </keep-alive>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Select, Icon, Pagination, Spin } from "ant-design-vue";
+import EmptyData from "@/framework/components/EmptyData";
+import { randomStr, showError } from "../../../../framework/utils";
+import selectcontent from "./components/selectcontent.vue";
+import tableconsole from "./components/tableconsole.vue";
+import chartconsole from "./components/chartconsole.vue";
+import { cloneDeep, assign, uniqBy, sortBy, groupBy } from "lodash";
+import { orglinequery } from "@/person-shaoxing/api/information";
+import { qlsxdistrict, qlsxhistory, qlsxline, qlsxlinetable, qlsxdateline, qlsxsearchorg, qlsxsearchcode } from "@/person-shaoxing/api/assessment";
+export default {
+  components: {
+    selectcontent,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AIcon: Icon,
+    ASpin: Spin,
+    AEmptyData: EmptyData,
+    APagination: Pagination,
+    tableconsole,
+    chartconsole,
+  },
+  data() {
+    return { 
+      loading: false,
+      settings: {title: "区域整体情况"}, //图表配置项
+      tableData: [], //表格数据
+      active: 0, //左侧菜单选中项
+      result: [], //请求回来的数据
+      componttype: "chartconsole",
+      selectedItems: 1, //区域选择框默认值
+      title: {}, //按单个事项查看发布情况表头
+      queryData: undefined, //统计结果数据表
+      districts: [], //按权利查询表头的区域数据
+      chartType: "bar-chart", //数据选中的显示类型
+      values: {}, //（非第一个）选中菜单项，点击头部下拉框需要的参数
+      columns: [{ title: "", dataIndex: "rows", key: "rows" }], //表头数据
+      pagination: { pagenum: 1, pagesize: 10, total: 0, needtotal: true }, //分页信息
+      options: [
+        //左侧菜单 methodname属性可用于分页调用方法
+        { name: "区域整体情况", methodname: "qlsxdiStrict", choose: true },
+        { name: "按区域查看部门历史明细", methodname: "qlsxHistory", choose: false },
+        { name: "按时间查看部门变化情况", methodname: "qlsxdateLine", choose: false },
+        { name: "按权力基本码对比具体事项", methodname: "qlsxsearchOrg", choose: false },
+        { name: "按条线部门对比具体事项", methodname: "qlsxLine", choose: false },
+        { name: "按单个事项查看发布情况", choose: false },
+      ],
+      chartTypes: [
+        //图表类型
+        { type: "bar-chart", icon: "bar-chart", choose: true, disabled: false },
+        { type: "line-chart", icon: "line-chart", choose: false, isabled: true },
+        { type: "pie-chart", icon: "pie-chart", choose: false, disabled: true },
+        { type: "table", icon: "table", choose: false, disabled: false },
+      ],
+      selectoptioins: [ { name: "所有事项", value: 1 }, { name: "主项", value: 2 }, { name: "叶子事项", value: 3 } ],  //右侧顶部下拉框
+    };
+  },
+  computed: {
+    dict() {
+      return this.$store.getters.dict("person.business.businesstype");
+    },
+    district() {
+      return this.$store.getters.dict("usermanage.org.district");
+    },
+  },
+  watch: {
+    dict(val) {
+      return val;
+    },
+    district(val) {
+      return val;
+    },
+    chartTypes: {
+      handler(val) {
+        let checked = val.filter((item)=>item.choose===true);
+        if(checked[0].type==="table") {
+          this.componttype = 'tableconsole';
+        }else{
+          this.componttype = 'chartconsole';
+        }
+        return val;
+      },
+      deep: true,
+    },
+    active(val) {
+      if(val===0||val===4) {
+        this.showIcon([1, 2]);
+        if(val===0) {
+          this.settings.title = "区域整体情况";
+        }else{
+          this.settings.title = "按条线部门对比具体事项";
+        }
+      }else if(val===1||val===3||val===5) {
+        this.showIcon([0, 1, 2]);
+        this.choosechart(this.chartTypes[3]);
+      }else if(val===2) {
+        this.showIcon([2]);
+        this.settings.title = "按时间查看部门变化情况";
+      }
+    },
+  },
+  mounted() {
+    this.qlsxdiStrict(1);
+  },
+  methods: {
+    getRowKeys() {
+      return Math.random();
+    },
+    choose(index, item) {
+      //左侧菜单项选择
+      if (!this.loading) {
+        if (index === 0) {
+          this.qlsxdiStrict(this.selectedItems);
+        }
+        this.chooseSubject(this.options, index);
+        this.active = index;
+        //清空数据
+        this.tableData = [];
+        this.queryData = undefined;
+        this.result = [];
+      }
+    },
+    //选中主题
+    chooseSubject(options, index) {
+      let prevoption = options.filter((item)=>item.choose===true)[0];
+      prevoption.choose = false;
+      options[index].choose = true;
+    },
+    //翻页
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.options.forEach((item, index) => {
+        if (item.choose) {
+          this[item.methodname](this.pagination);
+        }
+      });
+    },
+    //pagesize改变回调
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagesize, pagenum: 1 });
+      this.options.forEach((item, index) => {
+        if (item.choose) {
+          this[item.methodname](this.pagination);
+        }
+      });
+    },
+    // 右边头部图标切换选择
+    choosechart(item) {
+      // 切换选中图标
+      if (!this.loading) {
+        this.chartTypes.forEach((items) => {
+          items.choose = false;
+        });
+        item.choose = true;
+        //动态调用方法，加载不同类型数据
+        this.dynamicLoaddata(item);
+        //切换显示的图表
+        this.chartType = item.type;
+      }
+    },
+    dynamicLoaddata(item) {
+      //this.result.length防止未提交，直接点击切换图标，导致数据为空
+      if (item.type !== "table") {
+        if (!this.queryData&&this.result.length) {
+          this.loadchartData(this.result);
+        }
+        this.componttype = "chartconsole";
+      } else {
+        if (!this.tableData.length&&this.result.length) {
+          if(this.active===0){//区域整体情况表格数据加载
+            this.loadtableData(this.result);
+          }else if(this.active===2) {//按时间查看部门变化情况
+            this.loaddatetableData(this.result);
+          }else if(this.active===4) {//按条线部门对比具体事项
+            this.loadorgtableData(this.pagination);
+          }
+        }
+        this.componttype = "tableconsole";
+      }
+    },
+    //右边顶部下拉框选择
+    selectChange(selected) {
+      this.selectedItems = selected;
+      //头部类型下拉选择 因为参数不同，所以执行判断
+      this.options.forEach((item, index) => {
+        if (item.choose) {
+          if (index === 0) {
+            this[item.methodname](selected);
+          } else {
+            this.values.type = selected;
+            this.pagination.pagenum = 1;
+            this[item.methodname](this.values);
+          }
+        }
+      });
+    },
+    //动态显示图表icon
+    showIcon(condition) {
+      this.chartTypes.forEach((item) => {
+        if (item.disabled) {
+          item.disabled = false;
+        }
+      });
+      condition.forEach((item) => {
+        this.chartTypes[item].disabled = true;
+      });
+    },
+    /**处理数据 开始*/
+    //区域整体情况/按区域查看部门历史明细
+    loadtableData(result) {
+      this.columns = [{ title: "", dataIndex: "rows", key: "rows" }];
+      if (this.chartType === "line-chart") {
+        this.chartType = "bar-chart";
+      }
+      let filter = [];
+      result.forEach((item, index) => {
+        filter.push({ text: item.name, value: item.name });
+        //表格数据
+        let row = { rows: item.name, total: item.total }; //初始化行数据
+        //表头数据
+        this.dict.forEach((finditem) => {
+          row.key = index;
+          row[finditem.key] = item.data[finditem.key];
+          if (this.columns.length <= this.dict.length) {
+            this.columns.push({
+              title: `${finditem.text}`,
+              key: `${finditem.key}`,
+              dataIndex: `${finditem.key}`,
+              sorter: this.active === 0 ? (a, b) => a[finditem.key] - b[finditem.key] : undefined,
+            });
+          }
+        });
+        this.tableData.push(row);
+      });
+      this.columns.push({
+        title: "总计",
+        key: "total",
+        dataIndex: "total",
+        sorter: this.active === 0 ? (a, b) => a.total - b.total : undefined,
+      });
+      if (this.active === 0) {
+        this.columns[0].filters = filter;
+        this.columns[0].onFilter = (value, record) => record.rows.indexOf(value) === 0;
+      }
+    },
+    //按条线部门表头
+    loadorgtableheaderData(result) {
+      this.columns = [
+        {
+          title: "权力基本码",
+          dataIndex: "quanlicode",
+          key: "quanlicode",
+        },
+        {
+          title: "权力事项名称",
+          dataIndex: "name",
+          key: "name",
+        },
+      ];
+      result.forEach((item, index) => {
+        this.columns.push({
+          title: () => {
+            return (
+              <div>
+                <p style="margin-bottom:0">{item.name}</p>
+                <p style="margin-bottom:0;">({item.total})</p>
+              </div>
+            );
+          },
+          dataIndex: `check${index}`,
+          key: `check${index}`,
+          align: "center",
+          scopedSlots: { customRender: "check" },
+        });
+      });
+    },
+    loadorgtableData(result) {
+      this.tableData = [];
+      result.rows.forEach((item, index) => {
+        let row = {};
+        row.quanlicode = item.quanlicode;
+        row.name = item.name;
+        row.key = index + 1;
+        item.orgList.forEach((item) => {
+          this.result.forEach((Item, index) => {
+            if (Item.statistickey == item.orgid) {
+              row[`check${index}`] = true;
+            }
+          });
+        });
+        this.tableData.push(row);
+      });
+    },
+    //按时间查看部门变化
+    loaddatetableData(result) {
+      this.columns = [{ title: "", dataIndex: "rows", key: "rows" }];
+      result.forEach((item, index) => {
+        //初始化行数据
+        let row = { rows: item.date.split("-")[1] + "月份", total: item.total };
+        this.dict.forEach((dictItem) => {
+          //循环查找出每一列的数据
+          row.key = index;
+          row[dictItem.key] = item.data[dictItem.key];
+          if (this.columns.length <= this.dict.length) {
+            this.columns.push({
+              title: `${dictItem.text}`,
+              key: `${dictItem.key}`,
+              dataIndex: `${dictItem.key}`,
+            });
+          }
+        });
+        this.tableData.push(row);
+      });
+      this.columns.push({
+        title: "总计",
+        key: "total",
+        dataIndex: "total",
+      });
+    },
+    //处理子节点数据
+    loadchildren(orgname, index, childnode) {
+      for (let a in orgname) {
+        let names = {};
+        //处理父节点数据
+        names[orgname[a][0].district] = orgname[a][0].orgname;
+        assign(this.tableData[index], names);
+        //处理子节点数据
+        if (orgname[a].length > 1) {
+          //删除第一行数据，将剩下的数据放入children属性中
+          orgname[a].splice(0, 1);
+          orgname[a].forEach((nameItem, nameIndex) => {
+            nameItem.key = this.getRowKeys();
+            nameItem[nameItem.district] = nameItem.orgname;
+            if (this.active === 5) {
+              this.$delete(nameItem, "district");
+            }
+            //当orgname[a]里不止一行数据的时候需要另起一行
+            if (nameIndex !== 0) {
+              childnode.push({});
+            }
+            assign(childnode[nameIndex], nameItem);
+          });
+          // 合并数据
+          this.tableData[index].children = childnode;
+        }
+      }
+    },
+    //按权利基本码对比事项
+    loadsearchorgData(result) {
+      this.columns = [
+        {
+          title: "权力基本码",
+          dataIndex: "quanlicode",
+          key: "quanlicode",
+        },
+        {
+          title: "权力事项名称",
+          dataIndex: "name",
+          key: "name",
+        },
+      ];
+      this.result.forEach((Items, index) => {
+        let orgname = [];
+        let childnode = [{}];
+        this.tableData.push({ key: index, quanlicode: Items.quanlicode, name: Items.name, });
+        this.districts.forEach((disItem, disIndex) => {
+          //按名称分组
+          orgname = groupBy(Items.orgList, "district");
+          if (this.columns.length < this.districts.length + 2) {
+            this.columns.push({
+              title: disItem.text,
+              dataIndex: disItem.value,
+              key: disItem.value,
+            });
+          }
+        });
+        //处理子节点数据
+        this.loadchildren(orgname, index, childnode);
+      });
+    },
+    //按单个事项查看发布情况
+    loadcodesearchData(result) {
+      this.pagination.total = 0;
+      this.columns = [{ title: "地区", dataIndex: "district", key: "district", }];
+      let that = this;
+      this.tableData = [{ district: "公布情况(家数)", key: "1" }];
+      this.district.forEach((item) => {
+        that.columns.push({ title: item.text, dataIndex: item.value, key: item.key });
+        that.tableData[0][`${item.value}`] = 0;
+        //计算公布情况（家数）
+        result.orgList.forEach((orgitem, index) => {
+          if (orgitem.district === item.value) {
+            that.tableData[0][`${item.value}`] += 1;
+          }
+        });
+      });
+      let orgname = [];
+      let childnode = [{}];
+      this.tableData.push({ district: "公布部门", key: "2" });
+      orgname = groupBy(result.orgList, "district");
+      //处理子节点数据
+      this.loadchildren(orgname, 1, childnode);
+    },
+    //处理图数据
+    loadchartData(result) {
+      this.queryData = {
+        data: { keyCols: [{ column: "k0", key: "strict", showname: "区域" }], rows: [], valueCols: [{ column: "v0", showname: "记录数" }] },
+      };
+      result.forEach((item, index) => {
+        //查询字典项，图表数据 区域整体情况最后一个数据为 总计 ，所以要用条件区分开
+        if (this.active === 0) {
+          //区域整体情况
+          if (index !== result.length - 1) {
+            this.queryData.data.rows.push({
+              k0: item.name,
+              v0: item.total,
+            });
+          }
+        } else if (this.active === 2) {
+          //按时间查看部门变化情况
+          if (index === 0) {
+            this.queryData = {
+              data: { keyCols: [{ column: "k0", key: "date", showname: "时间" }], rows: [], valueCols: [{ column: "value", showname: "记录数" }] },
+            };
+          }
+          let Index = 1;
+          for (let tableitem in item.data) {
+            if (tableitem !== "total") {
+              let showname = this.dict.find((finditem) => finditem.key == tableitem).text;
+              //避免keyCols数据冗余，只在result第一次循环的时候添加
+              if (index === 0) {
+                this.queryData.data.keyCols.push({
+                  column: `k${Index}`,
+                  key: tableitem,
+                  showname: showname,
+                });
+              }
+              //利用空对象添加每一组值
+              let obj = {};
+              obj.k0 = `${item.date.split("-")[1]}月份`;
+              obj[`k${Index}`] = showname;
+              obj.value = item.data[tableitem];
+              this.queryData.data.rows.push(obj);
+              Index++;
+            }
+          }
+        } else {
+          this.queryData.data.rows.push({ k0: item.name, v0: item.total });
+        }
+      });
+    },
+    /**接受子组件提交事件 开始**/
+    initpagination() {
+      //初始化pagination
+      this.pagination = {
+        pagenum: 1,
+        pagesize: 10,
+        total: 0,
+        needtotal: true,
+      };
+    },
+    //按区域查看部门历史明细 提交
+    regionsubmit(values) {
+      let date = "";
+      if (!values.date && this.active === 1) {
+        let myDate = new Date();
+        date += myDate.getFullYear() + "-"; //获取完整的年份(4位,1970-????)
+        date += myDate.getMonth() + 1 + "-01"; //获取当前月份(0-11,0代表1月)
+        values.date = date;
+      }
+      this.initpagination();
+      assign(this.pagination, values);
+      this.pagination.type = this.selectedItems;
+      this.qlsxHistory(this.pagination);
+    },
+    //按条线部门对比具体事项 提交
+    orglinesubmit(values) {
+      this.initpagination();
+      assign(this.pagination, values);
+      this.qlsxlineTable(this.pagination);
+    },
+    //按时间查看部门变化情况 提交
+    datelinesubmit(values) {
+      this.initpagination();
+      this.pagination.type = this.selectedItems;
+      assign(this.pagination, values);
+      this.qlsxdateLine(this.pagination);
+    },
+    //按权利基本码独对比具体事项 提交
+    orgsubmit(values) {
+      this.initpagination();
+      assign(this.pagination, values);
+      this.pagination.districts = [];
+      this.districts = [];
+      (values.districts || []).forEach((item) => {
+        this.pagination.districts.push(item.value);
+        this.districts.push(item);
+      });
+      this.qlsxsearchOrg(this.pagination);
+    },
+    /**  接口数据调用 开始 **/
+    //区域整体情况
+    qlsxdiStrict(type) {
+      this.loading = true;
+      qlsxdistrict(type)
+        .then((res) => {
+          if (res.result) {
+            this.result = res.result;
+            this.pagination.total = 0;
+            this.tableData = [];
+            this.queryData = undefined;
+            //获取图表数据
+            if (this.chartType !== "table") {
+              this.loadchartData(this.result);
+            }else{
+              this.loadtableData(this.result);
+            }
+          } else {
+            this.tableData = [];
+            this.queryData = undefined;
+          }
+          this.loading = false;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    //区域查看部门历史
+    qlsxHistory(data) {
+      this.loading = true;
+      if (data.rows && data.rows.length) {
+        data.rows = [];
+      }
+      this.values = data;
+      qlsxhistory(data)
+        .then((res) => {
+          this.result = cloneDeep(res.result.rows);
+          assign(this.pagination, res.result);
+          this.tableData = [];
+          this.loadtableData(this.result);
+          this.loading = false;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    //按条线部门对比具体事项
+    qlsxLine(data) {
+      this.loading = true;
+      if (data.rows && data.rows.length) {
+        data.rows = [];
+      }
+      qlsxline(data)
+        .then((res) => {
+          if (res.result) {
+            assign(this.pagination, res.result);
+            //获取图表数据
+            this.tableData = [];
+            this.queryData = undefined;
+            if (this.chartType !== "table") {
+              this.loadchartData(this.result);
+            }else{
+              this.loadorgtableData(res.result);
+            }
+          } else {
+            this.tableData = [];
+            this.queryData = undefined;
+          }
+          this.loading = false;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    //条线部门表头
+    qlsxlineTable(data) {
+      this.loading = true;
+      qlsxlinetable(data)
+        .then((res) => {
+          if (res.result.length) {
+            this.result = cloneDeep(res.result);
+            this.loadorgtableheaderData(this.result);
+            //按条线部门对比
+            this.qlsxLine(this.pagination);
+          } else {
+            this.tableData = [];
+            this.queryData = undefined;
+            this.loading = false;
+          }
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    //按时间查看部门变化情况
+    qlsxdateLine(data) {
+      this.loading = true;
+      this.values = data;
+      qlsxdateline(data)
+        .then((res) => {
+          this.pagination.total = 0;
+          if (res.result.length) {
+            this.result = sortBy(res.result, function (item) {
+              return item.date;
+            });
+            this.tableData = [];
+            this.queryData = undefined;
+            //获取图表数据
+            if (this.chartType !== "table") {
+              this.loadchartData(this.result);
+            }else{
+              this.loaddatetableData(this.result);
+            }
+          } else {
+            this.tableData = [];
+            this.queryData = undefined;
+          }
+          this.loading = false;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    //按权利基本码对比具体事项
+    qlsxsearchOrg(data) {
+      this.loading = true;
+      this.values = data;
+      qlsxsearchorg(data)
+        .then((res) => {
+          assign(this.pagination, res.result);
+          this.result = res.result.rows;
+          //按权利基本码对比具体事项
+          this.tableData = [];
+          this.queryData = undefined;
+          this.loadsearchorgData(this.result);
+          this.loading = false;
+        })
+        .catch((err) => {
+          this.loading = false;
+          this.tableData = [];
+          this.queryData = undefined;
+          showError(err);
+        });
+    },
+    //按单个事项查看发布情况
+    qlsxsearchCode(data) {
+      this.title = data.title;
+      this.loading = true;
+      qlsxsearchcode(data)
+        .then((res) => {
+          this.loadcodesearchData(res.result);
+          this.loading = false;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    /** 接口数据调用 结束 **/
+  },
+};
+</script>
+<style scoped lang="less">
+.chart-layout {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  padding: @layout-space-base;
+  .layout-content {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    .settings-panel {
+      height: 100%;
+      max-width: 248px;
+      min-width: 248px;
+      width: 248px;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      border-radius: @border-radius-base;
+      background: #ffffff;
+      margin-right: @layout-space-base;
+      & .top {
+        .title-option {
+          ul {
+            margin-bottom: 0;
+            li {
+              margin-top: @padding-xs;
+              cursor: pointer;
+            }
+            li.disabled {
+              cursor: not-allowed;
+            }
+          }
+        }
+        .selectcontent {
+          margin-top: 24px;
+        }
+      }
+      .active {
+        color: @primary-color;
+      }
+      .title-option {
+        ul {
+          margin-bottom: 0;
+          li {
+            margin-top: @padding-xs;
+            cursor: pointer;
+          }
+        }
+      }
+      .selectcontent {
+        margin-top: 24px;
+      }
+    }
+    .content-panel {
+      height: 100%;
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      flex: 1;
+      background: #ffffff;
+      border-radius: @border-radius-base;
+      // 在填充数据之前隐藏
+      [v-cloak] {
+        display: none;
+      }
+      & .chart {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        .top-right {
+          padding: @content-padding-v @content-padding-h;
+          box-shadow: 0px 3px 6px 0px @primary-1;
+          display: flex;
+          justify-content: space-between;
+          .left {
+            margin: 10px 0;
+          }
+          .right {
+            margin: 10px 0;
+            display: flex;
+            height: 32px;
+            align-items: center;
+            justify-content: space-around;
+            .icon {
+              display: flex;
+              align-self: center;
+              justify-content: center;
+              border: 1px solid #e8e8e8;
+              border-radius: @border-radius-base;
+              padding: @padding-xs / 4;
+              margin-right: @padding-xs / 2;
+              transition: all 0.5s;
+              /deep/.anticon {
+                color: #e8e8e8;
+                cursor: pointer;
+                font-size: 20px;
+              }
+            }
+            .icon.choose {
+              border: 1px solid @primary-color;
+              /deep/.anticon {
+                color: @primary-color;
+              }
+            }
+            .icon .anticon.disabled {
+              cursor: not-allowed;
+            }
+          }
+        }
+        .content-right {
+          overflow: auto;
+          height: 100%;
+          position: relative;
+          padding: @content-padding-v @content-padding-h;
+          & .spinning,
+          & .content {
+            height: 100%;
+          }
+          .empty {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+          }
+          .spinning {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 999;
+            height: auto;
+          }
+          //表头伸缩
+          // /deep/.ant-table-thead > tr > th{
+          //   max-width: 56px;
+          //   word-break: keep-all; /* 不换行 */
+          //   white-space: nowrap; /* 不换行 */
+          //   & div{
+          //     text-overflow: ellipsis;
+          //     overflow: hidden;
+          //   }
+          // }
+          /deep/.ant-table-tbody {
+            @media (min-width: 1301px) {
+              & > tr > td:not(:first-child) {
+                max-width: 115px;
+                word-break: keep-all; /* 不换行 */
+                white-space: nowrap; /* 不换行 */
+                overflow: hidden; /* 内容超出宽度时隐藏超出部分的内容 */
+                text-overflow: ellipsis; /* 当对象内文本溢出时显示省略标记(...) ；需与overflow:hidden;一起使用。*/
+              }
+            }
+            @media (max-width: 1300px) {
+              & > tr > td:not(:first-child) {
+                max-width: 100px;
+                word-break: keep-all; /* 不换行 */
+                white-space: nowrap; /* 不换行 */
+                overflow: hidden; /* 内容超出宽度时隐藏超出部分的内容 */
+                text-overflow: ellipsis; /* 当对象内文本溢出时显示省略标记(...) ；需与overflow:hidden;一起使用。*/
+              }
+            }
+            & > tr > td {
+              word-break: keep-all; /* 不换行 */
+              white-space: nowrap; /* 不换行 */
+            }
+            & .ant-table-row-indent + .ant-table-row-expand-icon {
+              display: none;
+            }
+          }
+          /deep/.ant-pagination {
+            float: right;
+            margin-top: 10px;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

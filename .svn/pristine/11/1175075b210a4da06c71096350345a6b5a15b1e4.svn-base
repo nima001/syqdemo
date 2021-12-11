@@ -1,0 +1,184 @@
+import request from '@/framework/utils/request'
+/*
+**---------------- 业务办理监测 ----------------
+*/
+// 业务办理监测
+export function orgDataStatisticQuery (data) {
+  return request({
+    url: '/person/v1/datastatistic/list',
+    method: 'post',
+    data
+  })
+}
+
+//  机构增减情况
+export function orgChangeInfo (data) {
+  return request({
+    url: '/person/v1/datastatistic/info',
+    method: 'post',
+    data
+  })
+}
+
+//  机构增减情况量
+export function orgChangeNum (data) {
+  return request({
+    url: '/person/v1/datastatistic/num',
+    method: 'post',
+    data
+  })
+}
+
+/*
+**---------------- 数据质量监测 ----------------
+*/
+//  数据质量饼图、柱状图、折线图统一查询
+export function dataqualityList (data) {
+  return request({
+    url: '/person/v1/dataquality/list',
+    method: 'post',
+    data
+  })
+}
+//分页查询统一接口
+export function dataqualityPage (data) {
+  return request({
+    url: '/person/v1/dataquality/page',
+    method: 'post',
+    data
+  })
+}
+//发送通知消息
+export function dataqualityMsg (ids) {
+  return request({
+    url: `/person/v1/dataquality/sendmsg?ids=${ids}`,
+    method: 'get'
+  })
+}
+/*
+**---------------- 问题跟踪监测 ----------------
+*/
+//饼图、柱状图、折线图统一查询接口
+export function problemmonitorCount (data) {
+  return request({
+    url: '/person/v1/problemmonitor/count',
+    method: 'post',
+    data
+  })
+}
+//发送通知消息
+export function problemmonitorMsg (data) {
+  return request({
+    url: `/person/v1/problemmonitor/sendmsg`,
+    method: 'post',
+    data
+  })
+}
+//所有问题列表
+export function Listproblem(data) {
+  return request({
+    url: `/person/v1/problemmonitor/listproblem`,
+    method: 'post',
+    data
+  })
+}
+//机构黑名单
+export function orgBlacklist(data) {
+  return request({
+    url: `/person/v1/problemmonitor/orgblacklist`,
+    method: 'post',
+    data
+  })
+}
+//黑名单中的问题列表
+export function problemblackList(data) {
+  return request({
+    url: `/person/v1/problemmonitor/problemblacklist`,
+    method: 'post',
+    data
+  })
+}
+//添加黑名单
+export function addblackList (id) {
+  return request({
+    url: `/person/v1/problemmonitor/addblacklist?id=${id}`,
+    method: 'get'
+  })
+}
+//移除黑名单
+export function removeBlacklist (id) {
+  return request({
+    url: `/person/v1/problemmonitor/removeblacklist?id=${id}`,
+    method: 'delete'
+  })
+}
+//批量移除问题黑名单
+export function batchremove (id) {
+  return request({
+    url: `/person/v1/problemmonitor/batchremove?blacklistid=${id}`,
+    method: 'delete'
+  })
+}
+//问题添加到暂缓名单
+export function addDefer (id) {
+  return request({
+    url: `/person/v1/problemmonitor/adddefer?id=${id}`,
+    method: 'get'
+  })
+}
+//问题移出暂缓名单
+export function removeDefer (id) {
+  return request({
+    url: `/person/v1/problemmonitor/removedefer?id=${id}`,
+    method: 'get'
+  })
+}
+/*
+**---------------- 监控策略 ----------------
+*/
+// 监控策略列表
+export function listMonitorStrategy (data) {
+  return request({
+    url: '/person/v1/monitorstrategy/list',
+    method: 'post',
+    data
+  })
+}
+// 获取监控策略
+export function getMonitorStrategy (id) {
+  return request({
+    url: `/person/v1/monitorstrategy/get/${id}`,
+    method: 'get'
+  })
+}
+// 添加监控策略
+export function addMonitorStrategy (data) {
+  return request({
+    url: '/person/v1/monitorstrategy/add',
+    method: 'post',
+    data
+  })
+}
+// 更新监控策略
+export function updateMonitorStrategy (data) {
+  return request({
+    url: '/person/v1/monitorstrategy/update',
+    method: 'put',
+    data
+  })
+}
+// 删除监控策略
+export function deleteMonitorStrategy (id) {
+  return request({
+    url: `/person/v1/monitorstrategy/delete/${id}`,
+    method: 'delete'
+  })
+}
+// 获取预设或接口集合
+export function listPresets () {
+  return request({
+    url: `/person/v1/monitorstrategy/listpresets`,
+    method: 'get'
+  })
+}
+

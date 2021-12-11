@@ -1,0 +1,44 @@
+<template>
+  <div class="org-namenotation">
+    <a-row :gutter="20">
+      <a-col :span="6">
+        <span v-if="data.exist" class="name">{{data.exist}}</span>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="6">
+        <span v-if="data.noexist" class="name">{{data.noexist}}</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+import { Row, Col } from "ant-design-vue";
+export default {
+  props: {
+    data: Object
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+  },
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.org-namenotation{  
+  /deep/.ant-row{
+    line-height: 30px;
+  }
+}
+</style>

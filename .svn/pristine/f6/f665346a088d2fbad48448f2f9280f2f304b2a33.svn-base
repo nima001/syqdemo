@@ -1,0 +1,220 @@
+<template>
+  <div>
+    <a-form-item v-if="formLayout != 'horizontal'" :label="name" :required="required" :validateStatus="validateStatus" :class="{editor:!editor}">
+      <a-tooltip placement="topLeft" :title="help">
+        <a-input
+          :value="propValue && propValue.name"
+          :title="propValue && propValue.name"
+          :read-only="true"
+          :allowClear="true"
+          @click="showOrgSelect"
+          @change="changeHandle($event)"
+        >
+          <a-icon slot="addonAfter" type="select" @click="showOrgSelect" />
+        </a-input>
+      </a-tooltip>
+    </a-form-item>
+    <a-form-item v-else :required="required" :validateStatus="validateStatus" :class="{editor:!editor}">
+      <div class="compact">
+        <div class="title" :title="name" :class="{required}">{{name}}</div>
+        <a-tooltip placement="topLeft" :title="help">
+          <a-input
+            :value="propValue && propValue.name"
+            :title="propValue && propValue.name"
+            :read-only="true"
+            :allowClear="true"
+            @click="showOrgSelect"
+            @change="changeHandle($event)"
+          >
+            <a-icon slot="addonAfter" type="select" @click="showOrgSelect" />
+          </a-input>
+        </a-tooltip>
+      </div>
+    </a-form-item>    
+    <a-modal
+      :footer="null"
+      v-model="orgvisible"
+      :width="500"
+      :title="`选择${name}`"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select
+        :mode="mode"
+        :usePermit="usePermit"
+        :default-root="defaultRoot && defaultRoot._id"
+        @finish="orgOk"
+        :orgFilter="orgFilter"
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import get from "lodash/get";
+import set from "lodash/set";
+import { Form, Input, Modal, Icon } from "ant-design-vue";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import { mixins } from "@formdesign/views/mixin/index";
+export default {
+  title: "组织选择",
+  mixins: [mixins],
+  components: {
+    AFormItem: Form.Item,
+    AInput: Input,
+    AModal: Modal,
+    AIcon: Icon,
+    OrgUserSelect
+  },
+  props: {
+    mode: {
+      default: () => {
+        return "org";
+      }
+    },
+    location: {
+      type: Object
+    },
+    usePermit: {
+      type: Boolean,
+      default: () => {
+        return true;
+      }
+    }
+  },
+  data() {
+    return {
+      orgvisible: false
+    };
+  },
+  computed: {
+    defaultRoot() {
+      if (this.location) {
+        if (this.data) {
+          return get(this.data, this.location.code);
+        } else {
+          return get(this.formData.data, this.location.code);
+        }
+      }
+    },
+    //  9 代表过滤当前location 不是内设的选项
+    orgFilter() {
+      if (this.mode == "dept") {
+        return {
+          unittype: 9
+        };
+      }
+    },
+  },
+  watch: {
+    defaultRoot() {
+      this.propValue = undefined;
+    }
+  },
+  methods: {
+    validate(callback) {
+       if(!this.disabled){
+        //TODO 数据格式校验
+        if(this.required && !(this.propValue && this.propValue._id)){
+          this.validateStatus = "error";
+          this.help = `请填写${this.name || this.code}`
+          callback({ code: this.code, message: this.help })
+          return;
+        }else{
+          this.validateStatus = "success";
+          this.help = undefined;
+        }
+      }
+      callback()
+    },
+    showOrgSelect() {
+      if (!this.disable) {
+        if (this.location && (!this.defaultRoot || !this.defaultRoot._id)) {
+          Modal.warning({
+            title: "提示",
+            content: `请先选择${this.location.label}`
+          });
+          return false;
+        }
+        this.orgvisible = true;
+      }
+    },
+    changeHandle(e) {//用于监听清除数据
+      if(!e.target.value){
+        this.propValue = null;
+      }
+    },
+    orgOk(type, list) {
+      this.orgvisible = false;
+      if (type == "ok" && list.length > 0) {
+        this.propValue = list[0];
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-form-item {
+  margin-bottom: 0;
+  &.editor{
+    position: relative;
+    &::before{
+      position: absolute;
+      left: 0px;
+      top: 0px;
+      content: '';
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 3;
+      cursor: not-allowed
+    }
+  }
+  .compact {
+    display: flex;
+    padding: 4px 0px;
+    .title {
+      min-width: 5em;
+      max-width: 10em;
+      text-align: left;
+      box-sizing: content-box;
+      padding: 0px 11px;
+      height: 30px;
+      line-height: 30px;
+      color: rgba(0, 0, 0, 0.75);
+      font-size: 14px;
+      background-color: #fafafa;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      border-right: none;
+      border-top-right-radius: 0px;
+      border-bottom-right-radius: 0px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      &.required{
+        position: relative;
+        &::before{
+          display: inline-block;
+          color:@primary-color;
+          font-size: 14px;
+          font-family: SimSun, sans-serif;
+          line-height: 1;
+          content: '*';
+          position: absolute;
+          left:2px;
+          top: 50%;
+          transform: translateY(-50%)
+        }        
+      }
+    }
+    /deep/ .ant-input-group-wrapper {
+      top: 0px;
+      flex: 1;
+      /deep/.ant-input{
+        border-top-left-radius: 0px;
+        border-bottom-left-radius: 0px;
+      }
+
+    }
+  }  
+}
+</style>

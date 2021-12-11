@@ -1,0 +1,205 @@
+<template>
+  <div class="wrap">
+    <div class="cell">
+      <p class="title">人员调动概况</p>
+      <ul class="list">
+        <li class="item" v-for="(item,index) in list" :key="index">
+          <span class="icon" :style="{background:item.background}">
+            <custom-icon :type="item.svgType"></custom-icon>
+          </span>
+          <span class="num">{{item.num}}</span>
+          <span class="desc">{{item.desc}}</span>
+        </li>
+      </ul>
+    </div>
+    <div class="cell">
+      <p class="title">人员调动情况</p>
+      <div class="chart" ref="chart"></div>
+    </div>
+  </div>
+</template>
+<script>
+import CustomIcon from "@/framework/components/CustomIcon";
+import { Chart } from "@antv/g2";
+export default {
+  components: { CustomIcon },
+  data() {
+    return {
+      list: [
+        { num: 32, desc: "人员调入", svgType: "add", background: "#e0eafe" },
+        { num: 32, desc: "人员调出", svgType: "reduce", background: "#fdedef" },
+        {
+          num: 32,
+          desc: "尽流入/出",
+          svgType: "add_reduce",
+          background: "#dff8ee"
+        }
+      ]
+    };
+  },
+  mounted() {
+    this.draw();
+  },
+  methods: {
+    draw() {
+      const data = [
+        { time: "1月", type: "调入", value: 27 },
+        { time: "1月", type: "调出", value: -24 },
+
+        { time: "2月", type: "调入", value: 30 },
+        { time: "2月", type: "调出", value: -27 },
+
+        { time: "3月", type: "调入", value: 34 },
+        { time: "3月", type: "调出", value: -30 },
+
+        { time: "4月", type: "调入", value: 38 },
+        { time: "4月", type: "调出", value: -34 },
+
+        { time: "5月", type: "调入", value: 40 },
+        { time: "5月", type: "调出", value: -36 },
+
+        { time: "6月", type: "调入", value: 27 },
+        { time: "6月", type: "调出", value: -24 },
+
+        { time: "7月", type: "调入", value: 30 },
+        { time: "7月", type: "调出", value: -27 },
+
+        { time: "8月", type: "调入", value: 34 },
+        { time: "8月", type: "调出", value: -30 },
+
+        { time: "9月", type: "调入", value: 38 },
+        { time: "9月", type: "调出", value: -34 },
+
+        { time: "10月", type: "调入", value: 40 },
+        { time: "10月", type: "调出", value: -36 },
+
+        { time: "11月", type: "调入", value: 38 },
+        { time: "11月", type: "调出", value: -34 },
+
+        { time: "12月", type: "调入", value: 40 },
+        { time: "12月", type: "调出", value: -36 }
+      ];
+      const chart = new Chart({
+        container: this.$refs.chart,
+        autoFit: true
+      });
+      chart.data(data);
+      chart.scale("value", {
+        alias: "人数(位)"
+      });
+      chart.axis("time", {
+        tickLine: null
+      });
+      chart.axis("value", {
+        label: {
+          formatter: text => {
+            return text.replace(/(\d)(?=(?:\d{3})+$)/g, "$1,");
+          }
+        },
+        title: {
+          offset: 80,
+          style: {
+            fill: "#aaaaaa"
+          }
+        }
+      });
+      chart.legend({
+        position: "top"
+      });
+
+      chart.tooltip({
+        shared: true,
+        showMarkers: false
+      });
+      chart.interaction("active-region");
+
+      chart
+        .interval()
+        .adjust("stack")
+        .position("time*value")
+        .color("type", ["#6395f9", "#f2a5af"]);
+      chart.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-height: 100%;
+  .cell {
+    padding: @content-padding-v @content-padding-h;
+    background: @white;
+    margin-top: @layout-space-base;
+    border-radius: @border-radius-base;
+    flex: 1;
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+    &:first-child {
+      margin-top: 0px;
+    }
+    .title {
+      margin: 0px;
+    }
+    .list {
+      margin: 0px;
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
+      .item {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        &::after {
+          content: "";
+          width: 1px;
+          height: 40px;
+          background: #d1dce9;
+          position: absolute;
+          right: 0px;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        &:last-child {
+          &::after {
+            width: 0px;
+          }
+        }
+        .icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          /deep/svg {
+            width: 25px;
+            height: 25px;
+            border-radius: 0px;
+          }
+        }
+        .num {
+          padding: @padding-md 0px;
+          font-size: 35px;
+          font-weight: bold;
+          color: #000;
+        }
+        .desc {
+          color: #999;
+          font-size: 16px;
+        }
+      }
+    }
+    .chart {
+      flex: 1;
+    }
+  }
+}
+</style>

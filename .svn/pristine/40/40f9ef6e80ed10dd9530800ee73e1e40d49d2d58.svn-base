@@ -1,0 +1,168 @@
+<template>
+  <div class="layout">
+    <div class="content">
+      <div class="top">
+        <div class="left">
+          <div class="cell">
+            <span class="title">上班打卡异常次数:</span>
+            <span class="days">1次</span>
+          </div>
+          <div class="cell">
+            <span class="title">下班打卡异常次数:</span>
+            <span class="days">3次</span>
+          </div>
+        </div>
+        <div class="right">
+          <a-date-picker allowClear @change="deateChange"></a-date-picker>
+        </div>
+      </div>
+      <div class="middle">
+        <a-table
+          rowKey="id"
+          :loading="loading"
+          :columns="columns"
+          :data-source="dataSource"
+          :pagination="false"
+        ></a-table>
+      </div>
+      <div class="bottom">
+        <a-pagination
+          show-size-changer
+          :total="pagination.total"
+          :page-size="pagination.pagesize"
+          :default-current="pagination.pagenum"
+          :show-total="(total) => `共 ${total} 条`"
+          @change="onChange"
+          @showSizeChange="onShowSizeChange"
+        ></a-pagination>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { DatePicker, Table, Pagination } from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+import { showError } from "@/framework/utils/index";
+export default {
+  data() {
+    return {
+      loading: false,
+      dataSource: [],
+      query: {
+        type: 1
+      },
+      pagination: {
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+        needtotal: true
+      }
+    };
+  },
+  computed: {
+    columns() {
+      return [
+        {
+          title: "日期",
+          dataIndex: "date"
+        },
+        {
+          title: "上班打卡",
+          dataIndex: "onwork"
+        },
+        {
+          title: "状态",
+          dataIndex: "onstate"
+        },
+        {
+          title: "下班打卡",
+          dataIndex: "offwork"
+        },
+        {
+          title: "状态",
+          dataIndex: "offstate"
+        }
+      ];
+    }
+  },
+  components: {
+    ATable: Table,
+    ADatePicker: DatePicker,
+    APagination: Pagination
+  },
+  methods: {
+    deateChange(value) {},
+    dictRender(key, attr) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagenum: 1, pagesize });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .content {
+    flex: 1;
+    padding: @content-padding-v @content-padding-h;
+    margin-top: @layout-space-base;
+    overflow-y: auto;
+    min-height: 0px;
+    background: @white;
+    display: flex;
+    flex-direction: column;
+    border-radius: @border-radius-base;
+    .top {
+      display: flex;
+      justify-content: space-between;
+      padding: @content-padding-v 0px;
+      .left {
+        display: flex;
+        justify-content: space-between;
+        .cell {
+          display: flex;
+          align-items: center;
+          &:last-child {
+            margin-left: @padding-lg;
+          }
+          .title {
+            font-size: 15px;
+            color: #666;
+          }
+          .days {
+            color: @primary-color;
+            margin-left: @padding-md;
+          }
+        }
+      }
+      .right {
+        width: 250px;
+        .ant-calendar-picker {
+          width: 100%;
+        }
+      }
+    }
+    .middle {
+      flex-shrink: 1;
+      padding: @content-padding-v 0px;
+      overflow-y: auto;
+    }
+    .bottom {
+      text-align: right;
+      padding: @content-padding-v 0px;
+    }
+  }
+}
+</style>

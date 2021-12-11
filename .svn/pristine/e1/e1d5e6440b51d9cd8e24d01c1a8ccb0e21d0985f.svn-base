@@ -1,0 +1,35 @@
+<template>
+  <a-switch v-model="value" v-bind="property.attrs" />
+</template>
+<script>
+import { Switch } from "ant-design-vue";
+import PropMixin from './PropMixin'
+
+export default {
+  components: {
+    ASwitch: Switch,
+  },
+  mixins: [PropMixin],
+  computed: {
+    defaultValue(){
+      return this.property.attrs && this.property.attrs.defaultValue;
+    },
+    value:{
+      get(){
+        return this.propValue === undefined ? this.defaultValue : this.propValue;
+      },
+      set(v){
+        this.propValue = v;
+      },
+    }
+  },
+  created(){
+    //console.log(this)
+  },
+}
+</script>
+<style lang="less" scoped>
+.ant-switch{
+  width: 40px;
+}
+</style>

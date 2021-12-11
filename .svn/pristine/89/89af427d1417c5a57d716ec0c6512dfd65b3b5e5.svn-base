@@ -1,0 +1,74 @@
+
+/** 
+ * 实名制模块路由
+*/
+import Layout from '@person/views/Layout'
+
+export const orgRoutes = {
+	path: '/person/org',
+	component: Layout,
+	children: [
+		{
+			path: '',
+			component: () => import('@person/views/org/index'),
+			name: 'orgIndex',
+			redirect: 'index',
+			children: [
+				{
+					path: 'index',
+					component: () => import('@person/views/org/Main'),
+					name: 'orgMain',
+					meta: { 
+						access: 'login',
+						path: [ { name: '实名制', path: '/person/org' }] 
+					}
+				},
+				{
+					path: 'report',
+					component: () => import('@person/views/org/RealTable'),
+					name: 'orgRealTable',
+					meta: { 
+						access: 'login',
+						path: [ { name: '实名制', path: '/person/org' }, { name: '一览表', path: '/person/org/report' }] 
+					}
+				},
+				{
+					path: 'userinfo',
+					component: () => import('@person/views/org/UserInfo'),
+					name: 'orgUserInfo',
+					meta: { 
+						access: 'login',
+						path: [ { name: '实名制', path: '/person/org' }, { name: '用户信息', path: '/person/org/userinfo' }] 
+					}
+				},
+				{
+					path: 'quotaplan/history',
+					component: () => import('@person/views/org/components/quotaplan/PlanHistory'),
+					name: 'PlanHistory',
+					meta: { 
+						access: 'login',
+						path: [ { name: '实名制', path: '/person/org' }, { name: '本单位用编申请记录'}] 
+					}
+				},
+				{
+					path: 'quotaplan/historybw',
+					component: () => import('@person/views/org/components/quotaplan/PlanHistoryBw'),
+					name: 'PlanHistoryBw',
+					meta: {
+						access: 'login',
+						path: [ { name: '实名制', path: '/person/org' }, { name: '本单位用编申请记录' }] 
+					}
+				},
+				{
+					path: 'bwkz',
+					component: () => import('../../views/org/components/Bwkz'),
+					name: 'bwkz',
+					meta: {
+						access: 'auth',
+						path: [ { name: '实名制', path: '/person/org' }, { name: '编外控制数' }] 
+					}
+				}
+			]
+		}
+	]
+}

@@ -1,0 +1,131 @@
+<template>
+  <div class="wrap">
+    <p class="title">近五年预计退休人数</p>
+    <div class="chart" :id="id"></div>
+    <div class="retired">
+      <span class="text">未按时退休人数</span>
+      <span class="num">5</span>
+    </div>
+  </div>
+</template>
+
+<script>
+import DataSet from "@antv/data-set";
+import { Chart } from "@antv/g2";
+export default {
+  components: {},
+  data() {
+    return {
+      id: Math.random()
+        .toString(32)
+        .substr(2),
+      list: [
+        {
+          Data: "2016-02",
+          sales: 1089
+        },
+        {
+          Data: "2016-03",
+          sales: 745
+        },
+        {
+          Data: "2016-04",
+          sales: 680
+        },
+        {
+          Data: "2016-05",
+          sales: 802
+        },
+        {
+          Data: "2016-10",
+          sales: 398
+        },
+        {
+          Data: "2016-11",
+          sales: 278
+        },
+        {
+          Data: "2017-02",
+          sales: 207
+        }
+      ]
+    };
+  },
+  mounted() {
+    this.draw();
+  },
+  methods: {
+    draw() {
+      const chart = new Chart({
+        container: this.id,
+        autoFit: true,
+        height: 220
+      });
+      chart.data(this.list);
+      chart.scale("Data", {
+        range: [0, 1],
+        tickCount: 10,
+        type: "timeCat"
+      });
+      chart.scale("sales", {
+        nice: true
+      });
+      chart.tooltip({
+        showCrosshairs: true
+      });
+      chart.option("slider", {});
+
+      chart.line().position("Data*sales");
+      chart.area().position("Data*sales");
+      chart.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  margin-top: 10px;
+  background: url("../img/short-line.png") center bottom no-repeat;
+  padding-bottom: 35px;
+  .title {
+    height: 26px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.8;
+    margin: 0px;
+  }
+  .chart {
+    margin-top: 20px;
+  }
+  .retired {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 37px;
+    border-radius: 4px;
+    padding: 0px 24px;
+    background: url("../img/retire.png") repeat-x;
+    .text {
+      height: 21px;
+      font-size: 16px;
+      font-family: Microsoft YaHei;
+      font-weight: 400;
+      line-height: 21px;
+      color: #ffffff;
+      opacity: 0.8;
+    }
+    .num {
+      height: 22px;
+      font-size: 20px;
+      font-family: Arial;
+      font-weight: bold;
+      line-height: 23px;
+      color: #fb2626;
+      opacity: 1;
+    }
+  }
+}
+</style>

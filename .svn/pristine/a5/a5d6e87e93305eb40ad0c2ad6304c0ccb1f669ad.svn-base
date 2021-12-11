@@ -1,0 +1,681 @@
+<template>
+  <div class="content">
+    <div class="header">
+      <div class="headerBar">
+        <template v-if="target">
+          <a-select v-model="searchTarget" :labelInValue="true" style="width: 120px;" @change="targetChange">
+            <a-select-option v-for="item in targetList" :key="item.id" :value="item.id">{{item.title}}</a-select-option>
+          </a-select>
+          <div class="rangs" v-if="target.catalogid">
+            <a-input v-model="node.nodename" 
+              allowClear 
+              read-only 
+              @click="catalogVisible = true" 
+              @change="resetRange" 
+              :style="{width:'300px'}" 
+              placeholder="选择查询目录" 
+            >
+              <a-icon slot="addonAfter" type="select" @click="catalogVisible = true"/>
+            </a-input>
+          </div>
+          <div class="fields">
+            <a-button @click="treeSelect=true">查询字段选择</a-button>
+          </div>
+        </template>
+        <div class="btns">
+          <a-select
+            v-if ="copySource"
+            placeholder="请选择数据集"
+            :style="{width:'200px'}"
+            @change="selectDataSource"
+            :value="selectedDataSource"
+          >
+            <a-select-option :value="item.id" v-for="(item,index) in dataSourceList" :key="index">{{item.title}}</a-select-option>
+          </a-select>
+          <a-button @click="searchHandler" type="primary">查询</a-button>
+          <template v-if="!queryid || editable">
+            <a-button class="second" @click="reSet(1)">重置</a-button>
+            <a-button class="second" @click="save.visible=!save.visible" >保存</a-button>
+          </template>
+          <a-button v-if="submit && namespace=='customquery' && queryid"
+            class="second" @click="otherSaveHandle">另存为</a-button>
+          <a-button v-if="namespace=='customquery'"
+            class="second" @click="enterCommonquery">常用查询</a-button>
+        </div>
+      </div>
+      <div class="headerLine">
+        <!--分割线-->
+        <div class="sortWrap" :class="{hide:!tableDatas}">
+          <span class="lineWrap">
+            <a-divider dashed />
+          </span>
+          <div class="toggleSort" @click="changeArrow" v-if="tableDatas">
+            <span>{{flag?'收起条件':'展开条件'}}</span>
+            <a-icon :type="flag?'up':'down'" />
+          </div>
+          <span class="lineWrap">
+            <a-divider dashed />
+          </span>
+        </div>
+      </div>
+    </div>      
+    <div class="main" ref='scrollDom' :class="{active:tableDatas}">
+      <div v-if="flag && target">
+        <div class="conditionEditor">
+          <div class="condition">
+            <query-List :datas="treeData" :depth="0" :target="target" :keys="0"/>
+            <a-button type="dashed" :style="{width:'320px'}" :class="{multiple:treeData && treeData.criteria && treeData.criteria.length != 0}" @click="addCondition" >
+              <a-icon type="plus-circle" /> 添加条件
+            </a-button>
+          </div>
+        </div>
+      </div>
+      <!--搜索结果table-->
+      <a-spin :spinning='loading' :style="{display:'block',margin:'0 auto'}">
+        <result-table
+          @tableChange="sortColumn"
+          @showChart="onShowChart"
+          v-if="tableDatas"
+          :tableData="tableDatas"
+          :selected="selected" 
+          :target="target" 
+          :node="node"
+          :pagination="pagination"
+          :orders='orders'
+          :chartable="namespace=='customquery'"
+        />
+      </a-spin>
+    </div>
+    <div class="footer" v-if="pagination.total > 0">
+      <a-pagination
+        showSizeChanger
+        @showSizeChange="showSizeChange"
+        @change="pageChange"
+        :defaultCurrent="1"
+        :pageSize="pagination.pagesize"
+        v-model="pagination.pagenum"
+        :showTotal="total => `总共：${total}条`"
+        :total="pagination.total"
+      />
+    </div>
+
+    <!--保存编辑-->
+    <a-modal v-model="save.visible"
+      title="保存查询"
+      :confirmLoading="save.submitting"
+      @ok="saveQuery"
+      :bodyStyle="{ paddingBottom: '5px'}"
+    >
+      <a-form-item v-bind="save">
+        <a-input v-model="title" placeholder="请输入标题" @focus="onInputTitle"/>  
+      </a-form-item>
+    </a-modal>
+    
+    <!--目录选择-->
+    <a-modal title="选择目录节点" v-model="catalogVisible" :footer="null"
+      :width="500" :bodyStyle="{ height: '600px', padding: '0'}">
+      <org-user-select mode="orgtree" :defaultTree='target && target.catalogid' :root-selectable="true" @finish="catalogSelected"/>
+    </a-modal>
+
+    <!--字段选择-->
+    <a-modal title="字段选择" :destroyOnClose="true" :footer='null' @cancel='()=>treeSelect=false' :visible='treeSelect'  :width='800' :bodyStyle="{padding: '0px'}">
+      <select-field :targetid="target && target.id" :multi='true' :defaultSelected="selected" @finish="finishHandle"/>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Layout,Radio,Select,Input, Divider, Modal, Button, Icon, Spin, Pagination, Form } from 'ant-design-vue';
+import ResultTable from "./components/ResultTable";
+import QueryList from "./components/QueryList";
+import OrgUserSelect from '@/framework/components/OrgUserSelect';
+import SelectField from './components/SelectField';
+import { queryfields, querytargets, query, querysave, queryById, querylist } from "@/person/api/integratedquery";
+import { showError } from "@/framework/utils/index";
+import { eachArray } from "../../utils/index";
+import cloneDeep from 'lodash/cloneDeep';
+
+export default {
+  name: "Query",
+  components: {
+    ALayout:Layout,
+    APagination:Pagination,
+    ALayoutContent:Layout.Content,
+    AFormItem: Form.Item,
+    ARadio:Radio,
+    ARadioGroup:Radio.Group,
+    ASelect:Select,
+    ASelectOption:Select.Option,
+    AInput:Input,
+    ADivider:Divider,
+    AModal:Modal,
+    AButton:Button,
+    AIcon:Icon,
+    ASpin:Spin,
+    ResultTable,
+    QueryList,
+    OrgUserSelect,
+    SelectField
+  },
+  props:{
+    namespace:{//查询的命名空间
+      type: String,
+      default(){
+        return 'customquery'
+      }
+    },
+    query:{//查询数据 Number 查询ID Object 查询对象
+      type: [Number, Object],
+    },
+    context: {//查询上下文数据列表
+      type: Array,
+      default: () => []//{name: 'orgid', desc: '组织'}
+    },
+    copySource: {//查询拷贝数据源配置
+      type: [Boolean, String],//false 不需要拷贝 true 拷贝namespace指定的数据 String 指定拷贝的命名空间
+      default: false,
+    },
+    submit: {//是否需要将查询提交到服务器
+      type: Boolean,
+      default: true,
+    }
+  },
+  data() {
+    return {
+      queryid: undefined,
+      title: undefined,
+      editable: undefined,//是否可编辑
+      otherSave: false,  // 另存为
+      treeSelect: false,
+      selectedDataSource: undefined,
+      node: {
+        nodeid: null,
+        nodename: null
+      },
+      loading: false,
+      targetList: [],
+      target: undefined,
+      orders: [],
+      catalogVisible: false,
+      dataSourceList: [],
+      fields: [],
+      flag: true,
+      selected: [],
+      tableDatas: null,
+      pagination: {
+        pagesize: 20,
+        pagenum: 1,
+        total: 0
+      },
+      save: {
+        visible: false,
+        submitting: false,
+        validateStatus: 'success',
+        help: undefined,
+      }
+    };
+  },
+  provide() {
+    return { selectHandle: this.selectHandle,namespace:this.namespace };
+  },
+  created() {
+    this.initQueryData();
+    this.getQueryTargets();
+    if(this.copySource){
+      this.dataSource();
+    }
+    this.$store.commit({
+      type:'SET_SCOPE_DATA',
+      data: this.context || [],
+    })
+  },
+  destroyed(){
+    window.paramsBridge = undefined;
+  },
+  computed: {
+    treeData() {
+      return this.$store.getters.treeData;
+    },
+    searchTarget:{
+      set(v){
+        this.target = this.targetList.find(item => item.id == v.key);
+      },
+      get(){
+        if(this.target){
+          let { id, title } = this.target;
+          return { key: id, label: title};
+        }
+      }
+    }
+  },
+  methods: {
+    onInputTitle(){
+      this.save.validateStatus = 'success';
+      this.save.help = undefined;
+    }, 
+    saveQuery(){
+      if(!this.title){
+        this.save.validateStatus = 'error';
+        this.save.help = '请输入标题';
+        return;
+      }
+      this.save.submitting = true;
+      let query = {
+        id: this.otherSave ? undefined : this.queryid,
+        title: this.title,
+        namespace: this.namespace,
+        target: this.target,
+        nodeid: this.node.nodeid,
+        fields: this.selected,
+        filter: cloneDeep(this.$store.getters.treeData),
+        orders: this.orders,
+        pub: this.namespace != "customquery" ? 2 : 0//非常用查询目前都是公开可写（即所有人可编辑）
+      }
+      if(this.submit){//需要提交到服务器
+        querysave(query).then(({result}) => {
+          query.id = result;
+          this.$message.success('保存成功');
+          this.$emit('save', query);
+          this.save.visible = false;
+          this.save.submitting = false;
+        }).catch(error => {
+          showError(error);
+          this.save.submitting = false;
+        })
+      }else{
+        this.save.submitting = false;
+        this.save.visible = false;
+        this.$emit('save', query);
+      }
+    },
+    finishHandle(type,data){
+      if(type == 'ok'){
+        this.selected = data;
+      }
+      this.treeSelect = false;
+    },
+    resetRange(){
+      if(!this.node.nodename && this.node.nodeid){
+        this.node.nodeid = undefined;
+      }
+    },
+    async initQueryData(){
+      if(this.query){//查询ID 存在查询数据
+        let q;
+        if(typeof(this.query) == 'number'){//数字 传入的是查询ID
+          try {
+            let { result } = await queryById(this.query);
+            q = result;
+          } catch (error) {
+            showError(error);
+            return;
+          }
+        }else{//查询对象
+          q = this.query;
+        }
+        this.queryid = q.id;
+        this.editable = q.owner || q.pub == 2;
+        this.setQueryProperties(q);
+      }else{
+        
+        // 综合查询
+        this.$store.commit({
+          type: "SET_TREEDATA",
+          data: {
+            "op": "and",
+            "criteria": []
+          }
+        });
+      }
+    },
+    dataSource(){
+      let ns = this.copySource === true ? this.namespace : this.copySource
+      querylist({
+        simple: null,
+        system: null,
+        searchkey: "",
+        namespace: ns
+      }).then(res => {
+        this.dataSourceList = res.result;
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    selectDataSource(value){
+      this.selectedDataSource = value;
+      queryById(value).then(({result}) => {
+        this.setQueryProperties(result);
+      }).catch(error=>{
+        showError(error);
+      });
+    },
+    setQueryProperties(query){
+      this.title = query.title;
+      this.target = query.target;
+      this.selected = query.fields;
+      this.node.nodeid = query.nodeid;
+      this.node.nodename = query.nodename; 
+      this.orders = query.orders || [];
+      let formatData = cloneDeep(query.filter)
+      this.loopData(formatData);
+      this.$store.commit({
+        type: "SET_TREEDATA",
+        data: formatData
+      });
+    },
+    selectedDefault(){
+      if(this.targetList.length){
+        if(!this.target){
+          this.target = this.targetList[0];
+        }
+        this.selected = cloneDeep(this.target.defaultFields)
+      }
+    },
+    getQueryTargets(){
+      querytargets().then(res => {
+        this.targetList = res.result || [];
+        if(!this.query){
+          this.selectedDefault();
+        }
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    catalogSelected(type, list){
+      this.catalogVisible = false;
+      if(type == 'ok' && list.length){
+        this.node.nodename =  list[0].name;
+        this.node.nodeid = list[0].id;
+      }
+    },
+    targetChange(e) {
+      this.selectedDefault();
+      this.reSet(2);
+    },
+    selectHandle(obj) {
+      let flag = this.selected.every((e)=>{
+       return e.key != obj.key
+      });
+      if(flag){
+        this.selected.push(obj)
+      }
+    },
+    removeTag(key){
+      let index = eachArray(key,this.selected);
+      this.selected.splice(index,1);
+    },
+    handleClose(value) {
+      this.selected = this.selected.filter(item => {
+        return value.name != item.name;
+      });
+    },
+    addCondition() {
+      this.$store.commit({
+        type: "ADD_ONE"
+      });
+    },
+    //展开、收起筛选
+    changeArrow() {
+      this.flag = !this.flag;
+      if(this.flag){
+        let dom = this.$refs.scrollDom;
+        dom.scrollTop = 0;
+      }
+    },
+    searchHandler(){
+      this.search({pagenum:1,pagesize:this.pagination.pagesize});
+    },
+    //查询
+    search({pagenum,pagesize} = {}) {
+      let result = cloneDeep(this.treeData);
+      this.loading = true;
+      query({
+        target: this.target,
+        nodeid: this.node.nodeid,
+        filter: result,
+        fields: this.selected,
+        orders: this.orders,
+        needtotal: true,
+        pagenum,
+        pagesize
+      }).then(res => {
+        this.tableDatas = res.result;
+        this.pagination.pagesize = res.result.pagesize;
+        this.pagination.pagenum = res.result.pagenum;
+        this.pagination.total = res.result.total;
+        this.flag = false;
+      }).catch(error => {
+        showError(error);
+      }).finally(()=>{
+        this.loading = false;
+      });
+    },
+    showSizeChange(pagenum,pagesize) {
+      this.search({pagenum:1,pagesize});
+    },
+    pageChange(pagenum,pagesize) {
+      this.search({pagenum,pagesize});
+    },
+    sortColumn(order){
+      this.orders = [];
+      if(order.ordertype){
+        this.orders.push(order);
+      }
+      this.search({pagenum:1,pagesize:this.pagination.pagesize});
+    },
+    onShowChart(){//显示图形分析
+      window.paramsBridge = { 
+        type: 'chart', 
+        chart: {
+          query: {
+            title: this.title,
+            namespace: this.namespace,
+            target: this.target,
+            nodeid: this.node.nodeid,
+            nodename: this.node.nodename,
+            fields: this.selected,
+            filter: cloneDeep(this.$store.getters.treeData),
+            orders: this.orders,
+          }
+        },
+        // callback: (c) => {
+        //   //do something
+        //   return true;
+        // }
+      };
+      const { href } = this.$router.resolve({path: '/person/statistics/chart/index', query: { feedback: true }});
+      window.open(href, "_blank");
+    },
+    // 重置
+    reSet(type){
+      // type 1 重置   2 切换
+      this.$store.commit({
+        type: "SET_TREEDATA",
+        data: {
+          "op": "and",
+          "criteria": []
+        }
+      });
+      this.tableDatas = null;
+      this.pagination.pagenum = 1;
+      this.pagination.pagesize = 20;
+      this.pagination.total = 0;
+      this.orders = [];
+      this.node = {};
+      this.flag = true;
+      if(this.namespace != 'customquery'){
+        this.selectedDataSource = undefined;
+      }
+      if(type == 1){
+        this.$notification.success({
+          message: "提示",
+          description: '重置成功!',
+          duration: 3
+        });
+      }
+    },
+    //进入常用查询
+    enterCommonquery() {
+      this.$router.push({ name: "commonquery" });
+    },
+    otherSaveHandle(){
+      this.save.visible = !this.save.visible;
+      this.otherSave = true
+    },
+    loopData(obj){
+      obj['criteria'] && obj['criteria'].forEach(item=>{
+        item.id = Math.random();
+        this.loopData(item)
+      })
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.content {
+  background-color: @white;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .header {
+    padding: @padding-md @content-padding-h;
+    flex: none;
+    .headerBar{
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      /deep/.ant-radio-group{
+        white-space: nowrap;
+      }
+      /deep/.ant-radio-checked .ant-radio-inner {
+        border-color: @primary-color;
+        &:after {
+          background-color: @primary-color;
+        }
+      }
+      /deep/.ant-radio-inner {
+        &:hover {
+          border-color: @primary-color;
+        }
+        &:after {
+          background-color: @primary-color;
+        }
+      }
+      /deep/.ant-radio-wrapper:hover {
+        .ant-radio-inner {
+          border-color: @primary-color;
+        }
+      }
+      .rangs{
+        margin-left: 10px;
+        input{
+          margin-left: 18px;
+          cursor: pointer;
+        }
+      }
+      .fields{
+        padding: 0px 18px;
+      }
+      .btns {
+        text-align: right;
+        flex: 1;
+        white-space: nowrap;
+        .ant-select {
+          margin-right: 18px;
+        }
+        button {
+          margin-right: 18px;
+          &:last-child{
+            margin-right: 0px;
+          }
+        }
+        /deep/.second.ant-btn {
+          color: @primary-color;
+          background-color: @white;
+          border-color: @primary-color;
+          &:hover{
+            color: lighten(@primary-color, 20%);
+            border-color: lighten(@primary-color, 20%);
+          }
+        }
+      }
+    }
+    .headerLine{
+      margin-top: @padding-md - 10;
+      .sortWrap{
+        display: flex;
+        align-items: center;
+        height: 20px;
+        .lineWrap{
+          flex: 1;
+          display: flex;
+          align-items: center;
+          .ant-divider{
+            margin: 0px;
+            border-color: #ddd;
+          }
+        }
+        .toggleSort{
+          width:110px;
+          cursor: pointer;
+          display: flex;
+          justify-content: center;
+          align-items:center;
+          span{
+            color:#000000bf;
+          }
+          i{
+            margin-left: 5px;
+            color: #000000bf;
+          }
+        }
+      }
+    }
+  }
+  .main {
+    position: relative;
+    flex: auto;
+    padding: 0px  @content-padding-h;
+    min-height: 1px;
+    overflow-y: auto;
+    .conditionEditor{
+      padding-bottom: 10px;
+      .condition{
+        .multiple{
+          margin-top: 15px;
+        }
+      }
+    }
+    .loading{
+      text-align: center;
+      margin-bottom: 40px;
+    }
+  }
+  .footer{
+    flex: none;
+    padding: @content-padding-v @content-padding-h;
+    margin: 10px 0px;
+    text-align: right;
+    /deep/ .ant-pagination-options-size-changer{
+      margin-right: 0px;
+    }
+  }
+}
+/deep/ .ant-tabs-nav {
+  width: 100% !important;
+  .ant-tabs-tab {
+    width: 50%;
+    padding: 12px 0;
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0;
+  }
+  .ant-tabs-tab-active,
+  .ant-tabs-tab:hover {
+    color: @primary-color;
+  }
+  .ant-tabs-ink-bar {
+    background-color: @primary-color;
+  }
+}
+</style>

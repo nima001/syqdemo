@@ -1,0 +1,432 @@
+<!-- 服务接入申请第一个页面 -->
+<template>
+  <a-layout class="open-layout">
+    <div class="body">
+      <div>
+        <div>
+          <p v-show="allow" class="applytext">请选择需要申请的接口：</p>
+          <div class="tools">
+            <a-select
+              v-show="allow"
+              v-model="actionstate"
+              style="width: 120px"
+              @change="getActionList"
+              class="tsearch"
+            >
+              <a-select-option value="0">所有接口</a-select-option>
+              <a-select-option value="1">选中接口</a-select-option>
+              <a-select-option value="2">待审核接口</a-select-option>
+            </a-select>
+            <a-select
+              v-model="actiontag"
+              style="width: 120px"
+              @change="getActionList"
+              class="tsearch"
+            >
+              <a-select-option value>接口标签</a-select-option>
+              <a-select-option
+                :value="key"
+                v-for="(value, key) in actiontagsMap"
+                :key="key"
+              >{{value}}</a-select-option>
+            </a-select>
+            <a-input
+              v-model="namelike"
+              placeholder="请输入接口名称"
+              style="width: 350px"
+              class="tsearch"
+              @pressEnter="getActionList"
+            />
+            <a-button type="primary" @click="getActionList" class="tsearch">搜索</a-button>
+            <a-button type="primary" @click="resetsearch" class="tsearch">重置</a-button>
+          </div>
+          <a-table :row-selection="rowSelection" :columns="columns" :data-source="data" rowKey="id">
+            <span slot="name" slot-scope="text, record">
+              <p>
+                <span class="actionname">{{text}}</span>
+                <span @click="actionDetail(record)" class="actiondetil">详情</span>
+              </p>
+            </span>
+
+            <span slot="acstate" slot-scope="text">
+              <span>{{stateMap[text]}}</span>
+            </span>
+          </a-table>
+          <div>
+            <article>
+              <p class="applytext">用途说明：</p>
+            </article>
+            <a-form :form="form">
+              <a-form-item>
+                <a-textarea
+                  :rows="4"
+                  :class="allow?'':'input'"
+                  :readOnly="!allow"
+                  v-decorator="[
+                'desc',
+                {
+                  rules: [{ required: true, message: '请输入用途说明' }],
+                  initialValue: descform.desc,
+                },
+              ]"
+                />
+              </a-form-item>
+            </a-form>
+          </div>
+        </div>
+        <!-- <a-button @click="back">返回</a-button> -->
+        <div class="nextstepdiv" v-show="allow">
+          <a-button type="primary" class="nextstep" @click="nextstep">下一步</a-button>
+        </div>
+      </div>
+    </div>
+    <!-- 接口详情接口 -->
+    <a-modal
+      :centered="true"
+      title="接口详情"
+      v-model="actionVisible"
+      :footer="null"
+      :bodyStyle="{ height: '500px', padding: '24px' }"
+    >
+      <p>
+        <span>接口名称:</span>
+        {{ actionData.name }}
+      </p>
+      <p>
+        <span>模块名称:</span>
+        {{ actionData.module }}
+      </p>
+      <p>
+        <span>接口地址:</span>
+        {{ actionData.url }}
+      </p>
+      <p>
+        <span>接口权限类型:</span>
+        {{ actionstateMap[actionData.permit]}}
+      </p>
+      <p>
+        <span>接口标签:</span>
+        {{ actionData.tags }}
+      </p>
+      <p>
+        <span>接口版本号:</span>
+        {{ actionData.version }}
+      </p>
+    </a-modal>
+  </a-layout>
+</template>
+
+<script>
+import { Layout, Button, Input, Form, Select, Table } from "ant-design-vue";
+import { appliedList, serviceDesc } from "../../api/service";
+import { showError } from "../../../framework/utils";
+const allowcolumns = [
+  {
+    title: "接口名称",
+    dataIndex: "name",
+    width: "35%",
+    scopedSlots: { customRender: "name" }
+  },
+  {
+    title: "标签",
+    dataIndex: "age",
+    width: "15%"
+  },
+  {
+    title: "接口地址",
+    dataIndex: "address",
+    width: "40%"
+  }
+];
+export default {
+  components: {
+    ALayout: Layout,
+    AButton: Button,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table
+  },
+  props: {
+    allow:Boolean,
+  },
+
+  data() {
+    return {
+      // allow: false,
+      descform: {},
+      //接口状态下拉框标识
+      actionstate: "0",
+      actiontag: "",
+      actiontagsMap: [],
+      namelike: "",
+      selectedRowKeys: [],
+      //从接口获取选择的key
+      apiSelectKeys: [],
+      desc: "",
+      columns: [
+        {
+          title: "接口名称",
+          dataIndex: "name",
+          width: "35%",
+          scopedSlots: { customRender: "name" }
+        },
+        {
+          title: "标签",
+          dataIndex: "age",
+          width: "15%"
+        },
+        {
+          title: "接口地址",
+          dataIndex: "address",
+          width: "40%"
+        },
+        {
+          title: "状态",
+          dataIndex: "state",
+          width: "10%",
+          scopedSlots: { customRender: "acstate" },
+          customCell: (record, rowIndex) => {
+            //在此处可以修改单元格中的样式
+            return { style: this.colors(record.state) }; //return 想要设置的样式
+          }
+        }
+      ],
+      data: [],
+      //接口详情窗口
+      actionVisible: false,
+      actionData: {},
+      //接口状态
+      stateMap: {
+        "0": "未开通",
+        "1": "待审核",
+        "2": "使用中",
+        "4": "审核失败"
+      },
+      actionstateMap: {
+        "0": "公开",
+        "1": "登录",
+        "2": "授权"
+      },
+
+      form: this.$form.createForm(this)
+    };
+  },
+
+  computed: {
+    rowSelection() {
+      // const { selectedRowKeys } = this;
+      if (this.allow) {
+        return {
+          //选择的keys
+          selectedRowKeys: this.selectedRowKeys,
+          //接口选择修改
+          onChange: this.changeSelectedRow,
+          getCheckboxProps: record => {
+            let props = {
+              disabled: record.name === "Disabled User", // Column configuration not to be checked
+              name: record.name
+            };
+            return props;
+          }
+        };
+      } else {
+        return null;
+      }
+    }
+  },
+
+  //   watch: {},
+
+    mounted() {
+      console.log("jlkfdsaj");
+    },
+  activated() {
+    console.log(11111);
+    this.data = [];
+    this.descform = {};
+    this.apiSelectKeys = [];
+    this.actionstate = "0";
+    this.desc = "";
+    this.namelike = "";
+    this.form.resetFields();
+    this.getAppliedList();
+    this.getActionDesc();
+    
+  },
+  methods: {
+    //获取action列表事件
+    getActionList() {
+      this.getAppliedList();
+    },
+    // 调取已申请的api接口
+    getAppliedList() {
+      var data = {
+        appid: this.$store.getters.appInfo.id,
+        name: this.namelike,
+        module: this.$route.query.code,
+        serviceId: this.$route.query.serviceId,
+        tag: this.actiontag,
+        type: this.actionstate
+      };
+      appliedList(data)
+        .then(res => {
+          this.spinning = false;
+          let result = res.result;
+          if (result) {
+            if( this.allow){
+              let array = [];
+              result.forEach(item => {
+                if (item.state != 0) {
+                  array.push(item.id);
+                }
+              });
+              this.apiSelectKeys = array;
+              this.selectedRowKeys = [...this.apiSelectKeys];
+            }
+          }
+          // 审核人员
+          if (this.hasPermit("InterfaceAudit")) {
+            let arr = result.devApiVos || [];
+            this.data = arr.filter(function(item) {
+              return item.selected == 1;
+            });
+          } else {
+            // 开发人员
+            this.data = result;
+          }
+          // console.log(this.data);
+          //   this.faildesc = result.faildesc;
+          //   this.desc = result.desc;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //获取状态信息
+    getActionDesc() {
+      let data = {
+        appid: this.$store.getters.appInfo.id,
+        serviceid: this.$route.query.serviceId
+      };
+      serviceDesc(data)
+        .then(res => {
+          this.descform = res.result;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //重置
+    resetsearch() {
+      this.namelike = "";
+      (this.actiontag = ""), (this.actionstate = "0"), this.getAppliedList();
+    },
+
+    // colors
+    colors(state) {
+      switch (state) {
+        case 0:
+          return "color:#999 !important";
+        case 1:
+          return "color:#faad14";
+        case 2:
+          return "color:#0dbc79";
+        case 3:
+          return "color:#0dbc79";
+        case 4:
+          return "color:#f5222d";
+        default:
+          return;
+      }
+    },
+    //展示接口详细信息
+    actionDetail(data) {
+      this.actionData = data;
+      this.actionVisible = true;
+    },
+    //下一步操作
+    nextstep() {
+      if (
+        this.rowSelection.selectedRowKeys.sort().toString() ==
+        this.apiSelectKeys.sort().toString()
+      ) {
+        showError({ message: "申请接口未改变或未勾选" });
+        return;
+      }
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          this.desc = values.desc;
+          //   this.getActionData();
+          //   this.current += 1;
+          this.$emit("changeCurrent", 1);
+        }
+      });
+    },
+    //接口选择修改
+    changeSelectedRow (selectedRowKeys) {
+      this.selectedRowKeys = selectedRowKeys;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.open-layout {
+  padding: 0 !important;
+  height: 100%;
+  .body {
+    width: 100%;
+    height: 100%;
+    // padding: 8px 10%;
+    margin: 0 auto;
+    overflow-y: auto;
+    background: #fff;
+    .applytext {
+      font-size: 16px;
+      margin-bottom: 5px;
+      margin-left: 5px;
+    }
+    .tools {
+      display: flex;
+      justify-content: flex-end;
+      // margin-right: 100px;
+      margin-bottom: 10px;
+      .tsearch {
+        margin: 0 3px;
+      }
+    }
+    .nextstepdiv {
+      width: 400px;
+      margin: 0 auto;
+      .nextstep {
+        margin-top: 5px;
+        width: 400px;
+      }
+    }
+    p {
+      margin-bottom: 0;
+      .actionname {
+        font-size: 15px;
+      }
+      .actiondetil {
+        font-size: 10px;
+        padding-top: 10px;
+        color: @primary-color;
+        cursor: pointer;
+        margin-left: 10px;
+      }
+    }
+    .input {
+      border: none;
+    }
+
+    // /deep/ .ant-checkbox.ant-checkbox-checked{
+    //   background-color:red;
+    //   color: red;
+    // }
+  }
+}
+</style>

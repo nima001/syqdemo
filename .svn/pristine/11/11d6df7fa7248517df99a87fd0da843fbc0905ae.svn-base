@@ -1,0 +1,176 @@
+<template>
+  <div class="container">
+    <div class="datedell">
+      <a-input :value="dates[0]" read-only placeholder="请选择时间" @click="toggleEditor(0,'inputOPen')" />
+      <div class="iconcell">
+        <a-date-picker @change="dateStartChange" />
+        <span class="fx" @click="toggleEditor(0)">
+          <img src="../../../assets/img/query-value-fn.png" />
+        </span>
+      </div>
+    </div>
+    <div class="datedell">
+      <a-input :value="dates[1]" read-only placeholder="请选择时间" @click="toggleEditor(1,'inputOPen')" />
+      <div class="iconcell">
+        <a-date-picker @change="dateEndChange" />
+        <span class="fx" @click="toggleEditor(1)">
+          <img src="../../../assets/img/query-value-fn.png" />
+        </span>
+      </div>
+    </div>
+    <equation-editor v-if="dataEditor" :fnData="fnData" namespace="query" @finish="onFinish"></equation-editor>
+  </div>
+</template>
+<script>
+import moment from "moment";
+import { DatePicker, Input, Modal } from "ant-design-vue";
+export default {
+  name: "TypeSix",
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  data() {
+    return {
+      dataEditor: false,
+      editorIndex: "",
+      fnData: ""
+    };
+  },
+  components: {
+    AInput: Input,
+    AModal: Modal,
+    ADatePicker: DatePicker,
+    EquationEditor:() => import('../../../components/EquationEditor')
+  },
+  computed: {
+    dates() {
+      if (this.defaultData.value) {
+        return this.defaultData.value;
+      } else {
+        return [];
+      }
+    }
+  },
+  methods: {
+    toggleEditor(index,type) {
+      this.editorIndex = index;
+      if (index == 0) {
+        this.fnData = this.dates[0];
+      } else {
+        this.fnData = this.dates[1];
+      }
+      if(type == 'inputOPen'){
+        let value = this.fnData;
+        let flag = (value!= undefined && value != '')?value.indexOf('$') != -1?true:false : false;
+        if(flag){
+          this.dataEditor = !this.dataEditor;
+        }
+      }else{
+        this.dataEditor = !this.dataEditor;
+      }
+    },
+    dateStartChange(date) {
+      let startStr = moment(date).format("YYYY-MM-DD");
+      let endStr = this.dates[1];
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value: [startStr, endStr]
+      });
+    },
+    dateEndChange(date) {
+      let endStr = moment(date).format("YYYY-MM-DD");
+      let startStr = this.dates[0];
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value: [startStr, endStr]
+      });
+    },
+    onFinish(type, data) {
+      this.dataEditor = !this.dataEditor;
+      if(type == 'ok'){
+        let startStr = this.dates[0];
+        let endStr = this.dates[1];
+        if (this.editorIndex == 0) {
+          startStr = data ? `\${${data}\}` : "";
+        } else {
+          endStr = data ? `\${${data}\}` : "";
+        }
+        this.$store.commit({
+          type: "SET_VALUE",
+          position: this.position,
+          value: [startStr, endStr]
+        });
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  display: flex;
+  .datedell {
+    display: flex;
+    width: 320px;
+    border: 1px solid @border-color-base;
+    transition: all 0.3s;
+    border-radius: @border-radius-base;
+    padding-right: 11px;
+    &:hover {
+      border-color: @primary-color;
+    }
+    .ant-input {
+      border: none;
+      &:focus {
+        box-shadow: none;
+      }
+    }
+    &:last-child {
+      margin-left: 15px;
+    }
+    .iconcell {
+      display: flex;
+      align-items: center;
+      .ant-calendar-picker {
+        /deep/ div {
+          width: 20px;
+          height: 100%;
+          margin-left: 10px;
+          position: relative;
+          input {
+            display: none;
+          }
+          .ant-calendar-picker-clear {
+            display: none;
+          }
+          .ant-calendar-picker-icon {
+            cursor: pointer;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            margin: 0px;
+          }
+        }
+      }
+      .fx {
+        cursor: pointer;
+        margin-left: 8px;
+        width: 16px;
+        height: 16px;
+        img {
+          max-width: 100%;
+          vertical-align: top;
+        }
+      }
+    }
+  }
+}
+</style>    

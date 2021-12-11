@@ -1,0 +1,342 @@
+<template>
+  <div class="container">
+    <div class="top">
+        <a class="back" v-if="isShow()" @click="back()">返回</a>
+    </div>
+    <ul class="bar-chart">
+      <li v-for="(item, index) in data" :key="index">
+        <div class="num">{{ Math.max(item.v || 0, 0) }}</div>
+        <div class="bar" @click="item.key?loadData(item.text):showOrgList(item)">
+          <div
+            :style="{
+              height: getBarPercent(item.v),
+            }"
+          ></div>
+        </div>
+        <div class="label">{{ item.text }}</div>
+      </li>
+    </ul>
+    <dialog-box v-model="showOrgs" :title="title">
+      <OrgList :district="districtcode" :displayField="field" :needOrders="needOrders" :jgtypes="[jgtypes]" :systype="systype" :politicallevel="politicallevel"/>
+    </dialog-box>
+  </div>
+</template>
+
+<script>
+import { endsWith } from 'lodash';
+import DialogBox from '../components/DialogBox';
+import OrgList from '../components/OrgList';
+import { map, last } from 'lodash';
+import { aggregate } from '../../../api/analyze';
+import { query } from "@/person/api/integratedquery";
+import { showError } from '../../../../framework/utils';
+export default {
+  props: {
+    dataSource: {
+      type: Object,
+      default:()=>{
+        return {}
+      }
+    },
+    fields: {
+      type: Array,
+      default: ()=> {
+        return [
+          { key: "name", showname: "机构名称" },
+          { key: "_id@organization.statistic.xzjgs", showname: "行政机构数" },
+        ]
+      } 
+    },
+    iskb: {
+      type: Boolean,
+    },
+    jgtypes: {
+      type: Number
+    },
+    districtCode:{
+      type: String 
+    },
+    districts: {
+      type: Array
+    },
+    industryType: {
+      type: Number
+    },
+    fundforms: {
+      type: Number
+    },
+    unitsort: {
+      type: Number|String
+    },
+    politicallevel: {
+      type: Array,
+    },
+    title: {
+      type: String,
+    }
+  },
+  components: {
+    DialogBox,
+    OrgList
+  },
+  data() {
+    return {
+      data: [],
+      needOrders: false,
+      showOrgs: false,
+      field: undefined,
+      systype: undefined,
+      prevText: undefined,
+      districtcode: this.districtCode,
+    };
+  },
+  watch: {
+    districts(val) {
+      return val;
+    },
+    iskb: {
+        immediate: true,
+        deep:true,
+        handler(val) {
+            if(val) {
+                this.needOrders = true;
+            }else{
+                this.needOrders = false;
+            }
+        }
+    }
+  },
+  computed: {
+    districtName() {
+      let array = this.districts.filter((item)=>item.value==this.districtCode);
+      return array[0].text;
+    },
+    maxNum(){
+      let num = 0;
+      if(this.data.rows){
+        this.data.rows.forEach((item) => {
+          if(item.v > 0 && num < item.v){
+            num = item.v;
+          }
+        });
+      }else if(this.data.length) {
+        this.data.forEach((item) => {
+          if(item.v > 0 && num < item.v){
+            num = item.v;
+          }
+        });
+      }
+      return num
+    },
+    systypeList() {
+      let v = this.$store.getters.dict('usermanage.org.systype');
+      return v || [];
+    }
+  },
+  created() {
+    this.loadData(this.districtName);
+  },
+  methods: {
+    back() {
+      this.data = [];
+      this.loadData(this.prevText);
+    },
+    isShow(show) {
+      if(this.districtCode==='330001') {
+        return false;
+      }else{
+        let array = this.districts.filter((item)=>item.value==this.districtcode);
+        if(array.length) {
+          let arrayLength = array[0].group.split('/').length;
+          if(this.data.length&&!this.data[0].key) {
+            this.prevText = array[0].group.split('/')[arrayLength-1];
+          }else{
+            this.prevText = array[0].group.split('/')[0];
+          }
+          if(this.data.length&&this.data[0].value=="330001") {
+            return false;
+          }
+          if(!this.prevText) {
+            return false;
+          }
+          return true;
+        }else{
+          return false;
+        }
+      }
+    },
+    getBarPercent(num){
+      if(this.maxNum > 0){
+        num = Math.max(num || 0, 0);
+        return `${100 - (num * 100/this.maxNum).toFixed(2)}%`
+      }
+      return "100%"
+    },
+    Aggregate(data) {
+        let id = 1103;
+        if(this.iskb==false&&this.jgtypes==3) {
+            id=1104;
+        }
+        aggregate(id,data).then(({result})=>{
+            result.data.rows.forEach((item, index)=>{
+                result.data.rows[index].text = item.k0;
+                result.data.rows[index].v = item.v0;
+            });
+            this.data = result.data.rows;
+        }).catch((err)=>{
+            showError(err);
+        })
+    },
+    showOrgList(item) {
+      let st = this.systypeList.filter((type)=> type.text==item.k0)[0];
+      let array = this.districts.filter((district)=>district.text==item.k0);
+      if(array.length) {
+        this.districtcode = array[0].value;
+      }
+      this.systype = st && st.value;
+      if(this.iskb==true) {
+        this.field = 'kbs';   
+      }
+      this.showOrgs = true;
+    },
+    async loadData(districtName) {
+      let array = this.districts.filter((item)=>endsWith(item.group, districtName));
+      if(!array.length) {//查序列
+        let districtArray= this.districts.filter((item)=>item.text==districtName);
+        this.districtcode = districtArray[0].value;
+        this.Aggregate({
+            fundform: this.fundforms, 
+            district: [this.districtcode], 
+            jgtype: this.jgtypes, 
+            unitsort: this.unitsort, 
+            politicallevel: this.politicallevel});
+      }else{//查下级
+        await this.search(map(array, 'value'),array);
+        this.districtcode = array[0].value;
+      }
+    },
+    async search(districts, data) {
+      let params = {
+        target: { id: 1, title: "组织" },
+        fields: this.fields,
+        filter: { 
+          op: 'and',
+          criteria: [
+            {
+                field: { key: "district", showname: "所在区划" },
+                op: "in",
+                value: districts,
+            },
+            {
+                field: { key: "orgtype", showname: "组织类型" },
+                op: "eq",
+                value: 3,//区划
+            }
+          ],
+        },
+        orders: [
+          { orderby: 'index', ordertype: "ASC" }  
+        ],
+        pagesize: 100,
+      };
+      await query({...params}).then(({result}) => {
+       if(result.rows.length) {
+        data.forEach((item,index)=>{
+          let value = result.rows.filter(row=>endsWith(row.name, item.text));
+          if(value.length) {
+            let lastValue = String(last(this.fields).key);
+            let v= last(lastValue.split('.'));
+            data[index]['v'] = value[0][`_join0.${v}`]||0;
+          }
+        });
+        this.data = data;
+       }
+      }).catch(error => {
+        showError(error);
+      })
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+    width: 100%;
+    height: 90%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    .top {
+        width: 100%;
+    }
+    .back{
+        margin-left: 20px;
+        padding: @padding-xs @padding-lg;
+        font-size: 20px;
+        color: fade(#fff, 80%);
+        position: relative;
+        &:hover {
+            color: #fff;
+        }
+        &::before {
+            width: 20px;
+            height: 20px;
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            transform: translateY(-50%);
+            background: url('../../../assets/img/screen/icon-back.png') left center no-repeat;
+        }
+    }
+    .bar-chart {
+    min-height: 345px;
+    display: flex;
+    justify-content: center;
+    li.prev {
+        display: none;
+    }
+    li.show {
+        display: inline-block;
+    }
+    li {
+        min-width: 74px;
+        padding: 4px;
+        text-align: center;
+        .empty {
+        height: 53px;
+        }
+        .num {
+        margin-bottom: @padding-md;
+        color: #01e3fc;
+        font-size: 25px;
+        font-weight: bold;
+        }
+        .bar {
+        width: 18px;
+        height: 250px;
+        background: linear-gradient(to top, #373fcb, #8672dd);
+        margin: auto;
+        position: relative;
+        cursor: pointer;
+        & > div {
+            background-color: #343434;
+        }
+        &::before {
+            content: "";
+            position: absolute;
+            top: -10px;
+            left: -20px;
+            right: -20px;
+            bottom: 0;
+            background: linear-gradient(to top, fade(#383fcc, 20%), fade(#8773dd, 20%));
+        }
+        }
+        .label {
+        margin-top: 10px;
+        color: fade(#fff, 80%);
+        font-size: 16px;
+        }
+    }
+    }
+}
+</style>

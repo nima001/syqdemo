@@ -1,0 +1,11 @@
+import request from '@/framework/utils/request'
+/************************  重置密码接口 *************************/
+
+// 账号相关 - 重置密码-账号确认（步骤一)
+export function resetpwdFinduser(data){
+  return request({
+    url:'/idm/v2/account/resetpwdFinduser',
+    method:'post',
+    data
+  })
+}

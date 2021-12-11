@@ -1,0 +1,111 @@
+<template>
+  <div class="form-select-group">
+    <a-form-item v-if="edit"
+      :label="property.label"
+      :required="!!property.require" 
+      :validateStatus="validateStatus"
+    >
+      <dict-select :dict="property.dict" style="width: 100%"
+        v-model="propValue"
+        :disabled="!!property.disable"
+        :allowClear="!property.require"
+        @change="onChange"
+      />
+    </a-form-item>
+    <div v-else class="p-showname">
+      <span>{{property.label}}：</span>
+      <span>{{propText}}</span>
+    </div>
+  </div>
+</template>
+<script>
+import { Form } from "ant-design-vue";
+import DictSelect from "@/framework/components/DictSelect";
+import get from 'lodash/get';
+import set from 'lodash/set';
+
+export default {
+  props: {
+    property: {
+      type: Object,
+    },
+    data:{
+      type: Object,
+    },
+    edit:{
+      type: Boolean,
+      default: false,
+    }
+  },
+  components: {
+    AFormItem: Form.Item,
+    DictSelect
+  },
+  data() {
+    return {
+      code: this.property['code'],
+      validateStatus: undefined,
+    };
+  },
+  computed: {
+    propValue:{
+      get(){
+        return get(this.data, this.code);
+      },
+      set(value){
+        set(this.data, this.code, value)
+      }
+    },
+    propText() {
+      let d = this.$store.getters.dictKey(this.property.dict, this.propValue);
+      return d && d.text;
+    },
+  },
+  methods: {
+    validateField(obj){
+      return new Promise((resolve, reject) => {
+        this.validate((status) => {
+          if(status == 'error'){
+            reject();
+          }else{
+            if(status == 'success'){
+              //值undefined时设置为null 才会序列化 需要传key 服务器识别情况数据
+              set(obj, this.code, this.propValue === undefined ? null : this.propValue);
+            }
+            resolve();
+          }
+        })
+      });
+    },
+    validate(callback){
+      let status = undefined;//error 验证失败 success成功
+      if(!this.property.disable){
+        //TODO 数据格式校验
+        if(this.property.require && (!this.propValue && this.propValue !== 0)){
+          status = 'error';
+        }else{
+          status = 'success';
+        }
+      }
+      this.validateStatus = status;
+      if(callback){
+        callback(status);
+      }
+    },
+    onChange(){
+      this.validate();
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-form-item {
+  margin-bottom: 0;
+}
+.p-showname {
+  line-height: 30px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+</style>

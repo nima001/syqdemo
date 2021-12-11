@@ -1,0 +1,168 @@
+<!-- 应用系统 -->
+<template>
+  <a-layout class="dev-layout">
+    <div class="body">
+      <div class="head">
+        <div>
+          <!-- <h3> -->
+          <b style="font-size:20px;">{{ $store.getters.appInfo.name }}</b>
+          <span
+            class="appstate"
+            :style="colors($store.getters.appInfo.state)"
+          >{{ verifyAppState($store.getters.appInfo.state) }}</span>
+          <!-- </h3> -->
+        </div>
+        <a style="float:right;" @click="goManagerCenter">返回</a>
+        <!-- <div style="text-align: right;"> -->
+        <!-- <h3 class="auditstatus">
+            <b>审核通过</b>
+          </h3>
+        <p>状态</p>-->
+        <!-- </div> -->
+      </div>
+      <div ref="tabs" class="tabs">
+        <a-tabs v-model="activeKey" @change="callback">
+          <a-tab-pane key="1" tab="基本信息">
+            <app-detail></app-detail>
+          </a-tab-pane>
+          <a-tab-pane key="2" tab="服务管理">
+            <service></service>
+          </a-tab-pane>
+          <!-- <a-tab-pane key="3" tab="权限管理">
+            <app-auth></app-auth>
+          </a-tab-pane>-->
+          <!-- <a-tab-pane key="5" tab="测试中心">测试中心</a-tab-pane>
+          <a-tab-pane key="6" tab="组织机构树">组织机构树</a-tab-pane>
+          <a-tab-pane key="7" tab="管理员">
+            <administrator></administrator>
+          </a-tab-pane>-->
+          <a-tab-pane key="8" tab="变更日志">
+            <changeLog />
+          </a-tab-pane>
+        </a-tabs>
+      </div>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import { Tabs, Layout } from "ant-design-vue";
+import appDetail from "./AppDetail";
+import service from "../service/index";
+import changeLog from "../service/ServiceChangeLog";
+import appAuth from "./AppAuth";
+import administrator from "./Administrator";
+export default {
+  data() {
+    return {
+      activeKey: this.$route.query.activeKey === undefined ? "1" : this.$route.query.activeKey,
+      
+    };
+  },
+  // created() {
+  //   // this.activeKey = window.sessionStorage.getItem("activeKey")
+  //   //   ? window.sessionStorage.getItem("activeKey")
+  //   //   : "1";
+  // },
+  methods: {
+    callback(key) {
+      // window.sessionStorage.setItem("activeKey", key);
+      this.activeKey = key;
+    },
+    // refreshKey() {
+    //   this.appid = this.$store.getters.appInfo.id;
+    // },
+    colors(state) {
+      switch (state) {
+        case 0:
+          return "color:#0dbc79";
+        case 1:
+          return "color:#faad14";
+        case 2:
+          return "color:#f5222d";
+        default:
+          return;
+      }
+    },
+    verifyAppState(state) {
+      let str = "";
+      switch (state) {
+        case 0:
+          str += "在用";
+          break;
+        case 1:
+          str += "挂起(" + suspendDesc + ")";
+          break;
+        case 2:
+          str += "注销";
+          break;
+        default:
+      }
+      return str;
+    },
+    goManagerCenter() {
+      this.$router.push("/dev/manage/index");
+    }
+  },
+  created() {
+    if (this.$store.getters.appInfo.id == undefined) {
+      this.$router.push("/dev/manage/index");
+    }
+  },
+  components: {
+    ALayout: Layout,
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    appDetail,
+    service,
+    appAuth,
+    administrator,
+    changeLog
+  }
+};
+</script>
+<style lang="less" scoped>
+.dev-layout {
+  height: 100%;
+  .body {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 300px;
+    margin: 0 auto;
+    overflow-y: auto;
+    .head {
+      background: #fff;
+      display: flex;
+      justify-content: space-between;
+      padding: 20px 20px 0 20px;
+    }
+    .tabs {
+      height: e("calc(100% - 50px)");
+      /deep/ .ant-tabs-nav-scroll {
+        padding: 8px 24px 0 10px;
+        background: #fff;
+      }
+      /deep/ .ant-tabs-bar {
+        margin-bottom: 0;
+      }
+    }
+    // .dev-layout ant-layout{
+    //   height: 100%;
+    // }
+    /deep/ .ant-tabs {
+      height: 100%;
+    }
+    /deep/ .ant-tabs-content {
+      height: e("calc(100% - 53px)");
+    }
+    .appstate {
+      margin-left: 5px;
+      font-size: 13px;
+    }
+    .auditstatus {
+      color: @primary-color;
+    }
+  }
+}
+</style>

@@ -1,0 +1,39 @@
+<template>
+  <div class="staff-balcklist">
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">存在列入机构编制审批黑名单：{{result}}</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+import { Row, Col } from "ant-design-vue";
+export default {
+  props: {
+    data: Object
+  },
+  components: {   
+    ARow: Row,
+    ACol: Col,
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+    result() {
+      return this.data.result ? "存在" : "不存在"
+    }
+  },
+  created() {
+  },
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.staff-balcklist{}
+</style>

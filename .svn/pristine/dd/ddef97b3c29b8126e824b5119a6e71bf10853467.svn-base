@@ -1,0 +1,85 @@
+<template>
+  <div class="app-impower">
+
+    <div class="title">
+      请设置【{{name}}({{info.loginname}})】的角色
+    </div>
+    
+    <div class="content">
+
+    </div>
+
+    <div class="footer">
+      <a-button @click="prevStep">上一步</a-button>
+      <a-button type="primary" @click="nextStep">下一步</a-button>
+    </div>
+
+  </div>
+</template>
+
+<script>
+import { Button } from "ant-design-vue";
+
+export default {
+  props: {
+    info: {
+      type: Object
+    },
+    accountType: {
+      type: String
+    }
+  },
+  components: { AButton: Button },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+    name() {
+      return this.accountType == 'person' ? this.info.username : '单位账号名称'; 
+    }
+  },
+  created() {},
+  mounted() {},
+  methods: {
+    nextStep() {
+      this.$emit('next-step', 'next');
+    },
+    prevStep() {
+      this.$emit('next-step', 'prev');
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.app-impower{
+  overflow: hidden;
+  .title{
+    margin-bottom: 20px;
+    height: 40px;
+    line-height: 40px;
+    color: @primary-color;
+    font-size: 18px;
+    // font-weight: bolder;
+  }
+  .content{
+    height: 400px;
+  }
+  .footer{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 65px;
+    // box-shadow: 0 -2px 5px fade(@black, 20%);
+    background-color: @white;
+    button{
+      width: 150px;
+      &:last-child{
+        margin-left: 50px;
+      }
+    }
+  }
+}
+</style>

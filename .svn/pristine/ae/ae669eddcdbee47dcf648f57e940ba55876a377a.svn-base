@@ -1,0 +1,260 @@
+<template>
+  <div>
+    <dialog-box v-model="show" :title="title">
+      <div class="detail-info">
+        <div class="header">
+          <ul>
+            <li>
+              <div class="name">{{ title }}</div>
+              <lcd-font
+                :length="7"
+                :smooth="false"
+                :realNumber="kbNum"
+                :realStyle="{ color: '#01E3FC' }"
+              />
+              <div class="tooltip" v-if="numDesc">
+                <div class="arrow"></div>
+                <div class="content">空编机构个数 <span>{{ numDesc }}</span></div>
+              </div>
+            </li>
+            <li class="operater">=</li>
+            <li>
+              <div class="name">省核定基数</div>
+              <lcd-font :length="7" :smooth="false" :realNumber="total" />
+            </li>
+            <li class="operater">-</li>
+            <li>
+              <div class="name">实有人数</div>
+              <lcd-font :length="7" :smooth="false" :realNumber="used" />
+            </li>
+          </ul>
+        </div>
+        <div class="body">
+          <div class="left">
+            <p>党政群机构省核定基数排行(前十)</p>
+            <div>
+              <ul v-if="data.dzqjgsdjsqsgdw">
+                <li v-for="(item, index) in JSON.parse(data.dzqjgsdjsqsgdw).filter((item,index)=>index<5)">
+                  <span class="index">{{index+1}}</span>
+                  <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>{{item.organme}}</span>
+                    </template>
+                    <span class="name">{{item.organme}}</span>
+                  </a-tooltip>
+                  <span class="num">{{item.total}}</span>
+                </li>
+              </ul>
+              <ul v-if="data.dzqjgsdjsqsgdw">
+                <li v-for="(item, index) in JSON.parse(data.dzqjgsdjsqsgdw).filter((item,index)=>index>4)">
+                  <span class="index">{{index+6}}</span>
+                  <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>{{item.organme}}</span>
+                    </template>
+                    <span class="name">{{item.organme}}</span>
+                  </a-tooltip>
+                  <span class="num">{{item.total}}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <div class="right">
+            <p>党政群机构省核定基数排行(后十)</p>
+            <div>
+              <ul v-if="data.dzqjgsdjshsgdw">
+                <li v-for="(item, index) in JSON.parse(data.dzqjgsdjshsgdw).filter((item,index)=>index<5)">
+                  <span class="index">{{index+1}}</span>
+                  <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>{{item.organme}}</span>
+                    </template>
+                    <span class="name">{{item.organme}}</span>
+                  </a-tooltip>
+                  <span class="num">{{item.total}}</span>
+                </li>
+              </ul>
+              <ul v-if="data.dzqjgsdjshsgdw">
+                <li v-for="(item, index) in JSON.parse(data.dzqjgsdjshsgdw).filter((item,index)=>index>4)">
+                  <span class="index">{{index+6}}</span>
+                  <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>{{item.organme}}</span>
+                    </template>
+                    <span class="name">{{item.organme}}</span>
+                  </a-tooltip>
+                  <span class="num">{{item.total}}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </dialog-box>
+  </div>
+</template>
+<script>
+import { Tooltip } from 'ant-design-vue';
+import DialogBox from "../components/DialogBox";
+import LcdFont from "../components/LcdFont";
+
+export default {
+  components: {
+    DialogBox,
+    LcdFont,
+    ATooltip: Tooltip,
+  },
+  props: {
+    value: Boolean,
+    title: String,
+    kbNum: Number,
+    numDesc: Number,
+    total: Number,
+    used: Number,
+    data: {
+      type: Object,
+      default: ()=> {
+        return {};
+      }
+    }
+  },
+  data() {
+    return {
+      show: this.value,
+    };
+  },
+  watch: {
+    value(value) {
+      this.show = value;
+    },
+    show(show) {
+      this.$emit("input", show);
+    },
+  },
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.detail-info {
+  height: 90%;
+  & > .header {
+    text-align: center;
+    margin-top: 75px;
+    height: 145px;
+    ul {
+      overflow: hidden;
+      .operater {
+        padding: 0 20px;
+        color: #8fc7ff;
+        line-height: 56px;
+        vertical-align: bottom;
+        font-size: 30px;
+        font-weight: bold;
+      }
+      li {
+        display: inline-block;
+        .name {
+          color: white;
+          text-align: center;
+          line-height: 1.6em;
+          font-size: 16px;
+        }
+      }
+      .tooltip {
+        position: absolute;
+        margin-left: -45px;
+        & > .arrow {
+          width: 0;
+          border-left: 8px solid;
+          border-right: 8px solid;
+          border-bottom: 5px solid #1f252c;
+          border-left-color: #0A1125;
+          border-right-color: #0A1125;
+          margin: auto;
+        }
+        & > .content {
+          padding: 15px 20px 15px 50px;
+          color: white;
+          background-color: #1f252c;
+          background-image: url("../../../assets/img/screen/jigou.png");
+          background-repeat: no-repeat;
+          background-position: 15px 15px;
+          border-radius: 5px;
+          font-size: 16px;
+          span {
+            margin-left: @padding-md;
+          }
+        }
+      }
+    }
+  }
+  & .body {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    .left, .right {
+      width: 48%;
+      text-align: center;
+      & > div {
+        display: flex;
+        justify-content: center;
+      }
+      p {
+        color: fade(#fff, 80%);
+        font-size: 1.4em;
+        font-weight: bold;
+      }
+      ul {
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        padding-left: @padding-sm;
+        li {
+          width: 100%;
+          margin: 10px 0;
+          display: flex;
+          justify-content: flex-end;
+          span {
+            padding: 0 @padding-xs;
+            display: inline-block;
+            height: 32px;
+          }
+          span.index {
+            width: 32px;
+            padding: 0;
+            line-height: 32px;
+            margin-right: 2px;
+            border-radius: @border-radius-base;
+            text-align: center;
+            font-weight: bold;
+            color: #313B72;
+            background: #978FFF;
+          }
+          span.name{
+            overflow-x: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: left;
+            width: 185px;
+            line-height: 32px;
+            color: fade(#fff, 80%);
+            background: #3A404F;
+          }
+          span.num {
+            width: 50px;
+            padding: 0;
+            text-align: center;
+            line-height: 32px;
+            color: #02E7EF;
+            background: #232B42;
+            white-space: nowrap;
+          }
+        }
+      }
+    }
+    .right ul li span.index {
+      background: #FE7A2E;
+    }
+  }
+}
+</style>

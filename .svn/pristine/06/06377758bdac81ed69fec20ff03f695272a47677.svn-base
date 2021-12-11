@@ -1,0 +1,175 @@
+<template>
+  <div class="report-temp-data-source">
+    <div class="header">
+      <a-input-search placeholder="搜索数据">
+        <a-icon slot="addonAfter" type="plus" @click="addDataSource" />
+      </a-input-search>
+    </div>
+    <div class="body">
+      <ul class="ul">
+        <li class="list" v-for="(item,index) in dataSource" :key="item.id">
+          <div class="listWrap">
+            <div class="name">
+              <span class="title">{{item.name}}</span>
+              <span class="icon">
+                <a-icon type="form" @click="editor(item,index)" />
+                <a-icon type="delete" @click="showConfirm(index)" />
+              </span>
+            </div>
+            <div class="desc" :title="item.desc">{{item.desc}}</div>
+          </div>
+        </li>
+      </ul>
+    </div>
+    <expand-form v-if="expandModal"  :initData='initData' @cancel='emitCancel' @ok="emitOk"></expand-form>
+  </div>
+</template>
+<script>
+import { Input, Icon, Modal, Tooltip } from "ant-design-vue";
+import ExpandForm from './ExpandForm'
+import { randomStr } from "@/framework/utils/index";
+import cloneDeep from "lodash/cloneDeep";
+export default {
+  name: "DataSource",
+  components: {
+    ExpandForm,
+    AInput: Input,
+    AInputSearch: Input.Search,
+    AIcon: Icon,
+    AModal: Modal,
+    ATooltip: Tooltip,
+  },
+  props: {
+    value: {
+      type: Array,
+      default: () => [],
+    },
+  },
+  data() {
+    return {
+      visible: false,
+      edit: undefined,
+      // 数据源
+      dataSource: cloneDeep(this.value),
+      // 扩展数据modal
+      expandModal :false,
+      // 添加扩展数据初始化表单回显
+      initData:{},
+      //
+      dataSourceIndex:undefined
+    };
+  },
+  watch:{
+    value(v) {
+      this.dataSource = cloneDeep(v);
+    }
+  },
+  methods: {
+    emitCancel(value){
+      this.expandModal = value;
+      this.initData = {};
+    },
+    emitOk(value,type){
+      if(type == 'add'){
+        this.dataSource.push(value);
+      }else{
+        // 更新
+        this.$set(this.dataSource, this.dataSourceIndex, value);
+      }
+      this.$emit("input", this.dataSource);
+      this.expandModal = false;
+      this.initData = {};
+    },
+    editorClose(index) {
+      this.edit = undefined;
+      this.$emit('input', this.dataSource);
+    },
+    addDataSource() {
+      this.expandModal = true;
+    },
+    editor(item,index) {
+      this.dataSourceIndex = index;
+      this.initData = item;
+      this.expandModal = true;
+    },
+    del(index) {
+      this.dataSource.splice(index, 1);
+      this.$emit('input', this.dataSource);
+    },
+    showConfirm(index) {
+      this.$confirm({
+        title: "删除",
+        content: "是否要删除这条数据源？",
+        onOk:() => {
+          this.del(index);
+        }
+      });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.report-temp-data-source {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .header {
+    padding: 10px;
+  }
+  .body {
+    flex: auto;
+    overflow-y: auto;
+    ul {
+      li {
+        border-bottom: 1px solid #e8e8e8;
+        &:last-child {
+          border-bottom: none;
+        }
+        .listWrap {
+          padding: 5px 0px;
+          &:hover {
+            background: #e8e8e8;
+            cursor: pointer;
+          }
+          div {
+            line-height: 25px;
+            display: flex;
+            padding: 0px 15px;
+            .title {
+              flex: 1;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              white-space: nowrap;
+              user-select: none;
+            }
+            .icon {
+              width: 40px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              i {
+                :hover {
+                  color: @primary-color;
+                }
+              }
+            }
+            &.desc {
+              span {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                display: block;
+                width: 100%;
+                user-select: none;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+.ant-modal-body .ant-layout {
+  background: @white;
+}
+</style>

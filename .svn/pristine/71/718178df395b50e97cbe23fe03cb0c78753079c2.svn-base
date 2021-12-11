@@ -1,0 +1,159 @@
+<template>
+  <div class="workflow">
+    <a-form-item :label="property.showName?property.name:''">
+      <a-radio-group
+        :style="property.showName?'':'margin-top:29px;'"
+        class="hand"
+        :class="property.code"
+        @change="changeHandler"
+        :options="plainOptions"
+        :disabled="property.editable?false:true"
+        v-decorator="[
+          `${property.code}`,
+          {
+            rules: [{required: property.require, message: `请选择${property.name}!`}],
+            initialValue: $store.getters.formData[property.code]?$store.getters.formData[property.code]:''
+          }
+        ]"
+      ></a-radio-group>
+    </a-form-item>
+    <stamp
+      :property="property"
+      @imgUrl="getStamp"
+      v-if="property.signcomponent.signcode && property.signcomponent.editable"
+    ></stamp>
+    <a-form-item class="stampNotice" v-if="!imgUrl && property.signcomponent.signcode">
+      <a-input
+        type="hidden"
+        v-decorator="[
+          `${property.signcomponent.code}`,
+          {
+            rules: [{required: property.signcomponent.require, message: `请选择签章!`}],
+            initialValue: stamp
+          }
+        ]"
+      ></a-input>
+    </a-form-item>
+    <div class="seal" v-if="imgUrl">
+      <img :src="imgUrl" />
+    </div>
+  </div>
+</template>
+<script>
+import Stamp from "./stampComponent/Stamp";
+import { getStampInfo } from "@/workflow/api/stamplist";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { showError } from "@/framework/utils/index";
+import "@/workflow/style/workflow.css";
+import { Form, Radio, Input } from "ant-design-vue";
+export default {
+  name: "Radio",
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      plainOptions: [],
+      code: this.property["code"],
+      formData: this.$store.getters.formData,
+      imgUrl: null,
+      stamp: null
+    };
+  },
+  props: {
+    property: {
+      type: Object,
+      required: true
+    },
+    bindform: {
+      type: Object,
+      required: true
+    },
+    relateControls: {
+      type: Array
+    }
+  },
+  components: {
+    AFormItem: Form.Item,
+    ARadio: Radio,
+    ARadioGroup: Radio.Group,
+    AInput: Input,
+    Stamp
+  },
+  created() {
+    this.property.options.forEach(item => {
+      this.plainOptions.push({ label: item.text, value: item.value });
+    });
+    //填写默认值
+    if (!this.formData[this.code]) {
+      if (!this.property.require) {
+        this.formData[this.code] = null;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.formData
+        });
+      }
+      if (this.property.defaultContent && this.property.defaultContent.length) {
+        this.formData[this.code] = this.property.defaultContent[0].value;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.formData
+        });
+        this.relateControl(this.property.defaultContent[0].value);
+      }
+    } else {
+      this.relateControl(this.formData[this.code]);
+    }
+    if (this.formData[this.property.signcomponent.code]) {
+      //获取签章图片
+      getStampInfo(this.formData[this.property.signcomponent.code])
+        .then(res => {
+          if (res.code == "success") {
+            this.imgUrl =
+              this.uiConfigs["api.url"] +
+              "/file/" +
+              "?uri=" +
+              encodeURIComponent(res.result.pictureurl);
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  },
+  methods: {
+    changeHandler(e) {
+      this.$store.getters.formData[this.code] = e.target.value;
+      this.$store.commit({
+        type: "SET_FORM_DATA",
+        data: this.$store.getters.formData
+      });
+      this.relateControl(e.target.value);
+    },
+    //关联控件变化
+    relateControl(val) {
+      let formData = {};
+      let flag = false;
+      this.relateControls.forEach(item => {
+        if (item.relate == this.code) {
+          flag = true;
+          this.$store.getters.formData[item.code] = val;
+        }
+      });
+      if (flag) {
+        this.bindform.resetFields();
+        formData = Object.assign({}, this.$store.getters.formData);
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: formData
+        });
+      }
+    },
+    //获取签章
+    getStamp(img) {
+      if (img) {
+        this.imgUrl = img;
+        this.stamp = img;
+      }
+    }
+  }
+};
+</script>

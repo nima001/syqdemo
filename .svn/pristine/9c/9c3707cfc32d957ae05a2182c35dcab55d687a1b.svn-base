@@ -1,0 +1,104 @@
+<template>
+  <div class="wrap">
+    <div class="bj"></div>
+    <ul class="city">
+      <li
+        class="cityItem"
+        :id="'city_'+`${index}`"
+        v-for="(item,index) in city"
+        :key="index"
+      >{{item}}</li>
+    </ul>
+    <div class="diamond"></div>
+  </div>
+</template>
+<script>
+export default {
+  data() {
+    return {
+      city: [
+        "市本级",
+        "柯桥区",
+        "上虞区",
+        "越城区",
+        "新昌县",
+        "嵊州市",
+        "诸暨市"
+      ]
+    };
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  padding: 120px 0px 0px;
+  position: relative;
+  .bj {
+    width: 682px;
+    height: 170px;
+    background: url("../img/circle.png");
+    margin: 0 auto;
+  }
+  .diamond {
+    width: 72px;
+    height: 72px;
+    background: url("../img/diamond.png");
+    position: absolute;
+    top: 90px;
+    left: 310px;
+  }
+  .city {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0px;
+    left: 0px;
+    margin: 0px;
+    li {
+      width: 103px;
+      height: 41px;
+      background: url("../img/city-name.png");
+      font-size: 20px;
+      font-family: Microsoft YaHei;
+      font-weight: 400;
+      line-height: 26px;
+      color: #ffffff;
+      opacity: 1;
+      text-align: center;
+      line-height: 41px;
+      position: absolute;
+      opacity: 0.4;
+      cursor: pointer;
+      &#city_0 {
+        left: 294px;
+        top: 160px;
+        opacity: 1;
+      }
+      &#city_1 {
+        left: 460px;
+        top: 170px;
+      }
+      &#city_2 {
+        left: 540px;
+        top: 102px;
+      }
+      &#city_3 {
+        left: 380px;
+        top: 50px;
+      }
+      &#city_4 {
+        left: 200px;
+        top: 50px;
+      }
+      &#city_5 {
+        left: 52px;
+        top: 102px;
+      }
+      &#city_6 {
+        left: 120px;
+        top: 170px;
+      }
+    }
+  }
+}
+</style>

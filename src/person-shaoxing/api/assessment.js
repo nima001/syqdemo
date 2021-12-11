@@ -1,0 +1,433 @@
+import request from '@/framework/utils/request'
+import { uiConfigsCookies } from '@/framework/utils/auth'
+import axios from 'axios'
+/*
+**机构编制辅助评估
+*/
+
+//  所有辅助评估列表
+export function listReport(data) {
+  return request({
+    url: '/person/sx/assess/report/listorgassessreport',
+    method: 'post',
+    data
+  })
+}
+
+//  添加新的辅助评估
+export function addReport(data) {
+  return request({
+    url: '/person/sx/assess/report/add',
+    method: 'post',
+    data
+  })
+}
+
+//  某一个辅助评估的详情
+export function reportDetail(id) {
+  return request({
+    url: `/person/sx/assess/report/details?id=${id}`,
+    method: 'get'
+  })
+}
+
+
+//  查看最新
+export function newestReport(id, type) {
+  return request({
+    url: `/person/sx/assess/report/newestrepoet?id=${id}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//  结束新的辅助评估
+export function endReport(id) {
+  return request({
+    url: `/person/sx/assess/report/endreport?id=${id}`,
+    method: 'get'
+  })
+}
+
+//  删除某一个辅助评估的历史记录
+export function deleteHistory(id, reportid) {
+  return request({
+    url: `/person/sx/assess/report/deletehistory?id=${id}&reportid=${reportid}`,
+    method: 'delete'
+  })
+}
+
+//  某一个辅助评估的历史详情
+export function listHistory(data) {
+  return request({
+    url: `/person/sx/assess/report/listhistory`,
+    method: 'post',
+    data
+  })
+}
+
+//  检查更新
+export function checkUpdate(data) {
+  return request({
+    url: `/person/sx/assess/report/checkupdate`,
+    method: 'post',
+    data
+  })
+}
+
+//  更新辅助评估，即新增一条历史记录
+export function updateReport(data) {
+  return request({
+    url: `/person/sx/assess/report/update`,
+    method: 'post',
+    data
+  })
+}
+
+//评估模板下拉框
+export function listConfig() {
+  return request({
+    url: `/person/sx/assess/config/listconfig`,
+    method: 'get'
+  })
+}
+
+//根据评估模板获取评估及哪些内容需要输入
+export function reportInput(configid) {
+  return request({
+    url: `/person/sx/assess/config/reportinput?configid=${configid}`,
+    method: 'get'
+  })
+}
+
+//是否列入机构编制审批黑名单
+export function staffBlacklist(orgid, type) {
+  return request({
+    url: `/person/sx/assess/report/isexistorgblacklist?orgid=${orgid}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//是否存在机构编制问题情况
+export function staffViolate(orgid, type) {
+  return request({
+    url: `/person/sx/assess/report/iscrgcompileproblem?orgid=${orgid}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//事业单位运行评估结果
+export function businessOrgReport(orgid, type) {
+  return request({
+    url: `/person/sx/assess/report/businessorgreport?orgid=${orgid}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//机构限额判定
+export function orgNumberLimit(orgid, type) {
+  return request({
+    url: `/person/sx/assess/report/orgnumberlimit?orgid=${orgid}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//机构限额判定
+export function compileNumberLimit(orgid, type) {
+  return request({
+    url: `/person/sx/assess/report/compilenumberlimit?orgid=${orgid}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//获取单位的内设机构
+export function getInternalOrg(orgid) {
+  return request({
+    url: `/person/sx/assess/report/getinternalorg?orgid=${orgid}`,
+    method: 'get'
+  })
+}
+
+//机构名称规范
+export function orgnameDetails(orgid, orgname, type) {
+  return request({
+    url: `/person/sx/assess/report/orgnamedetails?orgid=${orgid}&orgname=${orgname}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//不同地区同类机构的编制对比情况
+export function compileCompare(orgid, lineid, type) {
+  return request({
+    url: `/person/sx/assess/report/compilecompare?orgid=${orgid}&lineid=${lineid}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//行政机构领导职数配置规则
+export function orgLeadernum(orgid, compilenum, internalorgnum, type) {
+  return request({
+    url: `/person/sx/assess/report/publicorgleadernumrule?orgid=${orgid}&compilenum=${compilenum}&internalorgnum=${internalorgnum}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//事业单位领导职数配置规则
+export function businessLeadernum(orgid, compilenum, internalorgnum, type, level) {
+  return request({
+    url: `/person/sx/assess/report/businessorgleadernumrule?orgid=${orgid}&compilenum=${compilenum}&internalorgnum=${internalorgnum}&type=${type}&level=${level}`,
+    method: 'get'
+  })
+}
+
+//行政周转编制使用分析评估情况
+export function policyCompileReport(orgid) {
+  return request({
+    url: `/person/sx/assess/report/policycompilereport?orgid=${orgid}`,
+    method: 'get'
+  })
+}
+
+//事业周转编制使用分析评估情况
+export function businessCompileReport(orgid) {
+  return request({
+    url: `/person/sx/assess/report/businesscompilereport?orgid=${orgid}`,
+    method: 'get',
+    timeout: '15000'
+  })
+}
+
+//政府购买服务指导目录
+export function policyServerCatalog(pid, searchkey, type) {
+  return request({
+    url: `/person/sx/assess/report/policyservercatalog?pid=${pid}&searchkey=${searchkey}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//高校领导职数配置规则
+export function schoolLeaderRule(orgid, graduatenum, studentnum, type) {
+  return request({
+    url: `/person/sx/assess/report/schoolleadernumrule?orgid=${orgid}&graduatenum=${graduatenum}&studentnum=${studentnum}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//医院领导职数配置规则
+export function hospitalLeaderRule(orgid, sickbed, type) {
+  return request({
+    url: `/person/sx/assess/report/hospitalleadernumrule?orgid=${orgid}&sickbed=${sickbed}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//重点领域编制配置
+export function importantAreaCompileConfig(orgid) {
+  return request({
+    url: `/person/sx/assess/report/importantareacompileconfig?orgid=${orgid}`,
+    method: 'get'
+  })
+}
+//编制职数岗位分析
+export function bzzsgwreport(orgid, type) {
+  return request({
+    url: `/person/sx/assess/report/bzzsgwreport?orgid=${orgid}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//人员结构分析
+export function userAnalyze(orgid, type) {
+  return request({
+    url: `/person/sx/assess/report/userstructurereport?orgid=${orgid}&type=${type}`,
+    method: 'get'
+  })
+}
+
+
+//机构编制调整事项基本情况
+export function compileInfo(orgid, type) {
+  return request({
+    url: `/person/sx/assess/report/compileinfo?orgid=${orgid}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//大学学历以上、28-56岁之间及总人数
+export function ageAndXl(orgid) {
+  return request({
+    url: `/person/sx/assess/report/xlandageusernum?orgid=${orgid}`,
+    method: 'get'
+  })
+}
+//删除辅助评估
+export function removeItem(id) {
+  return request({
+    url: `/person/sx/assess/report/delete?id=${id}`,
+    method: 'delete'
+  })
+}
+
+/*
+**---------------- 机构权责清单分析 ----------------
+*/
+//区域整体情况
+export function qlsxdistrict(type) {
+  return request({
+      url: `/person/qlsx/search/district?type=${type}`,
+      method: 'get',
+  })
+}
+//按区域查看部门历史明细
+export function qlsxhistory(data){
+  return request({
+      url: '/person/qlsx/search/org/history',
+      method: 'post',
+      data
+  })
+}
+//按条线部门对比具体事项
+export function qlsxline(data){
+  return request({
+    url: '/person/qlsx/search/line',
+    method: 'post',
+    data
+  })
+}
+//按时间查看部门变化情况
+export function  qlsxdateline(data){
+  return request({
+    url: '/person/qlsx/search/org/dateline',
+    method: 'post',
+    data
+  })
+}
+//按权利基本码对比具体事项
+export function qlsxsearchorg(data){
+  return request({
+    url:'/person/qlsx/search/org',
+    method: 'post',
+    data
+  })
+}
+//按单个事项查看发布情况
+export function qlsxsearchcode(data) {
+   return request({
+     url: '/person/qlsx/search/code',
+     method: 'get',
+     params: {
+       code: data.code
+     }
+   })
+}
+//按时间条件对比权力事项
+export function comparedateline(data) {
+  return request({
+    url: '/person/qlsx/search/compare/dateline',
+    method: 'post',
+    data,
+  })
+}
+//查询权利事项
+export function qlsxsearch(data){
+  return request({
+    url: '/person/qlsx/search/distinct',
+    method: 'post',
+    data
+  })
+}
+//查询条线部门表头
+export function qlsxlinetable(data){
+  return request({
+    url: '/person/qlsx/search/linetable',
+    method: 'post',
+    data
+  })
+}
+//批量查看事项发布情况
+export function qlsxincode(data) {
+  return request({
+    url: '/person/qlsx/search/InCode',
+    method: 'post',
+    data,
+  });
+}
+//根据组织查询条线ID
+export function shaoxingorgline(data) {
+  return request({
+    url: '/person/shaoxing/org/line/org',
+    method: 'get',
+    params: {
+      ...data
+    },
+  })
+}
+// 获取区域分组统计数量
+export function districtgroup() {
+  return request({
+    url: '/person/qlsx/district/group',
+    method: 'get',
+  })
+}
+//导出Excel
+export function exportexcel(data,type) {
+  return request({
+    url: '/person/qlsx/export/excel',
+    method: 'post',
+    data: data,
+    headers: {
+      'Content-Type': 'application/json;charset=UTF-8'
+    },
+    params: {
+      ...type
+    }
+  });
+}
+//按时间条件对比权力事项
+export function qlsxexcel(docFile) {
+  let uiConfigs = uiConfigsCookies();
+  return new Promise((resolve, reject) => {
+      let formdata = new FormData()
+      formdata.append("file", docFile);
+      formdata.append("startRow ", 1);
+      let config = {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+      axios.post(uiConfigs['api.url'] + '/person/qlsx/read/qlsx/excel', formdata, config).then(res => {
+        resolve(res)
+      }).catch(error => {
+        reject(error)
+      })
+  })
+}
+//统计区域共性事项
+export function districtsame() {
+  return request({
+    url: '/person/qlsx/district/same',
+    method: 'post',
+  });
+}
+//权力事项变化趋势(个性)
+export function qlsxpersonal(data) {
+  return request({
+    url: '/person/qlsx/query/personal',
+    method: 'post',
+    data
+  })
+}
+//条线选择
+export function orglineList() {
+  return request({
+    url: `/person/sx/assess/report/orglinelist`,
+    method: 'get'
+  })
+}
+//  HTML转换成PDF
+export function htmlConvertPDF(data){
+  return request({
+    url: '/v1/htmlconvert/pdf',
+    method: 'post',
+    data
+  })
+}

@@ -1,0 +1,85 @@
+import request from '@/framework/utils/request'
+/*
+**---------------- 机构职能配置分析 ----------------
+*/
+//职能配置分析-组织列表
+export function orgfuncdescPost(data) {
+    return request({
+        url: '/person/sx/orgfuncdesc/config',
+        method: 'post',
+        data
+    })
+}
+//职能配置分析-详情
+export function orgfuncdescSearch(data) {
+    return request({
+        url: '/person/sx/orgfuncdesc/org/search',
+        method: 'get',
+        params: {
+            orgid: data.orgid,
+            type: data.type,
+            searchkey: data.searchkey,
+        }
+    })
+}
+//获取职能详细信息
+export function getorgfuncdesc(id) {
+    return request({
+        url: '/person/sx/orgfuncdesc/get?id=' + id,
+        method: 'get',
+    })
+}
+//获取当前职能
+export function queryorgfuncdesc(orgid) {
+    return request({
+        url: '/person/sx/orgfuncdesc?orgid=' + orgid,
+        method: 'get',
+    })
+}
+//获取当前职能
+export function orgfuncdescmain(orgid) {
+    return request({
+        url: '/person/org/getfuncdesc?orgid=' + orgid,
+        method: 'get',
+    })
+}
+//获取职能记录
+export function orgfuncdescrecord(orgid) {
+    return request({
+        url: '/person/sx/orgfuncdesc/record?orgid=' + orgid,
+        method: 'get',
+    })
+}
+/*
+**---------------- 机构改革沿革分析 ----------------
+*/
+//查询沿革数据
+export function orgevolution(data) {
+    return request({
+        url: '/person/org/evolution/data',
+        method: 'get',
+        params: {
+            orgid: data.orgid,
+            evolutionyear: data.evolutionyear,
+        }
+    })
+}
+//查询节点
+export function orgnode(data) {
+    return request({
+        url: '/person/sx/org/node',
+        method: 'get',
+        params: {
+            evolutionyear: data.evolutionyear,
+            systype: data.systype,
+        }
+    })
+}
+//组织沿革详情数据
+export function postevolution(data) {
+    return request({
+        url: '/person/org/evolution',
+        method: 'post',
+        data
+    })
+}

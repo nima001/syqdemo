@@ -1,0 +1,420 @@
+<template>
+  <div class="content">
+    <div class="categories-list" v-if="this.history === 'history'&&this.powerList.length">
+      <ul class="categories-ul">
+        <li v-for="(item, index) in powerList" :key="item.key">
+          <div
+            :class="activeClass == index ? 'active' : ''"
+            class="cate-gories"
+            @click="choose(index, item)"
+          >
+            <span class="cate-p">{{ item.text }}</span>
+            <span class="cate-div"></span>
+            <span class="cate-span">{{ item.num }}</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+    <div class="power-table">
+      <div class="table-div" v-if="powerList.length && this.history === 'history'">
+        <a-input placeholder="请输入关键词" style="width: 200px; margin-right: 15px" allow-clear v-model="searchkey"/>
+        <a-button type="primary" @click="onSearch">查询</a-button>
+      </div>
+      <div class="list-content">
+        <a-spin :spinning="this.tableloading">
+          <div class="spin">
+            <a-table
+              :scroll="{ y: 560 }"
+              :pagination="false"
+              :class="{'power_table': (powerList&&powerList.length)}"
+              :columns="this.tablecolumns"
+              :defaultExpandAllRows="true"
+              v-if="this.tablecolumns.length&&this.dataSource.length"
+              :data-source="this.dataSource"
+            >
+              <span slot="history_name" slot-scope="text, record">
+                <span v-if="text === '绍兴市'" class="goback district" @click="goback()">{{ text }}</span>
+                <span v-else-if="text === dataSource[0].name" class="district">
+                  <!--区分按区划 || 按分类中首条字段是否可点击-->
+                  <a v-if="district.filter((item)=> item.text === text).length" @click="queryback()">{{text}}</a>
+                  <span v-else>{{text}}</span>
+                </span>
+                <span v-else class="district">
+                  <span v-if="history==='transformation'">
+                    <!--按时间查看区域趋势-->
+                    <a v-if="district.filter((item)=> item.text === text).length" @click="chagedistrict(record)">{{text}}</a>
+                    <span v-else>{{ text }}</span>
+                  </span>
+                  <span v-else>
+                    <!--按时间查看区域历史情况-->
+                    <a @click="chagedistrict(record)">{{text}}</a>
+                  </span>
+                </span>
+              </span>
+              <span slot="action" slot-scope="text, record">
+                <a class="contrast" @click="contrast(record)">对比</a>
+              </span>
+              <span slot="check" slot-scope="text">
+                <a-icon type="check" v-if="text" />
+              </span>
+            </a-table>
+            <div v-else-if="this.tablecolumns.length&&!this.dataSource.length">
+              <a-table :columns="this.tablecolumns"/>
+            </div>
+            <EmptyData v-else-if="!this.tableloading" />
+            <a-pagination
+              showSizeChanger
+              @change="onChange"
+              :total="this.params.total"
+              :pageSize="params.pagesize"
+              @showSizeChange="onShowSizeChange"
+              :current="this.params.pagenum"
+              :showTotal="(total) => `总共：${total}条`"
+              v-if="this.dataSource.length && this.params.total"
+            />
+          </div>
+        </a-spin>
+      </div>
+    </div>
+    <contrast v-if="this.history==='transformation'" :contrastdata="contrastdata" :intervalType="this.pagination.dateStep" :columns="this.tablecolumns" />
+  </div>
+</template>
+
+<script>
+import { Table, Icon, Input, Button, Spin, Pagination } from "ant-design-vue";
+import EmptyData from "@/framework/components/EmptyData";
+import contrast from "./contrast";
+import { assign, cloneDeep, keys, has } from "lodash";
+import { treeroot } from "@/person/api/org";
+import { showError } from "@/framework/utils";
+import { qlsxstatistic, qlsxsearch } from "@/person-shaoxing/api/monitor";
+export default {
+  props: {
+    tableData: {
+      //表格数据
+      type: Array,
+    },
+    columns: {
+      //表头数据
+      type: Array,
+    },
+    loading: {
+      //表格加载状态
+      type: Boolean,
+    },
+    pagination: {
+      //分页信息
+      type: Object,
+    },
+    district: {
+      //地区
+      type: Array,
+    },
+    businesstList: {
+      //头部权力事项
+      type: Array,
+    },
+    history: {
+      //主题
+      type: String,
+    },
+    conditionActive: {
+      //权力基本码|按时间查看区域趋势 头部选项
+      type: String|Number,
+    }
+  },
+  components: {
+    contrast,
+    EmptyData,
+    AIcon: Icon,
+    ASpin: Spin,
+    AInput: Input,
+    ATable: Table,
+    AButton: Button,
+    APagination: Pagination,
+  },
+  data() {
+    return {
+      params: {},
+      powerList: [],
+      dataSource: [],
+      data: undefined,
+      searchkey: null,
+      contrastdata: {},
+      tablecolumns: [],
+      activevalue: null,
+      tableloading: true,
+      activeClass: 0, // 0为默认选择第一个，-1为不选择
+    };
+  },
+  computed: {
+    dict() {
+      return this.$store.getters.dict("person.business.businesstype");
+    },
+  },
+  watch: {
+    loading: {
+      immediate: true,
+      handler(val) {
+        this.tableloading = val;
+        return val;
+      }
+    },
+    columns: {
+      handler(val) {
+        this.tablecolumns = val;
+        return val;
+      },
+      deep: true,
+    },
+    tableData: {
+      handler(val) {
+        this.dataSource = val;
+        return val;
+      },
+      deep: true,
+    },
+    pagination: {
+      handler(val) {
+        let quanlikind = undefined; 
+        if(has(this.params,'quanlikind')&&this.params.quanlikind) {
+          quanlikind = this.params.quanlikind;
+        }
+        this.params = cloneDeep(val);
+        if(quanlikind) {
+          this.params.quanlikind = quanlikind;
+        }
+        return val;
+      },
+      deep: true,
+    },
+    businesstList: {
+      handler(val) {
+        this.powerList = cloneDeep(val);
+        return val;
+      },
+      deep: true,
+    },
+    conditionActive(val) {
+      //判断conditionActive，避免出现多余分页按钮
+      if(val==='type') {
+        this.params.total = 0;
+      }else if(val==='region') {
+        this.params.total = this.pagination.total;
+      }
+    },
+    searchkey(val) {
+      this.params.searchkey = val;
+    },
+    activevalue(val) {
+      this.params.quanlikind = val;
+      this.$emit("authoritysearch", this.params);
+    },
+  },
+  methods: {
+    goback(val) {
+      this.$router.back();
+    },
+    queryback() {
+      this.tableloading = true;
+      treeroot()
+        .then((res) => {
+          this.params.pagenum = 1;
+          this.params.orgid = res.result.children[0].data._id;
+          this.params.district = res.result.children[0].name;
+          this.$emit("update:pagination", this.params);
+          if (this.history === "history") {
+            this.$emit("qlsxHistory", this.params);
+          } else if (this.history === "transformation") {
+            this.$emit("qlsxdateLine", this.params);
+          }
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    chagedistrict(val) {
+      this.params.pagenum = 1;
+      this.params.district = val.name;
+      this.params.date = this.pagination.date;
+      if (this.history === "history") {
+        let result = this.district.filter((item) => item.text === val.name);
+        this.params.orgid = val.statistickey;
+        this.$emit("update:pagination", this.params);
+        if (result.length || val.district === "绍兴市") {
+          this.$emit("qlsxHistory", this.params);
+        } else {
+          this.$emit("chageorgid", this.params);
+        }
+      } else if (this.history === "transformation") {
+        this.params.orgid = val.key;
+        this.$emit("update:pagination", this.params);
+        this.$emit("qlsxdateLine", this.params);
+      }
+    },
+    //对比
+    contrast(value) {
+      this.contrastdata = {};
+      let dictdata = this.dict.filter((item) => item.key === value.key);
+      if (dictdata.length) {
+        this.contrastdata.quanlikind = dictdata[0].value;
+      } else {
+        this.contrastdata.orgid = value.key;
+      }
+      this.contrastdata.dates = keys(value).filter((item) => item !== "key" && item !== "name");
+    },
+    choose(index, item) {
+      this.activeClass = index;
+      this.activevalue = item.value !== 0 ? item.value : undefined;
+    },
+    onSearch() {
+      this.$emit("authoritysearch", this.params);
+    },
+    //翻页
+    onChange(pagenum, pagesize) {
+      assign(this.params, { pagesize, pagenum });
+      this.pageChange(this.params);
+    },
+    //pagesize改变回调
+    onShowSizeChange(current, pagesize) {
+      assign(this.params, { pagesize, pagenum: 1 });
+      this.pageChange(this.params);
+    },
+    pageChange(val) {
+      if (this.history === "history") {
+        if (this.powerList.length) {
+          this.$emit("chageorgid", this.params);
+        } else {
+          this.$emit("qlsxHistory", this.params);
+        }
+      } else if (this.history === "issue") {
+        this.$emit("qlsxsearchOrg", this.params);
+      } else if (this.history === "orgline") {
+        this.$emit("qlsxLine", this.params);
+      } else if (this.history === "transformation") {
+        this.$emit("qlsxdateLine", this.params);
+      } else if (this.history === "batchview") {
+        this.$emit("qlsxIncode", this.params);
+      }
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+.content {
+  height: 100%;
+  .categories-list {
+    margin: 10px 0;
+    .categories-ul {
+      display: flex;
+      overflow-x: auto;
+      white-space: nowrap;
+      li {
+        margin-right: 20px;
+      }
+      .cate-gories {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        transition: all 0.3s;
+        cursor: pointer;
+        &:hover {
+          color: @primary-color;
+        }
+        &:active {
+          color: @primary-color;
+          .cate-div {
+            background: @primary-color;
+            border-radius: 10px;
+          }
+        }
+        .cate-p {
+          font-size: 1.143em;
+        }
+        .cate-span {
+          margin-top: 10px;
+          text-align: center;
+          width: 100%;
+          font-size: 1.143em;
+        }
+        .cate-div {
+          margin-top: 2px;
+          height: 5px;
+          width: 100%;
+        }
+      }
+      &:last-child {
+        margin-right: 0px;
+      }
+      .active {
+        color: @primary-color;
+        .cate-div {
+          background: @primary-color;
+          border-radius: 10px;
+        }
+      }
+    }
+  }
+  .power-table {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    .table-div {
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .list-content {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex: 1;
+      height: 100%;
+      .ant-spin-nested-loading,
+      /deep/.ant-spin-container {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        .empty {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+        }
+        .ant-pagination {
+          float: right;
+          margin-top: 10px;
+        }
+        .ant-table-title {
+          & span {
+            font-weight: bolder;
+          }
+          & .titleLeft {
+            margin-right: 15%;
+          }
+        }
+        .ant-table-body {
+          overflow-y: scroll !important;
+        }
+        .ant-table-tbody {
+          tr {
+            height: 55px;
+          }
+          .ant-table-row-expand-icon {
+            display: none;
+          }
+          .anticon-check {
+            color: @primary-color;
+          }
+          .goback {
+            cursor: pointer;
+          }
+          .contrast,.district {
+            user-select: none;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

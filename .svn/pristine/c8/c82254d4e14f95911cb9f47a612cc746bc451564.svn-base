@@ -1,0 +1,52 @@
+import Vue from 'vue'
+import Router from 'vue-router'
+import Layout from '../views/Layout.vue'
+
+Vue.use(Router)
+
+export default new Router({
+  mode: 'history',
+  base: process.env.BASE_URL,
+  // base: 'person',
+  routes: [
+    {
+      path: '/hall',
+      component: Layout,
+      redirect: 'business',
+      children: [
+        {
+          path: 'business',
+          name: 'Bussiness',
+          component: () => import('../views/home/index.vue'),
+        },
+        {
+          path: 'userlist',
+          name: 'Userlist',
+          component: () => import('../views/userManage/UserList.vue'),
+          meta: {
+            access: 'login',
+            path: [ { name: '人员花名册', path: '/hall/userlist' } ]
+          }
+        },
+        {
+          path: 'usersStatistics',
+          name: 'UsersStatistics',
+          component: () => import('../views/userManage/UserStatistics.vue'),
+          meta: {
+            access: 'login',
+            path: [ { name: '人员信息统计', path: '/hall/usersStatistics' } ]
+          }
+        },
+        {
+          path: 'userflow',
+          name: 'Userflow',
+          component: () => import('../views/userManage/UserFlow'),
+          meta: {
+            access: 'login',
+            path: [ { name: '人员调入调出统计', path: '/hall/userflow' } ]
+          }
+        },
+      ],
+    },
+  ]
+});

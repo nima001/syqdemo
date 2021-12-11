@@ -1,0 +1,243 @@
+<template>
+  <div class="schema-editor">
+    <div v-for="item in propList" :key="item.name" class="item"
+      :class="{expandable: !!item.content, expanded: item._expanded}"
+    > 
+      <div class="item-header" @click.prevent="item._expanded = !item._expanded">
+        <a-icon type="right" v-if="item.content"/>
+        <div class="item-header-content">
+          <span class="title">{{item.title}}</span>
+          <template v-if="item.type" >
+            <span class="space"/>
+            <component :is="propComponent(item.type)" class="extra"  
+              @click.native="e => e.stopPropagation()"
+              :property="item" 
+              :schema="schemaJson"
+            />
+          </template>
+        </div>
+      </div>
+      <div class="item-content" v-if="item.content">
+        <component :is="item.content" 
+          :property="item"
+          :schema="schemaJson"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Icon } from "ant-design-vue";
+import BooleanProp from './BooleanProp'
+import NumberProp from './NumberProp'
+import StringProp from './StringProp'
+import EnumProp from './EnumProp'
+import { getAttribute, setAttribute } from "@/formdesign/utils/schema";
+import { computed, reactive, toRaw } from '@vue/composition-api'
+import {cloneDeep} from 'lodash';
+
+const BaseProps = {
+  layout:{
+
+  },
+  widget: {
+    name: {
+      type: 'string',
+      title: '字段标识',
+      setter: setAttribute,
+      getter: getAttribute,
+      attrs: {
+        disabled: true
+      }
+    },
+    title: {
+      type: 'string',
+      title: '字段名称',
+      setter: setAttribute,
+      getter: getAttribute,
+    },
+    required: {
+      type: 'boolean',
+      title: '必填',
+      setter: setAttribute,
+      getter: getAttribute,
+    },
+    readOnly: {
+      type: 'boolean',
+      title: '只读',
+      setter: setAttribute,
+      getter: getAttribute,
+    },
+    defaultValue: {
+      type: 'enum',
+      title: '默认值',
+      setter: setAttribute,
+      getter: getAttribute,
+      attrs: {
+        options: [
+          {value: 1, label: '111'},
+          {value: 2, label: '222'}
+        ]
+      },
+    }
+  },
+}
+let a;
+export default {
+  components: {
+    AIcon: Icon,
+    BooleanProp,
+    NumberProp,
+    StringProp,
+    EnumProp,
+  },
+  props: {
+    schema: {
+      required: true,
+    },
+    component: {
+      required: true,
+    }
+  },
+  setup(props){
+    // const schemaJson = computed((v) => { 
+    //   let json = reactive(v.schema.toJSON());
+    //   console.log(json);
+    //   return json;
+    // });
+    // const schemaJson = reactive(props.schema.toJSON());
+    // console.log(schemaJson);
+    // ta = schemaJson;
+    // return {
+    //   schemaJson
+    // }
+  },
+  provide(){
+    let _this = this;
+    return {
+      refreshSchema(){
+        _this.schemaJson = reactive(cloneDeep(_this.schemaJson));
+        _this.$emit('change', _this.schemaJson);
+      }
+    }
+  },
+  data(){
+    return {
+      propList: [],
+      schemaJson: reactive(this.schema.toJSON()),
+    }
+  },
+  watch: {
+    schema(s, os){
+      a = s.toJSON();
+      this.schemaJson = reactive(a);
+      console.log(a, this.schemaJson);
+      let status = {};//FIXME sunwen 初始化展开状态 
+      if(os && os.name == s.name){//刷新表单时schema重新创建，恢复之前的状态
+        this.propList.forEach(item => {
+          status[item.name] = item._expanded;
+        })
+      }
+      this.initData(status);
+    },
+    schemaJson: {
+      deep: true,
+      handler(s, os){
+        console.log('schemaJson change', s);
+        if(s === os){//只监听schema子属性变化
+          this.$emit('change', s);
+        }
+      }
+    }
+  },
+  created(){
+    this.initData();
+  },
+  methods: {
+    initData(status = {}){
+      let props = BaseProps[this.component.type];
+      let arr = [];
+      for(let name in props){
+        arr.push({name,  ... props[name], _expanded: status[name] })
+      }
+      props = this.component.props;
+      for(let name in props){
+        arr.push({name,  ... props[name], _expanded: status[name] })
+      }
+      this.propList = arr;
+    },
+    propComponent(type){
+      if(typeof type == 'string'){
+        if(type == 'number'){
+          return 'NumberProp';
+        }else if(type == 'boolean'){
+          return 'BooleanProp'
+        }else if(type == 'enum'){
+          return 'EnumProp'
+        }else{
+          return 'StringProp'
+        }
+      }else {
+        return type;
+      }
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.schema-editor{
+  & > .item{
+    border-bottom: 1px solid @border-color-split;
+    &.expandable{
+      .item-header{
+        cursor: pointer;
+      }
+    }
+    &.expanded{
+      .item-header > .anticon /deep/ svg{
+        transform: rotate(90deg);
+      }
+      .item-content{
+        display: block;
+      }
+    }
+    .item-header{
+      position: relative;
+      padding: 8px 16px;
+      & > .anticon{
+        position: absolute;
+        top: 50%;
+        left: 0px;
+        transform: translateY(-50%);
+        font-size: 12px;
+        /deep/ svg{
+          transition: transform .24s;
+        }
+      }
+      .item-header-content{
+        display: flex;
+        align-items: center;
+        min-height: 32px;
+        & > .title{
+          flex: auto;
+          min-width: 6em;
+          line-height: 1.2em;
+        }
+        & > .space{
+          flex: 1 0 10px;
+        }
+        & > .extra{
+          cursor: default;
+          flex: 0 1 auto;
+          min-width: 1px;
+        }
+      }
+    }
+    .item-content{
+      display: none;
+      padding: 4px 16px;
+      background-color: @background-color-light;
+    }
+  }
+}
+</style>

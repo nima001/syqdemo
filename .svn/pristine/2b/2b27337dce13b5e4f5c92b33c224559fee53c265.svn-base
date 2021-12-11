@@ -1,0 +1,60 @@
+import request from '@/framework/utils/request'
+
+
+/*
+**---------------- 监控策略 ----------------
+*/
+
+// 监控策略列表
+export function listMonitorStrategy (data) {
+  return request({
+    url: '/person/v1/monitorstrategy/list',
+    method: 'post',
+    data
+  })
+}
+// 获取监控策略
+export function getMonitorStrategy (id) {
+  return request({
+    url: `/person/v1/monitorstrategy/get/${id}`,
+    method: 'get'
+  })
+}
+// 添加监控策略
+export function addMonitorStrategy (data) {
+  return request({
+    url: '/person/v1/monitorstrategy/add',
+    method: 'post',
+    data
+  })
+}
+// 更新监控策略
+export function updateMonitorStrategy (data) {
+  return request({
+    url: '/person/v1/monitorstrategy/update',
+    method: 'put',
+    data
+  })
+}
+// 删除监控策略
+export function deleteMonitorStrategy (id) {
+  return request({
+    url: `/person/v1/monitorstrategy/delete/${id}`,
+    method: 'delete'
+  })
+}
+//执行监控策略
+export function executeStrategy (id) {
+  return request({
+    url: `/person/v1/monitorstrategy/excutenow/${id}`,
+    method: 'get',
+  })
+}
+// 获取预设或接口集合
+export function presetStrategyInfo (strategyvalue) {
+  return request({
+    url: `/person/v1/monitorstrategy/listpresets`,
+    method: 'get',
+    params: strategyvalue
+  })
+}

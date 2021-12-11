@@ -1,0 +1,241 @@
+<template>
+  <div>
+    <div v-for="(item, index) in filterProps" :Key='index' class="criteria">
+      <a-input-group compact>
+        <a-select :value="item.code" 
+          @change="onPropChange(item, $event)" 
+          style="width: 35%"
+        >
+          <a-select-option v-for="item in propMap[namespace]" 
+            :key="item.code" :disabled="item.disabled"
+          >{{item.name}}</a-select-option>
+        </a-select>
+        <a-select :value="item.multi" 
+          @change="onOpChange(item, $event)" 
+          style="width: 20%"
+        >
+          <a-select-option :key="0">等于</a-select-option>
+          <a-select-option :key="1"
+            v-if="item.prop && (item.prop.datatype != 4 || (item.prop.inputtype != 4 && item.prop.inputtype != 3))" 
+          >在列表中</a-select-option>
+        </a-select>
+        <InputDict v-if="item.datatype == 2" 
+          :value="filter" 
+          :property="item"
+          @change="onValueChange" 
+          style="width: 45%"
+        />
+        <template v-else-if="item.datatype == 4">
+          <InputBool v-if="item.inputtype == 4" :value="filter"  
+            :property="item" 
+            @change="onValueChange"
+            style="width: 45%"
+          />
+          <InputDate v-else-if="item.inputtype == 3" 
+            :value="filter" 
+            :property="item" 
+            @change="onValueChange"
+            style="width: 45%"
+          />  
+          <InputNumber v-else-if="item.inputtype == 2 || item.inputtype == 1" 
+            :value="filter" 
+            :property="item" 
+            @change="onValueChange"
+            style="width: 45%"
+          />  
+          <InputText v-else 
+            :value="filter" 
+            :property="item" 
+            @change="onValueChange"
+            style="width: 45%"
+          />  
+        </template>
+        <a-input v-else :read-only="true" style="width: 45%"/>
+      </a-input-group>
+      <a-icon type="delete" class="delete" @click="onDelete(item, index)"/>
+    </div>
+    <a-button type="dashed" @click="add" style="width: 100%;" icon="plus" >添加</a-button>
+  </div>
+</template>
+<script>
+import { Input, Select, Button, Icon } from 'ant-design-vue'
+import InputDict from "@person/components/PropValueForm/InputDict";
+import InputBool from "@person/components/PropValueForm/InputBool";
+import InputDate from "@person/components/PropValueForm/InputDate";
+import InputNumber from "@person/components/PropValueForm/InputNumber";
+import InputText from "@person/components/PropValueForm/InputText";
+
+/**
+ * 对象属性简单过滤条件编辑
+ * 1.支持等于比较
+ * 2.支持in
+ * 3.多个条件and连接
+ * @author sunwen
+ */
+export default {
+  components: {
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    AButton: Button,
+    AIcon: Icon,
+    InputDict, 
+    InputBool, 
+    InputDate, 
+    InputNumber, 
+    InputText
+  },
+  props: {
+    value: {//过滤条件
+      type: Object,
+      default: () => ({})
+    },
+    namespace: {
+      type: String,
+      required: true,
+    }
+  },
+  data(){
+    return {
+      propMap: {//FIXME sunwen 可设置过滤的属性列表暂时前端配置
+        user: [{ 
+          code: 'sex', 
+          name: '性别', 
+          multi: false, 
+          datatype: 2, 
+          datasource: 'usermanage.user.sex',
+          disabled: false
+        }, { 
+          code: 'identitytype', 
+          name: '本人身份', 
+          multi: false, 
+          datatype: 2, 
+          datasource: 'usermanage.user.identitytype',
+          disabled: false
+        }],
+        organization: [{ 
+          code: 'unittype', 
+          name: '单位类型', 
+          multi: false, 
+          datatype: 2, 
+          datasource: 'usermanage.org.unittype',
+          disabled: false
+        }, { 
+          code: 'industrysort', 
+          name: '行业分类', 
+          multi: false, 
+          datatype: 2, 
+          datasource: 'usermanage.org.industrysort',
+          disabled: false 
+        }, { 
+          code: 'schoolsort', 
+          name: '学校分类', 
+          multi: false, 
+          datatype: 2, 
+          datasource: 'usermanage.org.schoolsort',
+          disabled: false 
+        }]
+      },
+      filterProps: [],
+      filter: {
+        schoolsort: undefined,//FIXME sunwen 设置属性，才会触发数据响应
+        unittype: undefined,
+        industrysort: undefined,
+      },
+    }
+  },
+  created(){
+    if(this.namespace){
+      for(let name in this.value){
+        let v = this.value[name];
+        if(v){
+          let prop = this.propMap[this.namespace].find(item => item.code == name);
+          if(prop){
+            let filter = {};
+            this.setFilterProp(filter, prop);
+            if(Array.isArray(v)){
+              filter.multi = 1;
+            }
+            this.filterProps.push(filter);
+            this.filter[name] = v;
+          }
+        }
+      }
+    }
+  },
+  methods: {
+    getFilter(){
+      return this.filter;
+    },
+    add(){
+      this.filterProps.push({code: undefined, multi: 0, datatype: 0});
+    },
+    onPropChange(item, value){
+      let prop = this.propMap[this.namespace].find(item => item.code == value);
+      if(prop){
+        this.setFilterProp(item, prop);
+      }
+    },
+    onOpChange(item, multi){
+      item.multi = multi;
+    },
+    onValueChange(code, value){
+      
+    },
+    onDelete(item, index){
+      if(item.prop){
+        item.prop.disabled = false;
+        set(this.filter, item.prop.code, undefined);
+      }
+      this.filterProps.splice(index, 1);
+    },
+    setFilterProp(filter, prop){
+      if(filter.prop){
+        item.prop.disabled = false;
+        set(this.filter, filter.prop.code, undefined);
+      }
+      prop.disabled = true;
+
+      filter.prop = prop;
+      filter.code = prop.code;
+      filter.datatype = prop.datatype;
+      filter.inputtype = prop.inputtype;
+      filter.datasource = prop.datasource;
+      filter.multi = 0;
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.criteria{
+  margin-bottom: 10px;
+  display: flex;
+  .delete{
+    padding: 5px;
+    align-self: center;
+    cursor: pointer;
+    &:hover{
+      color: @primary-color;
+    }
+  }
+  .ant-input-group.ant-input-group-compact > *:last-child{
+    /deep/ .ant-form-item-control{
+      line-height: unset;
+      .ant-form-item-children > *:last-child,
+      .ant-form-item-children > .ant-select > .ant-select-selection, 
+      .ant-form-item-children > .ant-calendar-picker:last-child .ant-input,
+      .ant-form-item-children > .ant-select-auto-complete:last-child .ant-input,
+      .ant-form-item-children > .ant-cascader-picker:last-child .ant-input, 
+      .ant-form-item-children > .ant-cascader-picker-focused:last-child .ant-input, 
+      .ant-form-item-children > .ant-mention-wrapper:last-child .ant-mention-editor, 
+      .ant-form-item-children > .ant-time-picker:last-child .ant-time-picker-input{
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+      }
+      
+    }
+  }
+}
+
+</style>

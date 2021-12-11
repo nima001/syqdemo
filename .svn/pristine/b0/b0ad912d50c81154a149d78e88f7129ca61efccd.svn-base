@@ -1,0 +1,77 @@
+<template>
+  <div>
+    <a-form-item v-if="edit" 
+      :label="property.label"
+      :required="!!property.require" 
+    >
+      <a-switch
+        :disabled="!!property.disable"
+        v-model="propValue"
+      />
+    </a-form-item>
+    <div v-else class="p-showname">
+      <span>{{property.label}}：</span>
+      <span>{{propValue == undefined ? '' : (propValue ? '是':'否')}}</span>
+    </div>
+  </div>
+</template>
+<script>
+import { Form, Switch } from "ant-design-vue";
+import get from 'lodash/get';
+import set from 'lodash/set';
+
+export default {
+  props: {
+    property: {
+      type: Object,
+    },
+    data:{
+      type: Object,
+    },
+    edit:{
+      type: Boolean,
+      default: false,
+    }
+  },
+  components: {
+    AFormItem: Form.Item,
+    ASwitch: Switch
+  },
+  data() {
+    return {
+      code: this.property['code'],
+    };
+  },
+  computed:{
+    propValue:{
+      get(){
+        return get(this.data, this.code);
+      },
+      set(value){
+        set(this.data, this.code, value)
+      }
+    }
+  },
+  methods: {
+    validateField(obj){
+      if(this.property.disable){
+        return Promise.resolve();
+      }else{
+        set(obj, this.code, this.propValue)
+        return Promise.resolve();
+      }
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-form-item {
+  margin-bottom: 0;
+}
+.p-showname {
+  line-height: 30px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+</style>

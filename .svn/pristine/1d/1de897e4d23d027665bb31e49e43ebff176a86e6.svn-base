@@ -1,0 +1,343 @@
+<template>
+  <!--机构-->
+  <div class="report">
+    <div class="title">
+      <span class="icon jigou"></span>
+      <span class="text">机构</span>
+    </div>
+    <div class="cell" v-for="(group, index) in list" :key="index" :class="{'last':index == list.length-1}">
+      <div class="cellItem" v-for="(item) in group" :key="item.title">
+        <p>{{item.title}}</p>
+        <div class="num clickable" @click="showDetail(item)">
+          <lcd-font :length="4" :realNumber="(orgInfo[item.total] - orgInfo[item.used]) | thanZero" :realStyle="item.realStyle"/>
+        </div>
+        <div class="type">
+          <span class="name">限额</span>
+          <span class="number">{{orgInfo[item.total] || 0}}</span>
+        </div>
+        <div class="type">
+          <span class="name">实有</span>
+          <span class="number">{{orgInfo[item.used] || 0}}</span>
+        </div>
+      </div>
+    </div>
+    <dialog-box 
+      v-model="detail.show"
+      :title="(districtName || '') + detail.title"
+    >
+      <div class="detail-info">
+        <div class="header">
+          <ul>
+            <li>
+              <div class="name">{{detail.title}}</div>
+              <lcd-font :length="4" :smooth="false" :realNumber="(detail.total - detail.used) | thanZero" :realStyle="{
+                  color: detail.total < detail.used ? '#ff5500' : '#7dc8a3'
+                }"/>
+            </li>
+            <li class="operater">=</li>
+            <li>
+              <div class="name">限额数</div>
+              <lcd-font :length="4" :smooth="false" :realNumber="detail.total"/>
+            </li>
+            <li class="operater">-</li>
+            <li>
+              <div class="name">实有数</div>
+              <lcd-font :length="4" :smooth="false" :realNumber="detail.used"/>
+            </li>
+          </ul>
+        </div>
+        <div class="body">
+          <div class="container" ref="chart" style="height:280px;margin-top:90px"></div>
+        </div>
+      </div>
+    </dialog-box>
+  </div>
+</template>
+<script>
+import LcdFont from "../components/LcdFont";
+import DialogBox from '../components/DialogBox'
+import { Chart } from "@antv/g2";
+import { mixins } from "../components/minxin";
+import { areaStatistics } from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  components: { LcdFont, DialogBox },
+  data() {
+    return {
+      orgInfo: {},
+      list: [
+        [
+          { title: '党政机构剩余数', total: 'dzhgzl_xe', used: 'dzjgzl_sy' },
+          { title: '局级行政机构剩余数', total: 'xzjjjg_xe+xzfjjjg_xe', used: 'xzjjjg_sy+xzfjjjg_sy' },
+        ],
+        [
+          { title: '事业单位剩余数', total: 'syjg_xe', used: 'syjg_sy', realStyle: {color: '#ffd3a3'} },
+          { title: '局级事业单位剩余数', total: 'syjjjg_xe+syfjjjg_xe', used: 'syjjjg_sy+syfjjjg_sy', realStyle: {color: '#ffd3a3'} },
+        ]
+      ],
+      detail: {
+        show: false,
+        title: '',
+        total: 0,
+        used: 0
+      },
+      chart: undefined,
+    }
+  },
+  mixins: [mixins],
+  mounted() {
+    this.orgCount(this.dictId);
+  },
+  watch: {
+    dictId(v) {
+      this.orgCount(v);
+    },
+  },
+  filters: {
+    thanZero(num){
+      return num > 0 ? num : 0;
+    }
+  },
+  methods: {
+    orgCount(district) {
+      areaStatistics(district,[
+        'dzhgzl_xe','dzjgzl_sy',
+        'xzjjjg_xe','xzjjjg_sy',
+        'xzfjjjg_xe', 'xzfjjjg_sy',
+        'syjg_xe','syjg_sy',
+        'syjjjg_xe','syjjjg_sy',
+        'syfjjjg_xe','syfjjjg_sy'
+      ])
+        .then(({result}) => {
+          let obj = {};
+          this.list.forEach(item => {
+            item.forEach(({total, used}) => {
+              this.setValue(result, total, obj);
+              this.setValue(result, used, obj)
+            })
+          })
+          this.orgInfo = obj;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    setValue(map, key, result){
+      let sum = 0
+      key.split('+').forEach(item => {
+        sum += map[item] || 0;
+      })
+      result[key] = sum;
+    },
+    showDetail({title, total, used}){
+      this.detail.show = true;
+      this.detail.title = title;
+      this.detail.total = this.orgInfo[total] || 0;
+      this.detail.used = this.orgInfo[used] || 0;
+      this.$nextTick(() => {
+        this.draw(this.detail)
+      })
+    },
+    draw({title, total, used}) {
+      if(this.chart){
+        this.chart.destroy();
+        this.chart = null;
+      }
+      if(total > 0 && total >= used){
+        const chart = new Chart({
+          container: this.$refs.chart,
+          autoFit: true
+        });
+        chart.data([
+          {item: '剩余数', value: total - used},
+          {item: '实有数', value: total}
+        ]);
+        chart.coordinate("theta", {
+          radius: 0.8,
+          innerRadius: 0.6
+        });
+        chart
+          .annotation()
+          .text({
+            position: ["50%", "50%"],
+            content: "限额数",
+            style: {
+              fontSize: 16,
+              textAlign: "center",
+              stroke: 0,
+              fill: "#FFF",
+              opacity: 0.75,
+            },
+            offsetY: -20
+          })
+          .text({
+            position: ["50%", "50%"],
+            content: total,
+            style: {
+              fontSize: 44,
+              fill: "#8fc7ff",
+              textAlign: "center",
+              fontFamily: "LESLIEB",
+              stroke: 0,
+            },
+            offsetY: 20
+          });
+        chart.legend(false);
+        chart.tooltip(false);
+        chart
+          .interval()
+          .position("value")
+          .color("item", [
+            "#7dc8a3",
+            "#343434",
+          ])
+          .label("item", {
+            layout: { type: 'pie-spider' },
+            content: data => {
+              if(data.item == '剩余数'){
+                let percent = '';
+                if(total > 0 && total >= used){
+                  percent =  '，占比' + Number(((total - used) * 100/ total).toFixed(2)) + '%'
+                }
+                return `${title}${data.value}个${percent}`;
+              }
+            },
+            style: {
+              fill: '#fff',
+              fontSize: 16,
+            },
+            labelLine: {
+              style: {
+                lineWidth: 2,
+              },
+            },
+          }).adjust("stack");
+        chart.render();
+        this.chart = chart;
+      }
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.report {
+  .title {
+    display: flex;
+    align-items: center;
+    .icon {
+      width: 24px;
+      height: 24px;
+      &.jigou {
+        background: url("../img/jigou.png");
+      }
+      &.bianzhi {
+        background: url("../img/bainzhi.png");
+      }
+      &.zhishu {
+        background: url("../img/zhishu.png");
+      }
+    }
+    .text {
+      width: 80px;
+      height: 80px;
+      line-height: 80px;
+      text-align: center;
+      background: url("../img/text_bj.png");
+      font-size: 20px;
+      font-family: Microsoft YaHei;
+      font-weight: bold;
+      color: #ffffff;
+      -webkit-text-stroke: 1 #66d9ec;
+      opacity: 0.9;
+      margin-left: -8px;
+    }
+  }
+  .cell {
+    display: flex;
+    width: 270px;
+    justify-content: space-between;
+    &.last{
+      margin-top: 20px;
+    }
+    .cellItem {
+      p {
+        margin: 0px;
+        height: 22px;
+        line-height: 22px;
+        font-size: 16px;
+        font-family: Microsoft YaHei;
+        font-weight: 400;
+        color: #fff;
+        opacity: 0.8;
+      }
+      .num {
+        width: 110px;
+        height: 48px;
+        margin: 4px auto;
+        text-align: center;
+        &.clickable{
+          cursor: pointer;
+        }
+      }
+      .type {
+        width: 110px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 4px auto;
+        padding: 0px 5px;
+        .name {
+          height: 21px;
+          font-size: 16px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 21px;
+          color: #ffffff;
+          opacity: 0.6;
+        }
+        .number {
+          height: 18px;
+          font-size: 16px;
+          font-family: Arial;
+          font-weight: 400;
+          line-height: 18px;
+          color: #ffffff;
+          opacity: 0.6;
+          flex: 1;
+          text-align: right;
+        }
+      }
+    }
+  }
+}
+.detail-info{
+  height: 600px;
+  overflow: hidden;
+  & > .header{
+    text-align: center;
+    margin-top: 90px;
+    ul{
+      overflow: hidden;
+      .operater{
+        padding: 0 20px;
+        color: #8fc7ff;
+        line-height: 56px;
+        vertical-align: bottom;
+        font-size: 30px;
+        font-weight: bold;
+      }
+      li{
+        display: inline-block;
+        .name{
+          color: white;
+          text-align: center;
+          line-height: 1.6em;
+          font-size: 16px;
+        }
+      }
+    }
+  }
+
+}
+</style>

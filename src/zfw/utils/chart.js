@@ -1,0 +1,76 @@
+import { Chart } from '@antv/g2';
+import DataSet from '@antv/data-set';
+
+export default {
+  computed: {
+    Chart() {
+      if (typeof window !== 'undefined' && window.Chart) {
+        return window.Chart
+      } else {
+        return Chart
+      }
+    },
+    DataSet() {
+      if (typeof window !== 'undefined' && window.DataSet) {
+        return window.DataSet
+      } else {
+        return DataSet
+      }
+    },
+    id() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    }
+  },
+  data () {
+    return {
+      chart: null
+    }
+  },
+  watch: {
+    // 监控data，当发生变化时，重新绘制图表
+    data(val) {
+      this.drawChart(val);
+    }
+  },
+  mounted () {
+    this.drawChart(this.data);
+  },
+  methods: {
+    // 构造图表实例
+    constructChart () {
+      // 销毁实例
+      if (this.chart) {
+        this.chart.destroy();
+      }
+      const dom = document.getElementById(this.id),
+            spinDom = document.getElementById(this.spinid);
+      if (dom && dom.innerHTML) {
+        dom.innerHTML = '';
+      }
+      return new Chart({
+        container: this.id,
+        autoFit: this.autoFit,
+        width: spinDom.offsetWidth || 400,
+        height: spinDom.offsetHeight || 500,
+        supportCSSTransform: true,
+        // padding: [0, 20, 0, 0],
+      })
+    },
+    drawChart (data) {
+      // 新建实例
+      this.chart = this.constructChart();
+
+      // 配置图表
+      this.setChartConfig(data);
+
+      // 绘制
+      this.chart.render();
+
+      let _this = this;
+      // 销毁实例
+      // this.$once('hook:beforeDestroy', function () {
+      //   _this.chart.destroy();
+      // })
+    }
+  }
+}

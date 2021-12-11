@@ -1,0 +1,56 @@
+<template>
+  <div class="wrapper">
+    <div class="top">
+      <div class="left">
+        <span>查看待办业务</span>
+      </div>
+      <div class="right">
+        <a-input-search placeholder="请输入事项名称" style="width: 200px" />
+      </div>
+    </div>
+    <div class="bottom">
+
+    </div>
+  </div>
+</template>
+
+<script>
+import { Input } from "ant-design-vue";
+
+export default {
+  props: {},
+  components: {
+    AInputSearch: Input.Search
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.wrapper{
+  height: 100%;
+  .top{
+    height: 32px;
+    padding: @padding-xs  @padding-lg;
+    display: flex;
+    justify-content: space-between;
+    .left{
+      span{
+        display: inline-block;
+        height: 32px;
+        line-height: 30px;
+        border: 1px solid @primary-color;
+        border-radius: 5px;
+        padding: 0 10px;
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,317 @@
+<template>
+  <div class="wrapper">
+    <div class="layout_header">
+      <SelectCondition @handleData="getData" :title="'用户' + title"></SelectCondition>
+    </div>
+    <div :style="{ margin: '16px', overflow: 'initial' }">
+      <div class="main">
+
+        
+        <div class="trend" v-if="pageData">
+          <div class="top">
+            <div class="top_left">
+              注册用户趋势图
+              <span>
+                <img src="../../assets/img/helps.png" alt="">
+              </span>
+            </div>
+            <div class="top_right">
+              数据表
+            </div>
+          </div>
+          <div class="date">{{time}}</div>
+          <div class="total">{{pageData ? pageData.regNumList[0].num : 0}}</div>
+          <div class="name">{{pageData ? pageData.regNumList[0].name : '用户数'}}</div>
+          <LineChart :data="trandChartData" :loading="loading" style="height: 219px;margin-top: 24px;"></LineChart>
+        </div>
+
+        <div class="percent">
+          <div class="percent_item">
+            <div class="title">业务平台注册占比</div>
+            <div class="date">{{time}}</div>
+            <div>
+              <span>数据表</span>
+              <span>普通页面数据分析</span>
+            </div>
+            <RingChart :data="pageData.regAppidList" :loading="loading" style="height: 219px;margin-top: 24px;"></RingChart>
+          </div>
+          <div class="percent_item">
+            <div class="title">部门地方注册占比</div>
+            <div class="date">{{time}}</div>
+            <div>
+              <span>数据表</span>
+              <span>普通页面数据分析</span>
+            </div>
+            <RingChart :data="pageData.regOrgIdList" :loading="loading" style="height: 219px;margin-top: 24px;"></RingChart>
+          </div>
+          <div class="percent_item">
+            <div class="title">注册来源</div>
+            <div class="date">{{time}}</div>
+            <div>
+              <span>数据表</span>
+              <span>普通页面数据分析</span>
+            </div>
+            <RingChart :data="pageData.regsourceList" :loading="loading" style="height: 219px;margin-top: 24px;"></RingChart>
+          </div>
+        </div>
+
+        <div class="relevance">
+          <div class="title">账号关联数</div>
+          <div class="date">{{time}}</div>
+          <ul>
+            <li>
+              <div class="num">10</div>
+              <div class="name">微信小程序账号</div>
+            </li>
+            <li>
+              <div class="num">10</div>
+              <div class="name">微信小程序账号</div>
+            </li>
+            <li>
+              <div class="num">10</div>
+              <div class="name">微信小程序账号</div>
+            </li>
+            <li>
+              <div class="num">10</div>
+              <div class="name">微信小程序账号</div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="attribute">
+          <div class="title">注册用户属性</div>
+          <div class="date">{{time}}</div>
+          <ul class="ring_container">
+            <li>
+              <div class="name">认证等级</div>
+              <RingChart :data="pageData.regwaydataList" :loading="loading" style="height: 219px;margin-top: 24px;"></RingChart>
+            </li>
+            <li>
+              <div class="name">年龄结构</div>
+              <RingChart :data="pageData.agedataList" :loading="loading" style="height: 219px;margin-top: 24px;"></RingChart>
+            </li>
+            <li>
+              <div class="name">性别分分布</div>
+              <RingChart :data="pageData.sexdataList" :loading="loading" style="height: 219px;margin-top: 24px;"></RingChart>
+            </li>
+          </ul>
+          <div class="name">地域分布</div>
+          <div class="map">
+            <div class="left_map">
+              <MapChart :data="pageData.mapseriesdataList" :loading="loading"></MapChart>
+              <div class="colors">
+                高
+                <span v-for="(color, index) in colorList" :key="index" :style="'background:' + color"></span>
+                低
+              </div>
+            </div>
+            <div class="right_percent">
+              <RankList :rankList="pageData.topList" :total="pageData.maptotalusernum" :loading="loading"></RankList>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { regReportDate } from "@/zfw/api/naturalRegister";
+import { showError } from '../../../framework/utils';
+import { getDate, colors } from "../../utils/index";
+import SelectCondition from '@/zfw/components/overview/SelectCondition';
+import RankList from '@/zfw/components/overview/RankList';
+import LineChart from '@/zfw/components/lineChart';
+import RingChart from '@/zfw/components/ringChart';
+import MapChart from '@/zfw/components/mapChart';
+import RankChart from '@/zfw/components/rankChart';
+
+export default {
+  props: {},
+  components: { SelectCondition, LineChart, RingChart, MapChart, RankChart, RankList },
+  data() {
+    return {
+      loading: false,
+      title: '注册',
+      trandChart: null,
+      trandChartData: [],
+      pageData: undefined,
+      params: {
+        startTime: getDate('lastThreeMonth').startTime,
+        endTime: getDate('lastThreeMonth').endTime,
+        resources: [],
+        appIds: []
+      }
+    };
+  },
+  watch: {},
+  computed: {
+    colorList() {
+      return colors;
+    },
+    time: {
+      get() {
+        return this.params.startTime + "-" + this.params.endTime;
+      },
+      set() {
+        let time = this.params.startTime == this.params.endTime 
+                   ? this.params.startTime
+                   : this.params.startTime + "-" + this.params.endTime;
+        return time;
+      }
+    }
+  },
+  created() {
+    //  默认加载近三个月
+    // this.getData(this.params);
+    this.getData({
+      startTime: '2020/12/08',
+      endTime: '2021/03/07',
+      resources: [],
+      appIds: []
+    })
+  },
+  mounted() {
+  },
+  methods: {
+    getData(data) {
+      this.loading = true;
+      regReportDate(data)
+      .then(({attr}) => {
+        this.loading = false;
+        this.pageData = attr;
+        //  构造趋势图数据
+        let arr = [];
+        this.pageData.time.forEach((item, index) => {
+          let obj = {};
+          obj.year = item;
+          obj.value = this.pageData.regNumList[0].data[index];
+          arr.push(obj);
+        })
+        this.trandChartData = arr;
+        //  排序 获取前十
+        let maplist = JSON.parse(JSON.stringify(attr.mapseriesdataList));
+        let topList = maplist.sort((a, b) => {
+          return b.value - a.value;
+        })
+        this.pageData.topList = topList.slice(0, 10);
+      })
+      .catch(err => {
+        this.loading = false;
+        showError(err);
+      })
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.wrapper{
+  .main{
+
+    >div{
+      padding: @padding-lg;
+      background-color: @white;
+      margin-top: 16px;
+      border-radius: 5px;
+      -moz-box-shadow:0px 0px 10px #E7E7E7; 
+      -webkit-box-shadow:0px 0px 10px #E7E7E7; 
+      box-shadow:0px 0px 10px #E7E7E7;
+      .title{
+        color: black;
+        font-size: 20px;
+        font-weight: bold;
+      }
+      .date{
+        color: #a2a2a2;
+      }
+    }
+
+    .trend{
+      margin-top: 0;
+      .top{
+        display: flex;
+        justify-content: space-between;
+        .top_left{
+          color: black;
+          font-size: 20px;
+          font-weight: bold;
+        }
+        .top_right{
+          color: @primary-color;
+        }
+      }
+      .total{
+        color: @primary-color;
+        font-size: 30px;
+      }
+      .name{
+        font-weight: bold;
+        color: #939393;
+        margin-bottom: 10px;
+      }
+    }
+
+    .percent{
+      display: flex;
+      .percent_item{
+        width: 33%;
+      }
+    }
+
+    .relevance{
+      ul{
+        display: flex;
+        li{
+          text-align: center;
+          width: 25%;
+          .num{
+            font-size: 30px;
+            color: @primary-color;
+          }
+        }
+      }
+    }
+
+    .attribute{
+      .ring_container{
+        display: flex;
+        li{
+          width: 33%;
+          .name{
+            font-size: 20px;
+          }
+        }
+      }
+      .name{
+        font-size: 20px;
+      }
+      .map{
+        display: flex;
+        flex-direction: row;
+        height: 550px;
+        .left_map{
+          flex: 7;
+          position: relative;
+          .colors{
+            line-height: 20px;
+            position: absolute;
+            left: 20px;
+            bottom: 20px;
+            span{
+              display: inline-block;
+              width: 13px;
+              height: 13px;
+              margin-left: 5px;
+            }
+          }
+        }
+        .right_percent{
+          flex: 5;
+        }
+      }
+    }
+
+  }
+}
+</style>

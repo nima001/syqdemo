@@ -1,0 +1,36 @@
+<!--组织列表-->
+<template>
+  <div class="roster">
+    <div class="content">
+      <organization></organization>
+    </div>
+  </div>
+</template>
+<script>
+import Organization from "./components/Organization";
+export default {
+  components: {
+    Organization
+  },
+  data() {
+    return {
+    };
+  },
+  methods: {
+  }
+};
+</script>
+<style lang='less' scoped>
+.roster {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .content{
+    flex: 1;
+    background: @white;
+    margin-top: @layout-space-base;
+    padding: 16px 24px;
+  }
+}
+</style>

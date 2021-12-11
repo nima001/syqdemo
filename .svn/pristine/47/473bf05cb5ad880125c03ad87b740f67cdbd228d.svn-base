@@ -1,0 +1,468 @@
+<template>
+  <div :class="['detail-info', {'info': !iskb}]">
+    <div class="header">
+      <ul>
+        <li>
+          <div class="name">{{ title }}</div>
+          <lcd-font
+            :length="7"
+            :smooth="false"
+            :realNumber="kbNum"
+            :realStyle="{ color: '#01E3FC' }"
+          />
+          <div class="tooltip" v-if="numDesc&&numDesc.key&&numDesc.value">
+            <div class="arrow"></div>
+            <div class="content">{{numDesc.key}} <span>{{ numDesc.value }}</span></div>
+          </div>
+        </li>
+        <li class="operater">=</li>
+        <li>
+          <div class="name">{{total.key}}</div>
+          <lcd-font :length="7" :smooth="false" :realNumber="total.value" />
+        </li>
+        <li class="operater">-</li>
+        <li>
+          <div class="name">{{used.key}}</div>
+          <lcd-font :length="7" :smooth="false" :realNumber="used.value" />
+        </li>
+      </ul>
+    </div>
+    <div class="top" v-if="iskb==true">
+      <div class="title">
+        <div>{{kbtitle}}排行</div>
+        <!-- <div>
+          <span><span class="qs"/>前十</span>
+          <span><span class="hs"/>后十</span>
+        </div> -->
+      </div>
+      <div class="all-list" @click="showList()">
+        全部列表
+      </div>
+    </div>
+    <div class="body" v-if="iskb==true">
+      <div class="left">
+        <div>
+          <ul v-if="data.qs">
+            <li v-for="(item, index) in JSON.parse(data.qs).filter((item,index)=>index<5)" :key="index">
+              <span class="index">{{index+1}}</span>
+              <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                <template slot="title">
+                  <span>{{item.organme}}</span>
+                </template>
+                <span class="name">{{item.organme}}</span>
+              </a-tooltip>
+              <span class="num">{{item.total}}</span>
+            </li>
+          </ul>
+          <ul v-if="data.qs">
+            <li v-for="(item, index) in JSON.parse(data.qs).filter((item,index)=>index>4)" :key="index">
+              <span class="index">{{index+6}}</span>
+              <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                <template slot="title">
+                  <span>{{item.organme}}</span>
+                </template>
+                <span class="name">{{item.organme}}</span>
+              </a-tooltip>
+              <span class="num">{{item.total}}</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <!-- <div class="right">
+        <div>
+          <ul v-if="data.hs">
+            <li v-for="(item, index) in JSON.parse(data.hs).filter((item,index)=>index<5)">
+              <span class="index">{{index+1}}</span>
+              <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                <template slot="title">
+                  <span>{{item.organme}}</span>
+                </template>
+                <span class="name">{{item.organme}}</span>
+              </a-tooltip>
+              <span class="num">{{item.total}}</span>
+            </li>
+          </ul>
+          <ul v-if="data.hs">
+            <li v-for="(item, index) in JSON.parse(data.hs).filter((item,index)=>index>4)">
+              <span class="index">{{index+6}}</span>
+              <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                <template slot="title">
+                  <span>{{item.organme}}</span>
+                </template>
+                <span class="name">{{item.organme}}</span>
+              </a-tooltip>
+              <span class="num">{{item.total}}</span>
+            </li>
+          </ul>
+        </div>
+      </div> -->
+    </div>
+    <div class="chart-body" v-else-if="iskb==undefined">
+        <RingChart
+          v-if="data.rows"
+          :data="data"
+          :settings="{
+            title: kbtitle,
+            canvas: { width: 250, height: 250 },
+            padding: [0,0,0,0],
+            radius: 0.8,
+            innerRadius: 0.8,
+            tooltip: {
+              visible: true
+            },
+            color: ['#F2A54D','#60B4F5','#F84848','#DF6EA3','#6EDF75','#A66DF5','#C3F1CE','#A0A4F5'],
+            infoText: {
+              title: data.rows[0].k0,
+              offsetY: -10,
+              style: { fontSize: 15, fill: '#fff', textAlign: 'center' },
+            },
+            contentStyle: {
+              offsetY: 10,
+              fontSize: 13, fill: '#fff', textAlign: 'center'
+            }
+          }"
+        >
+          <template v-slot:customLegend="props">
+            <div class="legend">
+              <ul v-if="data.rows">
+                <li v-for="(row, index) in data.rows">
+                  <span :style="{background: props[index]}" class="spot"></span>
+                  <span>{{row.k0}}</span>
+                  <span>{{row.v}}</span>
+                </li>
+              </ul>
+            </div>
+          </template>
+        </RingChart>
+      </div>
+    <dialog-box v-model="showOrgs">
+      <OrgList :district="district" :isSy="isSy" :displayField="displayField"/>
+    </dialog-box>
+  </div>
+</template>
+<script>
+import { Tooltip } from 'ant-design-vue';
+import OrgList from './OrgList';
+import DialogBox from "../components/DialogBox";
+import LcdFont from "../components/LcdFont";
+import RingChart from "@person/components/chart/RingChart";
+
+export default {
+  components: {
+    DialogBox,
+    LcdFont,
+    RingChart,
+    OrgList,
+    ATooltip: Tooltip,
+    DialogBox,
+  },
+  props: {
+    district: String,
+    displayField: String,
+    title: String,
+    kbNum: Number,
+    numDesc: {
+      type: Object,
+      default: ()=> {
+        return {};
+      }
+    },
+    total: {
+      type: Object,
+      default: ()=> {
+        return {};
+      }
+    },
+    used: {
+      type: Object,
+      default: () => {
+        return {};
+      }
+    },
+    iskb: Boolean,
+    kbtitle: String,
+    data: {
+      type: Object,
+      default: ()=> {
+        return {};
+      }
+    },
+    isSy: Boolean,//是否事业
+  },
+  data() {
+    return {
+      showOrgs: false,
+      query: {},
+    };
+  },
+  mounted() {
+    this.showOrgs = false;
+  },
+  methods: {
+    showList() {
+      this.showOrgs = true;
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.detail-info {
+  &.info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  height: 90%;
+  & > .header {
+    text-align: center;
+    margin-top: 75px;
+    height: 145px;
+    ul {
+      overflow: hidden;
+      .operater {
+        padding: 0 20px;
+        color: #8fc7ff;
+        line-height: 56px;
+        vertical-align: bottom;
+        font-size: 30px;
+        font-weight: bold;
+      }
+      li {
+        display: inline-block;
+        .name {
+          color: white;
+          text-align: center;
+          line-height: 1.6em;
+          font-size: 16px;
+        }
+      }
+      .tooltip {
+        position: absolute;
+        margin-left: -45px;
+        & > .arrow {
+          width: 0;
+          border-left: 8px solid;
+          border-right: 8px solid;
+          border-bottom: 5px solid #1f252c;
+          border-left-color: transparent;
+          border-right-color: transparent;
+          margin: auto;
+        }
+        & > .content {
+          padding: 15px 20px 15px 50px;
+          color: white;
+          background-color: #1f252c;
+          background-image: url("../../../assets/img/screen/jigou.png");
+          background-repeat: no-repeat;
+          background-position: 15px 15px;
+          border-radius: 5px;
+          font-size: 16px;
+          span {
+            margin-left: @padding-md;
+          }
+        }
+      }
+    }
+  }
+  .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    .title {
+      width: 90%;
+      display: flex;
+      justify-content: center;
+      color: fade(#fff,80%);
+      font-size: 20px;
+      & > div:first-child {
+        width: 30%;
+        text-align: right;
+        margin-right: @padding-lg;
+      }
+      & > div:last-child {
+        span {
+          font-size: 15px;
+        }
+        span:first-child {
+          margin-right: @padding-lg;
+          span.qs {
+            width: 10px;
+            height: 10px;
+            margin-right: @padding-xs;
+            color: fade(#fff, 70%);
+            background: #978FFF;
+            border-radius: 3px;
+            display: inline-block;
+          }
+        }
+        span:last-child {
+          span.hs {
+            width: 10px;
+            height: 10px;
+            margin-right: @padding-xs;
+            border-radius: 3px;
+            color: fade(#fff, 70%);
+            background: #FE7A2E;
+            display: inline-block;
+          }
+        }
+      }
+    }
+    .all-list {
+      color: fade(#fff, 60%);
+      letter-spacing:8px;
+      font-weight: 700;
+      font-size: 15px;
+      flex: 1;
+      cursor: pointer;
+      &:hover{
+        color: #fff;
+        user-select: none;
+      }
+    }
+  }
+  & .body {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    .left, .right {
+      width: 48%;
+      text-align: center;
+      & > div {
+        display: flex;
+        justify-content: center;
+      }
+      p {
+        color: fade(#fff, 80%);
+        font-size: 1.4em;
+        font-weight: bold;
+      }
+      ul {
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        padding-left: @padding-sm;
+        li {
+          width: 100%;
+          margin: 10px 0;
+          display: flex;
+          justify-content: flex-end;
+          span {
+            padding: 0 @padding-xs;
+            display: inline-block;
+            height: 32px;
+          }
+          span.index {
+            width: 32px;
+            padding: 0;
+            line-height: 32px;
+            margin-right: 2px;
+            border-radius: @border-radius-base;
+            text-align: center;
+            font-weight: bold;
+            color: #313B72;
+            background: #978FFF;
+          }
+          span.name{
+            overflow-x: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: left;
+            width: 185px;
+            line-height: 32px;
+            color: fade(#fff, 80%);
+            background: #3A404F;
+          }
+          span.num {
+            width: 50px;
+            padding: 0;
+            text-align: center;
+            line-height: 32px;
+            color: #02E7EF;
+            background: #232B42;
+            white-space: nowrap;
+          }
+        }
+      }
+    }
+    .right ul li span.index {
+      background: #FE7A2E;
+    }
+  }
+  & .chart-body {
+    /deep/.ring-chart {
+       h2{
+        font-weight: bold;
+        color: fade(#fff,80%);
+       }
+      & .chart {
+        width: 250px;
+        height: 250px;
+        & > div {
+          position: absolute !important;
+          top: 50%;
+          left: 25%;
+          transform: translateY(-50%);
+        }
+      }
+    }
+    .legend {
+      width: 50%;
+      height: 345px;
+      padding: @padding-lg;
+      text-align: left;
+      position: absolute;
+      top: 50%;
+      left: 27%;
+      transform: translateY(-50%);
+      color: fade(#fff, 80%);
+      display: flex;
+      flex-direction: column;
+      .title {
+        text-align: center;
+        position: relative;
+        left: -50%;
+      }
+      ul {
+        width: 60%;
+        height: 300px;
+        padding: 32px @padding-xs @padding-md 50px;
+        margin: 0;
+        margin-left: auto;
+        border-radius: 10px;
+        background: url('../../../assets/img/screen/age-education-bg.png') no-repeat;
+        background-size: cover;
+        overflow-y: scroll;
+        z-index: 999;
+        li {
+          width: 100%;
+          padding: @padding-sm 0;
+          display: flex;
+          align-items: center;
+          font-size: 1.2em;
+          cursor: pointer;
+          user-select: none;
+          .spot {
+            width: 10px;
+            height: 10px;
+            margin-right: @layout-space-base;
+            border-radius: @border-radius-base;
+            display: inline-block;
+          }
+          span:nth-child(2) {
+            text-overflow: ellipsis;
+            overflow: hidden;
+          }
+          span:last-child {
+            margin-left: auto;
+            color: #02E7EF;
+          }
+          &:hover {
+            color: #fff;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

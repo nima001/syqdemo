@@ -1,0 +1,670 @@
+<template>
+  <div class="document-query">
+    <div class="panel">
+      <div class="toolbar">
+        <a-form class="ant-advanced-search-form" :form="form">
+          <div class="box">
+            <ul class="in-box">
+              <li class="li-content">
+                <div>
+                  <span class="name">批准文号:</span>
+                  <a-input-group compact class="pzwh">
+                    <a-input
+                      type="text"
+                      style="width: 30%"
+                      v-model="searchCondition.zihao"
+                    />
+                    <a-input
+                      addonBefore="〔"
+                      addonAfter="〕"
+                      type="text"
+                      style="width: 40%"
+                      v-model="searchCondition.year"
+                    />
+                    <a-input
+                      addonAfter="号"
+                      type="text"
+                      style="width: 30%"
+                      v-model="searchCondition.ordinal"
+                    />
+                  </a-input-group>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">发文时间:</span>
+                  <a-input-group compact>
+                    <a-date-picker
+                      placeholder="开始时间"
+                      v-model="startValue"
+                      :disabled-date="disabledStartDate"
+                      style="width: 50%"
+                    />
+                    <a-date-picker
+                      placeholder="结束时间"
+                      v-model="endValue"
+                      :disabled-date="disabledEndDate"
+                      style="width: 50%"
+                    />
+                  </a-input-group>
+                </div>
+              </li>
+              <li class="li-content" style="width: 180px">
+                <div>
+                  <span class="name">文件类型:</span>
+                  <a-select
+                    v-model="searchCondition.type"
+                    placeholder="请选择文件类型"
+                    :allowClear="true"
+                    @change="typeChange"
+                  >
+                    <a-select-option
+                      v-for="(item, index) in typeList"
+                      :key="index"
+                      :value="item.value"
+                      >{{ item.text }}</a-select-option
+                    >
+                  </a-select>
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">关键字:</span>
+                  <a-input
+                    placeholder="请输入关键字"
+                    :allowClear="true"
+                    v-model="searchCondition.searchkey"
+                  />
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">相关机构:</span>
+                  <div style="display:flex">
+                    <div class="mechanism" @click="orgModelShow">
+                    <ul>
+                      <li v-if="nodelist.length === 0" class="placehold">
+                        请选择机构
+                      </li>
+                      <li v-for="(item, index) in nodelist">
+                        {{ item.name }}
+                        <span @click.stop="deleteItem(index)" class="delete"><a-icon type="close"/></span>
+                      </li>
+                    </ul>
+                    <span class="clear" v-if="nodelist.length !== 0" @click.stop="clearnodelist">
+                      <a-icon type="close-circle" theme="filled" :style="{ fontSize: '12px', color: '#666' }"/>
+                    </span>
+                  </div>
+                    <div class="editicon" @click="orgModelShow">
+                      <span class="icon">
+                        <a-icon slot="addonAfter" type="select" class="left-icon" />
+                      </span>
+                    </div>
+                </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </a-form>
+        <a-row>
+          <a-col class="colcss">
+            <a-button
+              type="primary"
+              @click="onSearch"
+              style="margin-right: 10px"
+              >搜索</a-button>
+            <a-button @click="onreset">重置</a-button>
+          </a-col>
+        </a-row>
+      </div>
+    </div>
+    <div class="document-main"></div>
+    <div class="document-list" :style="pagination.rows && pagination.rows.length ? '' : 'margin-top:10%'">
+      <h3 class="document-h3" v-if="pagination.rows && pagination.rows.length">
+        查询结果:
+      </h3>
+      <a-spin class="loading" :spinning="loading" :delay="50" />
+      <div class="document-content" v-if="pagination.rows && pagination.rows.length">
+        <div v-for="(item, index) in pagination.rows" :key="index">
+          <div class="list-content">
+            <p class="title-span">
+              <span v-for="(i, inx) in typeList" :key="inx" v-show="item.type === i.value">
+                <span v-html="`【${ item.type === i.value ? i.text : '' }】`"/>
+              </span>
+              <span v-html="`${ item.title ? item.title : '' }`"/>
+            </p>
+            <span class="time-span" v-if="item.orgs[0]">
+              批准文号:&nbsp;{{ item.num }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;发文时间:&nbsp;
+              {{ item.dispatchdate }}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;相关单位:&nbsp;
+              <a-tooltip :get-popup-container="(trigger)=> trigger.parentElement" :auto-adjust-overflow="false" :overlayStyle="{maxWidth:'600px'}">
+                <template slot="title" v-for="(org,index) in item.orgs">
+                 {{org.orgname}}<span v-show="index!==item.orgs.length-1">，</span>
+                </template>
+                <span v-if="item.orgs.length>1">{{ item.orgs[0].orgname }}&nbsp;，&nbsp;{{ item.orgs[1].orgname }}</span>
+                <span v-else>{{ item.orgs[0].orgname }}</span>
+              </a-tooltip>
+            </span>
+            <div class="listthree">
+              <div class="listthree-div" v-html="item.content"></div>
+              <a-button @click="downloadFile(item.fileuri)">下载文件</a-button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="main-image" v-else>
+        <empty-data :tips="warningtext" />
+      </div>
+    </div>
+    <div class="footer">
+      <a-pagination
+        v-if="pagination.rows && pagination.rows.length"
+        showSizeChanger
+        :showTotal="(total) => `总共：${total}条`"
+        @showSizeChange="onShowSizeChange"
+        :total="pagination.total"
+        v-model="pagination.pagenum"
+        @change="onPageChange"
+      />
+    </div>
+    <!--组织选择-->
+    <a-modal
+      title="单位名称选择"
+      v-model="orgVisible"
+      :width="800"
+      :bodyStyle="{ height: '600px', padding: '0' }"
+      :footer="null"
+    >
+      <org-user-select
+        mode="org"
+        :showDept="true"
+        :max-select="100"
+        :selected.sync="selected"
+        :root-selectable="true"
+        @finish="selectOrg"
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import moment from "moment";
+import { sxdocument } from "@/person-shaoxing/api/information";
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+import { showError } from "@/framework/utils/index";
+import { download } from "@/framework/api/file";
+import EmptyData from "@/framework/components/EmptyData";
+import {
+  Form,
+  Spin,
+  Row,
+  Col,
+  Input,
+  Button,
+  Select,
+  Icon,
+  DatePicker,
+  Modal,
+  Pagination,
+  Tooltip,
+} from "ant-design-vue";
+export default {
+  name: "Documentquery",
+  components: {
+    ASpin: Spin,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    AButton: Button,
+    ASelect: Select,
+    APagination: Pagination,
+    ADatePicker: DatePicker,
+    ASelectOption: Select.Option,
+    AIcon: Icon,
+    AModal: Modal,
+    ATooltip: Tooltip,
+    OrgUserSelect,
+    EmptyData,
+  },
+  data() {
+    return {
+      warningtext: "请选择机构或进行关键字搜索",
+      node: {
+        id: null,
+        name: null,
+      },
+      form: this.$form.createForm(this, { name: "advanced_search" }),
+      searchCondition: {
+        zihao: null,
+        year: null,
+        ordinal: null,
+        starttime: undefined,
+        endtime: undefined,
+        searchkey: null,
+        orgids: [],
+      },
+      orgValue: [],
+      selectedRowKeys: [],
+      selectedRows: [],
+      orgVisible: false,
+      nodelist: [],
+      selected: [],
+      typevalue: null,
+      pagination: {
+        rows: null,
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+      },
+      loading: false,
+      startValue: null,
+      endValue: null,
+    };
+  },
+  props: {
+    typeList: Array,
+  },
+  watch: {
+    startValue(val) {
+      this.searchCondition.starttime = val;
+    },
+    endValue(val) {
+      this.searchCondition.endtime = val;
+    },
+  },
+  methods: {
+    //判断搜索记录是否包含某个关键字
+    brightenKeyword(content) {
+      if (content) {
+        // inputvalue为搜索框中的value
+        let inputvalue = this.searchCondition.searchkey;
+        let index = content.indexOf(inputvalue);
+        if (content.length < 200) {
+          return this.mark(content,inputvalue,index);
+        } else if (index < 20) {
+          return this.nomark(content,inputvalue,index);
+        } else {
+          let newtext = content.slice(index - 15, index + 185);
+          let newcontent = `......${newtext}......`;
+          const Reg = new RegExp(inputvalue);
+          let res = "";
+          if(inputvalue&&index>=0){
+            res = newcontent.replace(
+              Reg,
+              `<span style="color: #d60002;">${inputvalue}</span>`
+            );
+          }else{
+            if(content.length>200){
+              return `${content.slice(0,200)}......`;
+            }else{
+              return content;
+            }
+          }
+          return res;
+        }
+      }
+    },
+    mark(content,inputvalue,index) {
+      const Reg = new RegExp(inputvalue, "g");
+      let res = "";
+      if(inputvalue&&index>=0){
+        res = content.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+      }else{
+        if(content.length>200){
+          return `${content.slice(0,200)}......`;
+        }else{
+          return content;
+        }
+      }
+      return res;
+    },
+    nomark(content,inputvalue,index) {
+      let newtext = content.slice(index, index + 200);
+      let newcontent = `......${newtext}......`;
+      const Reg = new RegExp(inputvalue);
+      let res = "";
+      if(inputvalue&&index>=0){
+        res = newcontent.replace(
+          Reg,
+          `<span style="color: #d60002;">${inputvalue}</span>`
+        );
+      }else{
+        if(content.length>200){
+          return `${content.slice(0,200)}......`;
+        }else{
+          return content;
+        }
+      }
+      return res;
+    },
+    //下载文件
+    downloadFile(fileuri) {
+      if (fileuri) {
+        download(fileuri);
+      }else{
+        this.$notification.warning({
+          message: '提示！',
+          description: '无可下载文件！',
+          duration: 3,
+        });
+      }
+    },
+    disabledStartDate(startValue) {
+      const endValue = this.endValue;
+      if (!startValue || !endValue) {
+        return false;
+      }
+      return startValue.valueOf() > endValue.valueOf();
+    },
+    disabledEndDate(endValue) {
+      const startValue = this.startValue;
+      if (!endValue || !startValue) {
+        return false;
+      }
+      return startValue.valueOf() >= endValue.valueOf();
+    },
+    typeChange(value) {
+      this.typevalue = value;
+    },
+    //页数切换
+    onPageChange(page, pagesize) {
+      this.loadData(page, pagesize);
+    },
+    onShowSizeChange(current, size) {
+      this.loadData(1, size);
+    },
+    //带参查询
+    onSearch() {
+      if((!this.nodelist.length)&&(!this.searchCondition.zihao)&&(!this.searchCondition.year)&&(!this.searchCondition.ordinal)&&
+      (!this.searchCondition.searchkey)&&(!this.searchCondition.starttime)&&(!this.searchCondition.endtime)&&(!this.searchCondition.type)) {
+        this.$notification.warning({
+          message: "提示",
+          description: "请输入查询内容!",
+          duration: 3,
+        })
+      }else{
+        this.loading = true;
+        this.loadData(1, this.pagination.pagesize);
+      }
+    },
+    loadData(pagenum, pagesize) {
+      let orgids = [];
+      this.nodelist.forEach(function (item) {
+        orgids.push(item.orgid);
+      });
+      this.searchCondition.orgids = orgids;
+      if(!this.searchCondition.searchkey) {
+        this.searchCondition.searchkey=undefined;
+      }
+      let params = {
+        ...this.searchCondition,
+        needtotal: true,
+        pagenum,
+        pagesize,
+      };
+      sxdocument(params)
+        .then((res) => {
+          this.loading = false;
+          if (!res.result.rows.length) {
+            this.$notification.warning({
+              message: "提示",
+              description: "暂无数据!",
+              duration: 3,
+            });
+          }
+          res.result.rows.forEach((item,index)=>{
+            res.result.rows[index].content = this.brightenKeyword(item.content);
+            res.result.rows[index].title = this.brightenKeyword(item.title);
+          });
+          this.pagination = res.result;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    //单个删除
+    deleteItem(index) {
+      this.selected.splice(index, 1);
+      this.nodelist.splice(index, 1);
+    },
+    clearnodelist() {
+      this.nodelist = [];
+      this.selected = [];
+    },
+    onreset() {
+      this.searchCondition = { input: {} };
+      this.pagination.rows = null;
+      this.startValue = null;
+      this.endValue = null;
+      this.nodelist = [];
+      this.selected = [];
+    },
+    orgModelShow() {
+      this.orgVisible = true;
+    },
+    //确定选择的机构
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok") {
+        let orgarr = [];
+        list.forEach(function (item) {
+          orgarr.push({
+            orgid: item._id,
+            orgname: item.name,
+            name: item.name,
+          });
+        });
+        this.nodelist = orgarr;
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.document-query {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    .colcss {
+      padding: @layout-space-base;
+    }
+    .toolbar {
+      padding: 10px 12px;
+      width: 100%;
+      margin: 0 auto;
+      .ant-advanced-search-form {
+        .box {
+          width: 100%;
+          .in-box {
+            margin-bottom: 0;
+            overflow: hidden;
+            // margin: 5px;
+            .li-content {
+              float: left;
+              padding: 10px;
+              .mechanism {
+                width: 400px;
+                min-height: 32px;
+                border-radius: 4px 0 0 4px;
+                border: 1px solid #d9d9d9;
+                border-right: 0;
+                display: flex;
+                align-items: center;
+                overflow-x: auto;
+                overflow-y: hidden;
+                position: relative;
+                padding: 1px 30px 0 11px;
+                & ul {
+                  width: 357px;
+                  overflow-y: hidden;
+                  overflow-x: auto;
+                  display: flex;
+                  margin: 0;
+                  li {
+                    background: #e8e8e8;
+                    border-radius: 4px;
+                    padding: 0 4px;
+                    margin: 0 @padding-xs 0 0;
+                    white-space: nowrap;
+                    .delete {
+                      cursor: pointer;
+                    }
+                  }
+                  li.placehold {
+                    color: rgba(176, 176, 176, 0.8);
+                    background: transparent;
+                  }
+                }
+                .clear {
+                  position: absolute;
+                  top: 50%;
+                  right: 12px;
+                  transform: translateY(-50%);
+                  display: flex;
+                  z-index: 2;
+                  cursor: pointer;
+                }
+              }
+              .editicon {
+                margin-right: 15px;
+                .icon {
+                  height: 100%;
+                  text-align: center;
+                  background-color: #fafafa;
+                  margin-left: auto;
+                  padding: 0 11px;
+                  border: 1px solid #d9d9d9;
+                  display: flex;
+                  align-items: center;
+                  border-radius: 0 4px 4px 0;
+                  cursor: pointer;
+                }
+              }
+              .left-icon {
+                color: @primary-color;
+              }
+            }
+            .name {
+              line-height: 32px;
+              padding-right: 5px;
+              // vertical-align: initial;
+            }
+            .ant-input-group.ant-input-group-compact {
+              display: inline-block;
+              vertical-align: super;
+            }
+            /deep/ .ant-input-group {
+              top: 0.8px;
+            }
+            /deep/.ant-select-selection--multiple {
+              padding-bottom: 0px;
+            }
+            @media screen and(max-width:1440px) {
+              .li-content {
+                width: 33%;
+              }
+            }
+            @media screen and (min-width: 1440px) and(max-width:1750px) {
+              .li-content {
+                width: 21%;
+              }
+            }
+            @media screen and (min-width: 1750px) {
+              .li-content {
+                width: 20%;
+              }
+            }
+          }
+        }
+      }
+      .pzwh {
+        width: auto;
+        border: 1px solid #d9d9d9;
+        border-radius: 4px;
+        &:hover {
+          border-color: @primary-color;
+        }
+        &:focus-within {
+          border-color: @primary-color;
+          box-shadow: 0 0 0 2px fade(@primary-color, 20%);
+        }
+        /deep/.ant-input {
+          border: none;
+          height: 30px;
+        }
+        /deep/.ant-input-group-addon {
+          border: none;
+          background: none;
+        }
+      }
+    }
+  }
+  .document-main {
+    background: #f3f7fa;
+    height: 10px;
+    width: 100%;
+  }
+  .document-list {
+    // overflow-y: auto;
+    // flex: 1;
+    padding: 10px 24px;
+    .document-h3 {
+      font-weight: 700;
+      color: #666666;
+    }
+    .main-image {
+      position: relative;
+      top: 40%;
+    }
+    .document-content {
+      .list-content {
+        padding: 10px 0;
+        border-bottom: 1px dashed rgb(222, 222, 222);
+        display: flex;
+        flex-direction: column;
+        span {
+          margin-bottom: 5px;
+        }
+        .title-span {
+          font-size: 18px;
+        }
+        .time-span {
+          color: #cccccc;
+        }
+        .listthree {
+          min-height: 32px;
+          display: flex;
+          justify-content: space-between;
+          .listthree-div {
+            width: 88%;
+            color: rgba(0, 0, 0, 0.5);
+          }
+        }
+      }
+    }
+    .loading {
+      position: relative;
+      top: 40%;
+      left: 50%;
+      margin-left: -10px;
+    }
+  }
+  .footer {
+    padding: @content-padding-v @content-padding-h;
+    .ant-pagination {
+      float: right;
+      // margin-bottom: 10px;
+    }
+  }
+}
+</style>

@@ -1,0 +1,244 @@
+<template>
+  <a-layout>
+    <div class="chat-list">
+        <div class="left">
+          <div class="header">
+            <a-input v-model="searchkey" placeholder="报表名称" allowClear @change="doSeachBook"/>
+          </div>
+          <div class="body">
+            <a-spin :spinning="!bookSorts" style="width:100%;">
+              <empty-data v-if="bookSorts && !bookSorts.length" style="height: 200px"/>
+              <a-collapse v-else-if="bookSorts && bookSorts.length" 
+                v-model="activeKey" :bordered="false" expandIconPosition="right"
+              >
+                <a-collapse-panel v-for="item in bookSorts" :key="item.key" :header="item.text">
+                  <ul class="book-list">
+                    <li v-for="book in item.children" :key="book.id" 
+                      @click="selectBook(book)"
+                      :class="{selected: book.id == selectedBookid}"
+                    >{{book.name}}</li>
+                  </ul>
+                </a-collapse-panel>
+              </a-collapse>
+            </a-spin>
+          </div>
+        </div>
+        <div class="right">
+           <div class="header">
+              <dict-select v-model="year" 
+                :dict="years"
+                :allowClear="false" 
+                placeholder="请选择年份" 
+                @change="loadHistory"
+                style="width: 100px;float:right;"
+              />
+            </div>
+          <div class="body">
+            <template v-if="selectedBookid">
+              <a-spin :spinning="loading" style="width:100%">
+                <empty-data v-if="history && !history.length" style="height: 200px"/>
+                <BookList :list="history">
+                  <template #title="{ publishdate }">
+                    <span>{{formatDate(publishdate)}}</span>
+                  </template>
+                </BookList>
+              </a-spin>
+            </template>
+          </div>
+        </div>
+      </div>
+  </a-layout>
+</template>
+<script>
+import { Layout, Modal, Spin, Input, Select, Collapse, Button, Pagination, Icon } from "ant-design-vue";
+import EmptyData from "@/framework/components/EmptyData";
+import DictSelect from '@/framework/components/DictSelect'
+import BookList from './components/BookList'
+
+import moment from "moment";
+import { showError } from "@/framework/utils/index";
+import { listReportDisplay } from "@/person/api/booklet";
+
+export default {
+  name: 'BookDisplay',
+  components: {
+    ALayout: Layout,
+    ASpin: Spin,
+    AIcon: Icon,
+    AInput: Input,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ACollapse: Collapse,
+    ACollapsePanel: Collapse.Panel,
+    AButton: Button,
+    APagination: Pagination,
+    EmptyData,
+    DictSelect,
+    BookList
+  },
+  data() {
+    return {
+      loading: false,
+      searchkey: undefined,
+      year: moment().get('year'),
+      activeKey: undefined,
+      bookList: undefined,
+      selectedBookid: undefined,
+      history: undefined,
+      searchTimer: 0,
+    };
+  },
+  computed: {
+    years(){
+      let y = moment().get('year'), years = [];
+      for(; y >= 1990; y--){
+        years.push({ text: y + '年', value: y});
+      }
+      return years;
+    },
+    bookSorts(){
+      let ns = this.$store.getters.dict('report.booknamespace');
+      if(this.bookList && ns){
+        let arr = [];
+        ns.forEach(item => {
+          if(item.value.startsWith('report.')){
+            let children = this.bookList.filter(b => b.namespace == item.value);
+            if(children.length){
+              arr.push({ ...item, children });
+            }
+          }
+        });
+        this.activeKey = arr.map(item => item.key);
+        return arr;
+      }
+    }
+  },
+  created() {
+    this.loadBook();
+  },
+  methods: {
+    doSeachBook(){
+      let key = this.searchkey;
+      clearTimeout(this.searchTimer);
+      this.searchTimer = setTimeout(() => {
+        this.loadBook(key);
+      }, 500);
+    },
+    loadBook(searchkey){
+      //左侧显示的统计表
+      listReportDisplay({
+        namespace: "report.",
+        searchkey,
+        history: false,
+        archive: true,//查询归档的报告
+        pagesize: 100
+      }).then(({result}) => {
+        this.bookList = result.rows;
+        if(!this.selectedBookid && this.bookList.length){
+          this.selectBook(this.bookList[0]);
+        }
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    selectBook(book) {
+      this.selectedBookid = book.id;
+      this.loadHistory(book.id);
+    },
+    loadHistory() {
+      this.loading = true;
+      listReportDisplay({
+        originid: this.selectedBookid,
+        history: true,
+        starttime: moment(this.year, 'YYYY'),
+        endtime: moment(this.year+1, 'YYYY'),
+        pagesize: 100,
+      }).then(({result}) => {
+        this.history = result.rows;
+      }).catch(error => {
+        showError(error);
+      }).finally(() => {
+        this.loading = false;
+      });
+    },
+    formatDate(date){
+      return date && moment(date, 'YYYY-MM-DD HH:mm:ss').format("YYYY年MM月");
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-layout {
+  padding: @layout-space-base;
+  height: 100%;
+}
+.chat-list {
+  height: 100%;
+  display: flex;
+  background: @white;
+  border-radius: @border-radius-base;
+  background: white;
+  & > .left{
+    width: 300px;
+    height: 100%;
+    flex: none;
+    border-right: 1px solid @border-color-split;
+    display: flex;
+    flex-direction: column;
+    & > .header{
+      flex: none;
+      margin-top: 10px;
+      padding: @content-padding-v @content-padding-h;
+    }
+    & > .body{
+      flex: auto;
+      min-height: 1px;
+      overflow: auto;
+    }
+    /deep/.ant-collapse {
+      background-color: unset;
+      .ant-collapse-item:last-child{
+        border-bottom: none;
+      }
+      .ant-collapse-header{
+        background-color: #fafafa;
+        padding: 6px 16px;
+      }
+      .ant-collapse-content > .ant-collapse-content-box{
+        padding: 0;
+      }
+    }
+    .book-list{
+      margin-bottom: 4px;
+      li{
+        padding: 4px 16px;
+        line-height: 30px;
+        &:hover{
+          background-color: @primary-1;
+        }
+        &.selected{
+          background-color: @primary-2;
+        }
+      }
+    }
+  }
+  & > .right{
+    flex: auto;
+    display: flex;
+    flex-direction: column;
+    & > .header{
+      flex: none;
+      padding: @content-padding-v @content-padding-h;
+      margin-top: 10px;
+      border-bottom: 1px solid @border-color-split;
+      overflow: hidden;
+    }
+    & > .body{
+      flex: auto;
+      min-height: 1px;
+      padding: @content-padding-v @content-padding-h;
+      overflow: auto;
+    }
+  }
+}
+</style>

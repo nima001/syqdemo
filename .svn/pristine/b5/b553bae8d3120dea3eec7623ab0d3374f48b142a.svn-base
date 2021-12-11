@@ -1,0 +1,23 @@
+<template>
+  <div class="kpi-detail">
+    <div class="info"></div>
+    <div class="chart"></div>
+  </div>
+</template>
+<script>
+export default {
+
+}
+</script>
+<style lang="less" scoped>
+.kpi-detail{
+  & > .info{
+    height: 400px;
+  }
+
+  & > .chart{
+    height: 250px;
+    background: linear-gradient(0deg, rgba(0, 85, 78, 0) 80%, rgba(0, 85, 78, 0.4) 100%);
+  }
+}
+</style>

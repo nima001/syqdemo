@@ -1,0 +1,36 @@
+const components = {};
+const componentContext = require.context('./', true, /^\.\/\w*\/index\.js$/);
+componentContext.keys().forEach(dir => {
+  let { Meta } = componentContext(dir);
+  components[Meta.name] = Meta;
+});
+
+export default components;
+
+
+// Meta = {
+//   name: string,  // 名称(全局唯一)
+//   type: string,  // 类型  'widget' | 'layout' | 'decortor'
+//   title: string, // 显示名称
+//   icon: string,  // 显示图标
+//   component: VueComponent, // 组件对象
+//   initialSchema: function, // 获取表单协议初始值
+//   props: {//属性列表
+//     key: {
+//       path?: string, // 属性完整路径 为空将根据组件类型和属性key生成
+//       title: string, // 属性标题
+//       type: string,  // 属性类型 'boolean' | 'number' | 'string' | 'enum' | 'object' | 'void'
+//       extra: VueComponent,   // 自定义属性值输入组件（标题右侧）
+//       content: VueComponent, // 内容组件（自定义属性复杂交互）
+//       proxy?: string,        // 当type为object或void时可以指定代理的子属性（标题右侧输入框控制子属性）
+//       attrs: {               // 属性参数输入框参数
+//         placeholder: string, // 提示信息
+//         defaultValue: 20,    // 默认值
+//       },
+//       validator: (value, context) => { // 验证器
+//         return '值错误' //返回错误信息或Promise（异步校验）
+//       }, 
+//     },
+//   }
+// };
+

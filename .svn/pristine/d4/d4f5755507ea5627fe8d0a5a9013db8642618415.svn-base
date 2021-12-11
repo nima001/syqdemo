@@ -1,0 +1,44 @@
+<template>
+  <span class="icon">
+    <img key="icon" v-if="catalog" src="@/framework/assets/img/org-icon-group.png" alt />
+    <img key="icon" v-else-if="unittype == 1 || unittype == 5" src="@/framework/assets/img/org-icon-xz.png" alt />
+    <img key="icon" v-else-if="unittype == 2" src="@/framework/assets/img/org-icon-cg.png" alt />
+    <img key="icon" v-else-if="unittype == 3" src="@/framework/assets/img/org-icon-sy.png" alt />
+    <img key="icon" v-else-if="unittype == 9 || unittype == 10" src="@/framework/assets/img/org-icon-ns.png" alt />
+    <img key="icon" v-else-if="unittype == 20" src="@/framework/assets/img/org-icon-town.png" alt />
+    <img key="icon" v-else-if="unittype == 21" src="@/framework/assets/img/org-icon-jie.png" alt />
+    <img key="icon" v-else-if="unittype == 22" src="@/framework/assets/img/org-icon-sq.png" alt />
+    <img key="icon" v-else-if="unittype == 23" src="@/framework/assets/img/org-icon-cun.png" alt />
+    <img key="icon" v-else-if="unittype == 24" src="@/framework/assets/img/org-icon-gw.png" alt />
+    <img key="icon" v-else src="@/framework/assets/img/org-icon-default.png" alt />
+  </span>
+</template>
+<script>
+/**
+ * 组织图标控件
+ */
+
+export default {
+  name: "OrgIcon",
+  props:['org'],
+  data() {
+    return {};
+  },
+  computed:{
+    catalog(){
+      return !this.org;
+    },
+    unittype(){
+      return this.org && this.org.unittype;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.icon{
+  img{
+    width: 16px;
+    height: 16px;
+  }
+}
+</style>

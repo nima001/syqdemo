@@ -1,0 +1,213 @@
+<template>
+  <div style="height: 100%" v-if="hasPermit('/person/qlsx/history')">
+    <a-form
+      :label-col="{ span: 7 }"
+      :wrapper-col="{ span: 24 }"
+      :form="this.form"
+      @submit="handleSubmit"
+    >
+      <a-form-item label="查看对象">
+        <orgselect :orgid.sync="orgid" :district.sync="district" :loading="this.loading"/>
+      </a-form-item>
+      <a-form-item label="选择时间">
+        <a-month-picker
+          :disabled="this.loading"
+          @change="onChange"
+          v-decorator="['date']"
+          placeholder="请选择时间"
+          style="width: 100%; cursor: pointer"
+        />
+      </a-form-item>
+      <a-form-item class="btn" :wrapper-col="{ span: 24 }">
+        <a-button type="primary" html-type="submit" :disabled="this.loading||(!this.orgid)" block>确定</a-button>
+      </a-form-item>
+    </a-form>
+  </div>
+</template>
+
+<script>
+import { Form, Select, DatePicker, Button } from "ant-design-vue";
+import orgselect from './orgselect';
+import { assign } from "lodash";
+import moment from "moment";
+import { treeroot } from "@/person/api/org";
+import { showError } from "@/framework/utils";
+export default {
+  props: {
+    data: {
+      //接口请求数据
+      type: Array,
+    },
+    tableData: {
+      //表格数据
+      type: Array,
+    },
+    columns: {
+      //表头数据
+      type: Array,
+    },
+    pagination: {
+      //分页数据
+      type: Object,
+    },
+    loading: {
+      //加载状态
+      type: Boolean,
+    },
+    typeActive: {
+      //分类选中项
+      type: Number,
+    }
+  },
+  components: {
+    orgselect,
+    AForm: Form,
+    AButton: Button,
+    ASelect: Select,
+    AFormItem: Form.Item,
+    ADatePicker: DatePicker,
+    ASelectOption: Select.Option,
+    AMonthPicker: DatePicker.MonthPicker,
+  },
+  data() {
+    return {
+      district: undefined,
+      orgid: undefined,
+      dateString: undefined,
+      form: this.$form.createForm(this, { name: "historyFrom" }),
+      params: { pagesize: 10, pagenum: 1, total: 0, needtotal: true, type: this.typeActive },
+    };
+  },
+  computed: {
+    dict() {
+      return this.$store.getters.dict("person.business.businesstype");
+    },
+  },
+  watch: {
+    data(val) {
+      if (val.length) {
+        this.processData(val);
+      }else{
+        this.$emit('update:tableData', []);
+      }
+    },
+    typeActive(val) {
+      if(val) {
+        this.params.type = val;
+      }
+    }
+  },
+  mounted() {
+    this.loadRoot();
+  },
+  methods: {
+    loadRoot() {
+      this.$emit('update:loading', true);
+      treeroot()
+        .then((res) => {
+          this.params.district = res.result.children[0].name;
+          this.params.orgid = res.result.children[0].data._id;
+          this.params.date = `${moment().format("YYYY-MM")}-01`;
+          this.form.setFieldsValue({'date':  moment(this.params.date, 'YYYY-MM')});
+          this.initcolumns();
+          this.$emit("update:pagination", this.params);
+          this.district = this.params.district;
+          this.orgid = this.params.orgid;
+          this.$emit("chagedistrict", this.params);
+        })
+        .catch((err) => {
+          this.$emit('update:loading', false);
+          showError(err);
+        });
+    },
+    handleSubmit(e) {
+      e.preventDefault();
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          //选中机构请求数据
+          if (this.orgid) {
+            this.params.pagenum = 1;
+            this.params.orgid = this.orgid;
+            this.params.district = this.district;
+            if(values.date) {
+              if(typeof values.date === 'object') {
+                if(this.dateString) {
+                  this.params.date = this.dateString;
+                }
+              }else{
+                this.params.date = values.date;
+              }
+            }else{
+              this.params.date = `${moment().format("YYYY-MM")}-01`;
+            }
+            if(this.columns[0].key==='index'&&this.columns.length===3) {
+              this.$emit("update:tableData", []);
+            }
+            this.initcolumns();
+            this.$emit("update:pagination", this.params);
+            this.$emit("chagedistrict", this.params);
+          } else {
+            this.$emit("update:tableData", []);
+          }
+        }
+      });
+    },
+    onChange(date, dateString) {
+      this.dateString = `${dateString}-01`;
+      this.params.date = this.dateString;
+    },
+    clear(name) {
+      let obj = {};
+      obj[name] = undefined;
+      this.form.setFieldsValue(obj);
+    },
+    //初始化表头
+    initcolumns() {
+      let columndata = [
+        {
+          title: "",
+          dataIndex: "name",
+          key: "name",
+          scopedSlots: { customRender: "history_name" },
+        },
+        { title: "合计", dataIndex: "total", key: "total" },
+      ];
+      this.dict
+        .filter((item) => item.key !== "total")
+        .forEach((item, index) => {
+          columndata.splice(index + 1, 0, {
+            title: item.text,
+            dataIndex: item.key,
+            key: item.key,
+          });
+        });
+      this.$emit("update:columns", columndata);
+    },
+    //处理表格数据
+    processData(data) {
+      let tabledata = [];
+      if (data.length) {
+        data.forEach((item) => {
+          item.data.key = item.name;
+          item.data.name = item.name;
+          item.data.statistickey = item.statistickey;
+          tabledata.push(item.data);
+        });
+      }
+      this.$emit("update:tableData", tabledata);
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+/deep/.ant-form {
+  height: 100%;
+  position: relative;
+  .btn.ant-form-item:last-child {
+    position: absolute;
+    bottom: 0;
+    left: @padding-xs;
+    right: @padding-xs;
+  }
+}
+</style>

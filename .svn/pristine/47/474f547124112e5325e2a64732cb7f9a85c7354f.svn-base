@@ -1,0 +1,136 @@
+<template>
+  <div class="content">
+    <div class="middle">
+      <a-table
+        rowKey="orgname"
+        :loading="loading"
+        :customRow="customRow"
+        :columns="columns"
+        :data-source="dataSource"
+        :pagination="false"
+      ></a-table>
+    </div>
+    <div class="bottom">
+      <a-pagination
+        show-size-changer
+        :total="pagination.total"
+        :page-size="pagination.pagesize"
+        v-model="pagination.pagenum"
+        :show-total="(total) => `共 ${total} 条`"
+        @change="onChange"
+        @showSizeChange="onShowSizeChange"
+      ></a-pagination>
+    </div>
+  </div>
+</template>
+<script>
+import { DatePicker, Input, Table, Pagination, Select } from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+import { showError } from "@/framework/utils/index";
+import { rate } from "@/hall/api/attendance";
+import moment from "moment";
+export default {
+  components: {
+    ADatePicker: DatePicker,
+    AMonthPicker: DatePicker.MonthPicker,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    APagination: Pagination,
+    AInputSearch: Input.Search
+  },
+  props: {
+    date: {
+      required: true
+    }
+  },
+  watch: {
+    date() {
+      this.getData();
+    }
+  },
+  data() {
+    return {
+      loading: true,
+      dataSource: [],
+      pagination: {
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+        needtotal: true
+      }
+    };
+  },
+  computed: {
+    columns() {
+      return [
+        {
+          title: "组织名称",
+          dataIndex: "orgname",
+        },
+        {
+          title: "异常率",
+          dataIndex: "rate",
+          width:200
+        }
+      ];
+    }
+  },
+  mounted() {
+    this.getData();
+  },
+  methods: {
+    getData() {
+      this.loading = true;
+      let query = {
+        endtime: this.date,
+        starttime: this.date,
+        ...this.pagination
+      };
+      rate(query)
+        .then(res => {
+          let { pagenum, pagesize, total, rows } = res.result;
+          assign(this.pagination, { pagenum, pagesize, total });
+          this.dataSource = rows;
+        })
+        .catch(err => {
+          showError(err);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    },
+    customRow(row, index) {
+      return {
+        on: {
+          click: () => {
+            this.$emit("finish", { cmpt: "PersonList", nodeid: row.nodeid });
+          }
+        }
+      };
+    },
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.getData();
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagenum: 1, pagesize });
+      this.getData();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.content {
+  .middle {
+    padding: @content-padding-v @content-padding-h;
+    /deep/ tr {
+      cursor: pointer;
+    }
+  }
+  .bottom {
+    text-align: right;
+    padding: @content-padding-v 0px;
+  }
+}
+</style>

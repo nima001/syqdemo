@@ -1,0 +1,34 @@
+/** 
+ * 分析模块路由
+*/
+import Layout from '../../views/Layout'
+
+export const assessmentRoutes = {
+  path: '/person/assessment',
+  component: Layout,
+  children: [
+    {
+      path: 'functional',
+      component: () => import('../../views/assessment/functionAlanalysis/Functional.vue'),
+      name: 'functional',
+      meta: { path: [{ name: '机构职能配置分析', path: '/person/assessment/functional' }] }
+    },
+    {
+      path: 'compileassist',
+      component: () => import('../../views/assessment/compileAssist/index.vue'),
+      name: 'compileAssist',
+      meta: { path: [{ name: '机构编制辅助评估', path: '/person/assessment/compileassist' }] }
+    },
+    {
+      path: 'compileassist/detail',
+      component: () => import('../../views/assessment/compileAssist/detail.vue'),
+      name: 'detail',
+      meta: { 
+      path: [
+        { name: '机构编制辅助评估', path: '/person/assessment/compileassist' },
+        { name: '详情', path: '/person/assessment/compileassist/detail' }
+      ]
+    }
+    },
+  ]
+}

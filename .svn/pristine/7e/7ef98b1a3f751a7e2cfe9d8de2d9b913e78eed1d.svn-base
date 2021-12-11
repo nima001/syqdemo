@@ -1,0 +1,112 @@
+<template>
+  <FormProvider :form="form">
+    <SchemaField :schema="schema">
+    </SchemaField>
+  </FormProvider>
+</template>
+<script>
+import { createForm, isVoidField, createEffectHook } from '@formily/core'
+import { FormProvider, createSchemaField, observer, useForm, useField, useFieldSchema, Schema } from '@formily/vue'
+import { defineComponent, h } from '@vue/composition-api'
+import * as formComponents from '../components/index'
+
+import { ObjectfromEntries } from '@/framework/utils'
+
+// const GridLayout1 = observer(defineComponent({
+//   setup (props, x) {
+//     debugger
+//     const form = useForm().value;
+//     const schema = useFieldSchema().value
+//     return () => {
+//       const cols = x.slots.default();
+//       // if(this.children){
+//       //   this.children.forEach(item => {
+//       //     if(!item.components || item.components.length == 0){//FIXME sunwen 编辑时还未添加组件
+//       //       cols.push(h(Col, {
+//       //         class: 'cmpt-panel',
+//       //         props: {span: item.span || 0},
+//       //       }))
+//       //     }else{
+//       //       let cmptList = this.createCmptList(item.components, createElement);
+//       //       if(cmptList.length ){
+//       //         cols.push(createElement(Col, {
+//       //           class: 'cmpt-panel',
+//       //           props: {span: item.span || 0},
+//       //         }, cmptList))
+//       //       }
+//       //     }
+//       //   })
+//       // }
+//       return h(Row, { 
+//         class: 'wrapper', 
+//         nativeOn: {
+//           click: (e) => {
+//             //选中schema
+//           }
+//         },
+//         props: {gutter: 16, type: 'flex'} 
+//       }, cols)
+//       // return h(Form.Item, {
+//       //   props: {
+//       //     label: field.title,
+//       //     help: field.errors?.length ? field.errors : undefined,
+//       //     extra: field.description,
+//       //     validateStatus: field.validateStatus,
+//       //   }
+//       // }, slots?.default())
+//     }
+//   }
+// })) 
+
+//TODO 组件扩展
+const { SchemaField } = createSchemaField({
+  components: formComponents,
+})
+
+const onCustomEvent = createEffectHook(
+  'schemaChange',
+  (payload, form) => (listener) => {
+    listener(payload, form)
+  }
+)
+
+export default {
+  name: 'Form',
+  components: { 
+    FormProvider, 
+    SchemaField,
+  },
+  props: {
+    config: Object,
+    value: Object,
+  },
+  data() {
+    return {
+      form: createForm({
+        effects: () => {
+          onCustomEvent((payload, ss) => {
+            console.log(payload, ss);
+            console.log(JSON.stringify(payload))
+            this.schema = payload;
+          })
+        },
+      }),
+      schema: undefined,
+    }
+  },
+  watch: {
+    config: {
+      immediate: true,
+      handler(v){
+        this.schema = v && new Schema(v);
+      }
+    }
+  },
+  methods: {
+    
+  }
+}
+</script>
+<style lang="less" scoped>
+
+</style>

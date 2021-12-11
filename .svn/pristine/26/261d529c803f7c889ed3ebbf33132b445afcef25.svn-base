@@ -1,0 +1,43 @@
+export const mixins = {
+  inject: ['treeNode'],
+  data() {
+    return {
+      chartColor:["#6395f9", "#72c9ed","#f4be21","#7666f9","#60d9ab","#637697","#f2a5af"]
+    }
+  },
+  computed: {
+    nodeData () {
+      return this.treeNode.data
+    }
+  },
+  watch: {
+    nodeData: {
+      handler (v) {
+        console.log(v)
+        this.getData(v)
+      },
+      deep: true
+    }
+  },
+  methods: {
+    countTotal (list) {
+      let total = 0
+      for (let i = 0; i < list.length; i++) {
+        total += list[i]['count']
+      }
+      return total
+    },
+    dataFormate (list) {
+      let _this = this
+      return list.map(function (item) {
+        return {
+          item: item.name,
+          count: item.count,
+          percent: _this.total
+            ? Math.floor((item.count / _this.total) * 100) / 100
+            : 0
+        }
+      })
+    }
+  }
+}

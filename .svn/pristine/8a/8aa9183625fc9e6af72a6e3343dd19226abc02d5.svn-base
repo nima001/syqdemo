@@ -1,0 +1,346 @@
+<template>
+  <div>
+    <div class="select">
+      <a-button @click="addorg">新增</a-button>
+      <a-button @click="deleteorg">删除</a-button>
+      <!-- <a-input-search style="width: 30%;" placeholder="请输入组织名称" @search="searchKeyworlds" /> -->
+    </div>
+
+    <a-table
+      :rowSelection="rowSelection"
+      :columns="columns"
+      :dataSource="data"
+      :pagination="pagin"
+      :customRow="addTemplate"
+    >
+      <a
+        slot="name"
+        slot-scope="name"
+        style="color: rgb(0, 0, 0)"
+        :title="name"
+        >{{ name }}</a
+      >
+
+      <a
+        slot="orgtype"
+        slot-scope="orgtype"
+        style="color: rgb(0, 0, 0)"
+        :title="orgtype"
+        >{{ orgtype == 1 ? "区域" : orgtype == 2 ? "单位" : "部门/科室" }}</a
+      >
+
+      <a
+        slot="system"
+        slot-scope="system"
+        style="color: rgb(0, 0, 0)"
+        :title="system"
+        >{{ system }}</a
+      >
+
+      <a slot="index" slot-scope="text" @click="detail(text)">编辑</a>
+    </a-table>
+
+    <a-modal v-model="visible" title="新增组织" @ok="handleOk">
+      <div class="modal">
+        <p>
+          <span>组织名称：</span>
+          <a-input placeholder="请输入组织名称" v-model="org.name" />
+        </p>
+        <p>
+          <span>组织类型：</span>
+          <dict-select
+            :style="{ width: '250px' }"
+            :dict="'usermanage.org.orgtype'"
+            v-model="org.orgtype"
+          />
+        </p>
+        <p>
+          <span>父组织：</span>
+          <a-input placeholder="请输入组织名称" v-model="node.name" disabled />
+        </p>
+        <p>
+          <span>电话：</span
+          ><a-input placeholder="请输入电话" v-model="org.orgphone" />
+        </p>
+      </div>
+    </a-modal>
+
+    <a-modal v-model="update" title="组织编辑" @ok="updateOk">
+      <div class="modal">
+        <p>
+          <span>组织名称：</span>
+          <a-input placeholder="请输入组织名称" v-model="item.name" disabled />
+        </p>
+        <p>
+          <span>组织类型：</span>
+          <dict-select
+            :style="{ width: '250px' }"
+            :dict="'usermanage.org.orgtype'"
+            v-model="item.orgtype"
+          />
+        </p>
+        <p>
+          <span>父组织：</span>
+          <a-input placeholder="请输入组织名称" v-model="node.name" disabled />
+        </p>
+        <p>
+          <span>电话：</span
+          ><a-input placeholder="请输入电话" v-model="item.orgphone" />
+        </p>
+      </div>
+    </a-modal>
+  </div>
+</template>
+<script>
+const columns = [
+  {
+    width: "23%",
+    title: "组织名称",
+    dataIndex: "name",
+    key: "name",
+    scopedSlots: { customRender: "name" },
+    align: "center",
+  },
+  {
+    // width: "10%",
+    title: "组织类型",
+    dataIndex: "orgtype",
+    key: "orgtype",
+    scopedSlots: { customRender: "orgtype" },
+    align: "center",
+  },
+  {
+    // width: "10%",
+    title: "父组织",
+    dataIndex: "system",
+    key: "system",
+    scopedSlots: { customRender: "system" },
+    align: "center",
+  },
+  {
+    title: "操作",
+    dataIndex: "index",
+    key: "index",
+    scopedSlots: { customRender: "index" },
+    align: "center",
+  },
+];
+import {
+  neworgquery,
+  orgcreate,
+  catalognodequery,
+  orgdelete,
+  deletebatch,
+  orgupdate,
+  catalognodeupdate,
+} from "@/hall/api/roster";
+import { Table, Input, Button, Modal, Select } from "ant-design-vue";
+import DictSelect from "@/framework/components/DictSelect";
+export default {
+  data() {
+    return {
+      visible: false,
+      update: false,
+      columns,
+      data: [],
+      current: 1,
+      pagin: {
+        pageSize: 10,
+        total: 10,
+        defaultCurrent: 1,
+        onChange: (current, pageSize) => {
+          this.onClick(current, pageSize);
+        },
+      },
+      selectedRowKeys: [],
+      searchkey: "",
+      org: {
+        name: "",
+        orgphone: "",
+        orgtype: 1,
+      },
+      item: {
+        name: "",
+        orgphone: "",
+        orgtype: "",
+      },
+    };
+  },
+  components: {
+    ATable: Table,
+    AInput: Input,
+    AInputSearch: Input.Search,
+    AButton: Button,
+    AModal: Modal,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    DictSelect,
+  },
+  watch: {
+    node: function () {
+      this.searchkey = "";
+      this.getList();
+    },
+  },
+  props: ["node"],
+  computed: {
+    rowSelection() {
+      const { selectedRowKeys } = this;
+      return {
+        onChange: (selectedRowKeys, selectedRows) => {
+          this.selectedRowKeys = selectedRowKeys;
+        },
+        selectedRowKeys: selectedRowKeys,
+      };
+    },
+  },
+  created() {
+    this.getList();
+  },
+  methods: {
+    updateOk() {
+      let data = this.item;
+      data.pid = this.node.id;
+      orgupdate(data.key, data).then((res) => {
+        if (res.code == "success") {
+          data.type = 1;
+          data.dataid = data.key;
+          catalognodeupdate(data).then((res) => {
+            if (res.code == "success") {
+              this.update = false;
+              this.getList();
+              this.$message.success("组织更新成功！");
+            }
+          });
+        }
+      });
+    },
+    deleteorg() {
+      let url = "?";
+      this.selectedRowKeys.forEach((item) => {
+        this.data.forEach((index) => {
+          if (item == index.id) {
+            url = url + "ids=" + index.data._id + "&";
+          }
+        });
+      });
+
+      orgdelete(url).then((res) => {
+        if (res.code == "success") {
+          let urls = "?";
+          this.selectedRowKeys.forEach((item) => {
+            urls = urls + "ids=" + item + "&";
+          });
+          deletebatch(urls).then((res) => {
+            if (res.code == "success") {
+              this.selectedRowKeys = [];
+              this.getList();
+              this.$message.success("组织删除成功！");
+            }
+          });
+        }
+      });
+    },
+    handleOk() {
+      let data = this.org;
+      data.pid = this.node.id;
+      orgcreate(data).then((res) => {
+        if (res.code == "success") {
+          data.type = 1;
+          data.dataid = res.result._id;
+          catalognodequery(data).then((res) => {
+            if (res.code == "success") {
+              this.visible = false;
+              this.getList();
+              this.org = {
+                name: "",
+                orgphone: "",
+                orgtype: 1,
+              };
+              this.$message.success("组织新增成功！");
+            }
+          });
+        }
+      });
+    },
+    addorg() {
+      this.visible = true;
+    },
+    addTemplate(record, index) {
+      return {
+        on: {
+          click: () => {
+            // this.detail(record.id);
+          },
+        },
+      };
+    },
+    searchKeyworlds(searchkey) {
+      this.searchkey = searchkey;
+      this.getList();
+    },
+    getList() {
+      const data = {
+        needtotal: true,
+        pagenum: this.current,
+        pagesize: 10,
+        searchkey: this.searchkey,
+        // nodeid: this.node.id,
+        pid: this.node.id,
+      };
+      neworgquery(data).then((res) => {
+        if (res.code == "success") {
+          this.pagin.pageSize = res.result.pagesize;
+          this.pagin.total = res.result.total;
+          this.pagin.defaultCurrent = res.result.pagenum;
+          let data = res.result.rows;
+          // let serial = (res.result.pagenum - 1) * 10;
+          // if (res.result.total < 11) {
+          //   serial = 0;
+          // }
+          data.forEach(function (x, y) {
+            x.key = x.id;
+            x.index = y;
+            x.orgtype = x.data ? x.data.orgtype : "";
+          });
+          console.log(data);
+          this.data = data;
+        }
+      });
+    },
+    //分页
+    onClick(current, pageSize) {
+      this.current = current;
+      this.getList();
+    },
+    detail(index) {
+      this.item = this.data[index];
+      this.update = true;
+      // this.$router.push({ path: "/business/libraryDetail", query: { id: id } });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.select {
+  // float: right;
+  display: flex;
+  // flex-direction: row-reverse;
+  margin-bottom: 12px;
+  > button {
+    margin-right: 8px;
+  }
+}
+.modal {
+  width: 340px;
+  margin: 0 auto;
+  > p {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    input {
+      width: 250px;
+    }
+  }
+}
+</style>

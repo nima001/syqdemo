@@ -1,0 +1,47 @@
+<template>
+  <accordion-layout nav-title="组织架构">
+    <org-tree slot="nav" @select="onOrgSelect" :nodeid="nodeid" :treeid="treeid" title="name"/>
+    <template slot="content">
+      <!-- <keep-alive include="orgMain">
+        <router-view :load-data="selected" />
+      </keep-alive> -->
+      <Content :orgid="this.orgid"/>
+    </template>
+  </accordion-layout>
+</template>
+
+<script>
+import AccordionLayout from "@/framework/components/AccordionLayout";
+import OrgTree from "@/person/components/OrgTree";
+import Content from "./components/content.vue";
+export default {
+  components: {
+    AccordionLayout,
+    OrgTree,
+    Content,
+  },
+  data() {
+    return {
+      nodeid: Number(this.$route.query.id) || undefined,
+      treeid: Number(this.$route.query.treeid) || undefined,
+      selected: null,
+      orgid: "",
+    };
+  },
+   methods: {
+    onOrgSelect(node, dept, init) {
+      //orgtype为3代表区域，而不是单位
+      if(node.data.orgtype!==3) {
+        this.orgid = node.data._id;
+      }
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+/deep/.org-tree-panel + .ant-layout {
+    background: #ffffff;
+    border-radius: @border-radius-base;
+    padding: @layout-space-base @content-padding-h;
+}
+</style>

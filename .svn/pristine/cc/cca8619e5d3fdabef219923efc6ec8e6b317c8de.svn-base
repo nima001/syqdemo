@@ -1,0 +1,324 @@
+<template>
+  <div class="report-detail">
+    <div class="main">
+      <div class="main-top">
+        <a-button type="primary" v-if="!this.$route.query.id" @click="saveReport">保存</a-button>
+        <a-button type="primary" v-if="!this.$route.query.id" @click="onAdd">变更</a-button>
+        <a-button type="primary" @click="exportPDF">一键导出</a-button> 
+      </div>
+      <div class="main-content">
+        <Content v-if="detailData" :content="detailData" ref="content" />
+      </div>
+    </div>
+    <a-modal
+      title="变更"
+      v-model="addvisible"
+      :width="800"
+      :destroyOnClose="true"
+      :bodyStyle="{height: '500px'}"
+      @ok="addOk"
+      @cancel="addCancel">
+      <add-report ref="AddReport" :spin="spinning"></add-report>
+    </a-modal>
+    <a-modal
+      title="变更"
+      v-model="addvisible"
+      :width="800"
+      :destroyOnClose="true"
+      :bodyStyle="{height: '500px'}"
+      @ok="addOk"
+      @cancel="addCancel">
+      <add-report ref="AddReport" :spin="spinning"></add-report>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Button, Modal } from "ant-design-vue";
+import AddReport from '@/person-shaoxing/views/assessment/compileAssist/components/AddReport';
+import Content from "./components/Content";
+import { reportDetail, addReport } from "@/person-shaoxing/api/assessment";
+import { showError } from "@/framework/utils/index";
+import { loadData } from './components/contentItems';
+
+export default {
+  components: {
+    AButton: Button,
+    AModal: Modal,
+    AddReport,
+    Content
+  },
+  computed: {
+    assessData() {
+      return this.$store.getters.assessData
+    }
+  },
+  data() {
+    return {
+      detailData: undefined,
+      addvisible: false,
+      spinning: false
+    }
+  },
+  created() {
+    if(this.$route.query.id) {
+      this.getData();
+    }else{
+      this.detailData = this.assessData.details;
+    }
+  },
+  methods: {
+    getData() {
+      reportDetail(this.$route.query.id)
+      .then(({result}) => {
+        this.detailData = JSON.parse(result.details);
+        console.log(this.detailData, '跳转');
+      })  
+      .catch(err => {
+        showError(err);
+      })
+    },
+    saveReport() {
+      let data = {};
+      data.details = JSON.stringify(this.detailData);
+      data.configid = this.assessData.configid;
+      data.orgname = this.assessData.name;
+      addReport(data)
+      .then(({result}) =>{
+        this.showCloseWindow();
+        return;
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    onAdd() {
+      this.addvisible = true;
+    },
+    async addOk() {
+      this.spinning = true;
+      let value = await this.$refs.AddReport.getFormValue();
+      if(value) {
+        let data = await loadData(value.target, value.itemArr);
+        let assessData = {
+          configid: value.content,
+          name: value.target.hasOwnProperty('org') ? value.target.org.name : value.target.orgname,
+          details: data
+        }
+        if(data) {
+          this.detailData = assessData.details;
+          this.spinning= false;
+          this.addvisible = false;
+        }else{
+          this.spinning = false;
+        }
+      }else{
+        this.spinning = false;
+      }
+    },
+    addCancel() {
+      this.addvisible = false;
+    },
+    showCloseWindow(){
+      let secondsToGo = 3;
+      const modal = Modal.info({
+        title: '提示', 
+        content: `提交成功，窗口将在 ${secondsToGo} 后自动关闭`,
+        okText: '关闭窗口',
+        keyboard: false,
+        onOk: () => {
+          this.$router.push('/person/assessment/compileassist');
+          return;
+        }
+      })
+      const interval = setInterval(() => {
+        secondsToGo -= 1;
+        modal.update({
+          content: `提交成功，窗口将在 ${secondsToGo} 后自动关闭`,
+        });
+      }, 1000);
+      setTimeout(() => {
+        clearInterval(interval);
+        modal.destroy();
+        this.$router.push('/person/assessment/compileassist');
+      }, secondsToGo * 1000);
+    },
+    //  生成表格
+    addTable(data) {
+      let tableData = data.tableData;
+      console.log(tableData);
+      let table = `<table>`
+      let thead = `<taead><tr>`
+      let tbody = `<tbody>`
+      //  获取数据的每一项key的长度 来判断表头长度
+      let headArr = Object.keys(tableData[0])
+      headArr.forEach((item, index) => {
+        thead += `<td>${data.headArr[index]}</td>`
+      })
+      thead  = thead + `</tr></taead>`
+
+      tableData.forEach((item, index) => {
+        tbody += `<tr>`
+        headArr.forEach((list, num) => {
+          //  宽度
+          let width = Math.round(1/headArr.length * 10000) / 100 + '%';
+          if (data.isSort) {//  添加序号
+            if (num == 0) {
+              tbody += `<td style="width: ${width};">${index + 1}</td>`
+            } else {
+              let res = tableData[index][headArr[num]] ? tableData[index][headArr[num]] : ''
+              tbody += `<td style="width: ${width};">${res}</td>`
+            }
+          } else {
+            let res = tableData[index][headArr[num]];
+            tbody += `<td style="width: ${width};">${res}</td>`
+          }
+        })
+        tbody += `</tr>`
+      })
+      tbody = tbody + `</tbody>`;
+      table = table + thead + tbody + '</table>';
+      return table;
+    },
+    exportPDF() {
+      //  获取评估项
+      const item = this.$refs.content.getVal();
+      let data = this.$store.getters.processedData
+      let template = "", index = 0;
+      console.log(data);
+      for (let i = 0; i < item.length; i ++) {
+        if (item[i].key && typeof(item[i].key) == 'number') {
+          let sort = ['一、', '二、', '三、', '四、'];
+          template += `<h2 calss="sort">${sort[item[i].key - 1]}${item[i].sort}</h2>`;
+        } else if (item[i].show) {
+          let title = ['(一)', '(二)', '(三)', '(四)', '(五)', '(六)', '(七)', '(八)', '(九)', '(十)'];
+          template += `<h4 calss="title">${title[index]}${item[i].title}</h4>`
+          index ++;
+        } else {
+          //  处理内容
+          switch(item[i].key) {
+            case "baseInfo_new":
+              template += `<p calss="title">${data[item[i].key].name}</p><p calss="title">${data[item[i].key].politicallevel}</p>`
+              break;
+            case "baseInfo_yet":
+              template += `<p calss="title">${data[item[i].key].name}</p><p calss="title">${data[item[i].key].politicallevel}</p>`
+              break;
+            case "staffViolate_new":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+            case "staffViolate_yet":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "staffBlacklist_new":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+            case "staffBlacklist_yet":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "businessOrgreport_new":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+            case "businessOrgreport_yet":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "orgLimit_newxz":
+              template += `<p calss="title"><span>${data[item[i].key].limit}</span><span>${data[item[i].key].officeOrgLimit}</span></p>`
+              break;
+            case "orgLimit_newsy":
+              template += `<p calss="title"><span>${data[item[i].key].limit}</span><span>${data[item[i].key].officeOrgLimit}</span></p>`
+              break;
+            case "orgCase_new":// 表格
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "orgCase_yet":
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "orgListednumber_new":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "orgListednumber_yet":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "orgNamenotation_new":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "orgNamenotation_yet": 
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "compileLimit_newxz":  //  区域内编制限额
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "compileLimit_yetxz":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "compileLimit_newsy":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "compileLimit_yetsy":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "orgStaffcase_newxz":  //  同类机构编制比对情况 ToDo
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "orgStaffcase_yetxz":
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "orgStaffcase_newsy":
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "orgStaffcase_yetsy":
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "policyServercatalog":
+              template += `<p calss="title">${data[item[i].key].duty}</p><p calss="title">${data[item[i].key].scope}</p>`;
+              break;
+          }
+          // template += `<p calss="item">${data[item[i].key]}</p>`
+        }
+        template += "\n";
+      }
+      console.log(item);
+      let html = `<!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>图结构</title>
+          <style>
+          body{font-family:sans-serif;font-size:14px;word-break:break-word;text-align:justify;}p{margin:5px 0;}table{border-collapse:collapse;}table td, table th{border:1px solid;padding: 2px 6px;word-break:break-word;}body{margin: 60px 60px 60px 60px;}</style>
+        </head>
+        <body>
+          <div calss="main">
+            ${template}
+          </div>
+        </body>
+      </html>
+      `
+      console.log(html);
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.report-detail{
+  padding: 10px;
+  height: 100%;
+
+  .main{
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    overflow: hidden;
+    background: @white;
+    height: 100%;
+    .main-top{
+      padding: 18px @content-padding-h @content-padding-h;
+      button{
+        margin-right: 16px;
+      }
+    }
+    .main-content{
+      flex-shrink: 1;
+      overflow-y: auto;
+    }
+  }
+}
+</style>

@@ -1,0 +1,86 @@
+<template>
+  <card title="机构绩效">
+    <div class="kpi-org">
+      <a-tabs v-model="active" @change="callback" :tabBarStyle="{ color: '#fff' }">
+        <a-tab-pane v-for="item in tabs" :key="item.key" :tab="item.value">
+          <KpiPane/>
+        </a-tab-pane>
+      </a-tabs>
+    </div>
+  </card>
+</template>
+<script>
+import Card from "./ScreenCard";
+import { Tabs } from "ant-design-vue";
+import KpiPane from './KpiPane';
+
+/**
+ * 机构绩效
+ */
+export default {
+  components: {
+    Card,
+    KpiPane,
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+  },
+  data() {
+    return {
+      active: 'partyMasses',
+      tabs: [
+        { key: "partyMasses", value: "党群机关" },
+        { key: "society", value: "社会发展" },
+        { key: "economics", value: "经济" },
+        { key: "judicial", value: "司法执法" },
+      ],
+    };
+  },
+  methods: {
+    callback() {
+      
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.kpi-org {
+  height: 100%;
+  color: white;
+  /deep/.ant-tabs {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    .ant-tabs-bar {
+      border: 0;
+      padding: 0 35px;
+      margin: 0 20px;
+    }
+    .ant-tabs-nav {
+      position: relative;
+      &::after {
+        width: 100%;
+        height: 2px;
+        position: absolute;
+        content: '';
+        bottom: 0;
+        background: url("../../../assets/img/screen/radiance-small.png") no-repeat;
+        background-size: 100%;
+      }
+      .ant-tabs-tab {
+        margin: 5px;
+        font-size: 1.1em;
+        color: fade(#fff, 60%);
+      }
+      .ant-tabs-tab-active, .ant-tabs-tab:hover{
+        color: #00ffea;
+      }
+      .ant-tabs-ink-bar.ant-tabs-ink-bar-animated {
+        background-color: #00ffea;
+      }
+    }
+    .ant-tabs-content{
+      flex: 1;
+    }
+  }
+}
+</style>

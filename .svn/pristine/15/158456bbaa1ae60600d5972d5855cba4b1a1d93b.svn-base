@@ -1,0 +1,910 @@
+<template>
+  <div>
+    <a-modal 
+      title="工作任务查看"
+      width="800px"
+      :visible="showModal"
+      class="workdetail"
+      @cancel="handleCancel('showModal')">
+        <div class="spin" v-if="spinning">
+          <a-spin />
+        </div>
+        <div class="title">
+          <h2>{{recordData.title}}</h2>
+          <span v-for="item in btnText" :key="item" :class="{'active': isActive(item)}" @click="choose(item)">{{item}}</span>
+        </div>
+        <div class="survey" v-show="active==='任务概况'">
+          <a-row>
+            <a-col>
+              <a-form class="info" :label-col="{ span: 6 }" :wrapper-col="{ span: 18 }">
+                <a-row>
+                  <a-col :span="12">
+                    <a-form-item :label="'分类'"><span>{{recordData.category|capitalize(taskcategory)}}</span></a-form-item>
+                  </a-col>
+                  <a-col :span="12">
+                    <a-form-item :label="'任务类型'"><span>{{recordData.tasktype|capitalize(tasktype)}}</span></a-form-item>
+                  </a-col>
+                  <a-col :span="12">
+                    <a-form-item :label="'截止时间'"><span>{{recordData.deadtime||'无'}}</span></a-form-item>
+                  </a-col>
+                  <a-col :span="12" class="nodata">
+                    <a-form-item><span>&nbsp;</span></a-form-item>
+                  </a-col>
+                </a-row>
+              </a-form>
+            </a-col>
+            <a-col>
+              <a-form class="taskcontent" :label-col="{ span: 3 }" :wrapper-col="{ span: 21 }">
+                <a-form-item :label="'任务内容'" class="label">
+                  <a-row>
+                    <a-col :span="24" class="task-col">
+                      <ul class="tasks" v-if="recordData.contents&&recordData.contents.length">
+                        <li :class="['content-item']" v-for="(item, index) in recordData.contents" :key="index">
+                          <p>
+                            <span class="time">发布时间：{{item.createtime}}</span>
+                            <span class="content">{{item.content}}</span>
+                            <span class="files">
+                            <ul>
+                              <li class="file-item" v-for="(fileItem, index) in item.attachments" :key="fileItem.uploadid">
+                                <span class="filename" @click="downDoc(fileItem.uploadid)">
+                                  <span>
+                                    <img src="../../../assets/img/icon-bussiness-annex.png"/>
+                                    <span :title="fileItem.filename">{{fileItem.filename}}</span>
+                                  </span>
+                                </span>
+                              </li>
+                            </ul>
+                            </span>
+                          </p>
+                        </li>
+                      </ul>
+                      <EmptyData v-else/>
+                    </a-col>
+                  </a-row>
+                </a-form-item>
+              </a-form>
+            </a-col>
+            <a-col>
+              <a-form :label-col="{ span: 6 }" :wrapper-col="{ span: 18 }" >
+                <a-row class="users">
+                  <a-col :span="12">
+                    <a-form-item :label="'发布人'">{{recordData.createusername||'无'}}</a-form-item>
+                  </a-col>
+                  <a-col :span="12">
+                    <a-form-item :label="'相关领导'">{{recordData.leadernames||'无'}}</a-form-item>
+                  </a-col>
+                  <a-col :span="12">
+                    <a-form-item :label="'主办处室'">{{recordData.mainorgname||'无'}}</a-form-item>
+                  </a-col>
+                    <a-col :span="12">
+                  <a-form-item :label="'主办人'">{{recordData.mainusernames||'无'}}</a-form-item>
+                    </a-col>
+                  <a-col :span="24">
+                    <a-form-item :wrapper-col="{ span: 24 }">
+                      <ul>
+                        <li v-for="(item,index) in recordData.assistusers" :key="index">
+                          <a-form :wrapper-col="{ span: 24 }">
+                            <a-row>
+                              <a-col :span="12">
+                              <a-form-item :label-col="{ span: 6 }" :wrapper-col="{ span: 18 }" :label="`协办处室${index+1}`">{{item.orgname||'无'}}</a-form-item>
+                              </a-col>
+                              <a-col :span="12">
+                              <a-form-item :label-col="{ span: 6 }" :wrapper-col="{ span: 18 }" :label="`协办人${index+1}`">{{item.username||'无'}}</a-form-item>
+                              </a-col>
+                            </a-row>
+                          </a-form>
+                        </li>
+                      </ul>
+                    </a-form-item>
+                  </a-col>
+                </a-row>
+              </a-form>
+            </a-col>
+          </a-row>
+        </div>
+        <div class="log" v-show="active==='日志记录'">
+          <div class="logcontent">
+            <div class="left">日志记录：</div>
+            <div class="right">
+              <div v-if="recordData.logs&&recordData.logs.length">
+                <div class="right-item" v-for="item in recordData.logs" :key="item.id">
+                  <div class="logtitle">
+                    <span>{{item.createusername}}</span>
+                    <span>{{item.createtime}}</span>
+                  </div>
+                  <div class="logdetail">{{item.content}}</div>
+                  <div class="file">
+                    <ul>
+                      <li v-for="attatchment in item.attachments" :key="attatchment.uploadid">
+                        <span @click="downDoc(attatchment.uploadid)">
+                          <img src="../../../assets/img/icon-bussiness-annex.png"/>
+                          <span class="" :title="attatchment.filename">{{attatchment.filename}}</span>
+                        </span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              <EmptyData v-else/>
+            </div>
+          </div>
+        </div>
+        <template slot="footer">
+          <div class="content">
+            <div class="left">
+              <span v-if="showButton.top">
+                <span v-if="!recordData.toped" @click="Toped(1)"><img src="../../../assets/img/icon-bussiness-top.png"/>置顶</span>
+                <span v-else @click="Toped(2)"><img src="../../../assets/img/icon-bussiness-top.png"/>取消置顶</span>
+              </span>
+              <span v-if="showButton.cancle" @click="cancelTask">
+                <a-icon type="rollback" /><span>撤销</span>
+              </span>
+              <span v-if="showButton.forward" @click="forward('转发')"><img src="../../../assets/img/icon-bussiness-forward.png"/>转发</span>
+              <span v-if="showButton.addasist" @click="forward('添加协办')"><img src="../../../assets/img/icon-bussiness-assist.png"/>添加协办</span>
+            </div>
+            <div class="right">
+              <a-button type="primary" v-if="showButton.addlog" @click="showTaskModal('日志填写')">
+                填写日志
+              </a-button>
+              <a-button type="primary" v-if="showButton.markcomplete" @click="()=>this.showMark = true">
+                标记完成
+              </a-button>
+              <a-button type="primary" v-if="showButton.assistopinion" @click="showTaskModal('协办意见')">
+                协办意见
+              </a-button>
+              <a-button type="primary" v-if="showButton.urge" @click="sendMsg">
+                催一下
+              </a-button>
+              <a-button type="primary" v-if="showButton.addtask" @click="showTaskModal('任务补充')">
+                任务补充
+              </a-button>
+            </div>
+          </div>
+        </template>
+    </a-modal>
+    <!--日志-->
+    <a-modal 
+      :title="modaltitle"
+      :visible="addtaskModal"
+      class="addtask"
+      @cancel="handleCancel('addtaskModal')">
+      <div>
+        <div class="spin" v-if="spinning">
+          <a-spin />
+        </div>
+        <a-text-area :rows="8" placeholder="请输入内容！" v-model="content"/>
+        <div class="upload">
+          <a-upload
+            name="file"
+            :multiple="true"
+            :before-upload="beforeUpload"
+            :file-list="this.fileList"
+            :remove="remove"
+            @change="changefile"
+          >
+            <a-button type="primary" ghost>上传附件</a-button>
+          </a-upload>
+        </div>
+      </div>
+      <template slot="footer" class="footer">
+        <a-button type="primary" v-if="showButton.addtask" @click="addTask">发布</a-button>
+        <a-button type="primary" v-else-if="showButton.addlog||showButton.assistopinion" @click="this.addLogs">提交</a-button>
+      </template>
+    </a-modal>
+    <!--标记完成-->
+    <a-modal
+      title="提示"
+      :visible="showMark"
+      class="markmodal"
+      @cancel="()=>this.showMark=false"
+    >
+      <div class="content">
+        <div><a-icon type="warning" theme="filled"/></div>
+        <div>
+          <p>是否立即归档？</p>
+          <p>归档后可在信息服务中查看</p>
+        </div>
+      </div>
+      <template slot="footer">
+        <a-button type="primary" @click="mark(1)"> 立即归档</a-button>
+        <a-button type="primary" @click="mark(2)">暂不归档</a-button>
+      </template>
+    </a-modal>
+    <!--主办 协办-->
+    <ForwardorJointly 
+      :title="showforward?'转发':'添加协办'" 
+      :showforward="showforward" 
+      :showjointly="showjointly" 
+      :recordData="this.recordData" 
+      @loadDetail="loadDetail" 
+      @forwardCancel="forwardCancel"/>
+  </div>
+</template>
+
+<script>
+import { Button, Modal, Icon, Input, Upload, Form, Row, Col, Spin } from 'ant-design-vue';
+import EmptyData from "@/framework/components/EmptyData";
+import ForwardorJointly from './ForwardorJointly';
+import { map, has, cloneDeep } from 'lodash';
+import { download } from "@/framework/api/file";
+import { uploadV2 } from "@/framework/api/file";
+import { addtask, canceltask, sendmsg, addlogs, toped, markfinish, listorg, worktaskdetails } from "@/person-shaoxing/api/workTask";
+import { showError } from "@/framework/utils";
+export default {
+  props:['showModal', 'recordData'],
+  components: {
+    AButton: Button,
+    AModal: Modal,
+    AIcon: Icon,
+    ATextArea: Input.TextArea,
+    AUpload: Upload,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ForwardorJointly,
+    ARow: Row,
+    ACol: Col,
+    EmptyData,
+    ASpin: Spin,
+  },
+  data() {
+    return {
+      content:'',
+      uploadid: '',
+      fileList: [],
+      modaltitle: '',
+      spinning: false,
+      contenttype: undefined,
+      showforward: false,
+      showjointly: false,
+      showMark: false,
+      showButton: {
+        addasist: false,
+        addlog: false,
+        addtask: false,
+        assistopinion: false,
+        cancle: false,
+        forward: false,
+        markcomplete: false,
+        markfiled: false,
+        top: false,
+        urge: false
+      },
+      active: '任务概况',
+      addtaskModal: false,//日志modal
+      btnText: ['任务概况', '日志记录'],
+    };
+  },
+  computed: {
+    taskcategory() {
+      return this.$store.getters.dict("person.work.taskcategory");
+    },
+    tasktype() {
+      return this.$store.getters.dict("person.work.tasktype")
+    }
+  },
+  watch: {
+    recordData: {
+      immediate: true,
+      handler(val){
+        if(val&&has(val,'operation')) {
+          this.showButton = cloneDeep(val.operation);
+        }
+      }
+    },
+    search: {
+      deep: true,
+      handler(val) {
+        return val;
+      }
+    },
+  },
+  filters: {
+    capitalize: function (value, type) {
+      if (!value) return "";
+      let result = type.find(
+        (item) => item.value == value
+      );
+      return result && result.text;
+    },
+  },
+  methods: {
+    changesearch(name,value,id,username) {
+      this.$set(this.search,name,username);
+      this.$set(this.search,value,id);
+    },
+    remove(file) {
+      let index = this.fileList.indexOf(file);
+      this.fileList.splice(index,1);
+      let array = this.uploadid.split(',');
+      array.splice(index,1);
+      if(array.length) {
+        this.uploadid = array.join(',');
+      }else{
+        this.uploadid = '';
+      }
+    },
+    forwardCancel() {
+      if(this.showforward) {
+        this.showforward = false;
+      }else if(this.showjointly) {
+        this.showjointly = false;
+      }
+    },
+    loadDetail() {
+      this.$emit('update:showModal', true);
+      this.worktaskDetails(this.recordData);
+    },
+    handleCancel(val) {
+      this.spinning = false;
+      if (val === "showModal") {
+        this.$emit('update:showModal', false);
+      } else if (val === "addtaskModal") {
+        this.addtaskModal  = false;
+        this.$emit('update:showModal', true);
+        this.content = "";
+        this.fileList = [];
+        this.contenttype = undefined;
+      }
+    },
+    showTaskModal(val) {
+      this.modaltitle = val;
+      if(this.modaltitle==='日志填写') {
+        this.contenttype = 2;
+      }else if(this.modaltitle==='协办意见') {
+        this.contenttype = 5;
+      }else if(this.modaltitle==='任务补充') {
+        this.contenttype = 1;
+      }else{
+        this.contenttype = undefined;
+      }
+      this.$emit('update:showModal', false);
+      this.addtaskModal = true;
+    },
+    success(val) {
+      this.$notification.success({
+        message: "提示",
+        description: val,
+        duration: 3,
+      });
+    },
+    notify(val) {
+      this.$notification.warning({
+        message: "提示",
+        description: val,
+        duration: 3,
+      });
+    },
+    choose(val) {
+      this.active =val;
+    },
+    isActive(val) {
+      if(this.active===val) {
+        return true;
+      }
+      return false;
+    },
+    beforeUpload(file) {
+      return false;
+    },
+    forward(val) {
+      this.$emit('update:showModal', false);
+      if(val === '转发') {
+        this.showforward = true;
+      }else if('添加协办') {
+        this.showjointly = true;
+      }
+    },
+    mark(val) {
+      this.showMark = false;
+      this.markFinish(val);
+    },
+    changefile(info) {
+      if(!has(info.file,'status')) {
+        this.fileList = info.fileList;
+        if(this.fileList.length){
+          uploadV2(info.file)
+          .then((res) => {
+            if (res.data.code==='success') {
+              this.success("文件上传成功!");
+              if(this.uploadid) {
+                this.uploadid+=`,${res.data.result.uploadid}`;
+              }else{
+                this.uploadid+=`${res.data.result.uploadid}`;
+              }
+            }else{
+              this.notify("文件上传失败!");
+              this.uploadid = '';
+            }
+          })
+          .catch((error) => {
+            this.uploadid = '';
+            showError(error);
+          });
+        }
+      }
+    },
+    //查看任务详情
+    worktaskDetails(record) {
+      this.spinning = true;
+      let recordata = {};
+      recordata.id = record.id;
+      recordata.tabtype = record.tabtype;
+      worktaskdetails(recordata).then(({result})=>{
+        this.spinning = false;
+        result.id = record.id;
+        result.tabtype = record.tabtype;
+        this.$emit('update:recordData',result);
+        if(this.showjointly) {
+          this.showjointly = false;
+        }else if(this.addtaskModal){
+          this.addtaskModal = false;
+        }
+      }).catch((err)=>{
+        this.spinning = false;
+        showError(err);
+      })
+    },
+    //添加补充任务
+    addTask() {
+      this.spinning = true;
+      let data = this.handleparams();
+      if(data) {
+        addtask(data).then((res)=>{
+          if(res.code==='success') {
+            this.success("任务添加成功");
+            this.worktaskDetails(this.recordData);
+          }else{
+            this.notify("任务添加失败！");
+          }
+          this.handleCancel('addtaskModal');
+        }).catch((err)=>{
+          this.handleCancel('addtaskModal');
+          showError(err);
+        })
+      }
+    },
+    //添加日志
+    addLogs() {
+      this.spinning = true;
+      let data = this.handleparams();
+      if(data) {
+        addlogs(data).then((res)=>{
+          if(res.code==='success') {
+            this.success("添加成功！");
+            this.worktaskDetails(this.recordData);
+          }else{
+            this.notify("添加失败!");
+          }
+          this.handleCancel('addtaskModal');
+        }).catch((err)=>{
+          this.handleCancel('addtaskModal');
+          showError(err);
+        })
+      }
+    },
+    //任务撤销 
+    cancelTask() {
+      this.spinning = true;
+      canceltask(this.recordData.id).then((res)=>{
+        this.spinning = false;
+        if(res.code === 'success') {
+          this.success('撤销成功！');
+          this.$emit('update:showModal', false);
+          this.$emit('listAttentiontask');
+        }else{
+          this.notify('撤销失败！')
+        }
+      }).catch((err)=>{
+        this.spinning = false;
+        showError(err);
+      })
+    },
+    //任务置顶 1.置顶 2.取消置顶
+    Toped(type) {
+      this.spinning = true;
+      toped({taskid: this.recordData.id, type: type }).then((res)=>{
+        this.spinning = false;
+        if(res.code === 'success') {
+          this.success('操作成功！');
+          this.worktaskDetails(this.recordData);
+        }
+      }).catch((err)=>{
+        this.spinning = false;
+        showError(err);
+      })
+    },
+    //催一催
+    sendMsg() {
+      sendmsg({taskid: this.recordData.id}).then((res)=>{
+        if(res.code==='success') {
+          this.$notification({
+            message: '提示',
+            description: '操作成功！',
+            duration: 3,
+          })
+        }
+      }).catch((err)=>{
+        showError(err);
+      })
+    },
+    handleparams() {
+      let list = map(this.fileList, 'name');
+      if(!this.content) {
+        this.notify('请输入主要内容！');
+        return false;
+      }else{
+        let data = { attachments: this.uploadid!==''?this.uploadid:undefined,content:this.content, taskid: this.recordData.id, contenttype: this.contenttype };
+        return data;
+      }
+    },
+    listOrg() {
+      listorg().then((res)=>{
+      }).catch((err)=>{
+        showError(err);
+      })
+    },
+    //标记或归档
+    markFinish(type) {
+      this.spinning = true;
+      markfinish(this.recordData.id, type ).then((res)=>{
+        this.spinning = false;
+        if(res.code === 'success') {
+          if(type===1) {
+            this.success('归档成功！');
+          }else if(type===2){
+            this.success('标记成功！');
+          }
+        }else{
+          if(type===1) {
+            this.notify('归档失败！')
+          }else if(type===2){
+            this.notify('标记失败！')
+          }
+        }
+      }).catch((err)=>{
+        this.spinning = false;
+        showError(err);
+      })
+    },
+    downDoc(url) {
+      if (url) {
+        download(url);
+      } else {
+        this.notify("暂无可下载内容！");
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.workdetail /deep/.ant-modal-content {
+  .ant-modal-body {
+    height: 500px;
+    overflow: auto;
+    padding-top: 0;
+    .title {
+      position: fixed;
+      background: white;
+      padding-top: 10px;
+      width: 761px;
+      height: 105px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      h2 {
+        font-weight: bold;
+      }
+      span {
+        border-radius: 50px;
+        margin-right: 10px;
+        padding: 0.2em 0.5em;
+        cursor: pointer;
+        transition: all .3s;
+        user-select: none;
+      }
+      .active {
+        background: @primary-color;
+        color: white;
+      }
+    }
+    & > .content {
+      overflow: auto;
+      height: 480px;
+      ul {
+        margin: 0;
+        .content-item {
+          display: flex;
+          flex-direction: column;
+          position: relative;
+          .time,
+          .content {
+            padding: @padding-xs @layout-space-base;
+          }
+          .files ul {
+            display: flex;
+            flex-wrap: wrap;
+            li {
+              width: 50%;
+              padding: @padding-xs @layout-space-base;
+              cursor: pointer;
+              .index {
+                margin-right: 10px;
+              }
+              .download {
+                color: @primary-color;
+                float: right;
+                user-select: none;
+                cursor: pointer;
+              }
+            }
+            li:hover {
+              background: @primary-1;
+            }
+          }
+        }
+      }
+      .contents::after {
+        content: "";
+        height: 1px;
+        position: absolute;
+        left: -@layout-space-base;
+        right: -@layout-space-base;
+        bottom: 0;
+        background: #e8e8e8;
+      }
+    }
+    .survey {
+      min-height: 425px;
+      margin-top: 105px;
+      & .info .ant-form-item-control {
+        background: #f9f9f9;
+        margin: 10px 0;
+        padding: 0 10px;
+      }
+      .nodata .ant-form-item-control {
+        background: transparent;
+      }
+      .taskcontent {
+        .task-col {
+          position: relative;
+          border: 1px solid #f9f9f9;
+          ul.tasks {
+            margin: 0;
+            li.content-item {
+              border: 1px solid #e8e8e8;
+              background-image: linear-gradient(#f9f9f9, white);
+              transition: all 0.3s;
+              p {
+                padding: 10px;
+                margin: 0;
+                .content {
+                  display: block;
+                }
+                .files ul {
+                  display: flex;
+                  flex-wrap: wrap;
+                  li {
+                    width: 30%;
+                    white-space: nowrap;
+                    margin-right: 8px;
+                    span:hover {
+                      color: @primary-color;
+                    }
+                    .filename {
+                      cursor: pointer;
+                      & > span {
+                        display: flex;
+                        align-items: center;
+                        & > span {
+                          text-overflow: ellipsis;
+                          overflow: hidden;
+                          white-space: nowrap;
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+            li.content-item:not(:last-child) {
+              border-bottom: 0;
+            }
+            & li.content-item:hover {
+              position: relative;
+              background: white;
+              box-shadow: 0 0 4px 3px #e8e8e8;
+            }
+          }
+          .empty {
+            min-height: 100px;
+            position: relative;
+            top: 7px;
+          }
+        }
+      }
+    }
+    .log {
+      margin-top: 115px;
+      .logcontent {
+        display: flex;
+        .left {
+          margin-left: 12px;
+          white-space: nowrap;
+        }
+        .right {
+          flex: 1;
+          .right-item {
+            border: 1px solid #e8e8e8;
+            position: relative;
+            background: #f9f9f9;
+            padding: 10px;
+            transition: all 0.3s;
+          }
+          .right-item:not(:last-child) {
+            border-bottom: 0;
+          }
+          .right-item:hover {
+            background: white;
+            box-shadow: 0 0 4px 3px #e8e8e8;
+            z-index: 999;
+          }
+          .empty {
+            border: 1px solid #e8e8e8;
+            min-height: 100px;
+          }
+        }
+        .logtitle {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+        .logdetail {
+          margin: 10px 0;
+        }
+        .file {
+          ul {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            margin: 0;
+            li {
+              width: 30%;
+              cursor: pointer;
+              margin-top: 10px;
+              margin-right: 8px;
+              white-space: nowrap;
+              & > span {
+                display: flex;
+                align-items: center;
+                span {
+                  text-overflow: ellipsis;
+                  overflow: hidden;
+                  white-space: nowrap;
+                }
+                span:hover {
+                  color: @primary-color;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    .ant-form {
+      .users .ant-col-18 {
+        background: #f9f9f9;
+        margin: 10px 0;
+        padding: 0 10px;
+      }
+      .ant-row{
+        margin: 0;
+        height: 32px;
+        line-height: 32px;
+        .ant-form-item-label {
+          margin: 10px 0;
+        }
+      }
+    }
+  }
+  .ant-modal-footer {
+    padding: @padding-md;
+    .content {
+      display: flex;
+      justify-content: space-between;
+      .left {
+        display: flex;
+        align-items: center;
+        i {
+          color: @primary-color;
+          margin-right: 10px;
+        }
+        > span {
+          margin-right: 20px;
+          cursor: pointer;
+          img {
+            margin-right: 10px;
+          }
+        }
+        > span:hover {
+          color: @primary-color;
+        }
+      }
+      .right {
+        margin-left: auto;
+      }
+    }
+  }
+}
+.addtask /deep/.ant-modal-content {
+  textarea.ant-input {
+    resize: none;
+  }
+  .upload span {
+    display: flex;
+    flex-direction: column-reverse;
+    textarea.ant-input {
+      resize: none;
+    }
+    button.ant-btn.ant-btn-primary.ant-btn-background-ghost {
+      width: 105px;
+      margin-top: 10px;
+    }
+    i.anticon.anticon-paper-clip {
+      display: none;
+    }
+    .ant-upload-list-item {
+      height: 32px;
+      line-height: 32px;
+      .ant-upload-list-item-info {
+        background: @primary-1;
+        .ant-upload-list-item-name {
+          padding: 0;
+        }
+      }
+    }
+  }
+  .ant-modal-footer {
+    text-align: center;
+  }
+}
+.markmodal /deep/.ant-modal-content {
+  .content {
+    display: flex;
+    i.anticon.anticon-warning {
+      font-size: 25px;
+      color: #F8944F;
+    }
+    div:first-child {
+      width: 20%;
+      text-align: right;
+      margin-right: 20px;
+    }
+    div p:first-child {
+      font-size: 16px;
+      font-weight: bold;
+    }
+  }
+  .ant-modal-footer {
+    text-align: center;
+  }
+}
+.ant-modal-body {
+  .spin {
+    position: absolute;
+    top: 55px;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    background: fade(white, 50%);
+    z-index: 1001;
+    .ant-spin {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%,-50%);
+      z-index: 999;
+    }
+  }
+}
+</style>

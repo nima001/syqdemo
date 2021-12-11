@@ -1,0 +1,18 @@
+<!--请销假-->
+<template>
+  <div class>请销假</div>
+</template>
+
+<script>
+export default {
+  components: {},
+  data() {
+    return {};
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+//@import url(); 引入公共css类
+</style>

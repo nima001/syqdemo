@@ -1,0 +1,359 @@
+<template>
+  <div class="suborg-detail" ref="suborgDetail">
+    <div class="suborglist">
+      <div class="top">
+        <div class="left">
+          <a-button @click="addorg()"><a-icon type="plus"/>新增组织</a-button>
+          <a-button @click="removeitem" :disabled="!hasSelected"><a-icon type="delete"/>移除</a-button>
+          <a-button><a-icon type="upload"/>导出</a-button>
+        </div>
+        <div class="right">
+          <a-select v-if="nodeid" class="search-item scope" v-model="choice">
+            <a-select-option :value="1">本级</a-select-option>
+            <a-select-option :value="2">包含下级</a-select-option>
+          </a-select>
+          <dict-select dict="idm.org.orgunittype"
+            v-model="properties.authlevel"
+            placeholder="单位类型"
+            allowClear
+            class="search-item"
+          />
+          <a-input
+            class="inputBox"
+            placeholder="请输入名称或信用代码"
+            style="width: 300px"
+            allowClear
+            v-model="keyWord"
+          />
+            
+          <a-button class="searchBt" type="primary" @click="onSearch">搜索</a-button>
+        </div>
+      </div>
+      <a-table
+        class="per-table"
+        rowKey="oid"
+        :columns="columns"
+        :dataSource="pagination.rows"
+        :customRow="customRow"
+        :rowClassName="(row) => pagination.selected && pagination.selected.oid == row.oid ? 'selected': ''"
+        :pagination="false"
+        :loading="loading"
+        :row-selection="{ selectedRowKeys: selectedRowKeys, onChange: onSelectChange }"
+      >
+      <template slot="operation" slot-scope="text, record">
+          <div class="editable-row-operations">
+            <span>
+              <a @click="edit(record)">编辑</a> 
+            </span>
+            <span>
+              <a @click="() => edit1(record.key)">排序</a>
+            </span>
+          </div>
+        </template>
+      </a-table>
+      <div class="footer">
+        <a-pagination
+                v-if="pagination.rows && pagination.rows.length"
+                showSizeChanger
+                :showTotal="total => `总共：${total}个`"
+                @showSizeChange="onShowSizeChange"
+                :total="pagination.total"
+                :pageSize="pagination.pagesize"
+                v-model="pagination.pagenum"
+                @change="onPageChange"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Row, Col, Button, Select, Input, Table, Pagination, Modal, Icon } from "ant-design-vue";
+import DictSelect from "@/framework/components/DictSelect";
+import TaskProgress from "@/framework/components/TaskProgress";
+import CustomIcon from "@/framework/components/CustomIcon";
+import {querypagelist, get} from "@/idm/api/suborg"
+import { showError } from "@/framework/utils/index";
+import { log } from '@antv/g2plot/lib/utils';
+export default {
+  props: ["org", "nodeid", "treeid"],
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInput: Input,
+    ATable: Table,
+    APagination: Pagination,
+    AModal: Modal,
+    AIcon: Icon,
+    DictSelect,
+    TaskProgress,
+    CustomIcon
+  },
+  data(){
+    return{
+       columns: [
+        { title: "机构名称", width: "110px", dataIndex: "name", scopedSlots: { customRender: "constactsname" } },
+        { title: "规范简称", width: "110px", dataIndex: "shortname", scopedSlots: { customRender: "shortname" } },
+        { title: "单位类型", width: "110px", dataIndex: "orgunittype", customRender: this.dictRender("idm.org.orgunittype") } ,
+        { title: "统一社会信用代码", width: "110px", dataIndex: "usccode", scopedSlots: { customRender: "usccode" } },
+        { title: '操作', width: "110px", dataIndex: 'operation', scopedSlots: { customRender: 'operation' } },
+      ],
+     loading: false,
+      nowTab: undefined,
+      pid: 0,
+      choice: 1,
+      properties: {},
+      keyWord: undefined,
+      pagination: {
+        selected: undefined,
+        rows: null,
+        pagesize: 20,
+        pagenum: 1,
+        total: 0
+      },
+      selectedRowKeys: []
+    }
+  },
+  created() {
+    this.getSubOrg(this.pagination);
+  },
+  watch: {
+    org(val){
+      this.getSubOrg(this.pagination);
+    }
+  },
+  computed: {
+    hasSelected() {
+      return this.selectedRowKeys.length > 0;
+    },
+  },
+  methods: {
+    customRow(row){
+      return {
+        on: {
+          click: () => {
+            this.$set(this.pagination, 'selected', row);
+          },
+         
+        }
+      };
+    },
+    indexRender(text, row, index){
+      let p = this.pagination;
+      return (p.pagenum - 1) * p.pagesize + index + 1;
+    },
+    edit(key){
+      get(this.nodeid, this.treeid).then(res => {
+        console.log(res);
+      })
+      this.$router.push({name: 'suborgEdit', query: { orgInfo: key}});
+    },
+    onSelectChange(selectedRowKeys) {
+      this.selectedRowKeys = selectedRowKeys;
+    },
+     onPageChange(pagenum, pagesize) {
+      this.getSubOrg({pagesize, pagenum});
+    },
+    onShowSizeChange(current, pagesize) {
+      this.getSubOrg({pagesize, pagenum: 1});
+    },
+    onSearch() {
+      let {pagesize} = this.pagination
+      this.getSubOrg({pagesize, pagenum: 1});
+    },
+    removeitem(){
+      for(var i in this.selectedRowKeys){
+        this.pagination.rows = this.pagination.rows.filter(item => item.oid !== this.selectedRowKeys[i])
+      }
+    },
+    addorg(){
+      let selectedtreeid = 12;
+      if(this.treeid != null){
+        selectedtreeid = this.treeid
+      }
+      this.$router.push({name: 'addOrg', query: {selectedtreeid: selectedtreeid}});
+      console.log(selectedtreeid)
+    },
+    getParams(page) {
+     
+      if (this.nodeid) {
+      const params = {
+          allsub: true,
+          needtotal: true,
+          pid: this.nodeid,
+          type: 1,
+          searchkey: this.keyWord,
+          treeid: this.treeid,
+          ...page
+        };
+        if (this.choice == 1) {
+          params.allsub = false;
+        }
+        return params;
+      } else {
+        const params = {
+          orgid: this.org._id,
+          nodeid: this.nodeid,
+          allsub: true,
+          needtotal: true,
+          pid: 0,
+          type: 1,
+          searchkey: this.keyWord,
+          treeid: this.treeid,
+          ...page
+        };
+        return params;
+      }
+    },
+    dictRender(key, attr) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    getSubOrg(page) {
+      if (!this.org) {
+        return;
+      }
+      this.loading = true;
+      let request;
+      if(this.nodeid) {
+        request = querypagelist(this.getParams(page));
+      }
+      request.then(({result}) => {
+        this.pagination = result;
+        result.rows.forEach(element => {
+        });
+        this.loading = false;
+      }).catch(error => {
+        this.pagination = {};
+        this.loading = false;
+        showError(error);
+      });
+    },
+  }
+}
+</script>
+
+
+<style lang="less" scoped>
+.suborg-detail {
+  height: 100%;
+  flex-direction: column;
+  display: flex;
+  .top-btn {
+    width: 100%;
+    height: auto;
+    padding: @content-padding-v @content-padding-h;
+    background-image: linear-gradient(to right, #fcfcfc, @primary-1);
+    .topbtn {
+      cursor: pointer;
+      height: 26px;
+      line-height: 26px;
+      padding: 0 14px;
+      float: left;
+      border-radius: 3px;
+      margin-right: 5px;
+      &:hover {
+        background-color: @primary-1;
+        color: @primary-color;
+      }
+      &.act-btn {
+        background-color: @primary-2;
+        color: @primary-color;
+      }
+    }
+  }
+  .suborglist {
+    flex: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    .top {
+      padding: @content-padding-v/2 @content-padding-h @content-padding-v @content-padding-h;
+      .left {
+        float: left;
+        margin-top: @content-padding-v/2;
+        .ant-btn {
+          margin-right: 10px;
+          color: @primary-color;
+          border-color: @primary-color;
+        }
+      }
+      .right {
+        margin-top: @content-padding-v/2;
+        float: right;
+        // line-height: 32px;
+        .ant-select {
+          margin-left: 5px;
+        }
+        .search-item {
+          width: 180px;
+          margin: 0 5px 0 0;
+          &.scope {
+            width: 100px;
+          }
+        }
+        .searchBt {
+          background-color: @primary-color;
+          border: 0;
+          color: @white;
+          margin-left: 5px;
+        }
+      }
+    }
+    .per-table {
+      flex-shrink: 1;
+      min-height: 0;
+      padding: 0 @content-padding-h;
+      overflow-y: auto;
+      /deep/table {
+        table-layout: fixed;
+        td,th {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        td{
+           padding: 2px 2px;
+        }
+        tr.selected{
+          background: @primary-2;
+        }
+      } 
+      .icon{
+        width: 18px;
+        height: 18px;
+        padding: 1px;
+      }
+      .table-tr {
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        .worstatus {
+          width: 16px;
+          height: 16px;
+          display: inline-block;
+        }
+      }
+      .editable-row-operations {
+        span{
+          margin: 0 10px;
+        }
+      }
+    }
+    .footer {
+      padding: @content-padding-v @content-padding-h;
+      .ant-pagination {
+        float: right;
+        margin-bottom: 10px;
+      }
+    }
+  }
+}
+</style>

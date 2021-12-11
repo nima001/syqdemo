@@ -1,0 +1,67 @@
+<template>
+  <a-form-item :validateStatus="help.status" :title="help.message">
+    <a-input-number v-model="value" v-bind="property.attrs" @change="onChange"/>
+  </a-form-item>
+</template>
+<script>
+import { Form, InputNumber, } from "ant-design-vue";
+import PropMixin from './PropMixin'
+
+export default {
+  components: {
+    AFormItem: Form.Item,
+    AInputNumber: InputNumber,
+  },
+  mixins: [PropMixin],
+  data(){
+    return {
+      value: undefined,
+      help: {
+        status: 'success',
+        message: undefined
+      }
+    }
+  },
+  created(){
+    this.initData();
+  },
+  watch: {
+    settings(){
+      //settings 变化时重置value，当value值检验未通过时，不会设置propValue
+      this.initData();     
+    },
+    propValue(v){
+      this.initData();
+    },
+  },
+  methods: {
+    initData(){
+      this.help = { status: 'success', message: undefined };
+      this.value = this.propValue === undefined ? this.property.defaultValue : this.propValue;
+    },
+    onChange(){
+      this.validate(this.value).then(({value, error}) => {
+        if(this.value == value){//当前值已经被修改不处理
+          if(error){
+            this.help = { status: 'error', message: error };
+          }else{
+            this.help = { status: 'success', message: undefined };
+            this.propValue = value;
+          }
+        }
+      });
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.ant-form-item{
+  margin: 0;
+  /deep/ .ant-form-item-control{
+    line-height: 32px;
+  }
+}
+.ant-input-number{
+  width: 100%;
+}
+</style>

@@ -1,0 +1,138 @@
+<template>
+  <div class="wrap">
+    <p class="title">超编、超职机构数监测</p>
+    <div class="content">
+      <span class="btn pre"></span>
+      <span class="btn next"></span>
+      <ul class="list">
+        <li class="table">
+          <div class="cell">
+            <div class="cellItem">
+              <p>超编行政机构数</p>
+              <lcd-font :length="4" :realNumber="18"></lcd-font>
+            </div>
+            <div class="cellItem">
+              <p>超编事业单位数</p>
+              <lcd-font :length="4" :realNumber="60"></lcd-font>
+            </div>
+          </div>
+          <div class="cell">
+            <div class="cellItem">
+              <p>领导超职行政机构数</p>
+              <lcd-font :length="4" :realNumber="43"></lcd-font>
+            </div>
+            <div class="cellItem">
+              <p>领导超职事业单位数</p>
+              <lcd-font :length="4" :realNumber="21"></lcd-font>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
+    <ul class="swiperSpot">
+      <li class="active"></li>
+      <li></li>
+      <li></li>
+      <li></li>
+    </ul>
+  </div>
+</template>
+
+<script>
+import LcdFont from "../components/LcdFont";
+import Siper from "../components/Swiper";
+export default {
+  components: {
+    LcdFont,
+    Siper
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  background: url("../img/short-line.png") center bottom no-repeat;
+  padding-bottom: 35px;
+  .title {
+    height: 26px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.8;
+    margin: 0px;
+  }
+  .content {
+    padding: 0 12px;
+    position: relative;
+    margin-top: 12px;
+    .btn {
+      width: 40px;
+      height: 40px;
+      display: block;
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      &.pre {
+        left: -12px;
+        background: url("../img/pre.png");
+      }
+      &.next {
+        right: -12px;
+        background: url("../img/next.png");
+      }
+    }
+    .list {
+      margin: 0px;
+      .table {
+        .cell {
+          display: flex;
+          justify-content: space-between;
+          &:last-child {
+            margin-top:30px;
+          }
+          .cellItem {
+            p {
+              height: 21px;
+              font-size: 16px;
+              font-family: Microsoft YaHei;
+              font-weight: 400;
+              line-height: 21px;
+              color: #ffffff;
+              opacity: 0.8;
+              margin-bottom: 10px;
+            }
+          }
+        }
+      }
+    }
+  }
+  .swiperSpot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 10px 0px 0px;
+    li {
+      width: 12px;
+      height: 12px;
+      background: #8fc7ff;
+      border-radius: 50%;
+      opacity: 0.4;
+      margin-right: 20px;
+      cursor: pointer;
+      &.active {
+        width: 36px;
+        height: 36px;
+        background: url("../img/spot.png");
+        margin-right: 10px;
+      }
+      &:last-child {
+        margin-right: 0px;
+      }
+    }
+  }
+}
+</style>

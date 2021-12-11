@@ -1,0 +1,58 @@
+<template>
+  <div class="hospital-leader">
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <a-table 
+          class="rule-table"
+          :rowKey="generateRowKey"
+          :columns="columns" 
+          :dataSource="tableData" 
+          :pagination="false"
+          :bordered="true"
+          >
+        </a-table>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**医院领导职数配置规则
+*/
+import { Row, Col, Table } from "ant-design-vue";
+export default {
+  props: {
+    data: Object
+  },
+  components: { ARow: Row, ACol: Col, ATable: Table },
+  data() {
+    return {
+      columns: [
+        { title: '病床数', dataIndex: 'sickbed', width: '30%' },
+        { title: '领导职数', dataIndex: 'leadernum', width: '30%' },
+        { title: '操作', dataIndex: 'ps', width: '40%' }
+      ],
+      tableData: []
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    this.tableData = [this.data];
+  },
+  mounted() {},
+  methods: {
+    generateRowKey() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.hospital-leader{
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

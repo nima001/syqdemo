@@ -1,0 +1,21 @@
+<template>
+  <a-layout :style="{height:'100%',minWidth:'1200px'}">
+    <system-header />
+    <a-layout-content :style="{overflowY: 'auto', height: '100%'}">
+      <router-view />
+    </a-layout-content>
+  </a-layout>
+</template>
+<script>
+import { Layout } from "ant-design-vue";
+import SystemHeader from "@/framework/components/SystemHeader";
+export default {
+  components: {
+    ALayout: Layout,
+    ALayoutContent: Layout.Content,
+    SystemHeader
+  }
+};
+</script>
+<style lang='less'>
+</style>

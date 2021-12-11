@@ -1,0 +1,90 @@
+import Vue from 'vue'
+import Router from 'vue-router'
+import Layout from '../views/Layout.vue'
+Vue.use(Router)
+export default new Router({
+  mode: 'history',
+  base: process.env.BASE_URL,
+  routes: [
+    {
+      path: '/business/index',
+      component: () => import('../views/business/index'),
+      meta: {
+        access: 'login',
+      }
+    },
+    {
+      path: '/hall',
+      component: Layout,
+      meta: {access: 'login'},
+      children: [
+        {
+          path: 'usermanage',
+          component: () =>import('../views/usermanage/roster/components/RosterLayout'),
+          meta: {access: 'login'},
+          children: [
+            {
+              path: 'roster',
+              component: () => import('../views/usermanage/roster/index'),
+              meta: {access: 'login', path: [{ name: '人员管理', path: '' },{ name: '人员花名册', path: '' }] }
+            },
+            {
+              path: 'userinfo',
+              component: () => import('../views/usermanage/roster/UserInfo'),
+              meta: {access: 'login', path: [{ name: '人员管理', path: '' },{ name: '人员花名册', path: '' },{ name: '人员信息', path: '' }] }
+            }
+          ]
+        },
+        {
+          path: 'index',
+          component: () => import('../views/business/index'),
+          meta: {access: 'login'}
+        },
+        {
+          path: 'usermanage/attendance',
+          component: () => import('../views/usermanage/attendance/index'),
+          meta: {access: 'login', path: [{ name: '人员管理', path: '' },{ name: '人员考勤', path: '' }] }
+        },
+        {
+          path: 'usermanage/onduty',
+          component: () => import('../views/usermanage/onduty/index'),
+          meta: {access: 'login', path: [{ name: '人员管理', path: '' },{ name: '值班', path: '' }] }
+        },
+        {
+          path: 'usermanage/personcount',
+          component: () => import('../views/usermanage/personcount/index'),
+          meta: {access: 'login', path: [{ name: '人员管理', path: '' },{ name: '人员统计', path: '' }] }
+        },
+        {
+          path: 'usermanage/workovertime',
+          component: () => import('../views/usermanage/workovertime/index'),
+          meta: {access: 'login', path: [{ name: '人员管理', path: '' },{ name: '加班', path: '' }] }
+        },
+        {
+          path: 'usermanage/quit',
+          component: () => import('../views/usermanage/quit/index'),
+          meta: {access: 'login', path: [{ name: '人员管理', path: '' },{ name: '公出', path: '' }] }
+        },
+        {
+          path: 'usermanage/leave',
+          component: () => import('../views/usermanage/leave/index'),
+          meta: {access: 'login', path: [{ name: '人员管理', path: '' },{ name: '请销假', path: '' }] }
+        },
+        {
+          path: 'hallmanage/PraiseFeedback',
+          component: () => import('../views/hallmanage/PraiseFeedback/index'),
+          meta: {access: 'login', path: [{ name: '大厅管理', path: '' },{ name: '好评反馈', path: '' }] }
+        },
+        {
+          path: 'hallmanage/supervise',
+          component: () => import('../views/hallmanage/supervise/index'),
+          meta: {access: 'login', path: [{ name: '大厅管理', path: '' },{ name: '日常督察', path: '' }] }
+        }
+      ]
+    },
+    {
+      path:'/hall/visualscreen',
+      component: () => import('../views/visualscreen/index')
+    },
+  ]
+})

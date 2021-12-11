@@ -1,0 +1,10 @@
+
+//common
+@accent-color: #F39c2b;
+
+//components
+
+
+//pager
+@login-bg-gradient: #f05435;
+

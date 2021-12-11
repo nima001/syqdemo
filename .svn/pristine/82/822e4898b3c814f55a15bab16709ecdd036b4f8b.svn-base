@@ -1,0 +1,25 @@
+<template>
+  <card title="评级分布">
+    <div class="kpi-rank">
+      
+    </div>
+  </card>
+</template>
+<script>
+import Card from './ScreenCard'
+
+/**
+ * 评级分布
+ */
+export default {
+  components: {
+    Card,
+  }
+
+}
+</script>
+<style lang="less" scoped>
+.kpi-rank{
+  color: white;
+}
+</style>

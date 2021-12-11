@@ -1,0 +1,24 @@
+<template>
+  <div class="policy-server">
+    政府服务
+  </div>
+</template>
+
+<script>
+export default {
+  props: {},
+  components: {},
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.policy-server{}
+</style>

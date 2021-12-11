@@ -1,0 +1,184 @@
+import request from '@/framework/utils/request'
+
+/************************  组织树接口 *************************/
+//获取组织树
+export function treepath(id, treeid) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/orgtree/path`,
+        method: 'get',
+        params: {
+            id, treeid
+        }
+    });
+}
+//组织树节点搜索
+export function treequery(data) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/orgtree/query`,
+        method: 'post',
+        data
+    })
+}
+//获取组织结构
+export function treeroot(treeid) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/orgtree/root`,
+        method: 'get',
+        params:{
+            treeid
+        }
+    });
+}
+
+//获取组织下机构情况
+export function listnode(id, treeid) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/orgtree/listnode`,
+        method: 'get',
+        params: {
+            pid: id,
+            treeid: treeid
+        }
+    })
+}
+/************************  组织接口 *************************/
+//机构详情
+export function organization(id) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/org/` + id,
+        method: 'get'
+    });
+}
+//更新机构信息
+export function orgupdate(id, data) {
+    return request({
+        url: '/person/org/' + id,
+        method: 'post',
+        dataType: 'json',
+        data
+    });
+}
+//组织查询
+export function orgquery(data) {
+    return request({
+        url: `/${process.env.VUE_APP_PROJECT_NAME}/org/query`,
+        method: 'post',
+        dataType: 'json',
+        data
+    })
+}
+/************************  组织其它接口 *************************/
+//获取机构职能信息
+export function getfuncdesc(id) {
+    return request({
+        url: '/person/org/getfuncdesc',
+        method: 'get',
+        params: {
+            orgid: id
+        }
+    });
+}
+//获取机构编制或职数信息
+export function listOrgDistrItem(orgid, category, version) {
+    return request({
+        url: '/person/orgdistr/list',
+        method: 'get',
+        params: { 
+            orgid, category, version
+        }
+    });
+}
+//匹配职数编制数模板
+export function getOrgDistr({category, orgid, docid, value}) {
+    return request({
+        url: '/person/orgdistr/get',
+        method: 'get',
+        params:{
+            category,
+            docid,
+            orgid,
+            value
+        },
+    })
+}
+//获取和指定组织使用相同岗位的组织列表
+export function listSameDistrOrgs(orgid) {
+    return request({
+        url: '/person/orgdistr/job/orglist',
+        method: 'get',
+        params: { 
+            orgid,
+        }
+    });
+}
+
+//获取用户组织模型用户可以编辑的字段（临时）
+export function getEditableProps(model) {
+    return request({
+        url: '/person/modelprops/editable',
+        method: 'get',
+        params: { 
+            model,
+        }
+    });
+}
+
+/************************  组织统计相关接口 *************************/
+//获取机构统计信息
+export function getstatisinfo(orgid) {
+    return request({
+        url: '/person/orgchart/data',
+        method: 'get',
+        params: {
+            orgid
+        },
+    })
+}
+//刷新机构统计信息
+export function refreshStatisinfo(orgid, codes) {
+    return request({
+        url: '/person/orgchart/data/refresh',
+        method: 'post',
+        data: {
+            orgid, codes
+        },
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+        }
+    })
+}
+//机构实有人员统计信息
+export function getUserListWithChart(val, page) {
+    const data = {
+        orgid: val.id,
+        pagenum: page.current,
+        pagesize: page.pageSize,
+        needtotal: true,
+        fieldCode: val.code
+    }
+    return request({
+        url: '/person/orgchart/lookuser',
+        method: 'post',
+        data
+    })
+}
+//获取单位一览表
+export function getOrgTable(namespace, orgid, refresh) {
+    return request({
+        url: '/person/orgchart/table',
+        method: 'get',
+        params: {
+            orgid, namespace, refresh
+        }
+    })
+}
+
+//查询权利清单
+export function qlsxquery(data) {
+    return request({
+        url: '/person/qlsx/query',
+        method: 'post',
+        dataType: 'json',
+        data
+    })
+}

@@ -1,0 +1,32 @@
+import FieldDecorator from './FieldDecorator'
+import GridLayout from './GridLayout'
+import DictSelect from './DictSelect'
+import TextInput from './TextInput'
+
+export {
+  FieldDecorator, GridLayout, DictSelect, TextInput
+}
+
+export default {
+  layout: {//布局
+    GridLayout: {
+      name: '栅格布局',
+      icon: 'table'
+    }
+  },
+  component: {//组件
+    TextInput: {
+      name: '文本输入',
+      icon: 'string',
+    },
+    DictSelect: {
+      name: '字典选择',
+      icon: 'dict',
+    }
+  },
+  decorator: {//装饰器
+    FieldDecorator: {
+      name: '字段装饰'
+    }
+  }
+}

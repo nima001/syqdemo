@@ -1,0 +1,24 @@
+<template>
+  <card title="一票否优">
+    <div class="kpi-veto">
+      
+    </div>
+  </card>
+</template>
+<script>
+import Card from './ScreenCard'
+
+/**
+ * 一票否优
+ */
+export default {
+  components: {
+    Card,
+  }
+}
+</script>
+<style lang="less" scoped>
+.kpi-veto{
+  
+}
+</style>

@@ -1,0 +1,312 @@
+<template>
+  <a-layout-header class="system-header">
+    <header class="header">
+      <div class="header-left">
+        <span class="logo">
+          <img
+            v-if="uiConfigs['project.logo']"
+            :src="`${uiConfigs['api.url'] + '/file/v1/download?uri='+ encodeURIComponent(uiConfigs['project.logo']) }`"
+          />
+          <img v-else src="../assets/img/logo.png" />
+        </span>
+        <span class="title">{{uiConfigs['project.title']}}</span>
+      </div>
+      <div class="header-left-after"></div>
+      <div class="header-middle">
+        <template v-for="item in topApps">
+          <a-popover v-if="item.children && item.children.length" 
+            :mouseEnterDelay="0.4"
+            :key="item.id"
+          >
+            <table slot="content" class="sub-menus">
+              <tr v-for="(group,index) in groupList(item.children)" :key="index">
+                <td v-for="(menu, i) in group" @click="jump(menu)" :class="{item: !!menu}" :key="i">{{menu && menu.name}}</td>
+              </tr>
+            </table>
+            <a :class="{active: isActive(item.componenturi)}" >{{item.name}}</a>
+          </a-popover>
+          <a v-else
+            @click="jump(item)" 
+            :class="{active: isActive(item.componenturi)}" 
+            :key="item.id"
+          >{{item.name}}</a>
+        </template>
+        <a-popover v-if="appList.length"
+          :visible="showMenuPopover"
+          @visibleChange="handleHoverChange"
+          :mouseEnterDelay="0.4"
+        >
+          <table slot="content" class="sub-menus">
+            <tr v-for="(group,index) in groupList(appList)" :key="index">
+              <td v-for="(menu, i) in group" @click="jump(menu)" :class="{item: !!menu}" :key="i">{{menu && menu.name}}</td>
+            </tr>
+          </table>
+          <a @click="toBusinessCenter" :class="{active: isActive('/main/menu')}">业务中心</a>
+        </a-popover>
+      </div>
+      <div class="header-right">
+        <template v-if="session">
+          <!-- <a-icon type="search" /> -->
+          <a-badge :count="msgCount" dot class="item"><router-link to="/main/message"><a-icon class="bell" type="bell"/></router-link></a-badge>
+          <!-- <a-icon type="user" /> -->
+          <span class="item">{{session.username}}</span>
+          <span class="line">|</span>
+          <span class="item" @click="logout()">退出</span>
+        </template>
+        <a v-else class="item" @click="login()">登录</a>
+      </div>
+    </header>
+    <bread-crumb/>
+  </a-layout-header>
+</template>
+<script>
+import { Layout, Icon, Popover, Badge, Form } from "ant-design-vue";
+import BreadCrumb from "../components/BreadCrumb";
+import { getListMenu } from "../api/menu";
+import { msgcount } from "../api/message"
+import { showError } from "../utils/index";
+import { openMenu } from "../utils/menu";
+import Bus from '@/framework/utils/EventBus'
+
+export default {
+  name: "SystemHeader",
+  data() {
+    return {
+      compuRow: 0,
+      showMenuPopover: false,
+      loopTimer: 0,
+      msgCount: 0,
+      session: this.$store.getters.session
+    };
+  },
+  components: {
+    ALayoutHeader: Layout.Header,
+    AIcon: Icon,
+    APopover: Popover,
+    ABadge: Badge,
+    BreadCrumb
+  },
+  computed: {
+    uiConfigs(){
+      return this.$store.getters.config;
+    },
+    appList(){//应用列表
+      return (this.$store.getters.menuList || []).filter((item) => ((item.flag || 0) & 4) == 0);
+    },
+    topApps(){//放在顶部的菜单列表
+      function find(menus, list){
+        if(!list){
+          list = [];
+        }
+        menus.forEach(item => {
+          if(((item.flag || 0) & 1) != 0){//二进制标记
+            list.push(item);
+          }else if(item.children && item.children.length){
+            find(item.children, list);
+          }
+        });
+        return list;
+      }
+      return find(this.$store.getters.menuList);
+    },
+  },
+  created() {
+    this.reloadApp();
+    this.loopMsgCount()
+  },
+  destroyed(){
+    clearTimeout(this.loopTimer);
+  },
+  watch:{
+    '$store.getters.session'(s) {
+      if(s){
+        this.session = s;
+      }
+    }
+  },
+  methods: {
+    isActive(path, precise){
+      let routePath = this.$route.path;
+      return !precise && routePath.startsWith(path + '/') || routePath == path;
+    },
+    handleHoverChange(visible){
+      if(!this.isActive('/main/menu', true)){
+        this.showMenuPopover = visible;
+      }
+    },
+    groupList(list){
+      let count = 5, size = Math.ceil(list.length / count);
+      if(size){
+        let table = new Array(count).fill().map(() => new Array(size).fill());//创建 5 * size 的二维数组
+        list.forEach((item, index) => {
+          let x = Math.floor(index / count);
+          table[index - (x * count)][x] = item;
+        });
+        return table  
+      }
+    },
+    logout() {
+      Bus.$emit('logout');
+    },
+    login(){
+      this.$router.push('/login?redirect=' + encodeURIComponent(this.$route.path))
+    },
+    jump(item) {
+      if(item){
+        this.showMenuPopover = false;
+        openMenu(item, this.$router);
+      }
+    },
+    toBusinessCenter() {
+      this.showMenuPopover = false;
+      this.$router.push('/main/menu');
+    },
+    reloadApp() {
+      getListMenu().then(({result}) => {
+        this.$store.commit("SAVE_MENU", result);
+      }).catch(err => {
+        showError(err);
+      });
+    },
+    loopMsgCount(){
+      if(this.$store.getters.session){
+        msgcount().then(({result}) => {
+          this.msgCount = result.totalnum;
+        }).catch(err => {
+          console.log(err);
+        }).finally(() => {
+          this.loopTimer = setTimeout(this.loopMsgCount, 3 * 60000);
+        })
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.sub-menus {
+  td {
+    width: 6em;
+    box-sizing: content-box;
+    border-left: 1px solid #f4f2f3;
+    padding: 0 15px;
+    line-height: 40px;
+    font-size: 14px;
+    font-weight: 550;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  td:first-child{
+    border-left:none;
+  }
+  td.item{
+    cursor: pointer;
+    &:hover {
+      color: @primary-color;
+      background: @primary-1;
+    }
+  }
+}
+.ant-layout-header {
+  background: @primary-color;
+  color: @white;
+  padding: 0;
+  height: auto;
+  .header {
+    justify-content: space-between;
+    align-items: center;
+    height: 64px;
+    display: flex;
+    &-left {
+      min-width: 320px;
+      flex: none; 
+      height: 100%;
+      align-items: center;
+      background: rgba(0, 0, 0, 0.04);
+      padding-left: @padding-lg;
+      .logo {
+        float: left;
+        width: 50px;
+        text-align: center;
+        img {
+          max-width: 100%;
+          vertical-align: middle;
+        }
+      }
+      .title {
+        float: left;
+        font-size: 16px;
+        color: @white;
+        margin-left: 8px;
+      }
+    }
+    &-left-after {
+      flex: none; 
+      border-color: rgba(0, 0, 0, 0.04) transparent transparent
+        rgba(0, 0, 0, 0.04);
+      display: block;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 32px 16px;
+    }
+    &-middle {
+      flex: auto; 
+      white-space: nowrap;
+      overflow: hidden;
+      padding-left: 20px;
+      .router-link-active {
+        color: @accent-color;
+        text-decoration: none;
+      }
+      .router-link-exact-active {
+        color: @accent-color;
+        text-decoration: none;
+      }
+      a {
+        color: @white;
+        size: 18px;
+        padding: 0px 20px;
+        &.active {
+          color: @accent-color;
+        }
+      }
+      .ant-popover-open {
+        i {
+          transform: rotate(180deg);
+          transition: all ease-out 200ms;
+        }
+      }
+    }
+    &-right {
+      flex: none;
+      height: 100%;
+      padding-right: 40px;
+      .item {
+        cursor: pointer;
+        letter-spacing: 1px;
+        position: relative;
+        margin: 0 8px;
+        color: @white;
+        &:hover {
+          color: rgba(255, 255, 255, 0.85);
+        }
+        a{
+          color: @white;
+          :hover{
+            color: rgba(255, 255, 255, 0.85);
+          }
+        }
+        .bell{
+          font-size: 16px;
+        }
+      }
+    }
+  }
+}
+.breadcrumb {
+  padding: 8px 10px;
+  background-color: white;
+  display: none;
+}
+</style>

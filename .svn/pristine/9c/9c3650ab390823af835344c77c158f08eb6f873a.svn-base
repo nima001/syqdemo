@@ -1,0 +1,225 @@
+<template>
+  <div class="wrap">
+    <div :id="id"></div>
+  </div>
+</template>
+
+<script>
+import { Bar, Column } from "@antv/g2plot";
+import BaseMixin from "./BaseMixin"
+export default {
+  mixins: [BaseMixin],
+  data() {
+    return {
+      bar: undefined,
+      plot: undefined,
+      id: Math.random().toString(36).substr(2),
+    };
+  },
+  watch: {
+    data: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true,
+    },
+  },
+  computed: {
+    colors(){
+      let colors = this.$store.getters.getConfig('chart.colors');
+      if(colors){
+        try{
+          colors = JSON.parse(colors)
+          if(colors && colors.length){
+            return colors;
+          }
+        }catch(err){
+
+        }
+      }
+      return ["#D15456","#5488D1","#EDBA55","#D48265","#91C7AE","#749F83","#BDA29A","#6E7074","#585470","#706254"]
+    },
+  },
+  mounted() {
+    this.draw(this.data);
+  },
+  methods: {
+    createData(dataTable) {
+      if (!dataTable) {
+        return;
+      }
+      let { keyCols, valueCols, rows } = dataTable;
+      this.singleColumn = keyCols.length == 1;
+      return rows.map((item) => {
+        let key = keyCols[0];
+        let names;
+        if (keyCols.length) {
+          names = [];
+          for (let i = 1; i < keyCols.length; i++) {
+            names.push(item[keyCols[i].column]);
+          }
+        }
+        return {
+          key: item[key.column],
+          name: names && names.join("-"),
+          value: item[valueCols[0].column] || 0,
+        };
+      });
+    },
+    draw(dataTable) {
+      let data = this.createData(dataTable);
+      if (!data) {
+        return false;
+      }
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      let annotationdata = [];
+      data.forEach((item) => {
+        annotationdata.push({
+          type: "text",
+          position: [item.key, "max"],
+          content: item.value,
+          style: {
+            fill: this.settings.color||this.colors,
+            textAlign: "center",
+          },
+          offsetX: this.settings.type==='bar'?40:undefined,
+          offsetY: this.settings.type==='column'?-20:undefined,
+        });
+      });
+      let color = this.colorRgba(this.settings.color||this.colors, '20%');
+      if(this.settings.type==='column') {
+        const column = new Column(this.id, {
+          data,
+          xField: "key",
+          yField: "value",
+          color: this.settings.color||this.colors,
+          appendPadding: [20, 20, 0, 0],
+          tooltip: {
+            formatter: ({ value }) => {
+              return { name: '事项数', value: value };
+            },
+          },
+          legend: {
+            position: "top-left",
+          },
+          columnBackground: {
+            style: {
+              fill: color,
+            },
+          },
+          xAxis: {//x轴配置
+            tickLine: null,
+            line: null,
+            title: {
+              text: '共性事项数',
+              spacing: 10,
+              style: {
+                fill: '#D0D0D0'
+              }
+            }
+          },
+          yAxis: {//x轴配置
+            tickLine: null,
+            line: null,
+            title: {
+              text: '事项数',
+              spacing: 10,
+              style: {
+                fill: '#D0D0D0'
+              }
+            }
+          },
+          minColumnWidth: 28,
+          maxColumnWidth: 28,
+          annotations: annotationdata,//标注
+          interactions: [{ type: "active-region", enable: false }],
+        });
+        column.render();
+        this.plot = column;
+      }else if(this.settings.type==='bar'){
+        const bar = new Bar(this.id, {
+          data,
+          xField: "value",
+          yField: "key",
+          color: this.settings.color||this.colors,
+          padding: [20,70,20,55],
+          tooltip: {
+            formatter: ({ value }) => {
+              return { name: '事项数', value: value };
+            },
+          },
+          legend: {
+            position: "top-left",
+          },
+          barBackground: {
+            style: {
+              fill: color,
+            },
+          },
+          xAxis: {//x轴配置
+            label: null,
+            grid: null,
+          },
+          yAxis: {//x轴配置
+            tickLine: null,
+            line: null,
+            label: {
+              formatter(text) {
+                // 字符太长添加省略号
+                return text.length > 4 ? `${text.slice(0, 3)}...` : text;
+              },
+            }
+          },
+          minBarWidth: 20,
+          maxBarWidth: 20,
+          annotations: annotationdata,//标注
+          interactions: [{ type: "active-region", enable: false }],
+        });
+        bar.render();
+        this.plot = bar;
+      }
+    },
+    colorRgba(sHex, alpha) {
+    // 十六进制颜色值的正则表达式
+      var reg = /^#([0-9a-fA-f]{3}|[0-9a-fA-f]{6})$/
+      /* 16进制颜色转为RGB格式 */
+      let sColor = sHex;
+      if (sColor && reg.test(sColor)) {
+        if (sColor.length === 4) {
+          var sColorNew = '#'
+          for (let i = 1; i < 4; i += 1) {
+            sColorNew += sColor.slice(i, i + 1).concat(sColor.slice(i, i + 1))
+          }
+          sColor = sColorNew
+        }
+        // 处理六位的颜色值
+        var sColorChange = []
+        for (let i = 1; i < 7; i += 2) {
+          sColorChange.push(parseInt('0x' + sColor.slice(i, i + 2)))
+        }
+        // return sColorChange.join(',')
+        return 'rgba(' + sColorChange.join(',') + ',' + alpha + ')'
+      } 
+      else {
+        return sColor
+      }
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.wrap {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

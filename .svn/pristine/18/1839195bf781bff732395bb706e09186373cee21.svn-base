@@ -1,0 +1,24 @@
+import request from "../utils/request"
+
+export function indexReportdata() {
+  return request({
+      url: `/idmgzbm/index/report/indexReportdata`,
+      method: 'get'
+  })
+}
+
+export function loginDate(data) {
+  return request({
+      url: `/idmgzbm/index/report/loginDate`,
+      method: 'post',
+      data
+  })
+}
+
+export function realTimeData() {
+  return request({
+      url: `/idmgzbm/index/report/realTimeData`,
+      method: 'get'
+  })
+}
+

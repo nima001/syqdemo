@@ -1,0 +1,295 @@
+<template>
+  <div class="chart">
+    <div class="top-right">
+      <div class="left">
+        <a-select
+          v-if="this.active === 0 || this.active === 1 || this.active === 2"
+          @change="this.selectChange"
+          :value="this.selectedItems"
+          style="width: 150px; margin-right: 16px"
+        >
+          <a-select-option
+            :key="item.value"
+            v-for="item in selectoptioins"
+            :value="item.value"
+          >
+            {{ item.name }}
+          </a-select-option>
+        </a-select>
+      </div>
+      <div class="right">
+        <span
+          class="icon"
+          @click="choosechart(item)"
+          v-for="item in this.charts.filter((obj) => obj.disabled === false)"
+          :class="item.choose ? 'choose' : ''"
+        >
+          <a-icon :type="item.icon" />
+        </span>
+      </div>
+    </div>
+    <div class="content-right">
+      <div v-if="this.loading" class="spinning">
+        <a-spin :spinning="this.loading"/>
+      </div>
+      <div class="content" v-else>
+        <components
+          v-if="this.chartType !== 'table' && this.queryData"
+          :is="this.chartType"
+          :settings="this.settings"
+          :dataTable="queryData.data"
+        />
+        <div class="pagination" v-else-if="this.chartType === 'table' && this.tableData.length > 0">
+          <a-table
+            :pagination="false"
+            :data-source="this.tableData"
+            :columns="this.columns"
+            :rowKey="(row) => row.rows || row.quanlicode || row.district"
+          >
+            <span slot="title" v-if="this.active === 5&&this.title.value">
+              <span class="titleLeft">{{ `权力基本码：${this.title.value}` }}</span>
+              <span class="titleRight">{{ `事项名称：${this.title.label}` }}</span>
+            </span>
+            <span slot="check" slot-scope="text">
+              <a-icon type="check" v-if="text"/>
+            </span>
+          </a-table>
+          <a-pagination
+            v-if="this.tableData && this.tableData.length && this.pagination.total"
+            showSizeChanger
+            :current="this.pagination.pagenum"
+            :pageSize="pagination.pagesize"
+            :total="this.pagination.total"
+            :showTotal="(total) => `总共：${total}条`"
+            @change="onChange"
+            @showSizeChange="onShowSizeChange"
+          />
+        </div>
+        <a-empty-data v-else />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Select, Icon, Table, Pagination, Spin } from "ant-design-vue";
+import { cloneDeep, assign } from "lodash";
+import EmptyData from "@/framework/components/EmptyData";
+import { components } from "@person/components/chart";
+export default {
+  props: {
+    settings:{
+      type: Object,
+    },
+    title: {
+      type: Object,
+    },
+    pagination: {
+      type: Object,
+    },
+    loading: {
+      //是否加载状态
+      type: Boolean,
+    },
+    active: {
+      //左侧菜单选中项下标
+      type: Number,
+    },
+    values: {
+      //选择头部下拉框调用方法时的参数
+      type: Object,
+    },
+    options: {
+      //左侧选择项
+      type: Array,
+    },
+    queryData: {
+      //表格数据
+      type: Object,
+    },
+    chartType: {
+      //数据展示类型
+      type: String,
+    },
+    selectedItems: {
+      //头部下拉框选中项
+      type: Number,
+    },
+    chartTypes: {
+      //图表类型选项数据
+      type: Array,
+    },
+    result: {
+      //头部图标切换调用接口时的参数
+      type: Array,
+    },
+    tableData: {
+      //表格数据
+      type: Array,
+    },
+    columns: {
+      //表头数据
+      type: Array,
+    },
+  },
+  components: {
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AIcon: Icon,
+    ATable: Table,
+    ASpin: Spin,
+    AEmptyData: EmptyData,
+    APagination: Pagination,
+    ...components,
+  },
+  data() {
+    return {
+      charts: this.chartTypes,
+      selectoptioins: [
+        { name: "所有事项", value: 1 },
+        { name: "主项", value: 2 },
+        { name: "叶子事项", value: 3 },
+      ],
+    };
+  },
+  watch: {
+    chartType(val) {
+      return val;
+    },
+  },
+  methods: {
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.options.forEach((item, index) => {
+        if (item.choose) {
+          this.$emit(`${item.methodname}`, this.pagination);
+        }
+      });
+    },
+     //pagesize改变回调
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagesize, pagenum: 1 });
+      this.options.forEach((item, index) => {
+        if (item.choose) {
+          this.$emit(`${item.methodname}`, this.pagination);
+        }
+      });
+    },
+    selectChange(selected) {
+      this.$emit("changeSelectItem", selected);
+      //头部类型下拉选择 因为参数类型，所以执行判断
+      this.options.forEach((item, index) => {
+        if (item.choose) {
+          if (index === 0) {
+            this.$emit(`${item.methodname}`, selected);
+          } else {
+            this.values.type = selected;
+            this.pagination.pagenum = 1;
+            this.$emit(`${item.methodname}`, this.values);
+          }
+        }
+      });
+    },
+    choosechart(item) {
+      //头部图标切换选择
+      // 切换选中图标
+      this.chartTypes.forEach((items) => {
+        items.choose = false;
+      });
+      item.choose = true;
+      //切换显示的图表
+      this.$emit("changeType", item.type);
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.chart {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  .top-right {
+    padding: @content-padding-v @content-padding-h;
+    box-shadow: 0px 3px 6px 0px @primary-1;
+    display: flex;
+    justify-content: space-between;
+    .left {
+      margin: 10px 0;
+    }
+    .right {
+      margin: 10px 0;
+      display: flex;
+      height: 32px;
+      align-items: center;
+      justify-content: space-around;
+      .icon {
+        display: flex;
+        align-self: center;
+        justify-content: center;
+        border: 1px solid #e8e8e8;
+        border-radius: @border-radius-base;
+        padding: @padding-xs / 4;
+        margin-right: @padding-xs / 2;
+        transition: all 0.5s;
+        /deep/.anticon {
+          color: #e8e8e8;
+          cursor: pointer;
+          font-size: 20px;
+        }
+      }
+      .icon.choose {
+        border: 1px solid @primary-color;
+        /deep/.anticon {
+          color: @primary-color;
+        }
+      }
+    }
+  }
+  .content-right {
+    overflow: auto;
+    max-height: 772px;
+    position: relative;
+    flex: 1;
+    padding: @content-padding-v @content-padding-h;
+    & .spinning,& .content{
+      height: 100%;
+    }
+    .ant-spin.ant-spin-spinning{
+      position: absolute;
+      top: 25%;
+      left:50%;
+      transform: translateX(-50%);
+      z-index: 999;
+    }
+    & .ant-table-title {
+      & span{
+        font-weight: bolder;
+      }
+      & .titleLeft{
+        margin-right: 15%;
+      }
+    }
+    //表头伸缩
+    // /deep/.ant-table-thead > tr > th{
+    //   max-width: 56px;
+    //   word-break: keep-all; /* 不换行 */
+    //   white-space: nowrap; /* 不换行 */
+    //   & div{
+    //     text-overflow: ellipsis;
+    //     overflow: hidden;
+    //   }
+    // }
+    /deep/.ant-table-tbody > tr > td {
+      max-width: 60px;
+      word-break: keep-all; /* 不换行 */
+      white-space: nowrap; /* 不换行 */
+      overflow: hidden; /* 内容超出宽度时隐藏超出部分的内容 */
+      text-overflow: ellipsis; /* 当对象内文本溢出时显示省略标记(...) ；需与overflow:hidden;一起使用。*/
+    }
+    /deep/.ant-pagination {
+      float: right;
+      margin-top: 10px;
+    }
+  }
+}
+</style>

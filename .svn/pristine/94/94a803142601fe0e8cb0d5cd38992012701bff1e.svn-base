@@ -1,0 +1,144 @@
+<template>
+  <div class="container">
+    <a-input read-only class="code-one" :value="showname" @click.native="showSelect = true">
+      <a-icon slot="suffix" type="down" style="color: rgba(0,0,0,.25)" />
+    </a-input>
+    <a-select :value="defaultData.op2" @change="opChange" >
+      <a-select-option v-for="item in opList" :value="item.value" :key="item.value">{{item.text}}</a-select-option>
+    </a-select>
+    <a-input-number :value="defaultData.value" @change="handleChange" />
+
+    <a-modal title="字段选择" 
+      :visible="showSelect"
+      :destroyOnClose="true" 
+      :footer='null' 
+      @cancel='showSelect=false'  
+      width='500px' 
+      :bodyStyle="{padding:'0px'}"
+    >
+      <select-field :targetid="targetid" :criteria="defaultData" @finish="finishHandle"/>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Input, InputNumber, Select, Icon , Modal } from "ant-design-vue";
+import SelectField from '../components/SelectField';
+import { querylistop } from "@/person/api/integratedquery";
+import { showError } from "@/framework/utils/index";
+
+//数字算术运算(加减乘除)
+export default {
+  name: "NumberArith",
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    },
+    targetid: {
+      type: Number,
+    }
+  },
+  data(){
+    return {
+      showSelect : false
+    }
+  },
+  components: {
+    AModal: Modal,
+    AInput: Input,
+    AInputNumber: InputNumber,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AIcon: Icon,
+    SelectField
+  },
+  created() {
+    if (this.defaultData.op && !this.defaultData.opListTwo) {
+      this.getListop(this.defaultData.field.key);
+    }
+  },
+  computed: {
+    showname() {
+      let field = this.defaultData.field2
+      return field && field.showname;
+    },
+    opList(){
+      return this.defaultData.opListTwo;
+    }
+  },
+  watch: {
+    // opList(opts){
+    //   if(!this.defaultData.op2 && opts && opts.length){
+    //     this.$store.commit({
+    //       type: "SET_OP_TWO",
+    //       position: this.position,
+    //       op2: opts[0].value
+    //     });
+    //   }
+    // }
+  },
+  methods: {
+    finishHandle(type,data){
+      this.showSelect = false;
+      if(type == 'ok'){
+        this.$store.commit({
+          type: "ADD_FIELD_TWO",
+          position: this.position,
+          field: data
+        });
+      }
+    },
+    getListop(key) {
+      querylistop({
+        targetid: this.targetid,
+        key,
+        op: this.defaultData.op
+      }).then(res => {
+        this.$store.commit({
+          type: "SET_OP_LIST_TWO",
+          position: this.position,
+          data: res.result
+        });
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    opChange(value) {
+      this.$store.commit({
+        type: "SET_OP_TWO",
+        position: this.position,
+        op2: value
+      });
+    },
+    handleChange(value) {
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  display: flex;
+  // flex: 3;
+  width: 500px;
+  .code-one {
+    flex: 2;
+    margin-right: 15px;
+  }
+  .ant-select {
+    flex: 1;
+    margin-right: 15px;
+  }
+  .ant-input {
+    flex: 1;
+  }
+}
+</style>

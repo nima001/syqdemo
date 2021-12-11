@@ -1,0 +1,118 @@
+<template>
+  <a-spin :spinning="loading">
+    <div class="donut">
+      <div ref="container">
+      </div>
+    </div>
+  </a-spin>
+</template>
+<script>
+import { Spin } from "ant-design-vue";
+import { Donut } from '@antv/g2plot';
+import { dataqualityList } from "@/person-shaoxing/api/monitor";
+import { showError } from "@/framework/utils/index";
+export default {
+  props: {
+    district: {
+      type: String,
+      defalut: undefined
+    },
+    handlestatus: {
+      type: Number
+    },
+    title: {
+      type: String
+    }
+  },
+  name: 'Donut',
+  components: {
+    ASpin: Spin
+  },
+  watch: {
+    district: {
+      handler() {
+        this.getData();
+      },
+      immediate: true
+    }
+  },
+  data() {
+    return {
+      donutPlot: null,
+      isCreated: false,
+      loading: false
+    }
+  },
+  created() {
+  },
+  mounted() {
+  },
+  methods: {
+    getData() {
+      this.loading = true;
+      let district = JSON.stringify({
+        district: this.district
+      });
+      let params = {
+        orgquery: district,
+        handlestatus: this.handlestatus,
+        querytype: 1
+      };
+      dataqualityList(params)
+      .then(({result}) => {
+        this.loading = false;
+        if(this.isCreated) {
+          this.donutPlot.destroy();
+          this.donutInit(result);
+        }else{
+          this.donutInit(result);
+          this.isCreated = true;
+        }
+      })
+      .catch(err => {
+        this.loading = false;
+        showError(err);
+      })
+    },
+    systype(key){
+      let d = this.$store.getters.dictKey("person.monitor.strategytype", key);
+      return (d && d.text) || '';
+    },
+    donutInit(data) {
+      this.donutPlot = new Donut(this.$refs.container, {
+         forceFit: true,
+        title: {
+          visible: true,
+          text: `${this.title}问题总数分类情况`,
+          alignTo: 'middle'
+        },
+        legend: {
+          visible: true,
+          text: {
+            formatter: (v) => {
+              return this.systype(v) || "";
+            },
+          },
+          position: 'bottom-center',
+          marker: {
+            symbol: 'square'
+          },
+        },
+        radius: 0.8,
+        padding: 'auto',
+        data,
+        angleField: 'value',
+        colorField: 'fieldname',
+        color: ['#D15456', '#5488D1', '#D1BF3D', '#D48265'],
+        statistic: {
+          visible: true,
+        },
+      });
+      this.donutPlot.render();
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+
+</style>

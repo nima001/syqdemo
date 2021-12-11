@@ -1,0 +1,150 @@
+<template>
+  <div class="org-case">
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <a-table 
+          class="org-case-table"
+          :rowKey="generateRowKey"
+          :columns="columns" 
+          :dataSource="tableData" 
+          :pagination="false"
+          :footer="handleFooterShow"
+          :bordered="true"
+          >
+        </a-table>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**内设机构情况
+*/
+import { Row, Col, Table } from "ant-design-vue";
+import { createReportItem, trStyle } from "@/person-shaoxing/utils/index";
+export default {
+  props: {
+    data: Array
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+    ATable: Table
+  },
+  data() {
+    return {
+      columns: [
+        { title: '序号', customRender: (text, row, index) => index + 1, width: '10%' },
+        { title: '内设机构名称', dataIndex: 'name', width: '45%' },
+        { title: '是否综合性', dataIndex: 'synthesis', width: '45%' },
+      ],
+      tableData: [],
+      columnFooter: [
+        { title: '内设机构名称', dataIndex: 'name', width: '55%' },
+        { title: '内设机构名称', dataIndex: 'org', width: '45%' },
+      ],
+      footerDataSource: [
+        {
+          name: '是否超过33%',
+          org: ''
+        }
+      ]
+    };
+  },
+  watch: {},
+  computed: {
+  },
+  created() {
+    this.tableData = this.data;
+  },
+  mounted() {
+  },
+  methods: {
+    getHtml() {
+      let headArr = [
+        {text: '序号', colspan: 1},
+        {text: '内设机构名称', colspan: 1},
+        {text: '是否综合性', colspan: 1}
+      ]
+      let thead = `<thead><tr style="${trStyle}">`
+      let tbody = `<tbody>`
+      //  生成表头
+      headArr.forEach((item, index) => {
+        thead += `<td colspan="${item.colspan}">${item.text}</td>` 
+      })
+      thead  = thead + `</tr></thead>`
+      //  宽度
+      let width = Math.round(1/headArr.length * 10000) / 100 + '%';
+      //  生成表单内容
+      this.data.forEach((item, index) => {
+        tbody += `<tr style="${trStyle}">`;
+        headArr.forEach((list, num) => {
+          if (num == 0) {
+            tbody += `<td style="width: ${width};">${index + 1}</td>`
+          } else if (num == 1) {
+            let res = this.data[index].name ? this.data[index].name : ''
+            tbody += `<td style="width: ${width};">${res}</td>`
+          } else {
+            tbody += `<td style="width: ${width};"></td>`
+          }
+        })
+        tbody += `</tr>`
+      })
+      tbody += `<tr style="${trStyle}"><td style="text-align: center;" colspan="2">是否综合性</td><td colspan="1"></td></tr></tbody>`
+      let temp = `<table style="width: 100%; margin: 20px 0;">${thead}${tbody}</table>`
+      return createReportItem(temp, '关联情况分析')
+    },
+    generateRowKey() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    },
+    handleFooterShow(data) {
+      if(data.length > 0) {
+        return (
+          <a-table
+            rowKey={Math.random}
+            class="footer"
+            bordered={false}
+            pagination={false}
+            columns={this.columnFooter}
+            dataSource={this.footerDataSource}
+            showHeader={false}
+          ></a-table>
+        );
+      }else{
+        return false;
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.org-case{  
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+  .org-case-table{
+    /deep/.ant-table-body{
+      
+      th{
+        > div{
+          text-align: center;
+        }
+      }
+      td{
+        text-align: center;
+      }
+    }
+    /deep/.ant-table-footer{
+      background-color: @white;
+      padding: 0;
+      border: none;
+      /deep/tr{
+        /deep/td{
+          text-align: center;
+        }
+      }
+    }
+  }
+}
+</style>

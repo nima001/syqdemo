@@ -1,0 +1,47 @@
+<template>
+  <div>
+    <h2 v-if="title" :style="{ margin: 0, textAlign: 'center' }">{{title}}</h2>
+    <a-table
+      :columns="columns"
+      :dataSource="dataSource"
+      :pagination="false"
+    />
+  </div>
+</template>
+<script>
+import { Table } from 'ant-design-vue'
+import BaseMixin from "@person/components/chart/BaseMixin"
+
+/**
+ * 统计数据表
+ */
+export default {
+  icon: 'table',
+  components: {
+    ATable: Table,
+  },
+  mixins: [BaseMixin],
+  computed: {
+    columns(){
+      if(!this.data){
+        return [];
+      }
+      let {keyCols = [], valueCols = []} = this.data;
+      return [
+         ... keyCols.map(item => ({
+          title: item.showname, 
+          dataIndex: item.column, 
+        })),
+        ... valueCols.map(item => ({
+          title: item.showname, 
+          align: 'center', 
+          dataIndex: item.column, 
+        }))
+      ]
+    },
+    dataSource(){
+      return this.data && this.data.rows;
+    }
+  }
+}
+</script>

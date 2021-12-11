@@ -1,0 +1,64 @@
+import request from '@/framework/utils/request'
+
+
+//获取统计图
+export function getChart(id) {
+    return request({
+        url: '/person/chart/' + id,
+        method: 'get',
+    })
+}
+
+//保存统计图
+export function saveChart(data) {
+    return request({
+        url: '/person/chart',
+        method: 'post',
+        data
+    })
+}
+
+//删除统计图
+export function deleteChart(id) {
+    return request({
+        url: '/person/chart/' + id,
+        method: 'delete',
+    })
+}
+
+
+//统计查询
+export function aggregateQuery(data) {
+    return request({
+        url: '/person/chart/aggregate',
+        method: 'post',
+        data,
+        timeout: 15000
+    })
+}
+
+//获取统计图
+export function getChartById(id, data) {
+    return request({
+        url: '/person/chart/aggregate/' + id,
+        method: 'post',
+        data,
+        timeout: 15000
+    })
+}
+
+/**
+ * 根据统计项追溯查询数据
+ * @param {Number} id 
+ * @param {Object} row 
+ * @param {Object} context 
+ */
+export function deriveQuery(id, {row, valIndex, context, extFilter, pagenum, pagesize, needtotal, orders}){
+    return request({
+        url: '/person/chart/derive/' + id,
+        method: 'post',
+        data: {
+            row, valIndex, context, extFilter, pagenum, pagesize, needtotal, orders
+        }
+    })
+}

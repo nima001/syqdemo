@@ -1,0 +1,160 @@
+<template>
+  <div class="home-body">
+    <a-row>
+      <a-col :span="6">
+        <a-row class="cell">
+          <a-col :span="24" class="left-top">
+            <content-module :showBtn="true" title="全市编制核定与实有情况">
+              <template v-slot:chart="{unittype}">
+                <radar-chart :unittype="unittype"></radar-chart>
+              </template>
+            </content-module>
+          </a-col>
+          <a-col :span="24" class="left-bottom">
+            <content-module :showBtn="true" title="全市领导职数核定与实配情况">
+              <template v-slot:chart="{unittype}">
+                <radar-chart-zs :unittype="unittype"></radar-chart-zs>
+              </template>
+            </content-module>
+          </a-col>
+        </a-row>
+      </a-col>
+      <a-col :span="12" class="middle">
+        <a-row class="cell">
+          <a-col :span="24" class="middle-top">
+            <a-row class="cell top-cell">
+              <a-col :span="12" class="top-left">
+                <content-module title="全市机构限额">
+                  <template v-slot:chart>
+                    <limit-org></limit-org>
+                  </template>
+                </content-module>
+              </a-col>
+              <a-col :span="12" class="top-right">
+                <content-module title="全市编制限额">
+                  <template v-slot:chart>
+                    <limit-authorized></limit-authorized>
+                  </template>
+                </content-module>
+              </a-col>
+            </a-row>
+          </a-col>
+          <a-col :span="24" class="middle-bottom">
+            <content-module title="全市机构设置情况">
+              <template v-slot:chart>
+                <l7-map></l7-map>
+              </template>
+            </content-module>
+          </a-col>
+        </a-row>
+      </a-col>
+      <a-col :span="6">
+        <a-row class="cell">
+          <a-col :span="24" class="right-top">
+            <content-module title="全市机构编制问题与黑名单机构数">
+              <template v-slot:chart>
+                <bar-chart></bar-chart>
+              </template>
+            </content-module>
+          </a-col>
+          <a-col :span="24" class="right-middle">
+            <content-module title="全市机构编制问题整改情况排行">
+              <template v-slot:chart>
+                <rever-bar-chart></rever-bar-chart>
+              </template>
+            </content-module>
+          </a-col>
+          <a-col :span="24" class="right-bottom">
+            <content-module :showBtn="true" title="全市近五年预计退休人数">
+              <template v-slot:chart="{unittype}">
+                <line-chart :unittype="unittype"></line-chart>
+              </template>
+            </content-module>
+          </a-col>
+        </a-row>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+import { Row, Col } from "ant-design-vue";
+import ContentModule from "./components/ContentModule";
+import LimitOrg from "./components/LimitOrg";
+import LimitAuthorized from "./components/LimitAuthorized";
+import L7Map from "./components/L7Map";
+import RadarChart from "./components/RadarChart";
+import RadarChartZs from "./components/RadarChartZs";
+import BarChart from "./components/BarChart";
+import ReverBarChart from "./components/ReverBarChart";
+import LineChart from "./components/LineChart";
+export default {
+  components: {
+    ARow: Row,
+    ACol: Col,
+    ContentModule,
+    LimitOrg,
+    LimitAuthorized,
+    L7Map,
+    RadarChart,
+    RadarChartZs,
+    BarChart,
+    ReverBarChart,
+    LineChart
+  },
+  data() {
+    return {};
+  },
+  created() {}
+};
+</script>
+<style lang='less' scoped>
+.home-body {
+  padding: @layout-space-base;
+  height: 100%;
+  .ant-row {
+    height: 100%;
+    .ant-col-6,
+    .ant-col-12 {
+      height: 100%;
+      .cell {
+        display: flex;
+        flex-direction: column;
+        &.top-cell {
+          flex-direction: row;
+        }
+        .ant-col-24 {
+          flex: 1;
+        }
+        .left-top,
+        .right-top,
+        .right-middle {
+          padding-bottom: @layout-space-base / 2;
+        }
+        .left-bottom,
+        .right-middle,
+        .right-bottom {
+          padding-top: @layout-space-base / 2;
+        }
+        .middle-top {
+          flex: 1;
+          padding-bottom: @layout-space-base / 2;
+        }
+        .middle-bottom {
+          flex: 3;
+          padding-top: @layout-space-base / 2;
+        }
+        .top-left {
+          padding-right: @layout-space-base / 2;
+        }
+        .top-right {
+          padding-left: @layout-space-base / 2;
+        }
+      }
+    }
+    .middle {
+      padding: 0 @layout-space-base;
+    }
+  }
+}
+</style>

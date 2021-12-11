@@ -1,0 +1,38 @@
+
+/**
+ * 考核管理
+ */
+import Layout from '../../views/Layout'
+
+export const examRoutes = {
+	path: '/person/exam',
+	component: Layout,
+	children: [
+		{
+			path: '',
+			component: () => import('../../views/exam/index'),
+			name: 'examIndex',
+			redirect: 'result',
+			children: [
+				{
+					path: 'result',
+					component: () => import('../../views/exam/ExamResult'),
+					name: 'examResult',
+					meta: { 
+						auth: 'login',
+						path: [ {name: '考核结果',path: '/person/org/examresult'}] 
+					}
+				},
+				{
+					path: 'rule',
+					component: () => import('../../views/exam/ExamRule.vue'),
+					name: 'examRule',
+					meta: { 
+						auth: 'login',
+						path: [ { name: '考核细则', path: '/person/org/examrule' }] 
+					}
+				}
+			]
+		}
+	]
+}

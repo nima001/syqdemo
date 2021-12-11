@@ -1,0 +1,224 @@
+<template>
+  <div class="matterBody" style="height: 500px">
+    <div class="header">
+      <a-select placeholder="--请选择分类--" allowClear @change="handleChange">
+        <a-select-option v-for="item in mattersort" :key="item.key" :value="item.value">{{item.text}}</a-select-option>
+      </a-select>
+      <a-input-search placeholder="请输入事项名称" allowClear @search="onSearch" />
+    </div>
+    <div class="content">
+      <a-spin :spinning="spinning">
+        <div class="spin-content">
+          <div class="adjust" v-for="(item, index) in dataTitle" :key="index">
+            <h1>{{item | capitalize(mattersort)}}</h1>
+            <ul>
+              <li v-for="(dataitem, index) in data.filter(filterItem=>filterItem.sort === item)" :key="index">
+                <span><CustomIcon type="list" /></span>
+                <span class="desc" :title="dataitem">{{ dataitem.content }}</span>
+                <a-button @click="clickhandle(dataitem.loginurl)">在线办理</a-button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </a-spin>
+      <EmptyData v-if="!this.data.length"/>
+      <a-pagination
+        v-if="this.data.length"
+        show-size-changer
+        :total="pagination.total"
+        :page-size="pagination.pagesize"
+        :default-current="pagination.pagenum"
+        :show-total="(total) => `共 ${total} 条`"
+        @change="onChange"
+        @showSizeChange="onShowSizeChange"
+      />
+    </div>
+  </div>
+</template>
+<script>
+
+/**
+ * 事项办理列表
+ */
+import CustomIcon from "@/framework/components/CustomIcon";
+import EmptyData from "@/framework/components/EmptyData";
+import { Select, Input, Button, Pagination, Spin } from "ant-design-vue";
+import { assign, groupBy, keys, cloneDeep } from 'lodash';
+import { mattersearch } from '@/person-shaoxing/api/bussiness';
+import { showError } from '@/framework/utils';
+export default {
+  components: {
+    EmptyData,
+    CustomIcon,
+    ASpin: Spin,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AButton: Button,
+    APagination: Pagination,
+    AInputSearch: Input.Search,
+    APagination: Pagination,
+  },
+  data() {
+    return {
+      data: [],
+      dataTitle: [],
+      spinning: false,
+      pagination: {
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+        needtotal: true,
+        mattersort: undefined,
+        mattercontent: undefined,
+      },
+    };
+  },
+  computed: {
+    mattersort() {
+      return this.$store.getters.dict('person.mattersort');
+    }
+  },
+  mounted() {
+    this.matterSearch(this.pagination);
+  },
+  filters: {
+    capitalize: function (value, mattersort) {
+      if (!value) return '';
+      let mattertext = mattersort.filter((item)=>parseInt(item.value)==parseInt(value));
+      return mattertext[0].text;
+    }
+  },
+  methods: {
+    handleChange(value) {
+      if(value) {
+        this.pagination.mattersort = value;
+      }else{
+        this.pagination.mattersort = undefined;
+      }
+      this.matterSearch(this.pagination);
+    },
+    onSearch(value) {
+      if(value) {
+        this.pagination.mattercontent = value;
+      }else{
+        this.pagination.mattercontent = undefined;
+      }
+      this.matterSearch(this.pagination);
+    },
+    clickhandle(item) {
+      window.open(item);
+    },
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.matterSearch(this.pagination);
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagesize, pagenum: 1 });
+      this.matterSearch(this.pagination);
+    },
+    matterSearch(data) {
+      this.spinning = true;
+      mattersearch(data).then(({result})=>{
+        this.spinning = false;
+        if(result.rows.length) {
+          this.data = cloneDeep(result.rows);
+          this.dataTitle = keys(groupBy(result.rows, 'sort'));
+          delete result.rows;
+          assign(this.pagination,result);
+        }else{
+          this.data = [];
+          this.dataTitle = [];
+          this.Notification("暂无数据");
+        }
+      }).catch((err)=>{
+        this.data = [];
+        this.dataTitle = [];
+        this.Notification("暂无数据");
+        this.spinning = false;
+        showError(err);
+      })
+    },
+    Notification(message) {
+      this.$notification.warning({
+        message: '提示',
+        description: `${message}！`,
+        duration: 3,
+      })
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.matterBody {
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-radius: @border-radius-base;
+  .header {
+    padding: @padding-md;
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid #efefef;
+    .ant-select,
+    .ant-input-search {
+      width: 40%;
+    }
+    /deep/.ant-input-search .ant-input-search-icon {
+      color: @primary-color;
+    }
+  }
+  .content {
+    flex: 1;
+    padding: @padding-md;
+    position: relative;
+    .adjust ul {
+      li {
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #efefef;
+        padding: 6px 0;
+        .icon {
+          width: 25px;
+          height: 25px;
+          margin: 0 20px;
+        }
+        .desc {
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          cursor: pointer;
+        }
+        .desc:hover {
+          color: @primary-color;
+        }
+        .ant-btn {
+          position: static;
+          color: @primary-color;
+          justify-self: flex-start;
+          margin: 0 20px 0 auto;
+        }
+      }
+    }
+    .ant-pagination {
+      float: right;
+      margin-top: 10px;
+    }
+    /deep/.empty {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%,-50%);
+    }
+    .spin-content {
+      height: 363px;
+      overflow-y: auto;
+    }
+    .ant-spin-nested-loading .ant-spin {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%,-50%);
+    }
+  }
+}
+</style>

@@ -1,0 +1,276 @@
+<template>
+  <div class="container">
+    <div class="top">
+      <div class="left">
+        <p>参公事业单位</p>
+        <LcdFont :length="5" :realNumber="(num.text&&num.text.cgsyjgs)?num.text.cgsyjgs:0" :realStyle="realStyle" :fakeStyle="fakeStyle"/>
+      </div>
+      <div class="right">
+        <p>非参公事业单位</p>
+        <LcdFont :length="5" :realNumber="(num.text&&num.text.fcgsyjgs)?num.text.fcgsyjgs:0" :realStyle="realStyle" :fakeStyle="fakeStyle"/>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="ring" v-for="(item, type) in data" :key="type">
+        <RingChart
+          :data="item.data"
+          :settings="{
+            canvas: { width: 300, height: 400 },
+            padding: [-90,0,0,-50],
+            radius: 0.5,
+            innerRadius: 0.8,
+            tooltip: {
+              visible: true,
+            },
+            color: ['#F2A54D','#60B4F5','#F84848','#DF6EA3','#6EDF75','#A66DF5','#C3F1CE','#A0A4F5'],
+            infoText: {
+              title: item.data.rows[0].k0,
+              offsetY: -20,
+              style: { fontSize: 18, fill: '#fff', textAlign: 'center' },
+            },
+            contentStyle: {
+              offsetY: 10,
+              fontSize: 25, fill: '#fff', textAlign: 'center'
+            }
+          }"
+        >
+          <template v-slot:customLegend="props">
+            <div class="legend">
+              <p class="title">
+                {{item.settings.name}}
+              </p>
+              <ul>
+                <li v-for="(row, index) in item.data.rows" :key="index" @click="showOrgList(row, type)">
+                  <span class="left">
+                      <span :style="{background: props[index]}" class="spot"></span>
+                      <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                        <template slot="title">
+                          <span>{{row.k0}}</span>
+                        </template>
+                          <span>{{row.k0}}</span>
+                      </a-tooltip>
+                  </span>
+                  <span>{{row.v}}</span>
+                </li>
+              </ul>
+            </div>
+          </template>
+        </RingChart>
+      </div>
+    </div>
+    <dialog-box v-model="showOrgs">
+      <OrgList :district="districtCode" :unittypes="[3]" :filter="filter" />
+    </dialog-box>
+  </div>
+</template>
+<script>
+import { Tooltip } from 'ant-design-vue';
+import DialogBox from '../components/DialogBox'
+import OrgList from '../components/OrgList';
+import LcdFont from './LcdFont';
+import { includes } from 'lodash';
+import RingChart from "@person/components/chart/RingChart";
+import { areaStatistics } from '@/person-shaoxing/api/orgStaffReport'
+
+export default {
+  components: {
+    DialogBox,
+    RingChart,
+    LcdFont,
+    OrgList,
+    ATooltip: Tooltip
+  },
+  props: {
+    districtCode: String,
+    num: {
+      type: Object,
+      default: ()=>{
+        return {}
+      }
+    },
+    data: {
+      type: Array,
+      default: ()=>{
+        return []
+      }
+    }
+  },
+  data(){
+    return {
+      showOrgs: false,
+      show: false,
+      realStyle: {
+        color: "#FF7C28",
+        textStroke: "1 #ECA066",
+        opacity: 0.95,
+        fontSize: '3em',
+      },
+      fakeStyle: {
+        fontSize: '3em',
+      },
+      filter: undefined
+    }
+  },
+  created(){
+    console.log(this.data)
+  },
+  watch: {
+    fundform(val) {
+      return val;
+    },
+    unitsort(val) {
+      return val;
+    }
+  },
+  computed: {
+    fundform() {
+      let v = this.$store.getters.dict('usermanage.org.fundform');
+      return v || [];
+    },
+    unitsort() {
+      let v = this.$store.getters.dict('usermanage.org.unitsort');
+      return v || [];
+    },
+  },
+  methods: {
+    showOrgList(item, type) {
+      if(type === 0){
+        let fundforms = this.fundform.filter((type)=>type.text==item.k0)[0];
+        this.filter = [
+          { 
+            field: { key: "fundform", showname: "经费形式" },
+            op: "eq",
+            value: fundforms && fundforms.value
+          }
+        ];
+      }else{
+        let unitsorts = this.unitsort.filter((type)=>includes(type.text,item.k0))[0];
+        this.filter = [
+          { 
+            field: { key: "unitsort", showname: "单位分类" },
+            op: "eq",
+            value: unitsorts && unitsorts.value
+          }
+        ];
+      }
+      this.showOrgs = true;
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  .top {
+    width: 100%;
+    height: 35%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    .left, .right {
+      width: 20%;
+      text-align: center;
+      p {
+        margin-bottom: 10px;
+        color: #fff;
+        font-size: 1.3em;
+      }
+    }
+  }
+  .bottom {
+    width: 100%;
+    flex: 1;
+    display: flex;
+    justify-content: space-around;
+    .ring {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      /deep/.ring-chart {
+        .chart {
+          width: 60%;
+          position: relative;
+          &::before {
+            content: '';
+            background: #242B5B;
+            position: absolute;
+            width: 210px;
+            height: 210px;
+            left: 14%;
+            top: 12.5%;
+            border-radius: 50%;
+          }
+        }
+      }
+      .title {
+        margin-bottom: 20px;
+        font-size: 1.4em;
+        font-weight: 600;
+      }
+      .legend {
+        width: 50%;
+        height: 500px;
+        padding: @padding-lg;
+        text-align: left;
+        position: absolute;
+        top: 50%;
+        left: 45%;
+        transform: translateY(-50%);
+        color: fade(#fff, 80%);
+        display: flex;
+        flex-direction: column;
+        .title {
+          text-align: center;
+          position: relative;
+          left: -50%;
+        }
+        ul {
+          width: 265px;
+          height: 240px;
+          border-radius: 10px;
+          padding: @padding-md @padding-md @padding-md 50px;
+          margin: 0;
+          margin-left: auto;
+          background: url('../../../assets/img/screen/age-education-bg.png') no-repeat;
+          background-size: cover;
+          overflow-y: scroll;
+          li {
+            width: 100%;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 1.2em;
+            cursor: pointer;
+            user-select: none;
+            .left {
+              width: 70%;
+              margin-right: 10px;
+              white-space: nowrap;
+              text-overflow: ellipsis;
+              overflow: hidden;
+              .spot {
+                width: 10px;
+                height: 10px;
+                margin-right: 10px;
+                border-radius: @border-radius-base;
+                display: inline-block;
+              }
+            }
+            &:hover {
+              color:#fff;
+            }
+            & > span:last-child {
+              color: #02E7EF;
+              text-align: right;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</style>

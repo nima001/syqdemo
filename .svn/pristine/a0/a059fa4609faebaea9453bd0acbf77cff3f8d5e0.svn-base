@@ -1,0 +1,35 @@
+import Vue from 'vue'
+import Router from 'vue-router'
+import Layout from '../views/Layout'
+Vue.use(Router)
+
+/* Router Modules */
+
+export default new Router({
+  mode: 'history',
+  base: process.env.BASE_URL,
+  routes: [
+    {
+      path: '/formdesign',
+      component: Layout,
+      meta: { title: '表单设计器' },
+      children: [
+        {
+          path: '',
+          component: () => import('../views/Form'),
+          name: 'form'
+        },
+        {
+          path: 'display',
+          component: () => import('../views/demoDisplay'),
+          name: 'demoDisplay'
+        },
+        {
+          path: 'design',
+          component: () => import('../views/demoDesign'),
+          name: 'demoDisplay'
+        }
+      ]
+    }
+  ]
+})

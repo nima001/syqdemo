@@ -1,0 +1,512 @@
+<template>
+  <div class="layout-line">
+    <div class="layout-content">
+      <div class="header">
+        <div class="add">
+          <a-button class="addbtn" @click="showModal">
+            <a-icon type="plus-circle" /> 新增
+          </a-button>
+        </div>
+        <div class="search">
+          <a-input v-model="orgname" placeholder="请输入条线名称" />
+          <a-button class="searchbtn" type="primary" @click="search">
+            查询
+          </a-button>
+          <a-button class="resetbtn" @click="reset">重置</a-button>
+        </div>
+      </div>
+      <div class="content">
+        <a-table
+          :loading="loading"
+          :columns="columns"
+          :data-source="data"
+          :pagination="false"
+          :rowKey="(row) => row.id"
+        >
+          <p style="margin: 0" slot="orgname" slot-scope="text, record">
+            <span v-for="(item, index) in record.orgs" :key="item.orgid">
+              <span v-if="record.orgs.length !== index + 1">{{
+                item.orgname + "，"
+              }}</span>
+              <span v-else>{{ item.orgname }}</span>
+            </span>
+          </p>
+          <span slot="action" slot-scope="text, record">
+            <a style="margin-right: 8px" @click.prevent="edit(record)">编辑</a>
+            <a @click.prevent="delorg(record.id)">删除</a>
+          </span>
+        </a-table>
+      </div>
+      <div class="footer">
+        <a-pagination
+          v-model="pagination.pagenum"
+          showSizeChanger
+          :showTotal="(total) => `总共：${total}条`"
+          :total="pagination.total"
+          :pageSize="pagination.pagesize"
+          show-quick-jumper
+          :default-current="1"
+          @change="onPageChange"
+          @showSizeChange="onShowSizeChange"
+        />
+      </div>
+      <a-modal
+        title="条线编辑"
+        :destroyOnClose="true"
+        :width="700"
+        :bodyStyle="{ height: '500px' }"
+        :visible="visible"
+        @ok="handleOk"
+        @cancel="handleCancel"
+      >
+        <a-form
+          :form="form"
+          :label-col="{ span: 4 }"
+          :wrapperCol="{ span: 19 }"
+          style="padding: 8px 24px"
+        >
+          <a-form-item label="条线名称">
+            <a-input
+              v-decorator="[
+                'name',
+                {
+                  initialValue: this.records.name,
+                  rules: [
+                    { required: true, message: '请输入条线名称!' },
+                    { validator: isRepeat },
+                  ],
+                },
+              ]"
+            />
+          </a-form-item>
+          <a-form-item label="组成结构">
+            <a-input
+              style="display: none"
+              v-decorator="[
+                'mechanism',
+                {
+                  initialValue:
+                    this.nodelist.length > 0 ? this.nodelist.length : undefined,
+                  rules: [{ required: true, message: '请选择组成结构!' }],
+                },
+              ]"
+            />
+            <div class="mechanism" tabindex="0">
+              <ul>
+                <li v-for="(item, index) in nodelist">
+                  {{ item.orgname }}
+                  <span @click.stop="deleteItem(index)" class="delete">
+                    <a-icon type="close" />
+                  </span>
+                </li>
+              </ul>
+            </div>
+          </a-form-item>
+          <a-form-item style="margin: 0">
+            <a-row>
+              <a-col :offset="5">
+                <div class="addorgline" @click="showOrg">
+                  <a-icon type="plus-circle" />
+                  <span>添加机构</span>
+                </div>
+              </a-col>
+            </a-row>
+          </a-form-item>
+        </a-form>
+      </a-modal>
+      <a-modal
+        v-model="orgVisible"
+        title="选择机构"
+        :width="800"
+        :bodyStyle="{ height: '600px', padding: '0' }"
+        :footer="null"
+      >
+        <org-user-select
+          mode="org"
+          :showDept="true"
+          :max-select="100"
+          :root-selectable="true"
+          :selected.sync="selected"
+          :editStatus="true"
+          @finish="selectOrg"
+        />
+      </a-modal>
+    </div>
+  </div>
+</template>
+
+<script>
+import {
+  Button,
+  Icon,
+  Input,
+  Table,
+  Modal,
+  Form,
+  Row,
+  Col,
+  Pagination,
+} from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import {
+  orglinequery,
+  orglinesave,
+  orglinedel,
+  orgvalid,
+} from "@/person-shaoxing/api/information";
+import { showError } from "../../../framework/utils";
+const columns = [
+  {
+    title: "序号",
+    dataIndex: "index",
+    key: "index",
+    width: "5%",
+    customRender: (text, record, index) => `${index + 1}`,
+  },
+  {
+    title: "条线名称",
+    dataIndex: "name",
+    key: "name",
+    width: "15%",
+  },
+  {
+    title: "条线机构",
+    dataIndex: "orgname",
+    key: "orgname",
+    scopedSlots: { customRender: "orgname" },
+  },
+  {
+    title: "操作",
+    dataIndex: "action",
+    key: "action",
+    width: "15%",
+    scopedSlots: { customRender: "action" },
+  },
+];
+export default {
+  components: {
+    AButton: Button,
+    AIcon: Icon,
+    AInput: Input,
+    ATable: Table,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ATextarea: Input.TextArea,
+    ARow: Row,
+    ACol: Col,
+    OrgUserSelect,
+    APagination: Pagination,
+  },
+  data() {
+    return {
+      columns,
+      visible: false,
+      orgVisible: false,
+      data: [],
+      nodelist: [],
+      selected: [],
+      records: {},
+      orgname: "",
+      loading: false,
+      pagination: {
+        needtotal: true,
+        pagenum: 1,
+        pagesize: 10,
+        total: 0,
+      },
+      form: this.$form.createForm(this, { name: "orglineForm" }),
+    };
+  },
+  watch: {
+    selected(val) {
+      return val;
+    },
+  },
+  created() {
+    this.getData({ ...this.pagination, namelike: this.orgname });
+  },
+  methods: {
+    //校验是否重复
+    async isRepeat(rule, value, callback) {
+      await orgvalid({
+        name: value,
+        orgs: this.records.orgs,
+        id: this.records.id,
+      })
+        .then((res) => {
+          callback();
+        })
+        .catch((err) => {
+          callback("条线名称已存在");
+        });
+    },
+    //页数改变回调
+    onPageChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.getData({ ...this.pagination, namelike: this.orgname });
+    },
+    //pagesize改变回调
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagesize, pagenum: 1 });
+      this.getData({ ...this.pagination, namelike: this.orgname });
+    },
+    showModal() {
+      this.records = {};
+      this.nodelist = [];
+      this.selected = [];
+      this.visible = true;
+    },
+    handleCancel(e) {
+      this.visible = false;
+    },
+    showOrg() {
+      //修改selected防止每次修改阻止后取消，再打开组织选择会保持上次结果
+      this.selected = [];
+      (this.records.orgs || []).forEach((items) => {
+        this.selected.push({
+          name: items.orgname,
+          _id: items.orgid,
+          checked: true,
+        });
+      });
+      this.orgVisible = true;
+    },
+    edit(item) {
+      this.records = cloneDeep(item);
+      //深拷贝防止出现表格数据和弹窗数据同步修改的问题
+      this.nodelist = cloneDeep(item.orgs);
+      //给selected赋值，用于勾选已选的现象
+      this.selected = [];
+      item.orgs.forEach((items) => {
+        this.selected.push({
+          name: items.orgname,
+          _id: items.orgid,
+          checked: true,
+        });
+      });
+      this.visible = true;
+    },
+    reset() {
+      this.orgname = "";
+    },
+    search() {
+      assign(this.pagination, { pagenum: 1 });
+      this.getData({ ...this.pagination, namelike: this.orgname });
+    },
+    deleteItem(index) {
+      //不能直接操作nodelist会导致表格数据和弹出框数据同时变动
+      this.nodelist.splice(index, 1);
+      this.selected.splice(index, 1);
+      this.records.orgs = [];
+      //处理selected，让单个删除后的组成结构内容和添加机构内容保持一致
+      this.selected.forEach((item) => {
+        this.records.orgs.push({ orgname: item.name, orgid: item._id });
+      });
+      if (this.nodelist.length === 0) {
+        this.form.setFieldsValue({ mechanism: undefined });
+      } else {
+        this.form.setFieldsValue({ mechanism: this.nodelist.length });
+      }
+    },
+    //确定选择的机构
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok") {
+        let orgarr = [];
+        list.forEach(function (item) {
+          orgarr.push({
+            orgid: item._id || item.orgid,
+            orgname: item.name,
+            name: item.name,
+            district: item.district,
+          });
+        });
+        this.nodelist = orgarr;
+        //处理selected，让选择后的组成结构内容和添加机构内容保持一致
+        this.records.orgs = [];
+        this.selected.forEach((item) => {
+          this.records.orgs.push({ orgname: item.name, orgid: item._id });
+        });
+        this.form.setFieldsValue({ mechanism: this.nodelist.length });
+      }
+    },
+    handleOk(e) {
+      //验证输入
+      this.form.validateFields((err, values) => {
+        let that = this;
+        if (!err) {
+          orglinesave({
+            id: this.records.id || undefined,
+            name: values.name,
+            orgs: this.nodelist,
+          })
+            .then((res) => {
+              if (res.code === "success") {
+                that.getData({ ...that.pagination, namelike: that.orgname });
+              }
+            })
+            .catch((err) => {
+              showError(err);
+            });
+          this.visible = false;
+        }
+      });
+    },
+    delorg(id) {
+      let that = this;
+      this.$confirm({
+        title: "删除这条数据?",
+        okText: "确定",
+        cancelText: "取消",
+        onOk() {
+          orglinedel(id)
+            .then((res) => {
+              if (res.code === "success") {
+                that.getData({ ...that.pagination, namelike: that.orgname });
+              }
+            })
+            .catch((err) => {
+              showError(err);
+            });
+        },
+      });
+    },
+    getData(data) {
+      this.loading = true;
+      let that = this;
+      orglinequery(data)
+        .then((res) => {
+          that.data = res.result.rows;
+          assign(that.pagination, res.result);
+          that.loading = false;
+        })
+        .catch((err) => {
+          that.loading = false;
+          showError(err);
+        });
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+.layout-line {
+  height: 100%;
+  padding: @layout-space-base;
+  display: flex;
+  .layout-content {
+    background-color: #ffffff;
+    padding-top: @content-padding-v;
+    flex: 1;
+    .header {
+      display: flex;
+      padding: @content-padding-v @content-padding-h;
+      .add {
+        /deep/.addbtn.ant-btn {
+          color: @primary-color;
+          background-color: @white;
+          border-color: @primary-color;
+          &:hover {
+            color: lighten(@primary-color, 20%);
+            border-color: lighten(@primary-color, 20%);
+          }
+        }
+      }
+      .search {
+        display: flex;
+        margin-left: auto;
+        button {
+          margin-left: @padding-md;
+        }
+        /deep/.resetbtn.ant-btn {
+          color: @primary-color;
+          background-color: @white;
+          border-color: @primary-color;
+          &:hover {
+            color: lighten(@primary-color, 20%);
+            border-color: lighten(@primary-color, 20%);
+          }
+        }
+      }
+    }
+    .content {
+      padding: @content-padding-v @content-padding-h;
+      /deep/ .ant-table-tbody > tr > td:nth-child(2) {
+        max-width: 28px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      /deep/ .ant-table-tbody > tr > td:nth-child(3) {
+        max-width: 888px;
+        & p {
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+      }
+    }
+    .footer {
+      float: right;
+      padding: @content-padding-v @content-padding-h;
+      .ant-pagination {
+        float: right;
+      }
+    }
+  }
+}
+.mechanism {
+  height: 150px;
+  display: flex;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  outline: 0;
+  transition: all 0.3s;
+  overflow: auto;
+  margin-bottom: 5px;
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    margin: 0;
+    li {
+      max-height: 32px;
+      line-height: 2;
+      background: #e8e8e8;
+      border-radius: 4px;
+      padding: 0 4px;
+      margin: @padding-xs / 2;
+      white-space: nowrap;
+      .delete {
+        cursor: pointer;
+      }
+    }
+  }
+}
+.mechanism:hover {
+  border-color: #e32724;
+  border-right-width: 1px !important;
+}
+.mechanism:focus {
+  border-color: #e32724;
+  border-right-width: 1px !important;
+  outline: 0;
+  -webkit-box-shadow: 0 0 0 2px rgba(214, 0, 2, 0.2);
+  box-shadow: 0 0 0 2px rgba(214, 0, 2, 0.2);
+}
+.addorgline {
+  width: 60%;
+  height: 32px;
+  border-radius: @border-radius-base;
+  border: 1px dashed @primary-color;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  color: @primary-color;
+  /deep/.anticon-plus-circle {
+    margin-right: @content-padding-v;
+  }
+}
+</style>

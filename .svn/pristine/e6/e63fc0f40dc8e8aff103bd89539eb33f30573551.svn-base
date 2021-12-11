@@ -1,0 +1,829 @@
+<template>
+  <div class="workflow">
+    <div class="userbatch" v-if="userBatchCode">
+      <a-button @click="addUser">批量添加用户</a-button>
+      <a-button @click="deleteUser">删除</a-button>
+    </div>
+    <a-form-item
+      :require="property.require"
+      v-if="property.childs.length"
+      :label="property.showName?property.name:''"
+    >
+      <div class="commonlistWrap">
+        <a-table
+          :columns="columns"
+          :dataSource="data"
+          bordered
+          :pagination="property.pagingable?pagination:false"
+          :rowSelection="rowSelection"
+          @change="handleTableChange"
+          :scroll="{x:(property.childs.length+2)*100}"
+        >
+          <template
+            slot="index"
+            slot-scope="text,record,index"
+            v-if="property.orderNumber"
+          >{{record.total?'合计':property.pagingable?pagination.pageSize*(pagination.current-1)+index+1:index+1}}</template>
+          <template
+            v-for="(col,index) in columns.slice(1,columns.length)"
+            :slot="col.dataIndex"
+            slot-scope="text,record"
+          >{{record.total?(text?text:"/"):text}}</template>
+          <template slot="operation" slot-scope="text, record" v-if="!record.total">
+            <a
+              href="javascript:;"
+              v-if="property.editable && property.roweditable"
+              @click="edit(record.key)"
+              style="color:blue;margin-right:5px"
+            >编辑</a>
+            <a
+              href="javascript:;"
+              @click="onDelete(record._id)"
+              style="color:red;margin-left:5px"
+              v-if="property.editable && property.rowdeletable"
+            >删除</a>
+          </template>
+        </a-table>
+        <div class="addMenber">
+          <a-button
+            type="primary"
+            icon="plus"
+            v-if="property.editable && property.rowaddable"
+            @click="openMenber"
+          >添加一条</a-button>
+        </div>
+      </div>
+      <a-input
+        type="hidden"
+        v-decorator="[
+          `${property.code}`,
+          {
+            rules: [{required: property.require, message: `请填写${property.name}!`}],
+            initialValue: common
+          }
+        ]"
+      ></a-input>
+      <!-- 添加 -->
+      <a-modal
+        :title="type?'添加':'编辑'"
+        v-model="visible"
+        @ok="add"
+        @cancel="visible=false"
+        :destroyOnClose="true"
+        width="600px"
+        :bodyStyle="{'height':autoHeight+'px','overflow':'auto'}"
+      >
+        <a-form :form="form" @submit="add">
+          <template v-for="item in formList">
+            <complex
+              :key="item.code"
+              :bindform="form"
+              :item="item"
+              @getComplex="getComplex"
+              :current="current"
+              :typecode="typecode"
+              :pcode="code"
+              :dateArr="dateArr"
+            ></complex>
+          </template>
+        </a-form>
+      </a-modal>
+      <!-- 人员选择列表 -->
+      <a-modal
+        :footer="null"
+        v-model="uservisible"
+        :width="800"
+        title="选择人员"
+        :bodyStyle="{ height: '600px', padding: '0'}"
+        >
+        <org-user-select 
+          mode="user" 
+          :maxSelect="1000" 
+          :selected="selectedArr"  
+          :disabledKeys="disabledKeysArr" 
+          :userFilter="userFilter"
+          @finish="userOk" />
+      </a-modal>
+    </a-form-item>
+    <stamp
+      :property="property"
+      @imgUrl="getStamp"
+      v-if="property.signcomponent.signcode && property.signcomponent.editable"
+    ></stamp>
+    <a-form-item class="stampNotice" v-if="!imgUrl && property.signcomponent.signcode">
+      <a-input
+        type="hidden"
+        v-decorator="[
+          `${property.signcomponent.code}`,
+          {
+            rules: [{required: property.signcomponent.require, message: `请选择签章!`}],
+            initialValue: stamp
+          }
+        ]"
+      ></a-input>
+    </a-form-item>
+    <div class="seal" v-if="imgUrl">
+      <img :src="imgUrl" />
+    </div>
+  </div>
+</template>
+<script>
+import Stamp from "./stampComponent/Stamp";
+import Complex from "./complexComponent/Complex";
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+import { getStampInfo } from "@/workflow/api/stamplist";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { showError, guid } from "@/framework/utils/index";
+import "@/workflow/style/workflow.css";
+import { Form, Table, Icon, Input, Modal, Button } from "ant-design-vue";
+import moment from "moment";
+export default {
+  name: "CommonList",
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      data: [],
+      arr: [],
+      columns: [],
+      pagination: {
+        pageSize: 10,
+        current: 1,
+        total: 0
+      },
+      visible: false,
+      code: this.property["code"],
+      formData: this.$store.getters.formData,
+      form: this.$form.createForm(this),
+      formList: [],
+      imgUrl: null,
+      stamp: null,
+      users: {},
+      org: {},
+      type: true,
+      current: {},
+      curIndex: null,
+      autoHeight: 0,
+      windowHeight: window.innerHeight,
+      selectedRowKeys: [],
+      uservisible: false,
+      selectedArr: [],
+      disabledKeysArr: [],
+      userFilter: null,
+      userBatchCode:null,
+      constants:{},
+      countrequired:false,
+    };
+  },
+  props: {
+    property: {
+      type: Object,
+      required: true
+    },
+    bindform: {
+      type: Object,
+      required: true
+    },
+    typecode: {
+      type: Object
+    }
+  },
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    ATable: Table,
+    AIcon: Icon,
+    AInput: Input,
+    AModal: Modal,
+    AButton: Button,
+    Stamp,
+    Complex,
+    OrgUserSelect
+  },
+  mounted() {
+    this.autoHeight = this.windowHeight * 0.5;
+    window.onresize = () => {
+      return (() => {
+        this.windowHeight = window.innerHeight;
+      })();
+    };
+    this.pagination.pageSize = this.property.pagesize;
+  },
+  created() {
+    if (this.property.orderNumber) {
+      this.columns = [
+        {
+          title: "序号",
+          key: "index",
+          dataIndex: "index",
+          align: "center",
+          fixed: "left",
+          width: 60,
+          scopedSlots: { customRender: "index" }
+        }
+      ];
+    }
+    this.dateArr = [];
+    let firstuser = true;
+    this.property.childs.forEach(item => {
+      this.columns.push({
+        title: item.name,
+        dataIndex: item.code,
+        scopedSlots: { customRender: item.code }
+      });
+      if (item.componenttype == "combobox") {
+        //判断下拉选项是否需要分组
+        //缓存常量
+        let constantMap = {};
+        let optionObj = {};
+        let options = [];
+        item.options.forEach(obj => {
+          if (item.showGroup) {
+            if (obj.group) {
+              if (!optionObj[obj.group]) {
+                this.$set(optionObj, obj.group, [
+                  { text: obj.text, value: obj.value }
+                ]);
+              } else {
+                optionObj[obj.group].push({ text: obj.text, value: obj.value });
+              }
+            } else {
+              if (!optionObj["其他"]) {
+                this.$set(optionObj, "其他", [
+                  { text: obj.text, value: obj.value }
+                ]);
+              } else {
+                optionObj["其他"].push({ text: obj.text, value: obj.value });
+              }
+            }
+          } else {
+            options.push({ text: obj.text, value: obj.value });
+          }
+          constantMap[obj.value] = obj.text;
+        });
+
+        for (var obj in optionObj) {
+          options.push({
+            label: obj,
+            data: optionObj[obj]
+          });
+        }
+        this.$set(item, "options", options);
+        this.constants[item.constant] = constantMap;
+      } else if (item.componenttype == "datebox") {
+        this.dateArr.push(item.code);
+      }
+      if(this.property.userbatchable && item.componenttype == "user"){
+        if(firstuser){
+          if(item.userFilter){
+            this.userFilter = JSON.parse(item.userFilter);
+          }
+          this.userBatchCode = item.code;
+          firstuser = false;
+        }
+      }
+    });
+    if (this.property.editable) {
+      this.columns.push({
+        title: "操作",
+        dataIndex: "operation",
+        align: "center",
+        fixed: "right",
+        width: 100,
+        scopedSlots: { customRender: "operation" }
+      });
+    }
+    this.formList = this.property.childs;
+    if (this.formData[this.code]) {
+      this.arr = this.formData[this.code];
+      this.data = [];
+      this.arr.forEach((o, index) => {
+        this.$set(o, "key", index);
+        let obj = {};
+        this.property.childs.forEach(a => {
+          for (var b in o) {
+            if (a.code == b) {
+              if (a.componenttype == "checkbox") {
+                let temp = [];
+                a.options.forEach(c => {
+                  o[b].forEach(d => {
+                    if (c.value == d) {
+                      temp.push(c.text);
+                    }
+                  });
+                });
+                this.$set(obj, b, temp.map(o => o).join("、"));
+              } else if (a.componenttype == "switchbox") {
+                this.$set(obj, b, o[b] ? "是" : "否");
+              } else {
+                if (a.options) {
+                  a.options.forEach(c => {
+                    if (c.label && c.data.length) {
+                      c.data.forEach(d => {
+                        if (d.value == o[b]) {
+                          this.$set(obj, b, d.text);
+                        }
+                      });
+                    } else {
+                      if (c.value == o[b]) {
+                        this.$set(obj, b, c.text);
+                      }
+                    }
+                  });
+                } else {
+                  if (a.componenttype == "org" && o[b]) {
+                    this.$set(obj, b, o[b].name);
+                  } else if (a.componenttype == "user" && o[b]) {
+                    this.$set(obj, b, o[b].username);
+                  } else if (a.componenttype == "datebox" && o[b]) {
+                    this.$set(obj, b, o[b].substr(0, 10));
+                  } else {
+                    this.$set(obj, b, o[b]);
+                  }
+                }
+              }
+            }
+          }
+        });
+        if (o._id) {
+          this.$set(obj, "_id", o._id);
+        } else {
+          this.$set(obj, "_id", guid());
+          this.$set(o, "_id", obj._id);
+        }
+        this.$set(obj, "key", index);
+        this.data.push(obj);
+      });
+      if (
+        this.property.countcomponent &&
+        this.property.countcomponent.totalRequired &&
+        this.property.countcomponent.childs.length > 0
+      ) {
+        this.countrequired = true;
+        this.count();
+      }
+    } else {
+      if (!this.property.require) {
+        this.formData[this.code] = null;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.formData
+        });
+      }
+    }
+    if (this.formData[this.property.signcomponent.code]) {
+      //获取签章图片
+      getStampInfo(this.formData[this.property.signcomponent.code])
+        .then(res => {
+          this.imgUrl =
+            this.uiConfigs["api.url"] +
+            "/file/v1/download" +
+            "?uri=" +
+            encodeURIComponent(res.result.pictureurl);
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  },
+  computed: {
+    common() {
+      return this.data.length?this.data.length:'';
+    },
+    tabledata() {
+      return this.$store.getters.formData[this.property.code];
+    },
+    total() {
+      return this.data.length;
+    },
+    rowSelection(){
+      if(this.userBatchCode){
+        return {
+          selectedRowKeys: this.selectedRowKeys,
+          onChange: this.onSelectChange,
+          getCheckboxProps: record => ({props:{disabled: (this.property.userbatchable && this.countrequired && (record.key+1) == this.data.length)}})
+        }
+      }else{
+        return null;
+      }
+    }
+  },
+  watch: {
+    windowHeight(val) {
+      this.windowHeight = val;
+      this.autoHeight = val * 0.5;
+    },
+    current(val) {
+      this.current = val;
+    },
+    tabledata(newVal) {
+      this.init(newVal);
+    },
+    total(newval) {
+      this.pagination.total = newval;
+    }
+  },
+  methods: {
+    moment,
+    init(val) {
+      // todo
+      this.data = [];
+      if (val && val.length) {
+        this.arr = val;
+        //this.data = [];
+        this.arr.forEach((o, index) => {
+          this.$set(o, "key", index);
+          let obj = {};
+          this.property.childs.forEach(a => {
+            for (var b in o) {
+              if (a.code == b) {
+                if (a.componenttype == "checkbox") {
+                  let temp = [];
+                  a.options.forEach(c => {
+                    o[b].forEach(d => {
+                      if (c.value == d) {
+                        temp.push(c.text);
+                      }
+                    });
+                  });
+                  this.$set(obj, b, temp.map(o => o).join("、"));
+                } else if (a.componenttype == "switchbox") {
+                  this.$set(obj, b, o[b] ? "是" : "否");
+                } else {
+                  if (a.options) {
+                    a.options.forEach(c => {
+                      if (c.label && c.data.length) {
+                        c.data.forEach(d => {
+                          if (d.value == o[b]) {
+                            this.$set(obj, b, d.text);
+                          }
+                        });
+                      } else {
+                        if (c.value == o[b]) {
+                          this.$set(obj, b, c.text);
+                        }
+                      }
+                    });
+                  } else {
+                    if (a.componenttype == "org" && o[b]) {
+                      this.$set(obj, b, o[b].name);
+                    } else if (a.componenttype == "user" && o[b]) {
+                      this.$set(obj, b, o[b].username);
+                    } else if (a.componenttype == "datebox" && o[b]) {
+                      this.$set(obj, b, o[b].substr(0, 10));
+                    } else {
+                      this.$set(obj, b, o[b]);
+                    }
+                  }
+                }
+              }
+            }
+          });
+          if (o._id) {
+            this.$set(obj, "_id", o._id);
+          } else {
+            this.$set(obj, "_id", guid());
+            this.$set(o, "_id", obj._id);
+          }
+          this.$set(obj, "key", index);
+          this.data.push(obj);
+        });
+        if (
+          this.property.countcomponent &&
+          this.property.countcomponent.totalRequired &&
+          this.property.countcomponent.childs.length > 0
+        ) {
+          this.count();
+        }
+      }
+    },
+    handleTableChange(pagination) {
+      const pager = { ...this.pagination };
+      pager.current = pagination.current;
+      this.pagination = pager;
+    },
+    //删除
+    onDelete(id) {
+      if (this.property.editable) {
+        this.data = this.data.filter(item => item._id !== id);
+        this.arr = this.arr.filter(item => item._id !== id);
+        this.updataIndex();
+        this.$store.getters.formData[this.code] = this.arr.length?this.arr:undefined;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.$store.getters.formData
+        });
+      }
+    },
+    changeDate(date, dateString) {
+      this.date = dateString;
+    },
+    openMenber() {
+      this.type = true;
+      this.current = {};
+      this.curIndex = null;
+      this.visible = true;
+    },
+    add(e) {
+      e.preventDefault();
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let obj = {};
+          //保存到数据库的数据
+          //包装机构人员的数据
+          for (var a in values) {
+            if (this.users[a]) {
+              this.$set(values, a, this.users[a].item);
+            } else if (this.org[a]) {
+              this.$set(values, a, this.org[a].item);
+            }
+          }
+          this.property.childs.forEach(b => {
+            for (var a in values) {
+              if (b.code == a) {
+                if (b.componenttype == "datebox" && values[a]) {
+                  this.$set(values, a, values[a].format("YYYY-MM-DD"));
+                }
+              }
+            }
+          });
+          //呈现出来的数据
+          this.property.childs.forEach(a => {
+            for (var b in values) {
+              if (a.code == b) {
+                if (a.componenttype == "checkbox") {
+                  let temp = [];
+                  a.options.forEach(c => {
+                    values[b].forEach(d => {
+                      if (c.value == d) {
+                        temp.push(c.text);
+                      }
+                    });
+                  });
+                  this.$set(obj, b, temp.map(o => o).join("、"));
+                  this.form.setFieldsValue({ [a.code]: [] });
+                } else if (a.componenttype == "switchbox") {
+                  this.$set(obj, b, values[b] ? "是" : "否");
+                } else {
+                  if (a.options) {
+                    a.options.forEach(c => {
+                      if (c.label && c.data.length) {
+                        c.data.forEach(d => {
+                          if (d.value == values[b]) {
+                            this.$set(obj, b, d.text);
+                          }
+                        });
+                      } else {
+                        if (c.value == values[b]) {
+                          this.$set(obj, b, c.text);
+                        }
+                      }
+                    });
+                  } else {
+                    if (this.users[b]) {
+                      this.$set(obj, b, this.users[b].item.username);
+                    } else if (this.org[b]) {
+                      this.$set(obj, b, this.org[b].item.name);
+                    } else {
+                      this.$set(obj, b, values[b]);
+                    }
+                  }
+                  if (a.componenttype == "datebox") {
+                    this.form.setFieldsValue({ [a.code]: undefined });
+                  } else {
+                    this.form.setFieldsValue({ [a.code]: "" });
+                  }
+                }
+              }
+            }
+          });
+          if (this.type) {
+            obj._id = guid();
+            values._id = obj._id;
+            this.data.push(obj);
+            this.arr.push(values);
+            this.$message.success("添加成功！");
+          } else {
+            obj._id = this.data[this.curIndex]._id;
+            values._id = this.arr[this.curIndex]._id;
+            this.data[this.curIndex] = obj;
+            this.arr[this.curIndex] = values;
+            this.$message.success("修改成功！");
+          }
+          this.$store.getters.formData[this.code] = this.arr;
+          this.$store.commit({
+            type: "SET_FORM_DATA",
+            data: this.$store.getters.formData
+          });
+          this.visible = false;
+          this.updataIndex();
+        }
+      })
+    },
+    updataIndex(){
+      if (
+        this.property.countcomponent &&
+        this.property.countcomponent.totalRequired &&
+        this.property.countcomponent.childs.length > 0
+      ) {
+        this.count();
+      } ;
+      this.data.forEach((item, index) => {
+        item.key = index;
+      });
+      this.arr.forEach((item, index) => {
+        item.key = index;
+      })
+    },
+    //增加合计项目
+    count() {
+      let needData = {};
+      this.data = this.data.filter(item => {
+        return !item.total;
+      });
+      if (this.data.length == 0) {
+        needData = "";
+      } else {
+        let total = {};
+        //如果需要显示合计项，每次在增加完一条新数据时动态增加一个合计项
+        this.property.countcomponent.childs.forEach(obj => {
+          let name = obj.code.split("_")[0];
+          total[name] = null;
+          this.data.forEach(item => {
+            for (var a in item) {
+              if (name == a) {
+                total[name] += item[a];
+              }
+            }
+          });
+        });
+        total.total = "合计";
+        this.data.push(total);
+        this.data.forEach((item, index) => {
+          item.key = index;
+        });
+        for (var a in total) {
+          if (a !== "total" && a !== "key") {
+            needData[a + "_count"] = total[a];
+          }
+        }
+      }
+      this.$store.getters.formData[
+        this.property.countcomponent.code
+      ] = needData;
+      this.$store.commit({
+        type: "SET_FORM_DATA",
+        data: this.$store.getters.formData
+      });
+    },
+    //编辑
+    edit(key) {
+      if (this.property.editable) {
+        this.type = false;
+        this.visible = true;
+        this.current = this.arr[key];
+        this.curIndex = key;
+      }
+    },
+    getComplex(value) {
+      //type为1：机构，2：人员选择
+      if (value.type == 1) {
+        this.$set(this.org, value.obj.code, value.obj);
+      } else if (value.type == 2) {
+        this.$set(this.users, value.obj.code, value.obj);
+      }
+    },
+    //获取签章
+    getStamp(img) {
+      if (img) {
+        this.imgUrl = img;
+        this.stamp = img;
+      }
+    },
+    onSelectChange(selectedRowKeys) {
+      this.selectedRowKeys = selectedRowKeys;
+    },
+    addUser() {
+      this.uservisible = true;
+      this.selectedArr = [];
+      this.disabledKeysArr = this.arr.map(item => item[this.userBatchCode]._id);
+    },
+    deleteUser() {
+      this.data = this.data.filter(item => this.selectedRowKeys.indexOf(item.key) < 0);
+      this.arr = this.arr.filter(item => this.selectedRowKeys.indexOf(item.key) < 0);
+      this.updataIndex();
+      this.selectedRowKeys = [];
+      this.$store.getters.formData[this.code] = this.arr.length?this.arr:undefined;
+      this.$store.commit({
+        type: "SET_FORM_DATA",
+        data: this.$store.getters.formData
+      });
+    },
+    userOk(type, list) {
+      if(!this.userBatchCode){
+        return;
+      }
+      this.uservisible = false;
+      if (type == "ok" && list.length > 0) {
+        let addDatas = [];
+        let addArr = [];
+        //组装用户数据然后批量添加
+        list.forEach(user => {
+          let dataItem = {_id: guid()};
+          let arrItem = {...dataItem};
+          let first = true;
+          this.property.childs.forEach(c => {
+            if(c.componenttype == 'user'){
+              if(this.property.userbatchable){
+                if(first){
+                  dataItem[this.userBatchCode] =  user[c.fieldsource];
+                  arrItem[this.userBatchCode] = {_id: user._id, [c.fieldsource]: user[c.fieldsource]};
+                  first = false;
+                }else{
+                  dataItem[c.code] =  user[c.code].username;
+                  arrItem[c.code] = {_id: user[c.code]._id, [c.fieldsource]: user[c.code].username};
+                }
+              }else{
+                dataItem[c.code] =  user[c.code].username;
+                arrItem[c.code] = {_id: user[c.code]._id, [c.fieldsource]: user[c.code].username};
+              }
+            }else if(c.componenttype == 'org'){
+              if(this.property.orgbatchable){
+                if(first){
+                  dataItem[this.userBatchCode] =  user[c.fieldsource];
+                  arrItem[this.userBatchCode] = {_id: user._id, [c.fieldsource]: user[c.fieldsource]};
+                  first = false;
+                }else{
+                  dataItem[c.code] =  user[c.code].name;
+                  arrItem[c.code] = {_id: user[c.code]._id, [c.fieldsource]: user[c.code].name};
+                }
+              }else{
+                dataItem[c.code] =  user[c.code].name;
+                arrItem[c.code] = {_id: user[c.code]._id, [c.fieldsource]: user[c.code].name};
+              }              
+            }else if(c.componenttype == "checkbox" 
+                || c.componenttype == "radio"
+                || c.componenttype == "combobox"){
+              let constantMap = this.constants[c.constant];
+              let values = (user[c.code]+"").split(",");
+              if(values.length > 1){
+                dataItem[c.code] =  values.map(v => constantMap[v]).join("、");
+              }else if(values.length == 1){
+                dataItem[c.code] =  constantMap[values[0]];
+              }
+              arrItem[c.code] =  user[c.code];
+            }else if(c.componenttype == 'datebox'){
+              let dataformat = moment(user[c.code]).format("YYYY-MM-DD");
+              dataItem[c.code] =  dataformat;
+              arrItem[c.code] = dataformat;
+            }else if(c.componenttype == "switchbox"){
+              dataItem[c.code] =  user[c.code] ? "是" : "否";
+              arrItem[c.code] =  user[c.code];
+            }else{
+              dataItem[c.code] =  user[c.code];
+              arrItem[c.code] =  user[c.code];
+            }
+          });
+          addDatas.push(dataItem);
+          addArr.push(arrItem);
+        });
+        this.data.push.apply(this.data, addDatas);
+        this.arr.push.apply(this.arr, addArr);
+        this.$store.getters.formData[this.code] = this.arr;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.$store.getters.formData
+        });
+        this.updataIndex();
+      }
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.commonlistWrap {
+  background: #fff;
+  padding: 10px;
+  border-radius: 5px;
+  /deep/.ant-table-thead > tr > th {
+    white-space: nowrap;
+  }
+}
+.userbatch{
+    position: absolute;
+    right: 0px;
+    top:-4px;
+    z-index: 10;
+    button{
+      color: @primary-color;
+      border-color: @primary-color;
+      margin-right: 10px;
+    }
+}
+.addMenber {
+  text-align: center;
+  button {
+    margin: 10px auto;
+  }
+}
+</style>
+

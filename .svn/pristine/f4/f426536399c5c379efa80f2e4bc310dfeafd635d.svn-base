@@ -1,0 +1,44 @@
+import notification from 'ant-design-vue/es/notification'
+import 'ant-design-vue/lib/notification/style'
+
+// 接口统一错误提示
+export function showError (error) {
+  if (typeof error.code === 'number') {
+    // 生成环境 http状态错误不提示
+    return
+  }
+  notification.error({
+    message: '提示',
+    description: error.desc || '未知错误' + (error.code || ''),
+    duration: 2
+  })
+}
+//  颜色组
+export const colorGroup = ['#D15456', '#5488D1', '#EDBA55', '#D48265', '#91C7AE', '#749F83', '#BDA29A', '#6E7074', '#585470', '#706254'];
+
+//  axis配置类
+export class AxisOption {
+  constructor(axiosColor, showGrid, showTitle) {
+    let AxisOption = { label: { textStyle: { fill: axiosColor.labelColor } }, line: {} };
+    AxisOption['line']['stroke'] = axiosColor.lineColor;
+    AxisOption['title'] = showTitle ? {} : null;
+    if(showGrid === false) {
+      AxisOption['grid'] = null;
+    }
+    return AxisOption
+  }
+}
+
+/*
+ * 处理百分比
+ * @param {Number} divisor 除数
+ * @param {Number} dividend 被除数
+ * @param {Number} decimal 需要保留几位小数
+ * @return {String} 
+ */
+export function numberToPercent (divisor, dividend, decimal = 0) {
+  if (!divisor || !dividend) return 0
+  return Math.floor((divisor / dividend) * (100 * Math.pow(10, decimal))) / Math.pow(10, decimal) + "%"
+}
+
+

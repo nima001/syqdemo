@@ -1,0 +1,296 @@
+<template>
+  <div class="wrap">
+    <a-row class="row" type="flex" justify="end">
+      <a-col :span="4" class="col">
+        <a-select placeholder="请选择人员分类" v-model="usertype" >
+          <a-select-option
+            :value="item.value"
+            v-for="(item,index) in peopleType"
+            :key="index"
+          >{{item.name}}</a-select-option>
+        </a-select>
+      </a-col>
+      <a-col :span="4" class="col">
+        <a-input placeholder="请输入姓名" :allowClear="true" v-model="searchkey" />
+      </a-col>
+      <a-col class="col">
+        <a-button type="primary" @click="search">搜索</a-button>
+      </a-col>
+    </a-row>
+      <a-table
+       class="table"
+        rowKey="_id"
+        ::loading="loading"
+        :columns="columns"
+        :dataSource="dataSource"
+        :rowClassName="(row) => pagination.selected && pagination.selected._id == row._id ? 'selected': ''"
+        :customRow="customRow"
+        :pagination="false"
+        :loading="loading"
+      >
+      <div class="table-tr" slot="username" slot-scope="record">
+        <span v-if="showWorkStatus" style="padding-right:3px">
+          <img
+            v-if="record._work && record._work.workstatus==5"
+            class="worstatus"
+            src="@person/assets/img/icon-workstatus-jd.png"
+          />
+          <img
+            v-else-if="record._work && record._work.workstatus==3"
+            class="worstatus"
+            src="@person/assets/img/icon-workstatus-dg.png"
+          />
+          <img
+            v-else-if="record._work && record._work.workstatus==2"
+            class="worstatus"
+            src="@person/assets/img/icon-workstatus-jz.png"
+          />
+          <img
+            v-else-if="record._work && record._work.workstatus==4"
+            class="worstatus"
+            src="@person/assets/img/icon-workstatus-gz.png"
+          />
+          <span class="worstatus" v-else />
+        </span>
+        <custom-icon type="user" :object="record" class="icon"/>
+        {{record.username}}
+      </div>
+    </a-table>     
+
+    <div class="footer">
+      <a-pagination
+        v-if="pagination.rows && pagination.rows.length"
+        showSizeChanger
+        :showTotal="total => `总共：${total}人`"
+        @showSizeChange="onShowSizeChange"
+        :total="pagination.total"
+        :pageSize="pagination.pagesize"
+        v-model="pagination.pagenum"
+        @change="onPageChange"
+      /> 
+    </div>
+  </div>
+</template>
+
+<script>
+import { Select, Row, Col, Input, Button, Table ,Pagination} from "ant-design-vue";
+import CustomIcon from "@framework/components/CustomIcon";
+import {userquery,deptuserquery,retireuser,deptretireuser} from '@person/api/user';
+import { showError } from '@framework/utils';
+import assign from 'lodash/assign';
+import {mixin} from './mixin'
+export default {
+  components: {
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    AButton: Button,
+    ATable: Table,
+    CustomIcon,
+    APagination:Pagination
+  },
+  props:{
+    org:{
+      required:true
+    },
+    nodeid:{
+      required:true
+    }
+  },
+  mixins:[mixin],
+  data() {
+    return {
+      peopleType: [
+        { name: "实有人员", value: 1 },
+        { name: "编外人员", value: 2 },
+        {name :"离退休人员",value:3}
+      ],
+      loading:false,
+      dataSource:[],
+      showWorkStatus: false,
+      loading: false,
+      pagination: {
+        selected: undefined,
+        pagesize: 20,
+        pagenum: 1,
+        total: 0
+      },
+      usertype :1,
+      searchkey : undefined
+    };
+  },
+  computed:{
+    columns(){
+      if(this.usertype == 1 ){
+        return this.columns1;
+      }else if(this.usertype == 2){
+        return this.columns2;
+      }else{
+        return this.columns3;
+      }
+    }
+  },
+  watch:{
+    org(v){
+      this.pagination = {selected: undefined,pagesize: 20,pagenum: 1,total: 0};
+      this.queryUser(this.pagination);
+    },
+    usertype(){
+      assign(this.pagination,{pagenum:1})
+      this.queryUser(this.pagination);
+    },
+  },
+  created(){
+    this.queryUser(this.pagination);
+  },
+  methods: {
+    search(){
+      this.queryUser(this.pagination);
+    },
+    //  4种查询 离退休(内设/非内设) 实有和编外(内设/非内设)
+    queryUser(pagination){
+      if (!this.org) {
+        return;
+      }
+       // unittype   6,8,9,10  都是内设
+      let deptArr = [6,8,9,10];
+      let params = {
+        needtotal:true,
+        nodeid : this.nodeid,
+        orgid : this.org._id,
+        usertype : this.usertype,
+        scope : "ORG",
+        searchkey:this.searchkey,
+        properties:{}
+      }
+      this.loading = true;
+      let unittype = this.org.unittype;
+      let request = null;
+      if(this.usertype  == 1 || this.usertype == 2){
+        // 实有人员和编外人员
+        if(deptArr.includes(this.org.unittype)){
+          // 内设
+          request = deptuserquery({...params,...pagination})
+        }else{
+          // 非内设
+          request = userquery({...params,...pagination})
+        }
+      }else{
+        // 离退休
+        if(deptArr.includes(this.org.unittype)){
+          // 内设
+          request = deptretireuser({...params,...pagination,usertype:undefined})
+        }else{
+          // 非内设
+          request = retireuser({...params,...pagination,usertype:undefined})
+        }
+      }
+      request.then(res=>{
+        let result = res.result;
+        this.dataSource = result.rows;
+        assign(this.pagination,result);
+      }).catch(err=>{
+        showError(err);
+      }).finally(()=>{
+        this.loading = false;
+      });
+    },
+    onPageChange(pagenum, pagesize) {
+      assign(this.pagination,{pagesize,pagenum})
+      this.queryUser(this.pagination)
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination,{pagesize,pagenum:1})
+      this.queryUser(this.pagination)
+    },
+    dictRender(key) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key, text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    customRow(row) {
+      return {
+        on: {
+          click: () => {
+            this.$set(this.pagination, "selected", row);
+          },
+          dblclick: event => {
+            this.$router.push({
+              path: "userinfo",
+              query: { userid: row._id ,retireuser:this.usertype == 3? true:false}
+            });
+          }
+        }
+      };
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+
+.wrap{
+  flex: auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .row {
+    padding: @content-padding-v @content-padding-h;
+    /deep/.col {
+      margin-left: @padding-xs;
+      .ant-select{
+        width: 100%;
+      }
+    }
+  }
+  .table {
+      flex-shrink: 1;
+      min-height: 0;
+      padding: 0 @content-padding-h;
+      overflow-y: auto;
+      /deep/table {
+        table-layout: fixed;
+        td,th {
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        td{
+           padding: 2px 2px;
+        }
+        tr.selected{
+          background: @primary-2;
+        }
+      } 
+      .icon{
+        width: 18px;
+        height: 18px;
+        padding: 1px;
+      }
+      .table-tr {
+        cursor: pointer;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        .worstatus {
+          width: 16px;
+          height: 16px;
+          display: inline-block;
+        }
+      }    
+  }
+  .footer {
+    padding: @content-padding-v @content-padding-h;
+    .ant-pagination {
+      float: right;
+      margin-bottom: 10px;
+    }
+  }
+}
+
+
+</style>

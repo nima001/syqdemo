@@ -1,0 +1,84 @@
+<template>
+  <div class="container">
+    <div class="left">
+      <div class="business-notice">
+        <business-notice></business-notice>
+      </div>
+      <split-line/>
+      <div class="power-change">
+        <swiper-ant :size='2' :pretBtn="{visibility:'hidden'}" :nextBtn="{visibility:'hidden'}">
+          <template slot="swiper0">
+            <power-change></power-change>
+          </template>
+          <template slot="swiper1">
+            <power-all></power-all>
+          </template>
+        </swiper-ant>
+      </div>
+    </div>
+    <div class="middle">
+      <div class="important-task">
+        <important-task></important-task>
+      </div>
+      <split-line/>
+      <div class="personTrend">
+        <person-trend></person-trend>
+      </div>
+    </div>
+    <div class="right">
+      <div class="matterList">
+        <matter-list></matter-list>
+      </div>
+      <split-line/>
+      <div class="interFace">
+        <interface-info></interface-info>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import BusinessNotice from "../businesshelper/BusinessNotice";
+import PowerChange from "../businesshelper/PowerChange";
+import ImportantTask from "../businesshelper/ImportantTask";
+import MatterList from "../businesshelper/MatterList";
+import InterfaceInfo from "../businesshelper/InterfaceInfo";
+import PersonTrend from "../businesshelper/PersonTrend";
+import { mixins} from "./minxin";
+import SwiperAnt from "../components/SwiperAnt";
+import SplitLine from './SplitLine';
+import PowerAll from '../businesshelper/PowerAll';
+export default {
+  components: {
+    BusinessNotice,
+    PowerChange,
+    ImportantTask,
+    MatterList,
+    InterfaceInfo,
+    PersonTrend,
+    SplitLine,
+    SwiperAnt,
+    PowerAll
+  },
+  mixins:[mixins],
+  created(){
+    if(!this.dictCode.dictId){
+      this.dictCode.dictId = "330600"
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.container {
+  display: flex;
+  justify-content: space-between;
+  .left {
+    width: 325px;
+  }
+  .middle {
+    width: 735px;
+  }
+  .right {
+    width: 305px;
+  }
+}
+</style>

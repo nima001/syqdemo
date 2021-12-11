@@ -1,0 +1,279 @@
+<template>
+  <div class="quota-plan-list">
+    <div class="toolbar">
+      <div class="left">
+        <a-button icon="plus" type="primary" @click="addPlan=true" v-if="hasPermit('/person/org/planList/edit')">新增用编计划</a-button>
+        <a-modal title="新增用编计划申请" :footer="null" v-model="addPlan"
+          :width="500" :bodyStyle="{height: '460px', padding: 0}">
+          <plan-form :orgid="org._id" @finish="onAddFinish"/>
+        </a-modal>
+      </div>
+      <div class="right">
+        <ul>
+          <li><router-link :to="{name: 'PlanHistory'}" class="name">本单位的申请记录</router-link></li>
+        </ul>
+      </div>
+    </div>
+    <div class="header">
+      <ul>
+        <li>编制数：<span>{{xzbzs}}</span></li>
+        <li>实有数：<span>{{xizbz_sy}}</span></li>
+        <li>超缺（-）编：<span>{{(xizbz_sy || 0) - (xzbzs || 0)}}</span></li>
+        <li>申请用编计划数：
+          <span>{{sum.total}}</span>
+          个。其中未使用
+          <span>{{sum.total - sum.locked - sum.used}}</span>
+          个（
+          <span>{{sum.recycle}}</span>
+          个可归还），使用中
+          <span>{{sum.locked}}</span>
+          个，已使用
+          <span>{{sum.used}}</span>
+          个</li>
+      </ul>
+    </div>
+    <div class="body">
+      <a-table
+        class="data-table"
+        :columns="columns"
+        :dataSource="dataList"
+        rowKey="id"
+        :loading="dataLoading"
+        :pagination="false"
+      >
+        <template slot="opt" slot-scope="data">
+          <a class="opt" @click="showPerform(data)" >使用详情</a>
+          <a class="opt" @click="recyclePlan(data)" v-if="hasPermit('/person/org/planList/edit')">归还编制</a>
+          <a class="opt" @click="deletePlan(data)" v-if="hasPermit('/person/org/planList/edit') && data.deleteable">删除</a>
+        </template>
+      </a-table>
+      <a-modal title="使用详情" :footer="null" v-model="performShowing"
+        :width="500" :bodyStyle="{height: '460px', padding: 0}">
+        <plan-perform :id="planItemId"/>
+      </a-modal>
+    </div>
+  </div>
+</template>
+<script>
+import {Modal, Table, Button} from 'ant-design-vue';
+import { getstatisinfo } from "@/person/api/org";
+import { showError } from '@/framework/utils/index';
+import PlanForm from './PlanForm';
+import PlanPerform from './PlanPerform';
+import { listPlan, deletePlanItem, recyclePlan } from '@/person/api/orgQuotaPlan'
+export default {
+  props: ['org'],
+  components: {
+    PlanForm, 
+    PlanPerform,
+    ATable: Table,
+    AModal: Modal,
+    AButton: Button,
+  },
+  data() {
+    return {
+      columns: [
+        { title: "序号", width: "50px", customRender: (text, row, index) => index + 1},
+        { title: '申请单位', customRender: (text, row, index) => this.org.name },
+        { title: "下达时间", dataIndex: 'applytime', customRender: (text) => (text && text.substr(0, 10)) },
+        { title: "申请用编计划数", dataIndex: 'items[0].total' },
+        { title: "未使用", dataIndex: 'items[0]', customRender: (item, row) => {
+          return item && (item.total || 0) - (item.locked || 0) - (item.used || 0)
+        }},
+        { title: "使用中", dataIndex: 'items[0].locked', },
+        { title: "已使用", dataIndex: 'items[0].used', },
+        { title: "申请编制类型", dataIndex: 'complietype', customRender: this.dictRender('usermanage.user.complietype')},
+        { title: "用途", dataIndex: "items[0].key", customRender: this.dictRender(null, 'type')},
+        { title: "操作", width: "200px", scopedSlots: {customRender: "opt"}}
+      ],
+      dataLoading: false,
+      xzbzs: null,
+      xizbz_sy: null,
+      sum:{
+        total: 0,
+        locked: 0,
+        used: 0,
+        recycle: 0,
+      },
+      dataList: [],
+      addPlan: false,
+      performShowing: false,
+      planItemId: null,
+    };
+  },
+  created() {
+    if (this.org) {
+      this.loadData(this.org);
+    }
+  },
+  watch:{
+    org(org){
+      if(org){
+        this.loadData(org);
+      }
+    }
+  },
+  methods: {
+    onAddFinish(type, data){
+      this.addPlan = false;
+      if(type == 'ok'){
+        this.loadData(this.org);
+      }
+    },
+    showPerform(data){
+      if(!data.items || !data.items.length){
+        return;
+      }
+      this.performShowing = true;
+      this.planItemId = data.items[0].id;
+    },
+    deletePlan(data){
+      if(!data.items || !data.items.length){
+        return;
+      }
+      let item = data.items[0];
+      if(item.used || item.locked){
+         Modal.warning({title: '提示', content: '该用编计划已被使用无法删除。'});
+         return
+      }
+       Modal.confirm({
+        title: '提示',
+        content: '确定删除用编计划？',
+        onOk:() => {
+          deletePlanItem(item.id).then(() => {
+            this.loadData(this.org);
+          }).catch(error => {
+            showError(error);
+          })
+        },
+      });
+    },
+    recyclePlan(data){
+      if(!data.items || !data.items.length){
+        return;
+      }
+      let item = data.items[0];
+      if(item.locked){
+        Modal.warning({title: '提示', content: '该用编计划正在使用中，无法归还，如果需要归还请先撤销流程。'});
+        return;
+      }
+      Modal.confirm({
+        title: '确定归还用编计划?',
+        content: '归还后，该用编计划不能再被使用。',
+        onOk:() => {
+          recyclePlan(item.id).then(() => {
+            this.loadData(this.org);
+          }).catch(error => {
+            showError(error);
+          })
+        },
+      });
+    },
+    dictRender(key, attr){
+      return (text, row, index) => {
+        let v =  this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || ''
+        return <span title={text}>{text}</span>;
+      }
+    },
+    loadData(org) {
+      let orgid = org._id;
+      this.dataLoading = true;
+      getstatisinfo(orgid).then(({result}) => {
+        this.xzbzs = result.xzbzs;
+        this.xizbz_sy = result.xizbz_sy;
+      }).catch(err =>{
+        //ignore
+      })
+      listPlan(orgid).then(({result}) => {
+        this.dataLoading = false;
+        let sum = {total: 0, used: 0, locked: 0, recycle: 0};
+        result.forEach(ele => {
+          ele.complietype = this.org.complietype;
+          if(ele.items && ele.items.length){
+            let item = ele.items[0];
+            sum.total += (item.total || 0);
+            sum.used += (item.used || 0);
+            sum.locked += (item.locked || 0);
+            if(item.locked == 0){
+              sum.recycle += (item.total || 0) - (item.used || 0);
+            }
+          }
+        });
+        this.sum = sum;
+        this.dataList = result;
+      }).catch(err => {
+        showError(err);
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.quota-plan-list {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  & > .toolbar {
+    padding: @content-padding-v @content-padding-h;
+    margin: 0;
+    .left {
+      float: left;
+    }
+    .right {
+      float: right;
+    }
+    ul {
+      margin: 0;
+      white-space: nowrap;
+    }
+    li {
+      display: inline-block;
+      margin-left: 8px;
+      white-space: nowrap;
+      .name {
+        line-height: 32px;
+        padding-right: 5px;
+        vertical-align: middle;
+      }
+    }
+  }
+  & > .header{
+    ul{
+      margin: 0 @content-padding-h @content-padding-v @content-padding-h;
+      overflow: hidden;
+    }
+    li{
+      float: left;
+      width: 15%;
+      span{
+        font-weight: bold;
+      }
+    }
+    li:last-child{
+      width: 55%;
+    }
+  }
+  & > .body {
+    flex-shrink: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 0 @content-padding-h;
+    table {
+      table-layout: fixed;
+      td,
+      th {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .disabled {
+        color: @disabled-color;
+      }
+    }
+    .opt{
+      margin-right: 10px;
+    }
+  }
+}
+</style>

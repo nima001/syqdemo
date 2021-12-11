@@ -1,0 +1,416 @@
+<template>
+  <div class="stack-bar-chart">
+    <h2 v-if="settings.titleVisible!==false" :style="{ textAlign: settings.titlePosition||'center' }">{{ title }}</h2>
+    <h3 v-if="settings.subtitleVisible!==false" :style="{ margin: 0, textAlign: settings.titlePosition||'center' }">{{subtitle}}</h3>
+    <div ref="chart" class="chart"></div>
+  </div>
+</template>
+<script>
+import * as G2 from "@antv/g2";
+import BaseMixin from "./BaseMixin";
+import { get, groupBy, keys, reduce, orderBy, cloneDeep, xorBy, concat, map  } from 'lodash';
+import { closeWindowDelay } from '../../../framework/utils';
+
+// 堆叠柱状图
+/**
+ * color: 自定义主题色 -- Array
+ * annotation: 是否显示标注 -- Boolean
+ * background: 是否显示背景色 -- Boolean
+ * size: 柱状图宽度 -- Number
+ * padding: 自定义边距 --Array
+ * legend: 是否显示图例 -- Boolean 默认不显示
+ * label: 是否显示label -- Boolean 默认显示
+ */
+export default {
+  icon: "chart-stack-bar",
+  title: "堆叠柱状图",
+  name: "StackBarChart",
+  mixins: [BaseMixin],
+  watch: {
+    data: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true,
+    },
+    'settings': {
+      handler(val) {
+        this.draw(this.data)
+      }
+    },
+    colors: {
+      deep: true,
+      handler(val,old) {
+        if(val!=old) {
+          this.draw(this.data);
+        }
+      }
+    }
+  },
+  data() {
+    return {
+      filteredData: undefined,
+      background: undefined,
+      // plot: undefined,
+    };
+  },
+  computed: {
+    colors() {
+      if (this.settings.color&&(this.settings.color.length||typeof this.settings.color==='string')) {
+        if(typeof this.settings.color==='string') {
+          return this.settings.color.split(',');
+        }
+        return this.settings.color;
+      } else {
+        let colors = this.$store.getters.getConfig("chart.colors");
+        if (colors) {
+          try {
+            colors = JSON.parse(colors);
+            if (colors && colors.length) {
+              return colors;
+            }
+          } catch (err) {}
+        }
+      }
+      return ["#D15456", "#5488D1", "#EDBA55", "#D48265", "#91C7AE", "#749F83", "#BDA29A", "#6E7074", "#585470", "#706254"];
+    },
+    // muitl(){
+    //   if(this.data){
+    //     let { keyCols, valueCols, rows } = this.data;
+    //     return valueCols.length > 1 || keyCols.length > 1;
+    //   }
+    // }
+  },
+  mounted() {
+    this.draw(this.data);
+  },
+  methods: {
+    changeColor() {
+      if(this.muitl) {
+        this.geometry.adjust("stack").color("type", this.colors);
+      }
+      if(this.geometry.background) {
+        this.geometry.background = {
+          style: {
+            fill: this.background
+          }
+        }
+      }
+    },
+    createData(dataTable) {
+      if (!dataTable) {
+        return;
+      }
+      let { keyCols, valueCols, rows } = this.transform(dataTable);
+      return rows.map(item => {
+        let key, type;
+        if(keyCols.length > 1){
+          let keys = keyCols.map(k => item[k.column]);
+          type = keys.pop();
+          key = keys.join("-")
+        }else{
+          key = item[keyCols[0].column]
+        }
+        return {
+          key, type,
+          value: item[valueCols[0].column] || 0
+        };
+      });
+    },
+    //排序 截取
+    sortAndMerge(data) {
+      let sortData = cloneDeep(data);
+      if(!this.muitl){
+        let mergeData = [{ key: "其他", value: undefined }];
+        //截取合并之前需要先排序一次，保证截取的正确性
+        let type = get(this.settings,'sort.type');
+        let mergeOther = get(this.settings,'sort.mergeOther');
+        let afterintercept = get(this.settings, 'sort.afterintercept');
+        if (type && type !== "recover") {
+          //是否排序
+          sortData = orderBy(sortData, "value", type);
+        }
+        if (afterintercept) {
+          //是否截取
+          sortData = sortData.slice(
+            afterintercept[0] - 1,
+            afterintercept[1]
+          );
+        }
+        if (mergeOther) {
+          let xorData = map(xorBy(data, sortData, "key"), "value");
+          mergeData[0].value = reduce(xorData, (sum, n) => {
+            return sum + n;
+          });
+          sortData = concat(sortData, mergeData);
+        }
+        if (type && type !== "recover") {
+          //是否排序
+          sortData = orderBy(sortData, "value", type);
+        }
+      }
+      return sortData;
+    },
+    draw(dataTable) {
+      let data = this.createData(dataTable).filter((item)=>item.value!==0);
+      let sortData = this.sortAndMerge(data);
+      if (!data) {
+        return false;
+      }
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      const chart = new G2.Chart({
+        container: this.$refs.chart,
+        width: this.settings.canvas?this.settings.canvas.width:undefined,
+        height: this.settings.canvas?this.settings.canvas.height:undefined,
+        autoFit: (this.settings.canvas&&this.settings.canvas.width&&this.settings.canvas.height)?false:true,
+        appendPadding: this.settings.padding || [20, 0, 0, 0],
+      });
+      chart.data(sortData);
+      // let xTitle = get(this.settings, 'xAxis.title');
+      // let yTitle = get(this.settings, 'yAxis.title');
+      let xVisible = get(this.settings, 'xAxis.visible');
+      let yVisible = get(this.settings, 'yAxis.visible');
+      let xTitleVisible = get(this.settings, 'xAxis.title.visible');
+      let yTitleVisible = get(this.settings, 'yAxis.title.visible');
+      //配置X轴
+			if(xVisible) {
+				chart.axis('key', {
+          title: { 
+            style: {
+              fill: '#AAAAAA'
+            }
+          },
+          label: {
+            autoRotate: true,
+          },
+          grid: this.settings.xAxis.grid?true:null,
+          animate: false
+        });
+        if(xTitleVisible) {
+          chart.scale({
+            key: {
+              alias: this.settings.xAxis.title.content||' '
+            },
+          });
+        }else{
+          chart.scale({
+            key: {
+              alias: ' '
+            },
+          });
+        }
+			}else{
+				chart.axis('key', false);
+			}
+      //配置y轴
+			if(yVisible) {
+				chart.axis('value', {
+					title: { 
+						style: {
+							fill: '#AAAAAA'
+						}
+					},
+					label: {
+						autoRotate: true,
+					},
+					grid: this.settings.yAxis.grid?true:null,
+					animate: false
+				});
+				if(yTitleVisible) {
+					chart.scale({
+						value: {
+							alias: this.settings.yAxis.title.content||'记录数',
+							nice: true,
+						},
+					});
+				}else{
+					chart.scale({
+						value: {
+							alias: ' ',
+							nice: true,
+						},
+					});
+				}
+			}else{
+				chart.axis('value', false);
+			}
+      //图形
+      let geometry;
+      if (this.settings.background) {
+        this.background = this.colorRgba(this.colors[0], "20%");
+        geometry = chart.interval({
+          background: {
+            style: {
+             fill: this.background,
+            },
+          },
+        });
+      } else {
+        geometry = chart.interval();
+      }
+      geometry.position("key*value")
+      if (this.settings.size) {//配置柱子宽度
+        geometry.size(this.settings.size);
+      }
+      //是否显示lebal
+      if(this.settings.label) {
+        geometry.label("value", {
+          layout: [
+            { type: 'interval-hide-overlap' },
+            { type: 'interval-adjust-color' },
+          ],
+          content: (obj) =>obj.value>15?`${obj.value}`:null,
+          position: 'middle'
+          }
+        );
+      }else{
+        geometry.label(false);//FIXME 值太多默认不显示
+      }
+      if (this.muitl) {
+        geometry.adjust("stack").color("type", this.colors);
+        // geometry.adjust([
+        //   { type: "dodge", marginRatio: 0 },
+        // ]).color("type", this.colors);
+      }else{
+        geometry.color('key', (val) => {
+          return this.colors[0]
+        });
+        // geometry.color(this.colors[0]);
+      }
+      // 配置图例
+      chart.legend(false);
+			if(this.settings.legend) {
+				if(this.settings.legend.visible) {
+					chart.legend({
+						position: this.settings.legend.position,
+						flipPage: this.settings.legend.flipPage,
+						marker: {
+							symbol: this.settings.legend.marker
+						},
+					});
+				}
+			}
+      //提示
+      chart.tooltip({
+        showCrosshairs: false,//显示辅助线
+        showTitle: this.muitl,
+        showMarkers: false,
+        shared: true,
+      })
+     if(this.settings.tooltip) {
+				if(!this.settings.tooltip.visible) {
+					chart.tooltip(false);
+				}
+			}
+      //翻转
+			if(this.settings.exchange) {
+        chart.coordinate().transpose();
+			}else{
+        chart.coordinate();
+			}
+      //滑块
+      if(this.settings.slider) {
+        chart.option('slider', {
+          backgroundStyle: {
+            fill: this.colors[0],
+          }
+        });
+      }
+      //标注
+      if (this.settings.annotation) {
+        data.forEach((item,index) => {
+          chart.annotation().text({
+            position: [item.key, "max"],
+            content: this.getTotal(data, item.key),
+            style: {
+              fill: this.colors[0],
+              textAlign: "center",
+            },
+            offsetY: -20,
+          });
+          // total = 0;
+        });
+        this.changeAnnotation(chart, data);
+      }
+      //交互
+      if (!this.settings.annotation) {
+        chart.interaction("active-region");
+      }
+      
+      chart.render();
+      this.plot = chart;
+    },
+    getTotal(data, key) {
+      let array = groupBy(data,'key')[key].filter((dataItem)=> dataItem.key==key);
+      let total = reduce(map(array, "value"),(sum, n)=>{
+        return sum+n;
+      })
+      return total;
+    },
+    //图例点击
+    changeAnnotation(chart, data) {
+      chart.on("legend-item:click", (...args) => {
+        chart.controllers[3].option = [];
+        chart.filteredData.forEach((item) => {
+          chart.annotation().text({
+            position: [item.key, "max"],
+            content: this.getTotal(chart.filteredData, item.key),
+            style: {
+              fill: this.colors[0],
+              textAlign: "center",
+            },
+            offsetY: -20,
+          });
+        });
+        chart.changeData(data);
+      });
+    },
+    colorRgba(sHex, alpha) {
+      // 十六进制颜色值的正则表达式
+      var reg = /^#([0-9a-fA-f]{3}|[0-9a-fA-f]{6})$/;
+      /* 16进制颜色转为RGB格式 */
+      let sColor = sHex;
+      if (sColor && reg.test(sColor)) {
+        if (sColor.length === 4) {
+          var sColorNew = "#";
+          for (let i = 1; i < 4; i += 1) {
+            sColorNew += sColor.slice(i, i + 1).concat(sColor.slice(i, i + 1));
+          }
+          sColor = sColorNew;
+        }
+        // 处理六位的颜色值
+        var sColorChange = [];
+        for (let i = 1; i < 7; i += 2) {
+          sColorChange.push(parseInt("0x" + sColor.slice(i, i + 2)));
+        }
+        // return sColorChange.join(',')
+        return "rgba(" + sColorChange.join(",") + "," + alpha + ")";
+      } else {
+        return sColor;
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.stack-bar-chart {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  /deep/.chart {
+    div {
+      display: flex;
+      justify-content: center;
+    }
+  }
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

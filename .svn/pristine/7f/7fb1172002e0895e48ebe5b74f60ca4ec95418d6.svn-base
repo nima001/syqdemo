@@ -1,0 +1,29 @@
+
+// import Layout from '@person/views/Layout'
+
+export const visualScreen = [
+  {
+    path: '/person/screen',
+    name: 'VisualScreenIndex',
+    meta: {
+      access: 'login'
+    },
+    component: () => import('../../views/visualScreen'),
+  },
+  {
+    path: '/person/screen/problems',
+    name: 'VisualScreenProblems',
+    meta: {
+      access: 'login'
+    },
+    component: () => import('../../views/visualScreen/Problems'),
+  },
+  {
+    path: '/person/screen/staffing',
+    name: 'VisualScreenStaffing',
+    meta: {
+      access: 'login'
+    },
+    component: () => import('../../views/visualScreen/Staffing'),
+  },
+]

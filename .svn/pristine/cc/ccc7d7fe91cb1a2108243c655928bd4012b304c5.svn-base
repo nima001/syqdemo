@@ -1,0 +1,292 @@
+<template>
+  <div class="common-business" v-if="menuList" ref="commonBusiness">
+    <div
+      :style="{ width: elWidth + 'px', height: (elWidth -10) + 'px' }"
+      class="content"
+      v-for="(item, index) in menuList.slice(0, 12)"
+      :key="index"
+      @click="jump(item)"
+    >
+      <div class="remove" @click.stop="unStar(item.id, index)">
+        <a-icon type="minus-circle" />
+      </div>
+      <img
+        v-if="item.icon"
+        :src="uiConfigs['api.url'] + '/file/v1/download?uri=' + item.icon"
+        :onerror="`this.src='${defaultIcon}'`"
+      />
+      <img v-else :src="defaultIcon" />
+      <div>{{ item.name }}</div>
+    </div>
+
+    <div 
+      :style="{ width: elWidth + 'px', height: (elWidth -10) + 'px' }"
+      v-if="menuList.length < 12" 
+      class="add-business"
+      >
+      <a-icon
+        type="plus-circle"
+        theme="filled"
+        class="add"
+        @click="showModal"
+      />
+      <div>添加</div>
+    </div>
+    <a-modal v-model="visible" title="添加常用业务" on-ok="handleOk">
+      <template slot="footer">
+        <a-button key="back" @click="handleCancel"> 取消 </a-button>
+        <a-button
+          key="submit"
+          type="primary"
+          :loading="loading"
+          @click="handleOk"
+        >
+          确定
+        </a-button>
+      </template>
+      <a-tree
+        checkable
+        showIcon
+        :tree-data="treeData"
+        :replaceFields="replaceFields"
+        :default-expanded-keys="[3]"
+        v-model="checkedId"
+        :selectable="false"
+        :style="{ height: '380px', overflow: 'auto' }"
+        @check="oncheck"
+      >
+        <template slot="icon" slot-scope="data" class="icon">
+          <img :src="data.icon" />
+        </template>
+      </a-tree>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Icon, Button, Modal, Tree } from "ant-design-vue";
+import { updateStarMenu, getcollectMenu } from "../api/menu";
+import { uiConfigsCookies } from "../utils/auth";
+import { showError } from "../utils/index";
+import { downloadV2 } from "../api/file";
+
+export default {
+  name: "CommonMenu",
+  components: {
+    AIcon: Icon,
+    AButton: Button,
+    AModal: Modal,
+    ATree: Tree,
+  },
+  data() {
+    return {
+      defaultIcon: require("../assets/img/icon-menu-default.png"),
+      uiConfigs: uiConfigsCookies(),
+      menuList: [],
+      loading: false,
+      visible: false,
+      treeData: [],
+      replaceFields: {
+        children: "children",
+        title: "name",
+        key: "id",
+        icon: "icon",
+      },
+      menuListId: [],
+      checkedId: [],
+      elWidth: undefined
+    };
+  },
+  computed: {
+    getListMenu() {
+      return this.$store.getters.menuList;
+    },
+  },
+  created() {
+    this.getCollectList();
+  },
+  mounted() {
+    this.$nextTick(() => {
+      let width = this.$refs.commonBusiness.clientWidth - 15;
+      //  平均6等份
+      this.elWidth = width / 6 - 10;
+    })
+  },
+  methods: {
+    getCollectList() {
+      getcollectMenu()
+        .then((res) => {
+          this.menuList = res.result || [];
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    unStar(id, index) {
+      this.checkedId.splice(this.checkedId.indexOf(id), 1);
+      let ids = [];
+      this.menuList.forEach((item, i) => {
+        if (index != i) {
+          ids.push(item.id);
+        }
+      });
+      updateStarMenu(ids)
+        .then((res) => {
+          let index = this.menuList.findIndex((item) => item.id == id);
+          if (index >= 0) {
+            this.menuList.splice(index, 1);
+          }
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    jump(item) {
+      if (!item) {
+        return;
+      }
+      if (item.children && item.children.length > 0) {
+        this.$router
+          .push({
+            name: "SubMenu",
+            params: { id: item.id },
+          })
+          .catch((err) => {
+            //ignore
+          });
+      } else if (item.componenturi) {
+        if (item.componenturi.startsWith("redirect:")) {
+          let path = item.componenturi.slice(9);
+          let temp = path.toUpperCase();
+          if (temp.startsWith("http:") || temp.startsWith("https:")) {
+            window.open(path, "_blank");
+          } else {
+            const { href } = this.$router.resolve({ path });
+            if (href) {
+              window.open(href, "_blank");
+            }
+          }
+        } else {
+          this.$router.push(item.componenturi).catch((err) => {
+            //ignore
+          });
+        }
+      }
+    },
+    showModal() {
+      this.visible = true;
+      this.treeData = [];
+      this.treeData = this.getListMenu;
+      for (const key in this.menuList) {
+        this.checkedId.push(this.menuList[key].id);
+      }
+    },
+    //选中的数据
+    getSeletedList() {
+      let seletedNoder = [];
+      let _this = this;
+      this.menuList.forEach((ele, i) => {
+        this.menuListId[i] = ele.id;
+      });
+      this.checkedId.forEach((item) => {
+        function checkedMenu(obj) {
+          for (const key in obj) {
+            if (obj[key].id == item && _this.menuListId.indexOf(item) == -1) {
+              seletedNoder.push(obj[key]);
+            }
+            if (typeof obj[key] == "object") {
+              checkedMenu(obj[key]);
+            }
+          }
+        }
+        checkedMenu(this.getListMenu);
+      });
+      return seletedNoder;
+    },
+    handleOk(e) {
+      this.loading = true;
+      if (this.checkedId.length == 0) {
+        this.visible = false;
+        this.loading = false;
+      } else {
+        const ids = this.checkedId;
+        updateStarMenu(ids)
+          .then(() => {
+            this.menuList.push(...this.getSeletedList());
+            this.visible = false;
+            this.loading = false;
+          })
+          .catch((err) => {
+            this.loading = false;
+            showError(err);
+          });
+      }
+    },
+    handleCancel() {
+      this.visible = false;
+    },
+    oncheck(checkedKeys, info) {
+      let fatherNodeId = [3, 12, 20, 33];
+      fatherNodeId.forEach((item) => {
+        if (this.checkedId.indexOf(item) != -1) {
+          checkedKeys.splice(this.checkedId.indexOf(item), 1);
+        }
+      });
+      this.checkedId = checkedKeys;
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+.common-business {
+  display: flex;
+  flex-wrap: wrap;
+  padding-left: 15px;
+  font-size: 15px;
+  .content {
+    // width: 115px;
+    // height: 105px;
+    // width: calc(~'16% - 10px');
+    // height: calc(~'16% - 10px');
+    margin: 5px;
+    background-color: rgb(243, 244, 245);
+    position: relative;
+    text-align: center;
+    padding-top: 10px;
+    &:hover .remove {
+      display: block;
+
+      cursor: pointer;
+    }
+    .remove {
+      display: none;
+      position: absolute;
+      right: 5px;
+      top: 5px;
+      color: @error-color;
+    }
+
+    img {
+      width: 50px;
+      height: 50px;
+    }
+  }
+  .add-business {
+    float: right;
+    height: 105px;
+    width: 115px;
+    position: relative;
+    /deep/.add {
+      font-size: 50px;
+      color: rgb(230, 230, 230);
+      position: absolute;
+      left: 50%;
+      top: 15px;
+      margin-left: -25px;
+    }
+    div {
+      text-align: center;
+      padding-top: 70px;
+    }
+  }
+}
+</style>

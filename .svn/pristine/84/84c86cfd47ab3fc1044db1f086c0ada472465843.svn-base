@@ -1,0 +1,135 @@
+
+import Layout from '../../views/Layout';
+
+//  统计报表
+export const countchart = {
+	path: '/person/countchart',
+	component: Layout,
+	redirect: '/person/countchart/index',
+	name: 'CountChart',
+	meta: { access: true, title: '统计报表' },
+	children: [
+		{
+			path: 'index',
+			component: () => import('../../views/statistics/booklet/index'),
+			name: 'BookList',
+			meta: {
+				access: 'login',
+				path: [{ name: '统计报表', path: '/person/countchart/index' }]
+			}
+		},
+		{
+			path: 'catalog',
+			component: () => import('../../views/statistics/booklet/BookCatalog'),
+			name: 'BookCatalog',
+			meta: {
+				access: 'login',
+				path: [{ name: '统计报表', path: '/person/countchart/index' }, { name: '报表目录', path: '/person/countchart/catalog' }]
+			}
+		},
+		{
+			path: 'sheet',
+			component: () => import('../../views/statistics/booklet/BookSheet'),
+			name: 'BookSheet',
+			meta: {
+				access: 'login',
+				path: [{ name: '统计报表', path: '/person/countchart/index' }, { name: '报表详情', path: '/person/countchart/sheet' }]
+			}
+		}
+	]
+}
+
+// 报表模板
+export const chartTemplate = {
+	path: '/person/charttemplate',
+	component: Layout,
+	redirect: 'list',
+	name: 'ChartTemplate',
+	meta: { access: true, title: '报表模板' },
+	children: [
+		{
+			path: 'list',
+			component: () => import('../../views/statistics/template/TemplateList'),
+			name: 'chartTemplateList',
+			meta: {
+				access: 'login',
+				path: [{ name: '报表模板', path: '/person/charttemplate/list' }]
+			}
+		},
+		{
+			path: 'design',
+			component: () => import('../../views/statistics/template/TemplateDesign'),
+			name: 'TemplateDesign',
+			meta: {
+				access: 'login',
+				path: [{ name: '业务中心', path: '/person/business/center' }, { name: '报表模板', path: '/person/charttemplate/list' }, { name: '模板编辑', path: '/person/charttemplate/design' }]
+			}
+		}
+	]
+}
+
+// 报表管理
+export const chartManage = {
+	path: '/person/chartmanage',
+	component: Layout,
+	redirect: 'list',
+	name: 'chartManage',
+	meta: { access: true, title: '报表管理' },
+	children: [
+		{
+			path: 'list',
+			component: () => import('../../views/statistics/booklet/BookletManage'),
+			name: 'BookletManage',
+			meta: {
+				access: 'login',
+				path: [{ name: '报表管理', path: '/person/chartmanage/list' }]
+			}
+		},
+		{
+			path: 'reportManagement',
+			component: () => import('../../views/statistics/booklet/DirectoryManage'),
+			name: 'reportManagement',
+			meta: {
+				access: 'login',
+				path: [{ name: '报表管理', path: '/person/chartmanage/list' }, { name: '目录管理', path: '/person/chartmanage/reportManagement' }]
+			}
+		},
+		{
+			path: 'impowerManagement',
+			component: () => import('../../views/statistics/booklet/ImpowerManage'),
+			name: 'impowerManage',
+			meta: {
+				access: 'login',
+				path: [{ name: '报表管理', path: '/person/chartmanage/list' }, { name: '授权', path: '/person/chartmanage/impowerManagement' }]
+			}
+		}
+	]
+}
+
+//统计字段管理
+export const Fields = {
+	path: '/person/fields',
+	component: Layout,
+	name: 'Fields',
+	redirect: 'statisticslist',
+	meta: { access: true, title: '统计字段管理' },
+	children: [
+		{
+			path: 'statisticslist',
+			component: () => import('../../views/statistics/fields/StatisticsList'),
+			name: 'StatisticsList',
+			meta: {
+				access: 'login',
+				path: [{ name: '统计字段管理', path: '/person/fields/statisticslist' }]
+			}
+		},
+	]
+}
+
+// 模板预览
+export const tempPreview = {
+	path: '/person/preview',
+	name: 'preview',
+	component: () => import('../../views/statistics/template/TemplatePreview'),
+	meta: { access: 'login' }
+}

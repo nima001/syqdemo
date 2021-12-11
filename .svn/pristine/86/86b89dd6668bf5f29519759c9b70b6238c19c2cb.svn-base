@@ -1,0 +1,217 @@
+<template>
+  <div class="wrap" v-if="formatList.length > 0">
+    <p class="title">{{title}}</p>
+    <div class="spotList">
+      <div class="spotItem">
+        <span class="spot"></span>
+        <span class="text">{{ orgList[1] && orgList[1]['k1']}}</span>
+      </div>
+      <div class="spotItem">
+        <span class="spot"></span>
+        <span class="text">{{orgList[0] &&orgList[0]['k1']}}</span>
+      </div>
+    </div>
+    <div class="swiperView">
+      <div class="swiperWrap">
+        <div class="swiperContent">
+          <swiper-ant :size="formatList['length']" class="capsuleSlide">
+            <template v-for="(item,index) in formatList" :slot="'swiper'+`${index}`">
+              <div class="capsuleList" v-for="(lg,idx) in item" :key="idx">
+                <capsule-group :target="lg" :maxNum="maxNumber" @click="onClick"></capsule-group>
+              </div>
+            </template>
+          </swiper-ant>
+        </div>
+      </div>
+    </div>
+    <org-list v-model="dialog.show" 
+      :title="(districtName || '') + dialog.title" 
+      :loadPage="dialog.loader"
+      :group="dialog.group"
+    />
+  </div>
+</template>
+<script>
+import CapsuleGroup from "./CapsuleGroup";
+import SwiperAnt from "../components/SwiperAnt";
+import OrgList from '../components/OrgList'
+import { sliceArr } from "@/person-shaoxing/utils/index";
+import { mixins } from "../components/minxin";
+import { getChart } from "@/person-shaoxing/api/orgStaffReport";
+import { deriveQuery } from "@/person/api/chart";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  components: {
+    CapsuleGroup,
+    SwiperAnt,
+    OrgList,
+  },
+  data() {
+    return {
+      title: undefined,
+      orgList: [],
+      dialog: {
+        show: false,
+        title: undefined,
+        group: false,
+        loader: undefined,
+      }
+    };
+  },
+  mixins: [mixins],
+  computed: {
+    formatList() {
+      return sliceArr(sliceArr(this.orgList, 2), 4);
+    },
+    maxNumber() {
+      let max = 0;
+      for (let i = 0; i < this.orgList.length; i++) {
+        let item = this.orgList[i];
+        if (item["v0"] > max) {
+          max = item["v0"];
+        }
+      }
+      max = Math.ceil(max/100) * 100;
+      return max;
+      
+    }
+  },
+  mounted() {
+    this.orgChart(this.dictId);
+  },
+  watch: {
+    dictId(v) {
+      this.orgChart(v);
+    }
+  },
+  methods: {
+    orgChart(dictId) {
+      getChart(dictId, 201)
+        .then(({result: { data = {}, settings = {}}}) => {
+          this.title = settings.title
+          this.orgList = data.rows;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    onClick(row){
+      let type = row['k1'] || '';
+      this.dialog = {
+        show: true,
+        title: `${type}列表（${row['k0']}）`,
+        group: type.indexOf('行政') >= 0, 
+        loader: (page) => {
+          let criteria = [];
+          if(page.searchkey){
+            criteria.push({ field: {key:"name"}, op: "regex", value: page.searchkey })
+          }
+          return deriveQuery(201, {
+            row,
+            context: {
+              district: this.dictId
+            },
+            extFilter: { op: 'and', criteria },
+            orders: [{orderby: 'index', ordertype: 'ASC'}],
+            ...page
+          })
+        }
+      }
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  .title {
+    height: 26px;
+    margin: 0px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    text-align: center;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.8;
+  }
+  .spotList {
+    display: flex;
+    padding: 12px 0px;
+    flex-direction: row-reverse;
+    .spotItem {
+      display: flex;
+      align-items: center;
+      .spot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        opacity: 1;
+      }
+      &:nth-child(2n) .spot {
+        background: linear-gradient(
+          180deg,
+          #8fd2ff 0%,
+          rgba(87, 140, 246, 0.66) 49%,
+          #5d4ef4 100%
+        );
+      }
+      &:nth-child(2n + 1) .spot {
+        background: linear-gradient(
+          180deg,
+          #fcb75b 0%,
+          rgba(240, 150, 81, 0.66) 49%,
+          #f26e52 100%
+        );
+      }
+      &:first-child {
+        margin-left: 20px;
+      }
+      .text {
+        width: 56px;
+        height: 19px;
+        margin-left: 8px;
+        font-size: 14px;
+        font-family: Microsoft YaHei;
+        font-weight: 400;
+        line-height: 19px;
+        color: #ffffff;
+        opacity: 0.6;
+      }
+    }
+  }
+  .swiperView {
+    display: flex;
+    flex-direction: column;
+    .swiperWrap {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      .swiperBtn {
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        &.preBtn {
+          background: url("../img/pre.png");
+        }
+        &.nextBtn {
+          background: url("../img/next.png");
+        }
+      }
+      .swiperContent {
+        height: 100%;
+        flex: 1;
+        overflow: hidden;
+        padding: 0 43px;
+        box-sizing: border-box;
+        .capsuleList {
+          margin-top: 12px;
+          &:first-child {
+            margin-top: 0px;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,394 @@
+<template>
+  <div class="comborg">
+    <div class="content">
+      <div class="title"><h1>组织合并</h1></div>
+      <div class="combcontent">
+        <a-tabs default-active-key="1" class="tabs" :tab-bar-gutter='500' v-model="activeKey">
+          <a-tab-pane key="1" tab="1 填写合并信息">
+            <div class="tab1">
+              <div class="content1">
+                <a-form :form="form">
+                  <div class="combitem">
+                    <a-form-item
+                      v-for="(k, index) in form.getFieldValue('keys')"
+                      :key="k"
+                      v-bind="index === 0 ? formItemLayout : formItemLayoutWithOutLabel"
+                      :label="index === 0 ? '合并组织' : ''"
+                    >
+                      <a-input
+                        v-decorator="[
+                          `names[${k}]`,
+                          { rules: [{ required: true, message: '请选择组织!' }] },
+                        ]"
+                        placeholder="输入关键词查找或选择组织"
+                        style="width: 80%; margin-right: 4px"
+                        @click="showOrgOutSelect(`names[${k}]`, k)"
+                        >
+                        <a-icon slot="addonAfter" type="select" @click="showOrgOutSelect(`names[${k}]`, k)" />
+                      </a-input>
+                      <a-icon
+                        v-if="form.getFieldValue('keys').length > 1"
+                        class="dynamic-delete-button"
+                        type="minus-circle-o"
+                        :disabled="form.getFieldValue('keys').length === 1"
+                        @click="() => remove(k)"
+                      />
+                    </a-form-item>
+                    <a-form-item v-bind="formItemLayoutWithOutLabel">
+                      <a-button type="dashed" style="width: 80%" @click="add">
+                        <a-icon type="plus" /> 添加合并单位
+                      </a-button>
+                    </a-form-item>
+                  </div>
+                  <div class="combnew">
+                    <a-form-item
+                      label="合并后的组织"
+                      v-bind="formItemLayout"
+                      >
+                        <a-input
+                          v-decorator="[
+                            'neworg',
+                            { rules: [{ required: true, message: '请选择组织!' }] },
+                          ]"
+                          placeholder="输入关键词查找或选择组织"
+                          style="width: 80%; margin-right: 4px"
+                          @click="showNewOrgOutSelect"
+                          @change="ifchoose"
+                        >
+                          <a-icon slot="addonAfter" type="select" @click="showNewOrgOutSelect" />
+                        </a-input>
+                    </a-form-item>
+                  </div>
+                </a-form>
+                <a-modal
+                  :footer="null"
+                  v-model="orgOutVisible"
+                  :width="500"
+                  :title="`选择组织`"
+                  :bodyStyle="{ height: '500px', padding: '0'}"
+                >
+                  <idm-org-tree  @select-ok="orgOutOk" @select-cancel="orgOutCancel" />
+                </a-modal>
+                <a-modal
+                  :footer="null"
+                  v-model="newOrgOutVisible"
+                  :width="500"
+                  :title="`选择组织`"
+                  :bodyStyle="{ height: '500px', padding: '0'}"
+                >
+                  <idm-org-tree  @select-ok="newOrgOutOk" @select-cancel="newOrgOutCancel" />
+                </a-modal>
+              </div>
+              <div class="footer1">
+                <a-button @click="goBack">取消</a-button>
+                <a-button type="primary" @click="nextStep">下一步</a-button>
+              </div>
+            </div>
+          </a-tab-pane>
+          <a-tab-pane key="2" tab="2 完善组织信息" force-render>
+            <div class="tab2">
+              <div class="content2">
+                <add-org-form :formInfo="formInfo" :key="forcekey" ref="childsubmit"/>
+              </div>
+              <div class="footer2">
+                <a-button class="btn1" type="primary" @click="activeKey='1'">
+                  上一步
+                </a-button>
+                <a-button class="btn2" type="primary" @click="submit">
+                  提交
+                </a-button>
+              </div>
+            </div>
+          </a-tab-pane>
+        </a-tabs>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Form, Input, Button, Row, Col, Icon, Modal, Tabs } from "ant-design-vue";
+import IdmOrgTree from "@/idm/components/IdmOrgTree";
+import AddOrgForm from '../../account/components/AddOrgForm'
+import { mergeOrg, improveOrginfo } from "@/idm/api/combOrg";
+import { showError } from "@/framework/utils/index";
+
+let id = 1;
+export default {
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    AButton: Button,
+    ARow: Row,
+    ACol: Col,
+    AModal: Modal,
+    AIcon: Icon,
+    ATabs:Tabs,
+    ATabPane:Tabs.TabPane,
+    IdmOrgTree,
+    AddOrgForm
+  },
+  data() {
+    return {
+      formItemLayout: {
+        labelCol: {
+          span: 8 
+        },
+        wrapperCol: {
+          span: 8 
+        },
+      },
+      formItemLayoutWithOutLabel: {
+        wrapperCol: {
+          span: 8, 
+          offset: 8 
+        },
+      },
+      info: {
+        orgid: [], 
+        neworgid:undefined
+      },
+      copyorgid:undefined,
+      orgOutVisible: false,
+      newOrgOutVisible: false,
+      kname: undefined,
+      akey: '1',
+      formInfo: undefined,
+      forcekey: 0,
+      kindex: undefined,
+      activeKey: '1'
+    };
+  },
+  beforeCreate() {
+    this.form = this.$form.createForm(this, { name: 'dynamic_form_item' });
+    this.form.getFieldDecorator('keys', { initialValue: [0], preserve: true });
+  },
+  methods: {
+    orgOutOk(org) {
+      this.orgOutVisible = false;
+      let { _id, name } = org.data;
+      this.form.setFieldsValue({ 
+         [this.kname]: name
+      });
+      // this.info.orgid.push(_id);
+      this.info.orgid[this.kindex] = _id;
+    },
+    orgOutCancel() {
+      this.orgOutVisible = false;
+    },
+    showOrgOutSelect(a, k) {
+      this.orgOutVisible = true;
+      this.kname = a;
+      this.kindex = k;
+    },
+    newOrgOutOk(org) {
+      this.newOrgOutVisible = false;
+      let { _id, name } = org.data;
+      this.form.setFieldsValue({ 
+         neworg: name
+      });
+      this.info.neworgid = _id;
+      this.copyorgid = _id
+    },
+    newOrgOutCancel() {
+      this.newOrgOutVisible = false;
+    },
+    showNewOrgOutSelect(a) {
+      this.newOrgOutVisible = true;
+    },
+    remove(k) {
+      const { form } = this;
+      // can use data-binding to get
+      const keys = form.getFieldValue('keys');
+      // We need at least one passenger
+      if (keys.length === 1) {
+        return;
+      }
+      // can use data-binding to set
+      form.setFieldsValue({
+        keys: keys.filter(key => key !== k),
+        
+      });
+    },
+    ifchoose(){
+      this.copyorgid = null;
+    },
+    add() {
+      const { form } = this;
+      // can use data-binding to get
+      const keys = form.getFieldValue('keys');
+      const nextKeys = keys.concat(id++);
+      // can use data-binding to set
+      // important! notify form to detect changes
+      form.setFieldsValue({
+        keys: nextKeys,
+      });
+    },
+    goBack() {
+      this.$router.push({
+        path: '/idm/index'
+      });
+    },
+    async submit(){
+      let formdata = await this.$refs.childsubmit.submitform();
+      let params = {
+        administrativedivision: formdata.administrativedivision,
+        contactsmobilephone: formdata.contactsmobilephone,
+        contactsname: formdata.contactsname,
+        contactsofficephone: formdata.contactsofficephone,
+        divisionlevel: formdata.divisionlevel,
+        name: formdata.name,
+        nsjg: formdata.domains[0].value,
+        oid: this.info.neworgid,
+        orgunittype: formdata.orgunittype,
+        shortname: formdata.shortname,
+        superorgdata: this.formInfo.superorgdata,
+        // treeid: this.formInfo.superorgdata[0].treeid,
+        usccode: formdata.usccode,
+        serialnum: this.formInfo.serialnum
+        // pid
+        // nodeid:,
+        // orgtype:
+      }
+      improveOrginfo(params).then(res=>{
+        this.$message.success('组织合并成功');
+        this.$router.push({
+        path: '/idm/index'
+      });
+      }).catch(err => {
+            showError(err);
+          })
+    },
+    nextStep() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          const { keys, names, neworg } = values;
+          let params = {};
+          if(this.copyorgid){
+            params = {
+            ischooseorg: 0,
+            mergeorgid: this.info.neworgid,
+            mergeorgname: neworg,
+            orgids: this.info.orgid
+          }
+          }else{
+            params = {
+            ischooseorg: 1,
+            mergeorgname: neworg,
+            orgids: this.info.orgid
+          };
+          }
+          
+          mergeOrg(params)
+          .then(res => {
+            console.log(res);
+            this.formInfo = res.result;
+            this.forcekey += 1;
+            this.activeKey = '2';
+          }).catch(err => {
+            showError(err);
+          })
+        }
+      });
+    },
+  },
+};
+
+</script>
+
+<style lang="less" scoped>
+  /deep/ .ant-tabs-nav-scroll{
+    display: flex !important;
+    justify-content: center !important;
+  }
+  .comborg{
+    height: 100%;
+    padding: 10px;
+    .content{
+      height: 100%;
+      background-color: @white;
+      padding: @content-padding-v @content-padding-h;
+      overflow: auto;
+      .combcontent{
+        padding: @content-padding-v @content-padding-h;
+        width: 100%;
+        .tab1{
+          height: 100%;
+          width: 100%;
+          padding: @content-padding-v @content-padding-h;
+            .content1{
+              padding: @content-padding-v @content-padding-h;
+              .combitem{
+                padding: @content-padding-v @content-padding-h;
+                .dynamic-delete-button{
+                  cursor: pointer;
+                  position: relative;
+                  top: 4px;
+                  font-size: 24px;
+                  color: #999;
+                  transition: all 0.3s;
+                }
+                .dynamic-delete-button:hover {
+                  color: #777;
+                }
+                .dynamic-delete-button[disabled] {
+                  cursor: not-allowed;
+                  opacity: 0.5;
+                }
+              }
+              .combnew{
+                padding: @content-padding-v @content-padding-h;
+              }
+            }
+            .footer1{
+              position: fixed;
+              left: 0px;
+              bottom: 0px;
+              z-index: 100;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              width: 100%;
+              height: 65px;
+              box-shadow: 0 -2px 5px fade(@black, 20%);
+              background-color: @white;
+              button{
+                width: 150px;
+                &:last-child{
+                  margin-left: 50px;
+                }
+              }
+            }
+        }
+        .tab2{
+          height: 100%;
+          width: 100%;
+          padding: @content-padding-v @content-padding-h;
+          .content2{
+            padding: @content-padding-v @content-padding-h;
+          }
+          .footer2{
+            position: fixed;
+            left: 0px;
+            bottom: 0px;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+            height: 65px;
+            box-shadow: 0 -2px 5px fade(@black, 20%);
+            background-color: @white;
+            button{
+              width: 150px;
+              &:last-child{
+                margin-left: 50px;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+</style>

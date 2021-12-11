@@ -1,0 +1,388 @@
+<template>
+  <a-layout class="report_manage" ref="reportManage">
+    <div class="content">
+      <a-row style="margin-top: 10px">
+        <a-col :span="6">
+          <a-button icon="plus" class="add" @click="showModal">新增</a-button>
+        </a-col>
+        <a-col :span="4" :offset="14">
+          <div class="queryButton">
+            <a-input-search
+              allowClear
+              placeholder="请输入目录名称查询"
+              style="width:'200px'"
+              @search="onSearch"
+              enterButton="搜索"
+            />
+          </div>
+        </a-col>
+      </a-row>
+      <div class="table">
+        <a-table
+          :loading="loading"
+          :columns="columns"
+          :dataSource="treelist"
+          :pagination="false"
+          :expandRowByClick="false"
+          :rowKey="row=>row.id"
+          @change="tableChange"
+          @expand="expandChildlist"
+          :expandedRowKeys="expandedRowKeys"
+        >
+          <span slot="action" class="operation" slot-scope="text, record">
+            <a @click="showModal(record)">编辑</a>
+            <a @click="deleteModel(record)">删除</a>
+          </span>
+        </a-table>
+      </div>
+      <!-- 新增/编辑 -->
+      <div class="modal">
+        <a-modal
+          title="新增/编辑目录"
+          v-model="visible"
+          :destroyOnClose="true"
+          @ok="handleOk"
+          @cancel="handleCancel"
+          :bodyStyle="{height: '520px', padding: 0,overflow: 'hidden'}"
+        >
+          <directory-change :bookid="bookid" :record="record" ref="directory"></directory-change>
+        </a-modal>
+      </div>
+    </div>
+  </a-layout>
+</template>
+<script>
+import { newList, templateList, catalogsDelete, catalogspost, catalogsedit } from "@/person/api/booklet";
+import { Layout, Row, Col, Table, Modal, Button, Input,Icon } from "ant-design-vue";
+import DirectoryChange from './components/DirectoryChange';
+import { showError } from "@/framework/utils/index";
+export default {
+  name: "reportManagement",
+  data() {
+    return {
+      columns: [
+        {
+          title: "序号",
+          width: "10%",
+          customRender: (text, record, index) => `${index + 1}`
+        },
+        {
+          title: "目录名称",
+          dataIndex: "name",
+          width: "30%"
+        },
+        {
+          title: "模板名称",
+          dataIndex: "tempname",
+          width: "45%"
+        },
+        {
+          title: "操作",
+          width: "20%",
+          scopedSlots: { customRender: "action" }
+        }
+      ],
+      data: [],
+      visible: false,
+      visible: false,
+      loading: false,
+      updataid: "",
+      catalogid: "",
+      selectedRow: null,
+      expandedRowKeys: [],
+      treeData: [],
+      treeVal: undefined,
+      pagination: {
+        needtotal: false,
+        pagenum: 1,
+        pagesize: 20,
+        searchkey: undefined
+      },
+      bookid: undefined,
+      record: {}
+    };
+  },
+  components: {
+    ALayout: Layout,
+    ARow: Row,
+    ACol: Col,
+    ATable: Table,
+    Ainput: Input,
+    AInputSearch: Input.Search,
+    AModal: Modal,
+    AButton: Button,
+    DirectoryChange,
+    AIcon: Icon,
+  },
+  created() {
+    this.bookid = this.$route.query.bookid;
+    this.catalogs();
+  },
+  computed: {
+    treelist() {
+      let res = [];
+      (this.data || []).forEach(item => {
+        if(!item.leaf) {// 是否叶子节点
+          item.children = [];
+          item.expanded = false;
+        }
+        res.push(item);
+      });
+      return res;
+    }
+  },
+  methods: {
+    //初始化查询
+    catalogs() {
+      this.loading = true;
+      let query = {
+        allsub: false,
+        bookid: this.bookid,
+        pagenum: 0,
+        pagesize: 0
+      };
+      catalogspost(query)
+      .then(({result}) => {
+        this.loading = false;
+        this.data = result.rows;
+      })
+      .catch(error => {
+        this.loading = false;
+        showError(error);
+      });
+    },
+   async expandChildlist(expanded, record) {
+      if(expanded) {
+        if(!record.expanded) {//请求一次后不需要再次请求
+          await setTimeout(() => {
+            this.loading = true;
+            let query = {
+              allsub: false,
+              bookid: record.bookid,
+              parentid: record.id
+            };
+            catalogspost(query)
+            .then(({result}) => {
+              (result.rows || []).forEach(item => {
+                if(!item.leaf) {
+                  item.children = [];
+                }
+                record.children.push(item);
+              })
+              record.expanded = true;
+              this.expandedRowKeys.push(record.id);
+              this.loading = false;
+            })
+            .catch(err => {
+              this.loading = false;
+              showError(err);
+            })
+          }, 300);
+        }else{
+          this.expandedRowKeys.push(record.id);
+        }
+      }else{
+        this.expandedRowKeys.splice(
+          this.expandedRowKeys.findIndex(item => item == record.id),
+          1
+        );
+      }
+    },
+    //搜索
+    onSearch(value) {
+      this.expandedRowKeys = [];
+      if (value) {
+        let query = {
+          allsub: true,
+          bookid: this.$route.query.bookid,
+          pagenum: 0,
+          pagesize: 0,
+          searchkey: value
+        };
+        catalogspost(query)
+          .then(({result}) => {
+            this.data = result.rows;
+          })
+          .catch(error => {
+            showError(error);
+          });
+      } else {
+        this.catalogs();
+      }
+    },
+    showModal(record) {
+      if(record.id){
+        this.record = record;
+        this.updataid = record.bookid;
+        this.catalogid = record.id;
+      }else{
+        this.record = {};
+      }
+      this.visible = true;
+    },
+    //取消
+    handleCancel(e) {
+      this.visible = false;
+    },
+    //确定
+    async handleOk() {
+      try {
+        let values = await this.$refs.directory.getFormValue();
+        let catalog = {
+          pid: values.parent || undefined,
+          name: values.name,
+          tempid: values.tempid,
+          toid: values.toid,
+          before: parseInt(values.before)===1?true:false,
+          context: values.context,
+        };
+        if(this.catalogid){//编辑
+          let bookid = this.updataid,id = this.catalogid;
+          catalog.bookid = bookid;
+          catalogsedit(id, catalog)
+          .then(res => {
+            this.visible = false;
+            this.$message.success("编辑成功！");
+            this.catalogs();
+          })
+          .catch(error => {
+            showError(error);
+          });
+          this.expandedRowKeys = [];
+        }else{//新增
+          catalog.bookid = this.bookid;
+          newList(catalog)
+          .then(res => {
+            this.visible = false;
+            this.$message.success("新增目录成功！");
+            this.catalogs();
+          })
+          .catch(error => {
+            showError(error);
+          });
+        }
+        this.expandedRowKeys = [];
+      } catch (error) {
+        showError(error);
+      }
+    },
+    //删除
+    deleteModel(record) {
+      let { id, pid } = record;
+      let that = this;
+      if (!pid) {
+        that.$confirm({
+          title: "确认删除该目录以及所有下级目录?",
+          onOk() {
+            catalogsDelete(id)
+              .then(res => {
+                that.catalogs();
+              })
+              .catch(error => {
+                showError(error);
+              });
+          }
+        });
+      } else {
+        that.$confirm({
+          title: "确认删除该目录?",
+          onOk() {
+            catalogsDelete(id)
+              .then(res => {
+                that.$message.success("删除成功");
+                that.catalogs();
+                //修复删除后图表依旧是'-'
+                that.expandedRowKeys = [];
+              })
+              .catch(error => {
+                showError(error);
+              });
+          }
+        });
+      }
+    },
+    tableChange(pagination, filters, sorter) {
+      this.pagination = pagination;
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.report_manage {
+  height: 100%;
+  padding: 10px;
+  .content {
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+    background: @white;
+    // padding-top: 10px;
+    .add{
+      background-color: @primary-color;
+      color: white;
+      border: 0;
+    }
+    .ant-row{
+      padding:@content-padding-v @content-padding-h;
+      .queryButton {
+        width: 300px;
+        float: right;
+      }
+    }
+    .table{
+      flex-shrink: 1;
+      overflow-y: auto;
+      padding:@content-padding-v @content-padding-h;
+      margin-bottom: 10px;
+      /deep/table{
+        tr.selected{
+          background: @primary-2;
+        }
+      }
+    }
+  }
+  .btn-sure {
+    float: right;
+    border-color: @primary-color;
+    background-color: @primary-color;
+  }
+  .editbox {
+    position: relative;
+    height: 100%;
+  }
+  .watchspan {
+    color: @primary-color;
+    margin-left: 20px;
+  }
+  .preservationbox {
+    position: relative;
+    height: 100%;
+    width: 100%;
+  }
+  .savebox {
+    width: 100%;
+    height: 200px;
+    border-top: 1px soild #d3d3d3;
+  }
+  .active {
+    border-color: @primary-color;
+    color: @primary-color;
+  }
+  .native {
+    border-color: #d9d9d9;
+    color: rgba(0, 0, 0, 0.65);
+  }
+  .operation {
+    a {
+      margin-right: 15px;
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,769 @@
+<template>
+  <div>
+    <a-modal title="公式编辑器" :width="1060" :visible='true' :destroyOnClose='true' @cancel="onFinish('cancel')">
+      <template slot="footer">
+        <a-button type="primary" @click="onFinish('ok')">确定</a-button>
+        <a-button @click="onFinish('cancel')">取消</a-button>
+      </template>
+      <p class="tip">
+        <span>请输入公式</span>
+        <span @click="validate">检查合法性</span>
+      </p>
+      <textarea class="ant-input" placeholder="请输入表达式" v-focus  ref="textArea" v-model="params" :rows="4" :style="{resize:'none'}"></textarea>
+      <a-row :gutter="8">
+        <!--函数-->
+        <a-col :span="span">
+          <div class="cell">
+            <div class="cell-top">
+              <p class="title">函数</p>
+              <a-select size='small' v-model="sort" >
+                <a-select-option :value="item" v-for="(item,index) in sorts" :key="index">{{item}}</a-select-option>
+              </a-select>
+            </div>
+            <ul>
+              <li v-for="item in fnArray" :key="item.name" @click="editorParams(item,1)">
+                <a-tooltip placement="topLeft" :overlayStyle="{maxWidth:'max-content'}" >
+                  <template slot="title">
+                    <div v-html='explain(item)'></div>
+                  </template>
+                  <div>{{item.name}}</div>
+                </a-tooltip>
+              </li>
+            </ul>
+          </div>
+        </a-col>
+        <!--作用域数据-->
+        <a-col :span="span">
+          <div class="cell">
+            <div class="cell-top">
+              <p class="title">数据</p>
+            </div>
+            <ul>
+              <template v-if="selfDefineField.length != 0">
+                <li class="selfField" v-for="(item,index) in selfDefineField" :key='`${index}${item.name}`' @click.stop="editorParams(item,2)">
+                  <div class="unite">
+                    <div class="left">
+                      <a-tooltip placement="topLeft">
+                        <template slot="title">
+                          <span>{{item.name}}</span>
+                        </template>
+                        <span>{{`${item.desc}（${item.name}）`}}</span>
+                      </a-tooltip>
+                    </div>
+                  </div>
+                </li>
+                <li class="divider">
+                  <a-divider/>
+                </li>
+              </template>
+              <li class="fields" v-for="(item,index) in filterDatasList" :key="index" @click.stop="editorParams(item,2)">
+                <a-tooltip placement="topLeft">
+                  <template slot="title">
+                    <span>{{item.name}}</span>
+                  </template>
+                  <span>{{`${item.desc}（${item.name}）`}}</span>
+                </a-tooltip>
+              </li>              
+            </ul>
+          </div>
+        </a-col>
+        <!--数据集-->
+        <a-col :span="8" v-if="havaDataSource">
+          <div class="cell">
+            <div class="cell-top">
+              <p class="title">数据集</p>
+            </div>
+            <ul>
+              <li class="data-source" v-for="(item,index) in dataSource" :key="item.queryid" @click="getQuery(item,index)">
+                <div class="panel">
+                  <div class="panel-title" :class="{active:item.active}">
+                    <div class="left">
+                      <a-icon type="right" />
+                    </div>
+                    <div class="right">
+                      <div class="top">
+                        <template v-if="index == editorIndex">
+                          <div class="editor">
+                            <a-input v-model="item.name" size='small' v-focus @blur="editorClose(index)" @click.stop="()=>{}" />
+                          </div>
+                        </template>
+                        <p v-else>
+                          <span class="text" @click.stop="editorParams(item,3)">{{item.name}}</span>
+                          <span class="editorIcon" @click.stop="editorName(item,index)"><a-icon type="edit" /></span>
+                        </p>
+
+                        <div class="icon">
+                          <a-icon type="select" @click.stop="updateDataSet(item,index)" />
+                          <a-icon type="delete" @click.stop="delDataSource(index)" />
+                        </div>
+                    </div>
+                    <p class="desc">{{item.desc}}</p>
+                    </div>
+                  </div>
+                  <template v-if="item.active">
+                    <a-spin :spinning='loading'>
+                      <ul class="panel-content" >
+                        <li class="fields" v-for="item in fields" :key="item.key" @click.stop="editorParams(item,4)">
+                          <a-tooltip placement="topLeft">
+                            <template slot="title">
+                              <span>{{item.key}}</span>
+                            </template>
+                            <span>{{`${item.showname}（${item.key}）`}}</span>
+                          </a-tooltip>
+                        </li>
+                      </ul>
+                    </a-spin>
+                  </template>
+                </div>
+              </li>
+            </ul>
+            <div class="add">
+              <span @click.stop="addDataSet"><a-icon type="plus" />添加数据集</span>
+            </div>
+          </div>
+        </a-col>
+      </a-row>
+    </a-modal>
+    <!--添加数据集(综合查询)-->
+    <a-modal v-model="showQueryModal" 
+      class="exper-query-model" @cancel="closeQueryModal" :footer="null" :destroyOnClose="true" 
+      width="90%" :style="{minWidth:'1100px'}" :bodyStyle="{padding:'10px 0 0 0', height: '80vh'}">
+      <IntegratedQuery :query="queryid" :namespace="namespace" :copySource="true" @save="callBack" />
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Modal, Input, Row, Col, Icon ,Button,Tooltip,Select,Collapse,Spin,Popover,Form,Divider } from "ant-design-vue";
+import IntegratedQuery from "@/person/views/integratedquery/query";
+import {randomStr,showError} from "@/framework/utils/index";
+import {getFields,getFns,validateEXpr} from "../api/booklet";
+import { queryById } from "../api/integratedquery";
+import cloneDeep from "lodash/cloneDeep";
+import {mapState} from 'vuex'
+export default {
+  components: {
+    APopover:Popover,
+    ACollapse:Collapse,
+    ACollapsePanel:Collapse.Panel,
+    ASelect:Select,
+    ASelectOption:Select.Option,
+    ATooltip:Tooltip,
+    AButton:Button,
+    AModal: Modal,
+    AInput:Input,
+    ATextarea: Input.TextArea,
+    ARow: Row,
+    ACol: Col,
+    AIcon: Icon,
+    ASpin:Spin,
+    ADivider:Divider, 
+    IntegratedQuery
+  },
+  props: {
+    //数据集 可选
+    value: {
+      type: Array,
+      required: false 
+    },
+    // 自定义数据  配置了则有 添加数据
+    selfFields:{
+      type: Array,
+      required: false
+    },
+    /** 
+     * TODO
+     * 根据数据集获取数据(foreach=> undefind 不操作/Object 获取)
+    */
+    foreach:{
+      required: false
+    },
+    fnData:{
+      type: String
+    },
+    namespace:{
+      type: String,
+      required: true
+    }
+  },
+  data() { 
+    return {
+      // 编辑的公式
+      params:"",
+      //字段前缀  a.name a['_id@orgstatistic.org']
+      prefix:"",
+      // 综合查询 modal
+      showQueryModal: false,
+      // 当前编辑状态数据集
+      editorIndex:undefined,
+      // 数据集
+      dataSource: cloneDeep(this.value),
+      // 函数集合
+      fnList: [],
+      // sort  函数分类
+      sort:"全部", 
+      // 根据sort分类的函数
+      fnArray:[],
+      // 数据集字段二级列表
+      fields: [], 
+      // 作用域数据
+      datasList:[],
+      queryid: undefined,
+      // 加载动画
+      loading:false,
+      // 缓存数据集
+      map:new Map(),
+      // 自定义添加字段
+      selfDefineField: cloneDeep(this.selfFields || []),
+    };
+  },
+  mounted(){
+    this.initFn();
+  },
+  watch: {
+    value(v) {
+      this.dataSource = cloneDeep(v);
+    },
+    selfFields(v){
+      this.selfDefineField = cloneDeep(v)
+    },
+    sort(v){
+      if(v === '全部'){
+        this.fnArray = cloneDeep(this.fnList);
+      }else{
+        this.fnArray = this.fnList.filter((item,index)=>{
+          return item.sort == v;
+        });
+      }
+    }
+  },
+  computed: {
+    span() {
+      return this.dataSource ? 8 : 12;
+    },
+    havaDataSource() {
+      return this.dataSource ? true : false;
+    },
+    sorts(){
+      let arr = ['全部'];
+      this.fnList.map((item,index)=>{
+        let str = item.sort;
+        if(!arr.includes(str)){
+          arr.push(str);
+        }
+      });
+      return arr;
+    },
+    ...mapState({
+      scopedDataList:(state)=>state.query.scopeData
+    }),
+    // 去重复
+    filterDatasList(){
+      let hash ={};
+      const newArr = this.datasList.reduce((item, next) => {
+        hash[next.name] ? '' : hash[next.name] = true && item.push(next);
+        return item
+      }, []);  
+      return newArr;
+    }
+  },
+  directives:{
+    focus:{
+      inserted(el){
+        el.focus();
+      }
+    }
+  },
+  methods: {
+    filterKey(){
+
+    },
+    initFn(){
+      if( this.fnData && this.fnData.indexOf('${') != -1){
+        let length = this.fnData.length;
+        this.params = this.fnData.substring(2,length-1);
+      }else{
+        this.params = this.fnData == undefined ? '': this.fnData;
+      }
+      this.getFieldsList();
+      this.getFnsList();
+    },
+    //TODO 根据foreach字段获取数据
+    getFieldsByLoop(){
+      if(this.foreach){
+        let arr = this.dataSource.filter((item,index)=>{
+          return item.name == this.foreach.expr;
+        })
+        if(arr['length'] > 0){
+          queryById(arr[0].queryid).then(res=>{
+            let looplist=[];
+            res.result.fields.forEach((item,index)=>{
+              let obj = {}
+              obj.name = this.checkStr(item.key) ? `${this.foreach.item}['${item.key}']`:`${this.foreach.item}.${item.key}`;
+              obj.desc = item.showname;
+              looplist.push(obj);
+            })
+            this.datasList = [...this.datasList,{name:this.foreach.index,desc:'索引'},...looplist];
+          }).catch(err=>{
+            showError(err);
+          });
+        }
+      }
+    },
+    explain(item){
+      let arr = item['arguments'];
+      let variable = arr.some((item,index)=>{
+         return item.variable;
+      })
+      let argument = [];
+      let argsDesc = [];
+      arr.map((item,index)=>{
+        let desc = item.name + '&nbsp;&nbsp;' +item.desc  + (item.optional?'':'，选填');
+        argument.push(item.name);
+        argsDesc.push(desc);
+      });
+      if(variable){
+        argument = arr.length == 0?'...':arr[0].name +'，'+'...';
+      }else{
+        argument = argument.join(',')
+      }
+      const tmpl = loop => `<table>${loop.map(item => `<tr><td nowrap="nowrap">${item}</td></tr>`).join('')}</table>`;
+      let funName = `${item.name}(${argument})`
+      return `${this.joinHtml('函数',funName)}  ${this.joinHtml('功能',item.desc)} ${this.joinHtml('参数',tmpl(argsDesc))} `;
+    },
+    joinHtml(key,value){
+      return  `<table><tr><td nowrap="nowrap" style="vertical-align:top;">${key}：</td><td nowrap="nowrap">${value}</td></tr></table>`
+    },
+    indexInArray(arr, obj,key) {
+      let index = arr.findIndex(item => item[key] == obj[key]);
+      return index;
+    },
+    // 验证表达式是否合法
+    validate(){
+      validateEXpr(this.params).then(res=>{
+        this.$notification.success({
+          message:'提示',
+          description:'验证通过!',
+          duration:3
+        })
+      }).catch(err=>{
+        showError(err);
+      });
+    },
+    // 获取数据
+    async getFieldsList(){
+     await getFields(this.namespace).then(res=>{
+        this.datasList = [...res.result,...this.scopedDataList];
+      }).catch(err=>{
+        showError(err);
+      });
+      this.getFieldsByLoop();
+    },
+    //获取函数列表
+    getFnsList(){
+      getFns(this.namespace).then(res=>{
+        this.fnList = res.result;
+        this.fnArray = res.result;
+      }).catch(err=>{
+        showError(err);
+      });
+    },
+    editorName(item,index){
+      this.prefix = item.name;
+      this.editorIndex = index;
+    },
+    editorClose(index) {
+      this.editorIndex = undefined;
+      this.$emit('input', this.dataSource);
+    },
+    generateFn(item){
+      let arr = item.arguments;
+      let args =[];
+      arr.map((item,index)=>{
+        args.push(item.name);
+      });
+      return `${item.name}(${args.join(',')})`
+    },
+    editorParams(item,type){
+      let dom = this.$refs.textArea;
+      let replaceStr = this.generateStr(item,type);
+      let selectionStart = dom.selectionStart;
+      let selectionEnd = dom.selectionEnd;
+      this.params = this.params.substring(0,selectionStart) + replaceStr + this.params.substring(selectionEnd);
+      // TODO 不设置dom.value = this.params 选中函数参数无效
+      dom.value = this.params;
+      if(type == 1){
+        let args = replaceStr.substring(replaceStr.indexOf('(')+1,replaceStr.indexOf(')'))
+        let argsArr = args.split(',');
+        let arg = argsArr[0];
+        if(arg){
+          let start = selectionStart + replaceStr.indexOf('(') + 1;
+          let end = start + arg.length;
+          dom.setSelectionRange(start,end);
+        }
+      }else{
+        let position = selectionStart + replaceStr.length;
+        dom.setSelectionRange(position,position);
+      }
+      dom.focus();
+    },
+    // 生成文本框字符串 type   1=> 函数    2.作用域数据    3.数据集 name    4. 数据集
+    generateStr(item,type){
+      let str = '';
+      switch(type){
+        case 1 : str = this.generateFn(item); break;
+        case 2 : str = item.name; break;
+        case 3 : str = item.name;break;
+        case 4 : str = this.checkStr(item.key)? `${this.prefix}['${item.key}']`:`${this.prefix}.${item.key}`;break;
+      }
+      return str;
+    },
+    // 判断字符串是否包含特殊字符
+    checkStr(str){
+      let validChar = /[~!@#$%^&*()_+<>?:"{},.\/;'[\]]/im;
+      return validChar.test(str);
+    },
+    // 获取字段
+    getQuery(item,index) {
+      if(!item.queryid){
+        return false;
+      }
+      this.prefix  = item.name;
+      let obj = cloneDeep(this.dataSource[index]);
+      this.toggle(index);
+      this.loading = true;
+      if(obj.active){
+        this.loading = false;
+      }else{
+        let result = this.map.get(item.queryid);
+        if(result){
+           this.fields = result;
+           this.loading = false;
+        }else{
+          queryById(item.queryid)
+          .then(res => {
+            this.fields = res.result.fields;
+            this.map.set(item.queryid,cloneDeep(res.result.fields));
+          })
+          .catch(err => {
+            showError(err);
+          }).finally(()=>{
+            this.loading = false;
+          });
+        }
+      }
+    },
+    toggle(num){
+      this.dataSource.map((item,index)=>{
+        let obj = item;
+        if(num == index){
+          obj.active = !item.active;
+        }else{
+          obj.active = false;
+        }
+        this.$set(this.dataSource,index,obj);
+      });
+    },
+    // 删除数据集/定义数据
+    delDataSource(index) {
+      this.dataSource.splice(index, 1);
+      this.$emit("input", this.dataSource);
+    },
+    //添加、更新数据集
+    callBack(query) {
+      let obj = {queryid: query.id}
+      let index = this.indexInArray(this.dataSource,obj,'queryid');
+      if(index != -1){
+        // 更新
+        this.$set(this.dataSource[index], 'desc', query.title);
+      }else{
+        // 添加
+        this.dataSource.push({
+          desc: query.title,
+          queryid: query.id,
+          name: randomStr(6)
+        });
+      }
+      this.$emit("input", this.dataSource);
+      this.showQueryModal = false;
+    },
+    updateDataSet(item,index){
+      this.queryid = item.queryid;
+      this.showQueryModal = true;
+      this.$store.commit({
+        type:'SET_SCOPE_DATA',
+        data:[...this.selfDefineField,...this.filterDatasList]
+      })
+    },
+    addDataSet(){
+      this.queryid = undefined;
+      this.showQueryModal = true;
+      this.$store.commit({
+        type: "SET_TREEDATA",
+        data: {
+          "op": "and",
+          "criteria": []
+        }
+      });
+    },
+    closeQueryModal(){
+      this.reSetSCopeData()
+    },
+    onFinish(type){
+      if (type == "ok") {
+        if(this.params == ''){
+          this.$emit("finish", type, this.params);
+        }else{
+          validateEXpr(this.params).then(res=>{
+            this.$emit("finish", type, this.params);
+          }).catch(err=>{
+            showError(err);
+          });
+        }
+      } else {
+        this.$emit("finish", type);
+      }
+    },
+    reSetSCopeData(){
+      // 重置 作用域数据
+      this.$store.commit({
+        type:'SET_SCOPE_DATA',
+        data:[]
+      });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.tip {
+  display: flex;
+  justify-content: space-between;
+  span {
+    &:last-child {
+      color: @primary-color;
+      cursor: pointer;
+    }
+  }
+}
+textarea{
+  font-size: 15px;
+  color: @black;
+}
+.cell {
+  width: 100%;
+  border: 1px solid @border-color-base;
+  margin-top: @padding-md;
+  height: 360px;
+  display: flex;
+  flex-direction: column;
+  &-top{
+    display: flex;
+    align-items: center;
+    background: #d1d1d180;
+    border-bottom: 1px solid #d9d9d9;
+    p {
+      width: 40%;
+      margin: 0px;
+      height: 30px;
+      line-height: 30px;
+      text-indent: 10px;
+    }
+    .ant-select{
+      flex: 1;
+      margin-right: 8px;
+    }
+  }
+  ul {
+    flex: 1;
+    width: 100%;
+    overflow-y: auto;
+    margin: 0px;
+    li {
+      padding: 0px 10px;
+      width: 100%;
+      height: 30px;
+      line-height: 30px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      &:not(.divider):hover {
+        background: #d1d1d180;
+        cursor: pointer;
+      }
+      &.data-source {
+        height: auto;
+        cursor: pointer;
+        border-bottom: 1px solid #d9d9d9;
+        padding: 0px;
+        &:last-child{
+          border-bottom: none;
+        }
+        &:hover{
+          background: none;
+          cursor: inherit;
+        }
+        .editor{
+          display: flex;
+          flex: 1;
+          margin-right: 10px;
+          a{
+            width: 50px;
+            text-align: center;
+          }
+          input{
+            flex: 1;
+          }
+        }
+        .panel{
+          &-title{
+            padding: 6px 10px;
+            cursor: pointer;
+            &:hover{
+              background: #9e9e9e1c;
+              .right{
+                width: 100%;
+                overflow: hidden;
+                .top{
+                  .editorIcon{
+                    visibility: visible;
+                  }
+                }
+              }
+            }
+            &.active{
+              border-bottom: 1px solid #d9d9d9;
+              .left{
+                i{
+                  transform: rotate(90deg);
+                  transition: .24s;
+                }
+              }
+            }
+            display: flex;
+            .left{
+              width: 25px;
+              display: flex;
+              justify-content: left;
+              align-items: center;
+            }
+            .right{
+              flex: 1;
+              .top {
+                display: flex;
+                .icon {
+                  width: 40px;
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  i {
+                    cursor: pointer;
+                    padding: 0px 2px;
+                    color: @primary-color;
+                  }
+                }
+                p {
+                  flex: 1;
+                  margin-right: 10px;
+                  height: 24px;
+                  line-height: 24px;
+                  .text{
+                    padding:0px 6px;
+                    &:hover{
+                      background: #d9d9d9;
+                    }
+                  }
+                  .editorIcon{
+                    color: @primary-color;
+                    cursor: pointer;
+                    padding: 0px 4px;
+                    visibility: hidden;
+                  }
+                }
+              }
+              p.desc{
+                margin-top: 4px;
+              }
+            }
+          }
+          &-content{
+            padding: 8px 0px;
+            background: #fff;
+            .fields{
+              padding: 0px 10px;
+            }
+          }
+         /deep/ .ant-spin-nested-loading > div > .ant-spin .ant-spin-dot {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+          }
+        }
+        p {
+          height: 20px;
+          line-height: 20px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          background: none;
+          margin: 0px;
+        }
+      }
+      &.fields {
+       overflow: hidden;
+       text-overflow: ellipsis;
+       white-space: nowrap;
+      }
+      &.divider{
+        overflow: visible;
+        padding: 6px 0px;
+        height: 0px;
+        .ant-divider{
+          margin: 0px;
+        }
+      }
+      &.selfField{
+        .unite{
+          display: flex;
+          .left{
+            flex:1;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+          }
+          .right{
+            width: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            i {
+              cursor: pointer;
+              padding: 0px 2px;
+              color: @primary-color;
+            }
+          }
+        }
+      }
+    }
+  }
+  .add {
+    height: 30px;
+    line-height: 30px;
+    border-top: 1px solid @border-color-base;
+    cursor: pointer;
+    color: @primary-color;
+    display: flex;
+    span{
+      flex: 1;
+      text-align: center;
+    }
+  }
+}
+</style>
+<style lang="less">
+.exper-query-model{
+  .ant-modal-close-x{
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+  }
+}
+</style>

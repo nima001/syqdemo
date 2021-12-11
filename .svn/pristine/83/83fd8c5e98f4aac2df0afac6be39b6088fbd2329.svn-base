@@ -1,0 +1,60 @@
+import { setCookie, removeCookie } from '../../utils/auth'
+import store from '../../store'
+import Bus from '@/framework/utils/EventBus'
+
+/**
+ * 登录会话
+ */
+const session = {
+  state: {
+    jwt: undefined,
+    accesstoken: undefined,
+    uid: undefined,
+    username: undefined,
+  },
+  mutations: {
+    SESSION_INIT(state, s){
+      state.jwt = s.jwt;
+      state.accesstoken = s.accesstoken;
+      state.uid = s.uid;
+      state.username = s.username;
+    },
+    SESSION_RESET(state) {
+      state.jwt = undefined;
+      state.accesstoken = undefined;
+      state.uid = undefined;
+      state.username = undefined;
+    }
+  },
+  getters: {
+    session: (state) => {
+      if(state.jwt){
+        return Object.assign({}, state);
+      }
+      if(state.accesstoken){
+        return Object.assign({}, state);
+      }
+    },
+  }
+}
+
+Bus.$on('afterLogin', (entity) => {
+  if(store.getters.sessionToken){//原来登录的用户清除
+    Bus.$emit('beforeLogout');
+  }
+  store.commit('SESSION_INIT', entity);
+  setCookie('X-Commnet-Token', entity.jwt)
+})
+Bus.$on('afterLoginnew', (entity) => {
+  if(store.getters.sessionToken){//原来登录的用户清除
+    Bus.$emit('beforeLogout');
+  }
+  store.commit('SESSION_INIT', entity);
+  setCookie('X-Commnet-Token', entity.accesstoken)
+})
+Bus.$on('beforeLogout', () => {
+  store.commit('SESSION_RESET');
+  removeCookie('X-Commnet-Token');
+})
+
+export default session

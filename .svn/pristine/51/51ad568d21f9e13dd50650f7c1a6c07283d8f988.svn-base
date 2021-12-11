@@ -1,0 +1,59 @@
+<template>
+  <div class="org-staffcase">
+    <a-row :gutter="20">
+      <a-col :span="12">
+        <a-table 
+          :rowKey="generateRowKey"
+          :columns="columns" 
+          :dataSource="tableData" 
+          :pagination="false"
+          >
+        </a-table>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+import { Row, Col, Table } from "ant-design-vue";
+export default {
+  props: {
+    data: Array
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+    ATable: Table
+  },
+  data() {
+    return {
+      columns: [
+        { title: '序号', customRender: index => index, width: '10%' },
+        { title: '内设机构名称', dataIndex: 'internalorgname', width: '45%' },
+        { title: '是否综合性', dataIndex: 'synthesis', width: '45%' },
+        // { title: '操作', scopedSlots: { customRender: "operation" }, width: '30%' }
+      ],
+      tableData: []
+    };
+  },
+  watch: {},
+  computed: {
+  },
+  created() {
+    this.tableData = this.data;
+  },
+  mounted() {},
+  methods: {
+    generateRowKey() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.org-staffcase{  
+  /deep/.ant-row{
+    line-height: 30px;
+  }
+}
+</style>

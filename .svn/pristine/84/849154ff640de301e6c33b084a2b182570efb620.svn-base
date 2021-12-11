@@ -1,0 +1,41 @@
+<template>
+  <div class="content">
+    <components
+      v-if="this.chartType !== 'table' && this.queryData"
+      :is="this.chartType"
+      :settings="this.settings"
+      :dataTable="queryData.data"
+      :active="this.active"
+    />
+    <slot v-else name="empty"/>
+  </div>
+</template>
+
+<script>
+import { components } from "@person/components/chart";
+export default {
+  props: {
+    queryData:{
+      type: Object,
+    },
+    chartType:{
+      type: String,
+    },
+    settings: {
+      type: Object,
+    },
+    active: {
+      type: Number,
+    }
+  },
+  components: {
+    ...components,
+  },
+  data() {
+    return {};
+  },
+};
+</script>
+<style scoped>
+/* @import url(); 引入css类 */
+</style>

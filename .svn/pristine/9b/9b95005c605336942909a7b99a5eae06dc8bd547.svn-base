@@ -1,0 +1,261 @@
+<template>
+  <div class="workflow">
+    <a-form-item :label="property.showName?property.name:''">
+      <div class="optionsWrap hand">
+        <a-textarea
+          @change="changeOption"
+          :rows="4"
+          style="resize:none"
+          :disabled="property.editable?false:true"
+          v-decorator="[
+          `${property.code}`,
+          {
+            rules: [{required:property.require, message: `请输入意见!`}],
+            initialValue: $store.getters.formData[property.code]?$store.getters.formData[property.code][property.childs[0].code]:optionText
+          }
+        ]"
+        ></a-textarea>
+        <div class="stampBottom">
+          <a-form-item>
+            <a-date-picker
+              :getCalendarContainer="triggerNode => triggerNode.parentNode"
+              :disabled="property.editable?false:true"
+              placeholder="请选择日期"
+              @change="changeDate"
+              v-decorator="[
+          `${property.childs[1].code}`,
+          {
+            rules: [{required: property.require, message: `请选择时间!`}],
+            initialValue: time
+          }
+        ]"
+            />
+          </a-form-item>
+        </div>
+      </div>
+    </a-form-item>
+
+    <stamp
+      :property="property"
+      @imgUrl="getStamp"
+      v-if="property.signcomponent.signcode && property.signcomponent.editable"
+    ></stamp>
+    <a-form-item class="stampNotice" v-if="!imgUrl && property.signcomponent.signcode">
+      <a-input
+        type="hidden"
+        v-decorator="[
+          `${property.signcomponent.code}`,
+          {
+            rules: [{required: property.signcomponent.require, message: `请选择签章!`}],
+            initialValue: stamp
+          }
+        ]"
+      ></a-input>
+    </a-form-item>
+    <div class="seal" v-if="imgUrl">
+      <img :src="imgUrl" />
+    </div>
+  </div>
+</template>
+<script>
+import Stamp from "./stampComponent/Stamp";
+import { getStampInfo } from "@/workflow/api/stamplist";
+import moment from "moment";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import "@/workflow/style/workflow.css";
+import { showError, debounce } from "@/framework/utils/index";
+import { Form, Input, DatePicker } from "ant-design-vue";
+export default {
+  name: "ApprovalOpinionsOne",
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      optionText: "",
+      obj: {},
+      code: this.property["code"],
+      formData: this.$store.getters.formData,
+      time: {},
+      imgUrl: null,
+      stamp: null
+    };
+  },
+  props: {
+    property: {
+      type: Object
+    },
+    bindform: {
+      type: Object,
+      required: true
+    },
+    relateControls: {
+      type: Array
+    }
+  },
+  components: {
+    Stamp,
+    AFormItem: Form.Item,
+    ATextarea: Input.TextArea,
+    ADatePicker: DatePicker,
+    AInput: Input
+  },
+  computed: {
+    data() {
+      return this.$store.getters.formData[this.property.code]
+        ? this.$store.getters.formData[this.property.code][
+            this.property.childs[1].code
+          ]
+        : undefined;
+    }
+  },
+  watch: {
+    data(newVal) {
+      this.time = moment(this.data);
+    }
+  },
+  created() {
+    this.time = undefined;
+    if (this.formData[this.code]) {
+      this.obj = this.formData[this.code];
+      this.time = this.moment(
+        this.formData[this.code][this.property.childs[1].code]
+      );
+      this.relateControl(this.obj, 1);
+      this.relateControl(this.time, 2);
+    } else {
+      if (!this.property.require) {
+        this.changeHandle(this.property.childs[0].code, null);
+        this.changeHandle(this.property.childs[1].code, null);
+      }
+      if (this.property.defaultType == 2) {
+        if (this.property.childs[0].defaultContent) {
+          this.changeHandle(
+            this.property.childs[0].code,
+            this.property.childs[0].defaultContent
+          );
+          this.optionText = this.property.childs[0].defaultContent;
+        }
+        let defaultType = this.property.childs[1].defaultType;
+        if (defaultType == 2) {
+          this.time = this.moment();
+          this.changeHandle(
+            this.property.childs[1].code,
+            this.moment().format("YYYY-MM-DD")
+          );
+        } else if (defaultType == 3) {
+          this.time = moment(
+            this.property.childs[1].defaultContent,
+            "YYYY-MM-DD"
+          );
+          this.changeHandle(
+            this.property.childs[1].code,
+            this.moment(this.property.childs[1].defaultContent).format(
+              "YYYY-MM-DD"
+            )
+          );
+        } else {
+          this.time = undefined;
+        }
+      }
+    }
+    if (this.formData[this.property.signcomponent.code]) {
+      //获取签章图片
+      getStampInfo(this.formData[this.property.signcomponent.code])
+        .then(res => {
+          if (res.code == "success") {
+            this.imgUrl =
+              this.uiConfigs["api.url"] +
+              "/file/v1/download" +
+              "?uri=" +
+              encodeURIComponent(res.result.pictureurl);
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  },
+  methods: {
+    moment,
+    //表单传值
+    changeHandle(type, value) {
+      this.obj[type] = value;
+      if (
+        this.obj[this.property.childs[0].code] &&
+        this.obj[this.property.childs[1].code]
+      ) {
+        this.$store.getters.formData[this.code] = this.obj;
+        this.relateControl(this.obj, 1);
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.$store.getters.formData
+        });
+      }
+    },
+    //输入意见文本框给表单传值
+    changeOption: debounce(function(e) {
+      this.changeHandle(this.property.childs[0].code, e.target.value);
+    }, 300),
+    //选择时间后给表单传值
+    changeDate(date, dateString) {
+      this.changeHandle(this.property.childs[1].code, dateString);
+      this.relateControl(dateString, 2);
+    },
+    //获取签章
+    getStamp(img) {
+      if (img) {
+        this.imgUrl = img;
+        this.stamp = img;
+      }
+    },
+    //关联控件变化
+    relateControl(val, type) {
+      let formData = {};
+      let flag = false;
+      this.relateControls.forEach(item => {
+        if (type == 1) {
+          if (item.relate == this.code) {
+            flag = true;
+            let obj = {};
+            obj[item.childs[0].code] = val[this.property.childs[0].code];
+            obj[item.childs[1].code] = val[this.property.childs[1].code];
+            this.$store.getters.formData[item.code] = obj;
+          }
+        } else if (type == 2) {
+          if (item.relate == this.property.childs[1].code && val) {
+            flag = true;
+            if (item.type == "plus") {
+              if (item.date == "days") {
+                this.$store.getters.formData[item.code] = moment(val)
+                  .add(item.num, "days")
+                  .format(this.property.format);
+              } else {
+                this.$store.getters.formData[item.code] = moment(val)
+                  .add(item.num, "months")
+                  .format(this.property.format);
+              }
+            } else {
+              if (item.date == "days") {
+                this.$store.getters.formData[item.code] = moment(val)
+                  .subtract(item.num, "days")
+                  .format(this.property.format);
+              } else {
+                this.$store.getters.formData[item.code] = moment(val)
+                  .subtract(item.num, "months")
+                  .format(this.property.format);
+              }
+            }
+          }
+        }
+      });
+      if (flag) {
+        this.bindform.resetFields();
+        formData = Object.assign({}, this.$store.getters.formData);
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: formData
+        });
+      }
+    }
+  }
+};
+</script>

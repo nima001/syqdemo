@@ -1,0 +1,78 @@
+<template>
+  <a-layout class="org-content">
+    <a-layout-header class="content-header" v-if="isUnit">
+    </a-layout-header>
+    <a-layout-content style="height:100%">
+      <detail-info :org="org" :treeid="treeid" :nodeid="nodeid" :keynum="keynum" v-if="org" />
+    </a-layout-content>
+  </a-layout>
+</template>
+<script>
+import {Layout, Form} from 'ant-design-vue';
+import DetailInfo from "./components/DetailInfo";
+import { log } from '@antv/g2plot/lib/utils';
+
+export default {
+  name: 'accountMain',
+  props: ["loadData"],
+  components: {
+    ALayout:Layout,
+    ALayoutHeader:Layout.Header,
+    ALayoutContent:Layout.Content,
+    DetailInfo,
+  },
+  data() {
+    return{
+      keynum: null,
+      selectedtreeid: null,
+    }
+  },
+  created() {
+    this.keynum = this.$route.query.keynum;
+    this.selectedtreeid = this.$route.query.treeid;
+  },
+  computed:{
+    org(){
+      if(this.loadData){
+        let {node, dept} = this.loadData;
+        return dept || (node && node.data);
+      }
+    },
+    treeid(){
+      if(this.loadData){
+        return this.loadData.treeid;
+      }
+    },
+    nodeid(){
+      if(this.loadData){
+        let {node, dept} = this.loadData;
+        return dept ? null : node && node.id;
+      }
+    },
+    isUnit() {
+      return this.org && [1, 2, 3, 5].indexOf(this.org.unittype) >= 0;
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.org-content {
+  height: 100%;
+  border-radius: @border-radius-base;
+  min-width: 1000px;
+  .content-header {
+    border-radius: @border-radius-base;
+    background-color: #fff;
+    margin-bottom: @layout-space-base;
+  }
+  .ant-layout-content {
+    border-radius: @border-radius-base;
+    background-color: #fff;
+    overflow-x: auto;
+  }
+  .ant-layout-header {
+    height: auto;
+    padding: 0;
+  }
+}
+</style>

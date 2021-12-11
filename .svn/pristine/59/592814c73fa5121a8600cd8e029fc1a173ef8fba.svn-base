@@ -1,0 +1,184 @@
+<template>
+  <div class="wrap">
+    <div class="back" @click="black" v-if="district">
+      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+        <g id="组_2288" data-name="组 2288" transform="translate(-41 -718)">
+          <g id="组_2195" data-name="组 2195" transform="translate(41.5 718.5)">
+            <path
+              id="路径_1022"
+              data-name="路径 1022"
+              d="M562.38,153.524l4.644,2.866a.943.943,0,0,0,1.454-.98v-5.732a.932.932,0,0,0-1.453-.98l-4.644,2.828a1.173,1.173,0,0,0,0,2Z"
+              transform="translate(-561.821 -147.533)"
+              fill="#d9d9d9"
+            />
+            <path
+              id="路径_1023"
+              data-name="路径 1023"
+              d="M68.717,326.434c1.276,2.733.815,4.559-.461,6.3a3.793,3.793,0,0,1-2.942,1.649H56.087c-.532,0-.957-.565-.957-1.272,0-.66.425-1.225.922-1.225h9.155a2.039,2.039,0,0,0,1.631-.9c.78-1.036,1.028-1.874,0-3.476a1.885,1.885,0,0,0-1.312-.8H61.095v-2.45h4.573a3.453,3.453,0,0,1,3.049,2.167Z"
+              transform="translate(-54.474 -320.386)"
+              fill="#d9d9d9"
+            />
+          </g>
+          <rect
+            id="矩形_1858"
+            data-name="矩形 1858"
+            width="16"
+            height="16"
+            transform="translate(41 718)"
+            fill="none"
+          />
+        </g>
+      </svg>
+      <span>返回</span>
+    </div>
+    <div class="chart" :id="id">
+      <a-spin :spinning="loading"></a-spin>
+    </div>
+  </div>
+</template>
+<script>
+import { Chart } from "@antv/g2";
+import DataSet from "@antv/data-set";
+import { problemHandle } from "@/person-shaoxing/api/monitor";
+import { showError } from "@framework/utils";
+import { Spin } from "ant-design-vue";
+// 条形图
+export default {
+  data() {
+    return {
+      list: [],
+      id: Math.random().toString(32).substr(2),
+      district: undefined,
+      loading: true,
+      color: ["#d15456", "#5488d1"],
+      plot: undefined
+    };
+  },
+  components: {
+    ASpin: Spin
+  },
+  mounted() {
+    
+  },
+  computed:{
+    dictList(){
+      let dictKey = this.district? "usermanage.org.systype" : "usermanage.org.district";
+      return this.$store.getters.dict(dictKey)
+    }
+  },
+  watch:{
+    dictList:{
+      handler(v){
+        if(v){
+          this.getData();
+        }
+      },
+      deep:true
+    }
+  },
+  methods: {
+    getData() {
+      this.loading = true;
+      problemHandle(this.district)
+        .then(res => {
+          this.createData(res.result.data, () => {
+            this.draw();
+          });
+        })
+        .catch(err => {
+          showError(err);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    },
+    createData(dataTable, fn) {
+      let { keyCols, rows, valueCols } = dataTable;
+      let key = keyCols[0];
+      let dictKey = this.district? "usermanage.org.systype" : "usermanage.org.district";
+      this.list = rows.map(item => {
+        return {
+          key: this.$store.getters.dictKey(dictKey, item[key.column]).text,
+          district: item[key.column],
+          value: item[valueCols[0]["column"]]
+        }
+      });
+      fn();
+    },
+    draw() {
+      const chart = new Chart({
+        container: this.id,
+        autoFit: true
+      });
+      chart.data(this.list);
+      chart.scale({
+        value: {
+          nice: true,
+          alias: "问题数"
+        }
+      });
+      chart.coordinate().transpose();
+      chart.tooltip({
+        showMarkers: false
+      });
+      chart.interaction("active-region");
+      chart
+        .interval()
+        .position("key*value")
+        .label("value", {
+          style: {
+            fill: "#fff"
+          },
+          offset: -10
+        })
+        .color("#d15456");
+      this.plot = chart;
+      chart.render();
+      chart.on("click", ev => {
+        if (this.district) {
+          return false;
+        }
+        this.district = ev.data && ev.data.data.district;
+        if (this.district && this.plot) {
+          this.plot.destroy();
+        }
+      });
+    },
+    black() {
+      this.district = undefined;
+      if (this.plot) {
+        this.plot.destroy();
+      }
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .back {
+    width: 55px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    span {
+      margin-left: 5px;
+      color: @primary-color;
+    }
+  }
+  .chart {
+    flex: 1;
+    .ant-spin {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+  }
+}
+</style>

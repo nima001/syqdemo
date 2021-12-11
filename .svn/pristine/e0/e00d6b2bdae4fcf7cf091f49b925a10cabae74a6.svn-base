@@ -1,0 +1,48 @@
+import request from '@/framework/utils/request'
+/*
+**信息服务
+*/
+
+//智能搜索-文件查询
+export function sxdocument(data) {
+  return request({
+    url: '/person/document/search',
+    method: 'post',
+    data
+  })
+}
+//智能搜索-职能查询
+export function sxorgfuncdesc(data) {
+    return request({
+      url: '/person/sx/orgfuncdesc/search',
+      method: 'post',
+      data
+    })
+  }
+ 
+//智能搜索-人员查询
+export function sxquery(data) {
+  return request({
+    url: '/person/user/query',
+    method: 'post',
+    data
+  })
+}
+//智能搜索-人员查询-机构详情
+export function organization(id) {
+  return request({
+      url: '/person/org/' + id,
+      method: 'get'
+  });
+}
+
+//智能搜索-组织搜索
+export function sxorgquery(data) {
+  return request({
+    url: '/person/org/query',
+    method: 'post',
+    data
+  })
+}
+
+

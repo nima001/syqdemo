@@ -1,0 +1,110 @@
+import request from '@/framework/utils/request'
+/*
+**机构编制辅助评估
+*/
+
+//  所有辅助评估列表
+export function listReport(data) {
+  return request({
+    url: '/person/sx/assess/report/listorgassessreport',
+    method: 'post',
+    data
+  })
+}
+
+//  添加新的辅助评估
+export function addReport(data) {
+  return request({
+    url: '/person/sx/assess/report/add',
+    method: 'post',
+    data
+  })
+}
+
+//  某一个辅助评估的详情
+export function reportDetail(id) {
+  return request({
+    url: `/person/sx/assess/report/details?id=${id}`,
+    method: 'get'
+  })
+}
+
+//评估模板下拉框
+export function listConfig() {
+  return request({
+    url: `/person/sx/assess/config/listconfig`,
+    method: 'get'
+  })
+}
+
+//根据评估模板获取评估及哪些内容需要输入
+export function reportInput(configid) {
+  return request({
+    url: `/person/sx/assess/config/reportinput?configid=${configid}`,
+    method: 'get'
+  })
+}
+
+//是否列入机构编制审批黑名单
+export function staffBlacklist(orgid, type) {
+  return request({
+    url: `/person/sx/assess/report/isexistorgblacklist?orgid=${orgid}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//是否存在机构编制问题情况
+export function staffViolate(orgid, type) {
+  return request({
+    url: `/person/sx/assess/report/iscrgcompileproblem?orgid=${orgid}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//机构限额判定
+export function orgNumberLimit(district, type) {
+  return request({
+    url: `/person/sx/assess/report/orgnumberlimit?district=${district}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//机构限额判定
+export function compileNumberLimit(orgid, district, type) {
+  return request({
+    url: `/person/sx/assess/report/compilenumberlimit?orgid=${orgid}&district=${district}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//获取单位的内设机构
+export function getInternalOrg(orgid) {
+  return request({
+    url: `/person/sx/assess/report/getinternalorg?orgid=${orgid}`,
+    method: 'get'
+  })
+}
+
+//机构名称规范
+export function orgnameDetails(orgname) {
+  return request({
+    url: `/person/sx/assess/report/orgnamedetails?orgname=${orgname}`,
+    method: 'get'
+  })
+}
+
+//不同地区同类机构的编制对比情况
+export function compileCompare(orgid, orgline, type) {
+  return request({
+    url: `/person/sx/assess/report/compilecompare?orgid=${orgid}&orgline=${orgline}&type=${type}`,
+    method: 'get'
+  })
+}
+
+//行政机构领导职数配置规则
+export function orgLeadernum(orgid, compilenum, internalorgnum, type) {
+  return request({
+    url: `/person/sx/assess/report/publicorgleadernumrule?orgid=${orgid}&compilenum=${compilenum}&internalorgnum=${internalorgnum}&type=${type}`,
+    method: 'get'
+  })
+}

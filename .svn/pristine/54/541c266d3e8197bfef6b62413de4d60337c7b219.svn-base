@@ -1,0 +1,96 @@
+<template>
+  <div class="org-main-panel">
+    <a-spin :spinning='loading'>
+      <form-display :formConfig="formConfig" :formLayout='formLayout' :formData="formData" :editor="editor" ref="formDisplay"></form-display>
+    </a-spin>
+  </div>
+</template>
+<script>
+import FormDisplay from "@/formdesign/views/FormDisplay";
+import { modelForm, getUser,getRetireuser } from "@person/api/user";
+import { showError } from '@framework/utils';
+import data from "./components/data";
+import {Spin} from 'ant-design-vue';
+export default {
+  name: "UserInfo",
+  components: {
+    ASpin:Spin,
+    FormDisplay
+  },
+  data() {
+    return {
+      loading:true,
+      // 表单配置
+      formConfig: [],
+      // 表单初始化数据
+      formData: {},
+      // 表单可编辑
+      editor: true,
+      // 表单布局
+      formLayout:undefined
+    };
+  },
+  props: ["loadData"],
+  computed: {
+    userId() {
+      return this.$route.query.userid;
+    },
+    retireuser(){
+      return this.$route.query.retireuser
+    }
+  },
+  created() {
+    // this.formConfig = data.list;
+    // this.loading = false;
+    this.getUserDetail()
+    this.getFormConfig()
+  },
+  methods: {
+    getFormConfig(){
+      let namespace = this.retireuser ? 'userretire' : 'user';
+      modelForm( namespace , this.userId)
+        .then(res => {
+          let result = JSON.parse(res.result);
+          this.formConfig = result.list;
+          this.formLayout = result.formLayout;
+        })
+        .catch(err => {
+          this.formConfig = [];
+          showError(err);
+        }).finally(()=>{
+          this.loading = false;
+        });
+    },
+    getUserDetail() {
+      let request = null;
+      if(this.retireuser){
+        request = getRetireuser(this.userId);
+      }else{
+        request = getUser(this.userId)
+      }
+      request.then(({ result: user }) => {
+          this.formData = user;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.org-main-panel {
+  height: 100%;
+  border-radius: @border-radius-base;
+  background: @white;
+  padding: @padding-xs 0;
+  /deep/.ant-spin-nested-loading{
+      display: block;
+      margin: 0 auto;
+      height: 100%;
+      .ant-spin-container{
+        height: 100%;
+      }
+    }
+}
+</style>

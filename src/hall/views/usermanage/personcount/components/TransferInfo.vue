@@ -1,0 +1,195 @@
+<template>
+  <div class="wrap">
+    <div class="cell cell-top">
+      <p class="title">人员调动概况</p>
+      <a-spin :spinning="loading" v-if="loading"></a-spin>
+      <ul class="list" v-else>
+        <li class="item">
+          <span class="icon" :style="{background:bjColor[0]}">
+            <custom-icon type="add" :color="chartColor[0]"></custom-icon>
+          </span>
+          <span class="num">{{inTotal}}</span>
+          <span class="desc">人员调入</span>
+        </li>
+        <li class="item">
+          <span class="icon" :style="{background:bjColor[1]}">
+            <custom-icon type="reduce" :color="chartColor[1]"></custom-icon>
+          </span>
+          <span class="num">{{outTotal}}</span>
+          <span class="desc">人员调出</span>
+        </li>
+        <li class="item">
+          <span class="icon" :style="{background:bjColor[2]}">
+            <custom-icon type="add_reduce" :color="chartColor[2]"></custom-icon>
+          </span>
+          <span class="num">{{inTotal - outTotal}}</span>
+          <span class="desc">净流入/出</span>
+        </li>
+      </ul>
+    </div>
+    <div class="cell cell-middle">
+      <p class="title">人员调动情况</p>
+      <transfer-chart :list="list" :loading="loading"></transfer-chart>
+    </div>
+    <div class="cell">
+      <p class="title">人员增减曲线</p>
+      <div>
+        <transfer-line></transfer-line>
+      </div>
+    </div>
+    <div class="cell">
+      <transfer-gather></transfer-gather>
+    </div>
+  </div>
+</template>;
+<script>
+import { Spin } from "ant-design-vue";
+import CustomIcon from "@/framework/components/CustomIcon";
+import { transferInfo } from "@/hall/api/personcount";
+import { mixins } from "../minxin/index";
+import { showError } from "@/framework/utils/index";
+import TransferGather from "./gather/TransferGather";
+import TransferLine from "./gather/TransferLine";
+import TransferChart from "./gather/TransferBar";
+export default {
+  components: {
+    ASpin: Spin,
+    CustomIcon,
+    TransferGather,
+    TransferLine,
+    TransferChart
+  },
+  data() {
+    return {
+      svgType: ["add", "reduce", "add_reduce"],
+      list: [],
+      inTotal: 0,
+      outTotal: 0,
+      loading: false
+    };
+  },
+  mixins: [mixins],
+  mounted() {
+    this.getData();
+  },
+  methods: {
+    getData() {
+      this.loading = true;
+      transferInfo()
+        .then(res => {
+          this.list = this.formatter(res.result);
+          this.loading = false;
+        })
+        .catch(err => {
+          showError(err);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    },
+    formatter(list) {
+      let array = [];
+      this.inTotal = 0;
+      this.outTotal = 0;
+      for (let i = 0; i < list.length; i++) {
+        let item = list[i];
+        this.inTotal += item.in;
+        this.outTotal += item.out;
+        let arr = [
+          { time: item.time, type: "调入", value: item.in },
+          { time: item.time, type: "调出", value: -item.out }
+        ];
+        array = [...array, ...arr];
+      }
+      return array;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  .cell {
+    padding: @content-padding-v @content-padding-h;
+    background: @white;
+    margin-top: @layout-space-base;
+    border-radius: @border-radius-base;
+    display: flex;
+    flex-direction: column;
+    &.cell-top {
+      margin-top: 0px;
+      height: 285px;
+    }
+    .title {
+      margin: 0px;
+      color: #262626;
+      font-size: 16px;
+      font-weight: 400;
+    }
+    .ant-spin {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .list {
+      margin: 0px;
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
+      .item {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        &::after {
+          content: "";
+          width: 1px;
+          height: 40px;
+          background: #1b5293;
+          position: absolute;
+          right: 0px;
+          top: 50%;
+          transform: translateY(-50%);
+          opacity: 0.2;
+        }
+        &:last-child {
+          &::after {
+            width: 0px;
+          }
+        }
+        .icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          /deep/svg {
+            width: 25px;
+            height: 25px;
+            border-radius: 0px;
+          }
+        }
+        .num {
+          padding: 24px 0px 16px;
+          font-size: 36px;
+          font-weight: 400;
+          color: #000;
+        }
+        .desc {
+          color: #999;
+          font-size: 16px;
+        }
+      }
+    }
+    .chart {
+      flex: 1;
+    }
+  }
+}
+</style>

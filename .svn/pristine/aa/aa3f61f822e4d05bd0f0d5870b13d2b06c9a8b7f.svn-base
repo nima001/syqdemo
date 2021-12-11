@@ -1,0 +1,227 @@
+<template>
+  <div class="wrap">
+    <p class="title">{{title}}</p>
+    <div class="view">
+      <div class="chart" :class="{'chart_xz':type==0,'chart_sy':type==1}">
+        <div class="container" :id="id"></div>
+      </div>
+      <ul class="list">
+        <li class="item" v-for="(item,index) in dataList" :key="index">
+          <span class="spot" :style="{background:item.color}"></span>
+          <span class="text">{{item.item}}</span>
+          <span class="num">{{item.count}}</span>
+        </li>
+      </ul>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Chart } from "@antv/g2";
+import { mixins } from "./minxin";
+export default {
+  props: {
+    title: {
+      type: String,
+      required: true
+    },
+    // type 0:行政编制  1:事业编制
+    type: {
+      type: Number,
+      required: true
+    },
+    list: {
+      type: Array,
+      required: true
+    }
+  },
+  data() {
+    return {
+      id: Math.random()
+        .toString(32)
+        .substr(2),
+      // 蓝色主题
+      color_xz: [
+        "#8FC7FF",
+        "#63A8F7",
+        "#3886EB",
+        "#2565C4",
+        "#1A48A2",
+        "#16348A",
+        "#071D52"
+      ],
+      // 黄色主题
+      color_sx: [
+        "#FFD3A3",
+        "#FFBA7A",
+        "#F49A4E",
+        "#CF7738",
+        "#A85725",
+        "#823C16",
+        "#5C270F"
+      ]
+    };
+  },
+  mixins: [mixins],
+  watch: {
+    dictId(v) {}
+  },
+  computed: {
+    colorList() {
+      return this.type == 0 ? this.color_xz : this.color_sx;
+    },
+    dataList() {
+      let colorArr = this.type == 0 ? this.color_xz : this.color_sx;
+      return this.list.map((item, index) => {
+        return { ...item, color: colorArr[index] };
+      });
+    }
+  },
+  mounted() {
+    this.draw();
+  },
+  methods: {
+    draw() {
+      const chart = new Chart({
+        container: this.id,
+        autoFit: true
+      });
+      chart.data(this.dataList);
+      chart.coordinate("theta", {
+        radius: 0.75,
+        innerRadius: 0.75
+      });
+      // 辅助文本
+      chart
+        .annotation()
+        .text({
+          position: ["50%", "50%"],
+          content: this.type == 0 ? "行政编制" : "事业编制",
+          style: {
+            fontSize: 30,
+            fontFamily: "Microsoft YaHei !important",
+            fill: "#FFF",
+            textAlign: "center",
+            opacity: 0.6
+          },
+          offsetY: -35
+        })
+        .text({
+          position: ["50%", "50%"],
+          content: "核定总数",
+          style: {
+            fontSize: 20,
+            fontFamily: "Microsoft YaHei !important",
+            fill: "#FFF",
+            textAlign: "center",
+            opacity: 0.6
+          },
+          offsetY: -10
+        })
+        .text({
+          position: ["50%", "50%"],
+          content: "20",
+          style: {
+            fontSize: 36,
+            fill: this.type == 0 ? "#8FC7FF" : "#FFD3A3",
+            textAlign: "center",
+            fontFamily: "LESLIEB"
+          },
+          offsetY: 25
+        });
+      chart.legend(false);
+      chart
+        .interval()
+        .adjust("stack")
+        .position("count")
+        .color("item", this.colorList);
+      chart.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  width: 100%;
+  .title {
+    height: 26px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.8;
+    margin: 0px;
+    text-align: center;
+  }
+  .view {
+    display: flex;
+    align-items: center;
+    margin-top: 8px;
+    .chart {
+      width: 280px;
+      height: 280px;
+      position: relative;
+      &.chart_xz {
+        background: url("../img/circle_one.png");
+      }
+      &.chart_sy {
+        background: url("../img/circle_two.png");
+      }
+      .container {
+        width: 210px;
+        height: 210px;
+        left: 50%;
+        top: 50%;
+        position: absolute;
+        transform: translate(-50%, -50%);
+      }
+    }
+    .list {
+      width: 180px;
+      height: 198px;
+      margin-left: 8px;
+      background: url("../img/rect.png");
+      border-radius: 4px;
+      padding: 8px 16px;
+      .item {
+        display: flex;
+        align-items: center;
+        margin-top: 8px;
+        &:first-child {
+          margin-top: 0px;
+        }
+        .spot {
+          width: 8px;
+          height: 8px;
+          opacity: 1;
+          border-radius: 8px;
+        }
+        .text {
+          flex: 1;
+          height: 19px;
+          font-size: 14px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 19px;
+          color: #ffffff;
+          opacity: 0.6;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          margin: 0px 6px;
+        }
+        .num {
+          height: 19px;
+          font-size: 14px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 19px;
+          color: #ffffff;
+          opacity: 0.6;
+        }
+      }
+    }
+  }
+}
+</style>

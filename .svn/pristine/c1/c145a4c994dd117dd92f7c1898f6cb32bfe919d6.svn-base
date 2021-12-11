@@ -1,0 +1,806 @@
+<template>
+  <a-layout>
+    <div class="chat-list">
+      <div class="search">
+        <div class="left">
+          <div @click="changeIcon">
+            <a-icon :type="icontype" class="Iconcss" />
+          </div>
+        </div>
+        <div class="right">
+          <a-select
+            allowClear
+            v-model="searchdata.onepage"
+            placeholder="请选择报表类型"
+            style="width: 165px;margin-left:5px;"
+          >
+            <a-select-option
+              v-for="(item,index) in onepageList"
+              :key="index"
+              :value="item.id"
+            >{{item.name}}</a-select-option>
+          </a-select>
+          <a-input
+            placeholder="请输入报表名称"
+            allowClear
+            v-model="searchdata.searchkey"
+            style="width: 165px;margin-left:8px;"
+          />
+          <a-month-picker
+            style="margin-left:8px;"
+            :allowClear="false"
+            placeholder="请选择日期"
+            :disabledDate="disabledDate"
+            v-model="monthdata"
+            :value="moment(searchdata.date,'YYYY-MM')"
+          />
+          <a-button type="primary" style="margin-left:8px;" @click="onSearch">查询</a-button>
+        </div>
+      </div>
+      <div class="box">
+        <a-spin tip="Loading..." :spinning="spinning" class="spin"></a-spin>
+        <ul class="in-box" v-show="pagination.total && icontype === 'appstore'">
+          <li class="li-content" v-for="(item,index) in listdata" :key="index">
+            <img src="../../../assets/img/icon-report-book.png" v-if="!item.src&&!item.onepage" />
+            <img src="../../../assets/img/icon-report-table.png" v-if="!item.src&&item.onepage" />
+            <div class="iframebox" @click="!item.onepage?toCatalogue(item):fullscreenSpan(item)">
+              <div class="right" v-if="item.src"></div>
+              <iframe
+                frameborder="0"
+                :src="item.src"
+                class="coverimg"
+                scrolling="no"
+                :key="index"
+                v-if="item.src"
+              ></iframe>
+            </div>
+            <div class="li-div">
+              <div class="catalogue">
+                <div class="colordiv"></div>
+                <span class="boxspan">{{item.name}}</span>
+              </div>
+              <div class="downdiv">
+                <span class="fullscreenspan" @click="fullscreenSpan(item)">
+                  <a-icon type="fullscreen" class="fullscreen" />
+                  <span>{{!item.onepage? '查看封面' :'查看表格'}}</span>
+                </span>
+                <span
+                  class="downspan"
+                  @click="!item.onepage?downSpan(item):downcover(id = item.id)"
+                >
+                  <a-icon type="download" class="download" />
+                  <span>导出</span>
+                </span>
+              </div>
+            </div>
+          </li>
+        </ul>
+        <div v-show="pagination.total && icontype === 'bars'">
+          <div class="ulbox">
+            <div
+              v-for="(item,index) in listdata"
+              :key="index"
+              :class="(listdata.length % 2 == 0) ? licontentdivone:licontentdivtwo"
+            >
+              <div class="licontent">
+                <div
+                  style="width:80%;"
+                  @click="!item.onepage?toCatalogue(item):fullscreenSpan(item)"
+                >
+                  <img
+                    src="../../../assets/img/icon-report-book-accent.png"
+                    width="32px"
+                    height="32px"
+                    v-if="!item.onepage"
+                    style="margin-left:15px;"
+                  />
+                  <img
+                    style="margin-left:15px;"
+                    src="../../../assets/img/icon-report-table-accent.png"
+                    width="32px"
+                    height="32px"
+                    v-else
+                  />
+                  <a style="margin-left:10px">{{item.name}}</a>
+                </div>
+                <div
+                  style="width:20%;text-align:end;height:32px;line-height:32px;margin-right:15px;"
+                >
+                  <a @click="fullscreenSpan(item)">{{!item.onepage? '查看封面' :'查看表格'}}</a>
+                  <span class="soliddiv"></span>
+                  <a @click="!item.onepage?downSpan(item):downcover(id = item.id)">导出</a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <empty-data style="padding-top: 10%" v-if="!pagination.total && !spinning " />
+      </div>
+      <div class="footer" v-if="pagination.rows && pagination.rows.length">
+        <a-pagination
+          showSizeChanger
+          :showTotal="total => `总共：${total}条`"
+          @showSizeChange="onShowSizeChange"
+          :total="pagination.total"
+          v-model="pagination.pagenum"
+          @change="onPageChange"
+        />
+      </div>
+    </div>
+
+    <a-modal title="提示" :visible="visible">
+      <template slot="footer">
+        <a-button @click="handleCancel">取消</a-button>
+        <a-button type="primary" @click="handleOk" :loading="load">确定</a-button>
+      </template>
+      <div>
+        <p style="font-size:18px">{{ModalText}}</p>
+        <p v-if="!history">
+          设置截止时间：
+          <a-month-picker
+            @change="onChange"
+            :defaultValue="moment(searchdata.date,'YYYY-MM')"
+            allowClear
+          />
+        </p>
+      </div>
+    </a-modal>
+    <TaskProgress :taskid="taskid" defaultInfo="正在导出" @finish="onProgressFinish" v-if="taskid" />
+    <a-modal
+      v-if="rotate"
+      wrapClassName="cus-modal-wrapper"
+      v-model="spanvisible"
+      @ok="spancancel"
+      :footer="null"
+      :closable="false"
+      width="1123px"
+      :bodyStyle="{ height: '794px', padding: '0'}"
+    >
+      <span class="spanmodal">
+        <div class="onebutton">
+          <a-icon type="close" class="oneicon" @click="closecover" />
+        </div>
+        <div class="onebutton twobutton">
+          <a-icon type="retweet" class="oneicon" @click="retweetCover" />
+        </div>
+        <div class="onebutton twobutton">
+          <a-icon type="arrow-down" class="oneicon" @click="downcover" />
+        </div>
+      </span>
+      <iframe frameborder="0" :src="spansrc" class="iframemodalOne"></iframe>
+    </a-modal>
+    <a-modal
+      v-else
+      wrapClassName="cus-modal-wrapper"
+      v-model="spanvisible"
+      @ok="spancancel"
+      :footer="null"
+      :closable="false"
+      width="794px"
+      :bodyStyle="{ height: '1123px', padding: '0'}"
+    >
+      <span class="spanmodal">
+        <div class="onebutton">
+          <a-icon type="close" class="oneicon" @click="closecover" />
+        </div>
+        <div class="onebutton twobutton">
+          <a-icon type="retweet" class="oneicon" @click="retweetCover" />
+        </div>
+        <div class="onebutton twobutton">
+          <a-icon type="arrow-down" class="oneicon" @click="downcover" />
+        </div>
+      </span>
+      <iframe frameborder="0" :src="spansrc" class="iframemodalTwo"></iframe>
+    </a-modal>
+    <a-modal title="提示" :visible="covervisible" @cancel="coverCancel">
+      <template slot="footer">
+        <a-button key="back" @click="coverCancel">取消</a-button>
+        <a-button key="submit" type="primary" :loading="coverload" @click="coverOk">确定</a-button>
+      </template>
+      <p>{{text}}</p>
+    </a-modal>
+  </a-layout>
+</template>
+<script>
+import moment from "moment";
+import { listReportDisplay, exportList, getCover } from "@/person/api/booklet";
+import { taskProgress } from "@/framework/api/asynctask";
+import { download } from "@/framework/api/file";
+import EmptyData from "@/framework/components/EmptyData";
+import TaskProgress from "@/framework/components/TaskProgress";
+import {
+  Layout,
+  Modal,
+  Spin,
+  Card,
+  Input,
+  Avatar,
+  Select,
+  DatePicker,
+  Button,
+  Progress,
+  Pagination,
+  List,
+  Icon
+} from "ant-design-vue";
+import axios from "axios";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { showError } from "@/framework/utils/index";
+let uiConfigs = uiConfigsCookies();
+export default {
+  name: "CountChartIndex",
+  data() {
+    return {
+      listdata: [],
+      icontype: "appstore",
+      searchdata: {
+        searchkey: null,
+        date: null,
+        onepage: undefined
+      },
+      onepageList: [
+        {
+          id: 0,
+          name: "统计册"
+        },
+        {
+          id: 1,
+          name: "统计表"
+        }
+      ],
+      monthdata: null,
+      moment,
+      spansrc: null,
+      rotate: null,
+      ModalText: "",
+      text: "确定导出该册报表封面？",
+      visible: false,
+      spanvisible: false,
+      covervisible: false,
+      finish: false,
+      load: false,
+      spinning: false,
+      coverload: false,
+      id: "",
+      history: "",
+      taskid: "",
+      progress: "",
+      stage: "",
+      status: "",
+      total: "",
+      downloadurl: "",
+      strokeWidth: 4,
+      progressstatus: "active",
+      pagination: {
+        rows: [],
+        pagesize: 10,
+        pagenum: 1,
+        total: 0
+      },
+      licontentdivone: "licontentdivone",
+      licontentdivtwo: "licontentdivtwo"
+    };
+  },
+  components: {
+    ALayout: Layout,
+    AModal: Modal,
+    ASpin: Spin,
+    ACard: Card,
+    AIcon: Icon,
+    AAvatar: Avatar,
+    AInput: Input,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AMonthPicker: DatePicker.MonthPicker,
+    AButton: Button,
+    AList: List,
+    AListItem: List.Item,
+    AListItemMeta: List.Item.Meta,
+    AProgress: Progress,
+    APagination: Pagination,
+    EmptyData,
+    TaskProgress
+  },
+  created() {
+    this.monthdata = moment().month(moment().month() - 1);
+    this.searchdata.date = this.monthdata.format("YYYY-MM");
+    this.postlist();
+  },
+  watch: {
+    monthdata(val) {
+      this.searchdata.date = moment(val).format("YYYY-MM");
+    }
+  },
+  destroyed() {
+    clearInterval(this.myInterval);
+  },
+  methods: {
+    changeIcon() {
+      if (this.icontype === "appstore") {
+        this.icontype = "bars";
+      } else {
+        this.icontype = "appstore";
+      }
+    },
+    //获取文件列表
+    postlist() {
+      let { pagenum, pagesize } = this.pagination;
+      this.statistical(pagenum, pagesize);
+    },
+    onPageChange(page, pagesize) {
+      this.statistical(page, pagesize);
+    },
+    onShowSizeChange(current, size) {
+      this.statistical(1, size);
+    },
+    //查询
+    statistical(pagenum, pagesize) {
+      this.spinning = true;
+      let data = {
+        ...this.searchdata,
+        namespace: "report",
+        date: this.searchdata.date,
+        needtotal: true,
+        onepage: this.searchdata.onepage,
+        pagenum,
+        pagesize
+      };
+      listReportDisplay(data)
+        .then(res => {
+          this.spinning = false;
+          this.pagination = res.result;
+          this.listdata = this.pagination.rows || [];
+          this.Cover();
+        })
+        .catch(error => {
+          this.spinning = false;
+          showError(error);
+        });
+    },
+    //带参查询
+    onSearch() {
+      this.statistical(1, this.pagination.pagesize);
+    },
+    //跳转
+    toCatalogue(item) {
+      this.$router.push({
+        name: "Catalogue",
+        query: {
+          id: item.id
+        }
+      });
+    },
+    onProgressFinish(uri) {
+      download(uri);
+    },
+    //查看封面
+    fullscreenSpan(item) {
+      if (!item.src) {
+        this.$notification.warning({
+          message: "提示",
+          description: "暂无封面,请稍后重试!",
+          duration: 3
+        });
+      } else {
+        this.spansrc = item.src;
+        this.rotate = item.rotate;
+        this.id = item.id;
+        this.spanvisible = true;
+      }
+    },
+    spancancel() {
+      this.spanvisible = false;
+    },
+    closecover() {
+      this.spanvisible = false;
+    },
+    //导出
+    downcover() {
+      //this.covervisible = true;
+      this.coverOk();
+    },
+    //确定导出
+    coverOk() {
+      this.coverload = true;
+      window.open(
+        uiConfigs["api.url"] + "/person/report/book/cover/export?id=" + this.id,
+        "_blank"
+      );
+      this.covervisible = false;
+      this.coverload = false;
+    },
+    //取消导出
+    coverCancel(e) {
+      this.covervisible = false;
+    },
+    //导出
+    downSpan(item) {
+      this.history = item.history;
+      this.id = item.id;
+      //时间获取
+      if (!this.history) {
+        this.datetime = this.searchdata.date;
+        this.ModalText = "当月《报表名称》需实时生成，确定导出该册报表吗？";
+      } else {
+        this.ModalText = "确定导出该册历史报表吗？";
+      }
+      this.visible = true;
+    },
+    // 轮循获取进度
+    asyncfunction(data) {
+      let _that = this;
+      taskProgress(data)
+        .then(res => {
+          //进度
+          this.progress = res.result.progress;
+          //任务类型
+          this.stage = res.result.stage;
+          //状态
+          this.status = res.result.status;
+          //总条数
+          this.total = res.result.total;
+          //完成后地址
+          this.downloadurl = res.result.data;
+          if (res.result.status == "FINISH") {
+            this.progressstatus = "success";
+          } else if (res.result.status == "ERROR") {
+            this.visible = false;
+            this.finish = false;
+            clearInterval(this.myInterval);
+          } else {
+            this.myInterval = window.setTimeout(() => {
+              _that.asyncfunction(data);
+            }, 2000);
+          }
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    //确定导出
+    async handleOk() {
+      let date = this.datetime;
+      if (!this.history) {
+        //获取taskid
+        await exportList(this.id, date)
+          .then(res => {
+            this.visible = false;
+            this.taskid = res.result;
+            this.finish = true;
+            this.progressstatus = "active";
+          })
+          .catch(error => {
+            showError(error);
+          });
+        if (this.finish) {
+          await this.asyncfunction(this.taskid);
+        }
+      } else {
+        //历史下载
+        this.load = true;
+        download(
+          uiConfigs["api.url"] +
+            "/person/report/book/download?bookid=" +
+            this.id
+        );
+        this.load = false;
+        this.visible = false;
+      }
+    },
+    //取消导出
+    handleCancel(e) {
+      this.finish = false;
+      this.visible = false;
+    },
+    //选择时间
+    onChange(dateString) {
+      this.datetime = moment(dateString).format("YYYY-MM");
+    },
+    //禁用部分日期
+    disabledDate(current) {
+      return current && current > moment().endOf("day");
+    },
+    //查询
+    Cover() {
+      if(this.pagination.rows){
+        this.pagination.rows.forEach(item => {
+        let bookid = item.id;
+        getCover(bookid)
+          .then(({ result }) => {
+            this.$set(
+              item,
+              "src",
+              `javascript:void(function(){document.open();document.write('${result.content}');document.close();}())`
+            );
+            this.$set(item, "rotate", result.rotate);
+          })
+          .catch(error => {
+            this.$set(item, "src", "");
+            this.$set(item, "rotate", true);
+            showError(error);
+          });
+        });
+      }
+    },
+    retweetCover() {
+      let bookid = this.id;
+      getCover(bookid, true)
+        .then(({ result }) => {
+          this.$nextTick(function() {
+            this.spansrc = `javascript:void(function(){document.open();document.write('${result.content}');document.close();}())`;
+          }),
+            this.postlist();
+          this.$message.success("刷新成功");
+        })
+        .catch(error => {
+          showError(error);
+        });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-layout {
+  padding: @layout-space-base;
+  height: 100%;
+  .chat-list {
+    height: 100%;
+    flex-direction: column;
+    display: flex;
+    background: @white;
+    border-radius: @border-radius-base;
+    .search {
+      padding: @content-padding-v @content-padding-h;
+      margin-top: 10px;
+      border-bottom: 1px solid @border-color-split;
+      .right {
+        float: right;
+      }
+      .left {
+        cursor: pointer;
+        float: left;
+        margin: 3px 0;
+        .Iconcss {
+          font-size: 25px;
+          color: @primary-color;
+        }
+      }
+    }
+    .box {
+      background: white;
+      width: 100%;
+      padding: 10px 24px;
+      ul:after {
+        content: "";
+        width: 469.2px;
+      }
+      .in-box {
+        margin-bottom: 0;
+        justify-content: space-between;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        overflow: hidden;
+        .li-content {
+          box-shadow: 1px 1px 10px #dad9d9;
+          float: left;
+          margin: @layout-space-base;
+          height: 317.6px;
+          width: 449.2px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          .coverimg {
+            min-width: 1123px;
+            min-height: 794px;
+            background: white;
+          }
+          .li-div {
+            display: none;
+            width: 100%;
+            height: 60px;
+            position: absolute;
+            z-index: 10;
+            bottom: 0px;
+            background-image: linear-gradient(to bottom, #f5f7fa, #656d78);
+            .catalogue {
+              width: 75%;
+              display: flex;
+              .colordiv {
+                background: #f8a700;
+                width: 10px;
+                height: 20px;
+                border-radius: 3px;
+                margin: 20px 12px;
+              }
+              .boxspan {
+                font-size: 20px;
+                margin: 15px 0px;
+                color: white;
+              }
+            }
+          }
+          .downdiv {
+            width: 35%;
+            display: flex;
+            .downspan {
+              cursor: pointer;
+              color: white;
+              margin: 20px 8px;
+              .download {
+                margin-right: 5px;
+              }
+            }
+            .fullscreenspan {
+              cursor: pointer;
+              color: white;
+              margin: 20px 0px;
+              .fullscreen {
+                margin-right: 5px;
+              }
+            }
+          }
+          &:hover .li-div {
+            display: flex;
+          }
+          .iframebox {
+            // height: 794px;
+            transform: scale(0.4);
+            .right {
+              position: absolute;
+              width: 1123px;
+              height: 794px;
+              // opacity: 0.6;
+            }
+          }
+        }
+        .name {
+          line-height: 32px;
+          padding-right: 5px;
+          // vertical-align: initial;
+        }
+        .ant-input-group.ant-input-group-compact {
+          display: inline-block;
+          vertical-align: super;
+        }
+        /deep/ .ant-input-group {
+          top: 0.8px;
+        }
+        /deep/.ant-select-selection--multiple {
+          padding-bottom: 0px;
+        }
+      }
+      .ulbox {
+        margin-bottom: 0;
+        //justify-content: flex-start;
+        justify-content: space-between;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        overflow: hidden;
+        .licontentdivone {
+          height: auto;
+          width: 50%;
+          display: flex;
+          align-items: center;
+          border-right: 1px solid @border-color-split;
+          &:last-child {
+            div {
+              border-bottom: none;
+            }
+          }
+          &:nth-last-child(2) {
+            div {
+              border-bottom: none;
+            }
+          }
+          &:nth-child(even) {
+            border-right: none;
+          }
+          .licontent {
+            width: 95%;
+            margin: auto;
+            border-bottom: 1px solid @border-color-split;
+            height: auto;
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            .soliddiv {
+              margin: 0 5px;
+              height: 15px;
+            }
+            &:hover {
+              background: @primary-1;
+            }
+          }
+        }
+        .licontentdivtwo {
+          height: auto;
+          width: 50%;
+          display: flex;
+          align-items: center;
+          border-right: 1px solid @border-color-split;
+          &:last-child {
+            div {
+              border-bottom: none;
+            }
+          }
+          &:nth-child(even) {
+            border-right: none;
+          }
+          .licontent {
+            width: 95%;
+            margin: auto;
+            border-bottom: 1px solid @border-color-split;
+            height: auto;
+            display: flex;
+            align-items: center;
+            padding: 8px 0;
+            .soliddiv {
+              margin: 0 5px;
+              height: 15px;
+            }
+            &:hover {
+              background: @primary-1;
+            }
+          }
+        }
+      }
+      .spin {
+        position: absolute;
+        top: 50%;
+        left: 48%;
+      }
+      @media screen and(min-width: 1000px) and(max-width:1409px) {
+        .in-box {
+          justify-content: space-evenly;
+        }
+      }
+    }
+    .footer {
+      border-top: 1px solid @border-color-split;
+      padding: @content-padding-v 0;
+      margin: 0 @content-padding-h;
+      .ant-pagination {
+        float: right;
+        margin-bottom: 10px;
+      }
+    }
+  }
+}
+.cus-modal-wrapper {
+  width: 1123px;
+  .spanmodal {
+    position: absolute;
+    flex-direction: column;
+    right: 16px;
+    top: 16px;
+    display: flex;
+    .onebutton {
+      width: 40px;
+      height: 40px;
+      background: #8f908f;
+      border-radius: 50%;
+      opacity: 0.6;
+      cursor: pointer;
+      .oneicon {
+        font-size: 24px;
+        color: white;
+        margin: 8px;
+      }
+    }
+    .twobutton {
+      margin-top: 10px;
+    }
+  }
+  .iframemodalOne {
+    width: 1123px;
+    height: 794px;
+  }
+  .iframemodalTwo {
+    width: 794px;
+    height: 1123px;
+  }
+}
+</style>

@@ -1,0 +1,86 @@
+export default {
+  '330603': {
+    name: '柯桥区',
+    area: 1062,
+    people: 102,
+    gdp: 6000,
+    gdp_up: '3.1%',
+    finance: 853,
+    finance_up: '3.2%',
+    street: 18,
+    town: 15,
+    country: 16
+  },
+  '330604': {
+    name: '上虞区',
+    area: 162,
+    people: 112,
+    gdp: 3000,
+    gdp_up: '4.1%',
+    finance: 9000,
+    finance_up: '4.2%',
+    street: 28,
+    town: 14,
+    country: 11
+  },
+  '330683': {
+    name: '嵊州市',
+    area: 2011,
+    people: 2000,
+    gdp: 2000,
+    gdp_up: '3.2%',
+    finance: 9222,
+    finance_up: '3.3%',
+    street: 11,
+    town: 22,
+    country: 11
+  },
+  '330600': {
+    name: '市本级',
+    area: 122,
+    people: 33,
+    gdp: 9003,
+    gdp_up: '3.3%',
+    finance: 53550,
+    finance_up: '3.5%',
+    street: 22,
+    town: 9,
+    country: 11
+  },
+  '330624': {
+    name: '新昌县',
+    area: 2133,
+    people: 2245,
+    gdp: 4499,
+    gdp_up: '5.1%',
+    finance: 6089,
+    finance_up: '5.2%',
+    street: 33,
+    town: 22,
+    country: 11
+  },
+  '330602': {
+    name: '越城区',
+    area: 2201,
+    people: 700,
+    gdp: 650,
+    gdp_up: '3.2%',
+    finance: 890,
+    finance_up: '3.88%',
+    street: 12,
+    town: 25,
+    country: 14
+  },
+  '330681': {
+    name: '诸暨市',
+    area: 2233,
+    people: 677,
+    gdp: 7945,
+    gdp_up: '3.5%',
+    finance: 9678,
+    finance_up: '3.9%',
+    street: 21,
+    town: 11,
+    country: 12
+  }
+}

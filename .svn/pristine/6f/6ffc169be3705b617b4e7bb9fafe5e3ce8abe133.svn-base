@@ -1,0 +1,378 @@
+<template>
+  <div class="star-menu">
+    <div ref="container" class="container">
+      <template v-if="menuList">
+        <a-carousel arrows :dots="false" v-if="menuList.length > 0">
+          <div slot="prevArrow" class="arrow left">
+            <a-icon type="left" />
+          </div>
+          <div slot="nextArrow" class="arrow right">
+            <a-icon type="right" />
+          </div>
+          <div v-for="(page, index) in menuPages" :key="index">
+            <div class="page">
+              <div
+                v-for="(app, index) in page"
+                :key="index"
+                :class="{ app: true, notempty: !!app }"
+                @click="jump(app)"
+              >
+                <template v-if="app">
+                  <div class="remove" @click.stop="unStar(app.id, index)">
+                    <a-icon type="minus-circle" />
+                  </div>
+                  <img
+                    v-if="app.icon"
+                    :src="
+                      uiConfigs['api.url'] + '/file/v1/download?uri=' + app.icon
+                    "
+                    :onerror="`this.src='${defaultIcon}'`"
+                  />
+                  <img v-else :src="defaultIcon" />
+                  <div>{{ app.name }}</div>
+                </template>
+              </div>
+            </div>
+          </div>
+        </a-carousel>
+        <empty-data v-else />
+      </template>
+    </div>
+    <!-- 添加业务 -->
+    <div class="add-business" @click="showModal">
+      <a-icon type="plus-circle" theme="filled" class="add" />
+      <div>添加</div>
+    </div>
+
+    <a-modal 
+    v-model="visible" 
+    title="添加常用业务" 
+    on-ok="handleOk"
+    
+    
+    >
+      <template slot="footer">
+        <a-button key="back" @click="handleCancel"> 取消 </a-button>
+        <a-button
+          key="submit"
+          type="primary"
+          :loading="loading"
+          @click="handleOk"
+        >
+          确定
+        </a-button>
+      </template>
+       <a-tree
+        checkable
+        showIcon
+        :tree-data="treeData"
+        :replaceFields="replaceFields"
+        :default-expanded-keys="[3]"
+        v-model="checkedId"
+        :selectable="false"
+        :style="{ height: '380px', overflow: 'auto' }"
+        @check="oncheck"
+      >
+        <template slot="icon" slot-scope="{data}" class="icon">
+          <img :src="data.icon" />
+        </template>  
+      </a-tree>
+    </a-modal>
+  </div>
+</template>
+<script>
+import {
+  Card,
+  Carousel,
+  Icon,
+  Spin,
+  Button,
+  Modal,
+  Tree,
+} from "ant-design-vue";
+import { updateStarMenu, getcollectMenu } from "../api/menu";
+import { uiConfigsCookies } from "../utils/auth";
+import { showError } from "../utils/index";
+import EmptyData from "@/framework/components/EmptyData";
+
+export default {
+  name: "StarMenu",
+  components: {
+    ACard: Card,
+    ACarousel: Carousel,
+    AIcon: Icon,
+    ASpin: Spin,
+    AButton: Button,
+    AModal: Modal,
+    ATree: Tree,
+    EmptyData,
+  },
+  data() {
+    return {
+      defaultIcon: require("../assets/img/icon-menu-default.png"),
+      uiConfigs: uiConfigsCookies(),
+      menuList: [],
+      loading: false,
+      visible: false,
+      treeData: [],
+      replaceFields: {
+      children: "children",
+      title: "name",
+      key: "id",
+      icon:  require("../assets/img/icon-menu-default.png") 
+      },
+      menuListId: [],
+      checkedId: [],
+      elWidth: undefined
+    };
+  },
+  computed: {
+    menuPages() {
+      if (this.menuList) {
+        let pages = [];
+        let count = Math.floor(this.containerWidth / 120);
+        if (count > 0) {
+          let pageCount = Math.ceil(this.menuList.length / count);
+          let index = 0;
+          for (let i = 0; i < pageCount; i++) {
+            let arr = new Array(count).fill(undefined);
+            let j = 0;
+            for (; index < this.menuList.length && j < count; index++, j++) {
+              arr[j] = this.menuList[index];
+            }
+            pages.push(arr);
+          }
+        }
+        return pages;
+      }
+    },
+    getListMenu() {
+      return this.$store.getters.menuList;
+    },
+  },
+  created() {
+    this.getCollectList();
+    window.addEventListener("resize", this.onResize, false);
+  },
+  mounted() {
+    this.containerWidth = this.$refs.container.offsetWidth;
+  },
+  destroyed() {
+    window.removeEventListener("resize", this.onResize);
+  },
+  methods: {
+    unStar(id, index) {
+      let ids = [];
+      this.menuList.forEach((item, i) => {
+        if (index != i) {
+          ids.push(item.id);
+        }
+      });
+      updateStarMenu(ids)
+        .then((res) => {
+          let index = this.menuList.findIndex((item) => item.id == id);
+          if (index >= 0) {
+            this.menuList.splice(index, 1);
+          }
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    getCollectList() {
+      getcollectMenu()
+        .then((res) => {
+          this.menuList = res.result || [];
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    onResize() {
+      this.containerWidth = this.$refs.container.offsetWidth;
+    },
+    jump(item) {
+      if (!item) {
+        return;
+      }
+      if (item.children && item.children.length > 0) {
+        this.$router
+          .push({
+            name: "SubMenu",
+            params: { id: item.id },
+          })
+          .catch((err) => {
+            //ignore
+          });
+      } else if (item.componenturi) {
+        if (item.componenturi.startsWith("redirect:")) {
+          let path = item.componenturi.slice(9);
+          let temp = path.toUpperCase();
+          if (temp.startsWith("http:") || temp.startsWith("https:")) {
+            window.open(path, "_blank");
+          } else {
+            const { href } = this.$router.resolve({ path });
+            if (href) {
+              window.open(href, "_blank");
+            }
+          }
+        } else {
+          this.$router.push(item.componenturi).catch((err) => {
+            //ignore
+          });
+        }
+      }
+    },
+    showModal() { 
+       this.visible = true;
+      this.treeData = [];
+      this.treeData = this.getListMenu;
+      for (const key in this.menuList) {
+        this.checkedId.push(this.menuList[key].id);
+      }
+    },
+     getSeletedList() {
+      let seletedNoder = [];
+      let _this = this;
+      this.menuList.forEach((ele, i) => {
+        this.menuListId[i] = ele.id;
+      });
+      this.checkedId.forEach((item) => {
+        function checkedMenu(obj) {
+          for (const key in obj) {
+            if (obj[key].id == item ) {
+              seletedNoder.push(obj[key]);
+            }
+            if (typeof obj[key] == "object") {
+              checkedMenu(obj[key]);
+            }
+          }
+        }
+        checkedMenu(this.getListMenu);
+      });
+      return seletedNoder;
+    },
+    handleOk(e) {
+      this.loading = true;
+      if (this.checkedId.length == 0) {
+        this.visible = false;
+        this.loading = false;
+      } else {
+        const ids = this.checkedId;
+        updateStarMenu(ids)
+          .then(() => {
+            this.menuList=this.getSeletedList();
+            this.visible = false;
+            this.loading = false;
+          })
+          .catch((err) => {
+            this.loading = false;
+            showError(err);
+          });
+      }
+    },
+    handleCancel() {
+      this.visible = false;
+    },
+    oncheck(checkedKeys, info) {
+      let fatherNodeId = [3, 12, 20, 33];
+      fatherNodeId.forEach((item) => {
+        if (this.checkedId.indexOf(item) != -1) {
+          checkedKeys.splice(this.checkedId.indexOf(item), 1);
+        }
+      });
+      this.checkedId = checkedKeys;
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+.star-menu {
+  overflow: hidden;
+}
+.extra a {
+  cursor: pointer;
+  color: @text-color;
+  margin-right: 5px;
+}
+.container {
+  height: 115px;
+  width: 665px;
+  float: left;
+}
+.ant-carousel {
+  /deep/ .arrow {
+    width: 25px;
+    height: 25px;
+    font-size: 25px;
+    color: @primary-color;
+    &.left {
+      left: 10px;
+      top: 50px;
+      z-index: 10;
+    }
+    &.right {
+      right: 10px;
+      top: 50px;
+    }
+    &:before {
+      display: none;
+    }
+    &:hover {
+      opacity: 0.6;
+    }
+  }
+  /deep/ .slick-slide .page {
+    display: flex;
+    height: 115px;
+    .app {
+      position: relative;
+      flex: 1;
+      height: 100%;
+      padding: 15px 5px;
+      text-align: center;
+      cursor: pointer;
+      &.notempty:hover {
+        box-shadow: 1px 1px 10px #dad9d9;
+        .remove {
+          display: block;
+        }
+      }
+      .remove {
+        position: absolute;
+        right: 5px;
+        top: 5px;
+        display: none;
+        &:hover {
+          color: @error-color;
+        }
+      }
+      img {
+        width: 50px;
+        height: 50px;
+        margin: auto;
+        margin-bottom: 5px;
+        object-fit: contain;
+      }
+    }
+  }
+}
+.add-business {
+  float: right;
+  height: 115px;
+  width: 115px;
+  position: relative;
+  /deep/.add {
+    font-size: 50px;
+    color: rgb(230, 230, 230);
+    position: absolute;
+    left: 50%;
+    top: 15px;
+    margin-left: -25px;
+  }
+  div {
+    text-align: center;
+    padding-top: 70px;
+  }
+}
+</style>

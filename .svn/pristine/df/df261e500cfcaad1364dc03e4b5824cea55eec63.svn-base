@@ -1,0 +1,22 @@
+<template>
+  <a-switch v-model="propValue" v-bind="property.attrs" />
+</template>
+<script>
+import { Switch } from "ant-design-vue";
+import SettingMixin from '../mixin/setting'
+
+export default {
+  components: {
+    ASwitch: Switch,
+  },
+  mixins: [SettingMixin],
+  methods: {
+
+  }
+}
+</script>
+<style lang="less" scoped>
+.ant-switch{
+  width: 40px;
+}
+</style>

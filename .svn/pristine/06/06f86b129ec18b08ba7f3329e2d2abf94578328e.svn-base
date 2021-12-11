@@ -1,0 +1,8 @@
+const components = {};
+const componentContext = require.context('./', true, /^\.\/\w*\/index\.js$/);
+componentContext.keys().forEach(dir => {
+  let { Meta } = componentContext(dir);
+  components[Meta.name] = Meta;
+});
+
+export default components

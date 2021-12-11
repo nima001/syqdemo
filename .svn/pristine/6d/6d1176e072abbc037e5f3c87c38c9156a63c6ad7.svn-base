@@ -1,0 +1,101 @@
+<template>
+  <div class="layout-intelligent">
+    <div class="header">
+      <div class="tabs">
+        <span
+          v-for="item in tabs"
+          :key="item.id"
+          :class="{ active: active && active.id == item.id }"
+          @click="active = item"
+          >{{ item.title }}</span
+        >
+      </div>
+    </div>
+    <!-- <div class="main">
+      <component v-if="active" :is="active.component" :typeList="typeList" />
+    </div> -->
+  </div>
+</template>
+<script>
+export default {
+  data() {
+    return {
+      tabs: [],
+      active: undefined,
+      evolutionList: null,
+    };
+  },
+  created() {
+    this.init();
+    this.dictList();
+  },
+  watch: {
+    org() {
+      this.init();
+    },
+  },
+  methods: {
+    dictList() {
+      this.evolutionList = this.$store.getters.dict(
+        "evolution.person.evolutionyear"
+      );
+    },
+    init() {
+      this.tabs = [
+        { id: 1, title: "文件查询" },
+        { id: 2, title: "用语查询" },
+        { id: 3, title: "人员查询" },
+        { id: 4, title: "机构查询" },
+        { id: 5, title: "职能查询" },
+      ];
+      this.active = this.tabs[0];
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.layout-intelligent {
+  min-height: 100%;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  .header {
+    background: #ffffff;
+    box-shadow: 1px 1px 3px 1px #fdf2f2;
+    margin: 0px 10px 3px 10px;
+    padding: @layout-space-base @content-padding-h;
+    height: 70px;
+    align-items: center;
+    display: flex;
+    .tabs {
+      span {
+        cursor: pointer;
+        display: inline-block;
+        height: 40px;
+        line-height: 40px;
+        padding: 0 12px;
+        margin-left: 6px;
+        border-radius: @border-radius-base;
+        &:hover {
+          background: @primary-1;
+        }
+      }
+      span:first-child {
+        margin-left: 0;
+      }
+      span.active {
+        background-color: @primary-color;
+        color: white;
+        &:hover {
+          background: lighten(@primary-color, 5%);
+        }
+      }
+    }
+  }
+  .main {
+    flex: 1;
+    background: #ffffff;
+    margin: 0px 10px 10px 10px;
+  }
+}
+</style>

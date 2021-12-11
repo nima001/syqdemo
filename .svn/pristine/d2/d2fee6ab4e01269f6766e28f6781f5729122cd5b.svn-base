@@ -1,0 +1,143 @@
+<template>
+  <accordion-layout nav-title="组织架构">
+    <div slot="nav">
+      <div class="tree-select" v-if="treeIdData.otherorgids||treeIdData.verorgid">
+        <a-radio-group default-value = "defaultorg" :value="selectRadio" class="tree-select-radio" >
+          <a-radio-button
+            value="defaultorg"
+            :class="treeIdData.otherorgids ? 'tree-select-radio-button-other' : 'tree-select-radio-button'"
+            @click="defaultorgClick">
+            组织架构
+          </a-radio-button>
+          <a-radio-button
+            value="verorg"
+            :class="treeIdData.otherorgids ? 'tree-select-radio-button-other' : 'tree-select-radio-button'"
+            @click="verorgClick">
+            单位垂直
+          </a-radio-button>
+          <div
+            class="tree-select-dropdown"
+            @click="dropdownClick"
+            :class="borderClass ? 'border-color-bule' : 'border-color-gray'"
+            v-if="treeIdData.otherorgids">
+            <a-dropdown :trigger="['click']">
+              <a class="ant-dropdown-link">
+                <a-icon type="down" />
+              </a>
+              <a-menu slot="overlay" @click="handleMenuClick">
+                <a-menu-item v-for="item in treeIdData.otherorgids" :key="item.value">
+                  <a href="javascript:;" >{{item.name}}</a>
+                </a-menu-item>
+              </a-menu>
+            </a-dropdown>
+          </div>
+        </a-radio-group>
+      </div>
+      <org-tree @select="onOrgSelect" :nodeid="nodeid" :treeid="treeid"/>
+    </div>
+    <keep-alive include="accountMain">
+      <router-view :load-data="selected" />
+    </keep-alive>
+  </accordion-layout>
+</template>
+<script>
+import {Dropdown, Menu, Icon, Radio} from "ant-design-vue";
+import AccordionLayout from '@/framework/components/AccordionLayout';
+import OrgTree from "@/idm/components/OrgTree";
+import {treeids} from "@/idm/api/org";
+
+export default {
+  components: {
+    AIcon: Icon,
+    ARadio: Radio,
+    ARadioGroup: Radio.Group,
+    ARadioButton: Radio.Button,
+    ADropdown: Dropdown,
+    AMenu: Menu,
+    AMenuItem: Menu.Item,
+    AccordionLayout,
+    OrgTree,
+  },
+  data() {
+    return {
+      nodeid: Number(this.$route.query.id) || undefined,
+      treeid: Number(this.$route.query.treeid) || undefined,
+      selected: null,
+      borderClass: false,
+      selectRadio: "defaultorg",
+      treeIdData:{},
+    };
+  },
+  created () {
+    this.treeids();
+  },
+  methods: {
+    treeids(){
+      return treeids().then((result) => {
+        if (result.code == 'success') {
+          this.treeIdData = result.result;
+        }
+      });
+    },
+    onOrgSelect(node, dept, init) {
+      this.selected = { node, dept, treeid: this.treeid};
+      if(!init && this.$route.name == 'accountInfo'){//手动点击，如果是用户页面跳转到主页
+        this.$router.push({name: 'accountMain', query: {id: node.id, treeid: this.treeid}});
+      }
+    },
+    dropdownClick(element){
+      this.borderClass = true;
+      this.selectRadio = null;
+    },
+    defaultorgClick() {
+      this.borderClass = false;
+      this.selectRadio = "defaultorg";
+      this.treeid = 12;
+
+    },
+    verorgClick(){
+      this.borderClass = false;
+      this.selectRadio = "verorg";
+      this.treeid = 10;
+    },
+    handleMenuClick(e) {
+      this.treeid = e.key;
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+  .tree-select{
+    margin: 12px 20px 5px 20px;
+    height: 30px;
+    line-height: 30px;
+    text-align: center;
+    .tree-select-radio{
+      width: 100%;
+      .tree-select-radio-button{
+        width: 50%;
+      }
+      .tree-select-radio-button-other{
+        width: 44%;
+      }
+      .tree-select-dropdown{
+        float: right;
+        width: 12%;
+        height: 32px;
+        line-height: 30px;
+        border: 1px solid #d9d9d9;
+        border-radius: 0 4px 4px 0;
+        text-align: center;
+      }
+      .border-color-bule{
+        border-color: #1b5293;
+      }
+      .border-color-gray{
+        border-color: #d9d9d9;
+      }
+      .tree-select-dropdown-active{
+        border-color: #1b5293;
+      }
+    }
+  }
+</style>

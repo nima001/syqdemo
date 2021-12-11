@@ -1,0 +1,88 @@
+<template>
+  <div class="container">
+    <a-input disabled read-only placeholder="请输入" v-model="orgName" @click="clickHandler" />
+    <span class="fx" @click="setDefaultValue">
+      <img src="../../../assets/img/query-value-fn.png" />
+    </span>
+    <!--组织选择-->
+    <a-modal title="单位名称选择" :visible="orgVisible" @cancel="orgVisible=false" :footer="null">
+      <org-user-select mode="orgtree" :root-selectable="true" @finish="selectOrg" />
+    </a-modal>
+  </div>
+</template>
+<script>
+import { debounce } from "@/framework/utils/index";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import { Input, Modal } from "ant-design-vue";
+import cloneDeep from "lodash/cloneDeep";
+export default {
+  name: "TypeFifteen",
+  data() {
+    return {
+      orgVisible: false
+    };
+  },
+  components: {
+    AInput: Input,
+    AModal: Modal,
+    OrgUserSelect
+  },
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  computed: {
+    orgName() {
+      return this.defaultData.value ? this.defaultData.value.name : "";
+    }
+  },
+  methods: {
+    selectOrg(type, list) {
+      if (type == "ok" && list.length) {
+        this.orgVisible = false;
+        let parseData = cloneDeep(list[0]);
+        this.$store.commit({
+          type: "SET_VALUE",
+          position: this.position,
+          value: { _id: parseData.data._id, name: parseData.name }
+        });
+      }
+    },
+    clickHandler() {
+      this.orgVisible = true;
+    },
+    setDefaultValue() {
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value: { _id: "0", name: "机构变量" }
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  input {
+    flex: 1;
+  }
+  .fx {
+    cursor: pointer;
+    margin-left: 8px;
+    width: 24px;
+    height: 24px;
+    img {
+      max-width: 100%;
+    }
+  }
+}
+</style>

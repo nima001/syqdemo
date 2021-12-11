@@ -1,0 +1,318 @@
+<template>
+  <div style="height:100%;" v-if="hasPermit('/person/qlsx/transformation')">
+    <a-form :form="this.form" :label-col="{ span: 7 }" :wrapper-col="{ span: 24 }" @submit="handleSubmit">
+      <a-form-item label="查看对象">
+        <orgselect :orgid.sync="orgid" :district.sync="initdistrict" :loading="this.loading"/>
+      </a-form-item>
+      <a-form-item label="区间类型">
+        <ul>
+          <li
+            v-for="(item, index) in intervalType"
+            :key="index"
+            @click="active(index)"
+            :class="{ active: checkActive(index), disabled: loading }"
+          >
+            {{ item }}
+          </li>
+        </ul>
+      </a-form-item>
+      <a-form-item class="btn" :wrapper-col="{ span: 24 }">
+        <a-button type="primary" html-type="submit" :disabled="this.loading||!this.orgid" block>确定</a-button>
+      </a-form-item>
+    </a-form>
+  </div>
+</template>
+
+<script>
+import { Form, Select, DatePicker, Button } from "ant-design-vue";
+import orgselect from "./orgselect";
+import { uniqBy } from 'lodash';
+import { showError } from "@/framework/utils";
+import { treeroot } from "@/person/api/org";
+export default {
+  props: {
+    pagination: {
+      //分页
+      type: Object,
+    },
+    columns: {
+      //表头数据
+      type: Array,
+    },
+    data: {
+      //接口返回数据
+      type: Array,
+    },
+    tableData: {
+      //表格数据，由data处理后得到
+      type: Array,
+    },
+    conditionActive: {
+      //按区划 || 按分类
+      type: String,
+    },
+    loading: {
+      //加载状态
+      type: Boolean,
+    },
+    checked: {
+      //index跳转details，区间类型的选中值
+      type: Number,
+    },
+    typeActive: {
+      //分类选中项
+      type: Number,
+    }
+  },
+  components: {
+    orgselect,
+    AForm: Form,
+    AButton: Button,
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ADatePicker: DatePicker,
+    AMonthPicker: DatePicker.MonthPicker,
+  },
+  data() {
+    return {
+      typedata:[],//按区划数据
+      regiondata: [],//按分类数据
+      currentVal: 3,
+      type: 'region',//按区划|按分类
+      columnsdata: [],
+      orgid: undefined,
+      initdistrict: undefined,
+      intervalType: ["年", "半年", "季度", "月份"],
+      form: this.$form.createForm(this, { name: 'transForm' }),
+      params: { pagesize: 10, pagenum: 1, total: 0, type: this.typeActive, needtotal: true, monthlength: 6 },
+    };
+  },
+  computed: {
+    district() {
+      return this.$store.getters.dict("usermanage.org.district");
+    },
+    dict() {
+      return this.$store.getters.dict("person.business.businesstype");
+    },
+  },
+  watch: {
+    data(val) {
+      this.regiondata = [];
+      this.loadData(val);
+      return val;
+    },
+    conditionActive(val) {
+      if(val==='region'||val==='type') {
+        this.type = val;
+        if(val === 'region') {
+          this.$emit('update:tableData', this.regiondata);
+        }else if(val === 'type') {
+          this.$emit('update:tableData', this.typedata);
+        }
+      }
+      return val;
+    },
+    typeActive(val) {
+      if(val) {
+        this.params.type = val;
+      }
+    }
+  },
+  mounted() {
+    if(this.checked) {
+      if(this.checked===1) {
+        this.currentVal = 0;
+      }else if(this.checked===3) {
+        this.currentVal = 2;
+      }else if(this.checked===4) {
+        this.currentVal = 3;
+      }
+      this.conditionActive = 'region';
+      this.$emit('update:checked', undefined);
+    }
+    this.loadRoot();
+  },
+  methods: {
+    loadRoot() {
+      this.$emit('update:loading', true);
+      treeroot()
+        .then((res) => {
+          this.params.district = res.result.children[0].name;
+          this.params.orgid = res.result.children[0].data._id;
+          this.params.dateStep = this.currentVal+1;
+          this.initdistrict = this.params.district;
+          this.orgid = this.params.orgid;
+          this.$emit("update:pagination", this.params);
+          this.$emit("qlsxdateLine", this.params);
+        })
+        .catch((err) => {
+          this.$emit('update:loading', false);
+          showError(err);
+        });
+    },
+    loadData(val) {
+      if (val.length) {
+        this.processData(val);
+      }else{
+        this.$emit('update:tableData', []);
+      }
+    },
+    initcolumns() {
+      this.columnsdata = [
+        {
+          title: "",
+          dataIndex: "name",
+          key: "name",
+          scopedSlots: { customRender: "history_name" },
+        },
+        {
+          title: "操作",
+          dataIndex: "action",
+          key: "action",
+          scopedSlots: { customRender: "action" },
+        }
+      ];
+      this.$emit('update:columns', this.columnsdata);
+    },
+    active(item) {
+      if(!this.loading) {
+        this.currentVal = item;
+        if(item===0) {
+          this.params.monthlength = 2;
+        }else if(item===1) {
+          this.params.monthlength = 3;
+        }else if(item===2) {
+          this.params.monthlength = 4;
+        }else if(item===3) {
+          this.params.monthlength = 6;
+        }
+      }
+    },
+    checkActive(item) {
+      return this.currentVal === item;
+    },
+    loadQuarter(date) {
+      let result = undefined;
+      if (this.currentVal === 0) {
+        //年度
+        let year = date.split("-")[0];
+        result = `${year}年度`;
+      } else if(this.currentVal === 1) {
+        //半年
+        let year = date.split("-")[0];
+        let month = date.split("-")[1];
+        if(month<7) {
+          result = `${year}年上半年`;
+        }else{
+          result = `${year}年下半年`;
+        }
+      } else if (this.currentVal === 2) {
+        //季度
+        let month = date.split("-")[1];
+        if (month < 4) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第1季度`;
+        }
+        if (3 < month && month < 7) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第2季度`;
+        }
+        if (6 < month && month < 10) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第3季度`;
+        }
+        if (month > 9) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第4季度`;
+        }
+      } else {
+        //月度
+        let month = date.split("-")[1];
+        result = `${date.split("-")[0].substr(-2, 2)}年${month}月`;
+      }
+      return result;
+    },
+    processData(val) {
+      this.initcolumns();
+      val.forEach((item) => {
+        let row = {key: item.statistickey, name: item.name};
+        item.data.forEach((dataItem, dataIndex) => {
+          this.columnsdata.splice(dataIndex+1,0,{
+            title: `${this.loadQuarter(dataItem.date)}`,
+            dataIndex: `${dataItem.date}`,
+            key: `${dataItem.date}`,
+          });
+          row[dataItem.date] = dataItem.total;
+        });
+        this.regiondata.push(row);
+      });
+      if(!this.typedata.length) {
+        this.dict.forEach((item)=>{
+          let row = {key: item.key, name: item.text};
+          let datafilter = val.filter((valItem)=> valItem.name === val[0].name);
+          datafilter.forEach((filterItem)=>{
+            filterItem.data.forEach((dataItem) => {
+              row[dataItem.date] = JSON.parse(dataItem.data)[`${item.key}`];
+            });
+          });
+          this.typedata.push(row);
+        });
+      }
+      if(this.type === 'region') {
+        this.$emit('update:tableData', this.regiondata);
+      }else if(this.type === 'type') {
+        this.$emit('update:tableData', this.typedata);
+      }
+      this.$emit('update:columns', uniqBy(this.columnsdata, 'title'));
+    },
+    handleSubmit(e) {
+      e.preventDefault();
+      if(this.orgid) {
+        this.params.pagenum = 1;
+        this.params.orgid = this.orgid;
+        this.params.dateStep = this.currentVal+1;
+        this.$emit('update:pagination',this.params);
+        this.$emit('qlsxdateLine', this.params);
+      }
+    }
+  },
+};
+</script>
+<style scoped lang="less">
+ul {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  li {
+    min-width: 46px;
+    text-align: center;
+    user-select: none;
+    transition: all 0.3s;
+    height: 25px !important;
+    line-height: 0.5;
+    cursor: pointer;
+    margin: 0 8px 8px 0;
+    border: 1px solid rgb(221, 221, 221);
+    border-radius: @border-radius-base;
+    padding: @padding-xs;
+  }
+  li.active {
+    color: #ffffff;
+    background-color: @primary-color;
+    border: 1px solid @primary-color;
+  }
+  li.disabled {
+    color: rgba(0, 0, 0, 0.35);
+    background-color: #f5f5f5;
+    border-color: #d9d9d9;
+    cursor: not-allowed;
+  }
+}
+/deep/.ant-form {
+    height: 100%;
+    position: relative;
+    .btn.ant-form-item:last-child {
+        position: absolute;
+        bottom: 0;
+        left: @padding-xs;
+        right: @padding-xs;
+    }
+}
+</style>

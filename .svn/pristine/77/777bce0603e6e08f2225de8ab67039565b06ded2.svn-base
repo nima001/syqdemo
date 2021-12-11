@@ -1,0 +1,54 @@
+<template>
+  <div class="mulitiWrap">
+    <a-popover v-for="(item,index) in list" :key="index+Math.random()">
+      <template slot="content">
+        <p class="popovertext">{{item.username || item.name}}</p>
+      </template>
+      <a-tag
+        closable
+        @click.stop="()=>{}"
+        @close.stop="delTag(item._id)"
+      >{{item.username || item.name}}</a-tag>
+    </a-popover>
+  </div>
+</template>
+
+<script>
+import { Tag, Popover } from "ant-design-vue";
+export default {
+  name: "MultiSelect",
+  props: {
+    list: {
+      type: Array,
+      required: true
+    }
+  },
+  components: {
+    ATag: Tag,
+    APopover: Popover
+  },
+  methods: {
+    delTag(_id) {
+      this.$emit("delFilter", _id);
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.mulitiWrap {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  /deep/ .ant-tag {
+    width: 80px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+.popovertext {
+  width: 200px;
+  line-height: 20px;
+  padding: 0px 20px;
+}
+</style>

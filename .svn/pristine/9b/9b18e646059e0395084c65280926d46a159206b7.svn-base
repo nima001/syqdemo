@@ -1,0 +1,85 @@
+<template>
+  <a-layout class="dev-layout">
+    <div class="basics">
+      <div class="headline">
+        <a-divider type="vertical" />
+        <h4>基本信息</h4>
+      </div>
+      <p>
+        统一身份认证体系是开展“互联网+政务服务”、建立政务服务实施机构和行政相对人线上服务法律关系的前提，是用户系统“一点登录、全站通行，一地注册，各地互认”的基础。用户系统接入各类应用，实现互联网个人用户的统一注册、统一认证和统一管理，互联网个人用户只须登录部门用户系统，便可使用全站服务，无需再次登录。
+      </p>
+      <p>
+        从用户系统业务功能视角分析，主要包括如下功能模块：用户系统门户、注册认证子系统、单点登录子系统、接入管理子系统、消息中心子系统、、综合管理子系统等，其系统功能结构图如下所示：
+      </p>
+       <a-skeleton :active="true" :loading="loading" :title="{width:'100%'}" :paragraph="{ rows: 6,width:'100%' }">
+         <img src="../assets/img/developDoc.png" alt="" />
+       </a-skeleton>
+      <p>
+        用户系统门户：为互联网个人用户提供一个集中的用户注册和认证访问入口，体现形式为基于Web和APP的用户身份认证界面。
+      </p>
+      <p>
+        注册认证子系统：为用户提供账号生命周期服务，主要包括账号管理、用户基本信息管理、实名认证、实人认证等功能等。
+      </p>
+      <p>
+        单点登录子系统：用于整合部门用户系统应用、下级部门应用、地方政府应用等登录入口，实现安全票据的形成和传递，完成多应用间的安全单点登录，为用户提供“一点登录、多点漫游”的一站式服务。
+      </p>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import { Layout, Anchor, Divider, Skeleton} from "ant-design-vue";
+export default {
+  name: "",
+  data() {
+    return {
+      loading:true
+    };
+  },
+  components: {
+    ALayout: Layout,
+    ADivider: Divider,
+    AAnchor: Anchor,
+    ASkeleton:Skeleton
+  },
+  mounted() {
+    this.loading = false
+  },
+  methods: {},
+};
+</script>
+
+<style scoped lang="less">
+.dev-layout {
+  width: 100%;
+  height: 100%;
+  padding: 20px;
+  background: #fff;
+  .basics {
+    .headline {
+      display: flex;
+      .ant-divider {
+        width: 3px;
+        height: 20px;
+        background-color: @primary-color;
+        margin-top: 5px;
+      }
+      h4 {
+        font-size: 18px;
+        color: @primary-color;
+      }
+    }
+
+    p {
+      font-size: 14px;
+      text-indent: 2em;
+      line-height: 1.5;
+    }
+    img {
+      display: block;
+      margin: 20px auto;
+      width: 500px;
+    }
+  }
+}
+</style>

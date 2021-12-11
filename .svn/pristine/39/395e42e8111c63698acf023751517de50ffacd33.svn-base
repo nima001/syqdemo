@@ -1,0 +1,50 @@
+<template>
+  <div class="org-main-panel">
+    <div class="body">
+      用户信息编辑
+    </div>
+  </div>
+</template>
+<script>
+export default {
+  props: {
+    loadData: {
+      type: Object,
+    },
+  },
+  components: {
+    
+  },
+  data() {
+    return {
+      
+    };
+  },
+  computed: {
+    node() {
+      return this.loadData && this.loadData.node;
+    },
+  },
+  created() {
+  },
+  watch: {},
+  methods: {
+  },
+};
+</script>
+<style lang="less" scoped>
+.org-main-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: @border-radius-base;
+
+  & > .body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    position: relative;
+    background: #fff;
+    
+  }
+}
+</style>

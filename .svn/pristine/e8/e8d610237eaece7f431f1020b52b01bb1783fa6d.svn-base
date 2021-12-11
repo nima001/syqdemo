@@ -1,0 +1,105 @@
+import get from 'lodash/get'
+import set from 'lodash/set'
+import { Tooltip } from 'ant-design-vue'
+export const mixins = {
+  components: {
+    ATooltip: Tooltip
+  },
+  /**
+   * props : 组件的某个配置属性
+   */
+  props: {
+    name: {
+      type: String
+    },
+    code: {
+      type: String
+    },
+    required: {
+      type: Boolean,
+      default: false
+    },
+    disabled: {
+      type: Boolean
+    },
+    // 复杂组件的某个列表项数据(如FormGroup组件,避免复杂组件多个列表的相同字段同时v-modle)
+    data: {
+      type: Object
+    }
+  },
+  data () {
+    return {
+      // error/success
+      validateStatus: undefined
+    }
+  },
+  inject: ['formData'],
+  computed: {
+    propValue: {
+      get () {
+        if (this.data) {
+          return get(this.data, this.code)
+        } else {
+          return get(this.formData.data, this.code)
+        }
+      },
+      set (value) {
+        if (this.data) {
+          set(this.data, this.code, value)
+        } else {
+          set(this.formData.data, this.code, value)
+        }
+      }
+    },
+    editor:{
+      get(){
+        return this.formData.editor
+      }
+    }
+  },
+  watch: {
+    propValue () {
+      if (this.validate) {
+        this.validate()
+      }
+    }
+  },
+  mounted () {
+    this.formData.formItem.push(this)
+  },
+  methods: {
+    /**
+     * 通用组件验证，如果组件需要特殊验证，可在组件内重写validate方法来覆盖当前方法
+     * TODO
+     * 自定义表单验证 (默认不为空,不为undefined,不为null)
+     * 1.正则验证
+     * 2.异步请求验证 (收集验证数据)
+     * 3.关联组件验证
+     */
+    validate (callback) {
+      let reg = /\S/
+      // 默认验证
+      let type = reg.test(this.propValue) && this.propValue != undefined && this.propValue != null
+      if (!this.disabled && this.required && !type) {
+        this.validateStatus = 'error'
+      } else {
+        this.validateStatus = 'success'
+      }
+      if (callback) {
+        callback(this.validateStatus)
+      }
+    },
+    // 收集表单验证信息
+    validateField () {
+      return new Promise((resolve, reject) => {
+        this.validate(status => {
+          if (status == 'success') {
+            resolve({ code: this.code, status: this.validateStatus })
+          } else {
+            reject({ code: this.code, status: this.validateStatus })
+          }
+        })
+      })
+    }
+  }
+}

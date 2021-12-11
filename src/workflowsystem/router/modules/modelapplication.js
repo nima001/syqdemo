@@ -1,0 +1,21 @@
+import Layout from '../../views/Layout'
+
+//流程模板应用
+export const modelApplication = {
+  path: '/workflowsystem/model/modelapplication',
+  component: Layout,
+  redirect: '/workflowsystem/model/modelapplication/list',
+  name: 'modelApplication',
+  meta: {access: true, title: '流程模板应用'},
+  children: [
+    {
+			path: 'list',
+			component: () => import('../../views/model/ModelApplication'),
+      name: 'ModelApplication',
+      meta: {
+        access: 'login',
+        path: [{name: '流程模板应用', path: '/workflowsystem/model/modelapplication/list'}]
+      }
+    },
+  ]
+}

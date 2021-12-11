@@ -1,0 +1,78 @@
+<template>
+  <a-tree
+    v-model="checkedKeys"
+    checkable
+    :selectable="false"
+    :expanded-keys="expandedKeys"
+    :tree-data="treeData"
+    @expand="onExpand"
+    @check="onCheck"
+  />
+</template>
+<script>
+import { Tree } from 'ant-design-vue'
+
+export default {
+  components: {
+    ATree: Tree,
+  },
+  props: {
+    content: {
+      type: Array,
+      default: () => []
+    },
+    value: {
+      type: Array,
+      default: () => []
+    }
+  },
+  data(){
+    return {
+      treeData: [],
+      checkedKeys: [],
+      expandedKeys: [],
+    }
+  },
+  created(){
+    this.initData();
+    this.checkedKeys = this.value;
+  },
+  watch: {
+    content(){
+      this.initData();
+    },
+    value(v){
+      this.checkedKeys = v;
+    }
+  },
+  methods: {
+    initData(){
+      let tops = [], map = new Map(), expandedKeys = ['0'];
+      (this.content || []).forEach(item => {//content必须是按树的深度优先排序
+        let parent = map.get(item.pid);
+        let node = { key: item.id, title: item.name };
+        if(parent){
+          let children = parent.children;
+          if(!children){
+            parent.children = children = [];
+            expandedKeys.push(parent.key);
+          }
+          children.push(node);
+        }else{
+          tops.push(node);
+        }
+        map.set(item.id, node);
+      });
+      this.treeData = tops;
+      this.expandedKeys = expandedKeys;
+    },
+    onExpand(expandedKeys) {
+      this.expandedKeys = expandedKeys;
+    },
+    onCheck(checkedKeys) {
+      console.log(checkedKeys)
+      this.$emit('input', checkedKeys);
+    },
+  }
+}
+</script>

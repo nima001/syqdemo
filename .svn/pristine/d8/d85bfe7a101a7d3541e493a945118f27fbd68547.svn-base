@@ -1,0 +1,623 @@
+<template>
+  <div class="home-body">
+    <div class="top">
+      <draggable
+        :disabled="this.draggable"
+        :force-fallback="true"
+        :animation="200"
+        v-model="topWidgets"
+        :move="topmoveEnd"
+        @end="dragEnd"
+        filter=".forbid"
+        ghostClass="ghostClass"
+        handle=".ant-card-head"
+        :group="{ name: 'menu', put: true }"
+      >
+        <!--顶部置顶项开始-->
+        <div
+          slot="header"
+          class="btn-group list-group-item"
+          role="group"
+          aria-label="Basic example"
+          v-for="item in this.upTop"
+        >
+          <a-card
+            :class="['widget', { forbid: item.display === 2 }]"
+            :title="item.name"
+            :bodyStyle="{ padding: 0 }"
+            :bordered="false"
+          >
+            <div slot="extra" class="extra">
+              <router-link class="more" :to="item.moreurl" v-if="item.moreurl"
+                >更多</router-link
+              >
+              <a-dropdown>
+                <a class="ant-dropdown-link" @click="(e) => e.preventDefault()">
+                  <a-icon type="more" class="icon" />
+                </a>
+                <a-menu slot="overlay" @click="onClick($event, item)">
+                  <a-menu-item key="1" style="width: 100px; text-align: center"
+                    >删除</a-menu-item
+                  >
+                </a-menu>
+              </a-dropdown>
+            </div>
+            <component :is="item.componenturi" :class="{ isiframe: isiframe }" />
+          </a-card>
+        </div>
+        <!--顶部置顶项结束-->
+        <!--顶部非置顶项开始-->
+        <div v-for="w in topWidgets" :key="w.id" :style="{ minHeight: '10px' }">
+          <a-card
+            :class="['widget', { forbid: w.display === 2 }]"
+            :title="w.name"
+            :bodyStyle="{ padding: 0 }"
+            :bordered="false"
+            v-if="w.display !== 2"
+          >
+            <div slot="extra" class="extra">
+              <router-link class="more" :to="w.moreurl" v-if="w.moreurl"
+                >更多</router-link
+              >
+              <a-dropdown>
+                <a class="ant-dropdown-link" @click="(e) => e.preventDefault()">
+                  <a-icon type="more" class="icon" />
+                </a>
+                <a-menu slot="overlay" @click="onClick($event, w)">
+                  <a-menu-item key="1" style="width: 100px; text-align: center"
+                    >删除</a-menu-item
+                  >
+                </a-menu>
+              </a-dropdown>
+            </div>
+            <component :is="w.componenturi" :rowcount="w.rowcount" :class="{ isiframe: isiframe }" :style="{ height: `${28 * w.rowcount}px`,boxSizing: 'content-box', }" />
+            <div class="resize-handle" @mousedown.prevent="resizeHeight(w)"></div>
+          </a-card>
+        </div>
+        <!--顶部非置顶项结束-->
+      </draggable>
+    </div>
+    <div class="content">
+      <div class="left" :style="{ width: `${weightWidth}%` }">
+        <draggable
+          :disabled="this.draggable"
+          :force-fallback="true"
+          :animation="200"
+          v-model="leftWidgets"
+          :move="leftmoveEnd"
+          @end="dragEnd"
+          filter=".forbid"
+          ghostClass="ghostClass"
+          handle=".ant-card-head"
+          :group="{ name: 'menu', put: true }"
+        >
+          <!--左边置顶项开始-->
+          <div
+            slot="header"
+            class="btn-group list-group-item"
+            role="group"
+            aria-label="Basic example"
+            v-for="item in this.leftTop"
+          >
+            <a-card
+              :class="['widget', { forbid: item.display === 2 }]"
+              :title="item.name"
+              :bodyStyle="{ padding: 0 }"
+              :bordered="false"
+            >
+              <div slot="extra" class="extra">
+                <router-link class="more" :to="item.moreurl" v-if="item.moreurl"
+                  >更多</router-link
+                >
+                <a-dropdown>
+                  <a
+                    class="ant-dropdown-link"
+                    @click="(e) => e.preventDefault()"
+                  >
+                    <a-icon type="more" class="icon" />
+                  </a>
+                  <a-menu slot="overlay" @click="onClick($event, item)">
+                    <a-menu-item
+                      key="1"
+                      style="width: 100px; text-align: center"
+                      >删除</a-menu-item
+                    >
+                  </a-menu>
+                </a-dropdown>
+              </div>
+              <component
+                :is="item.componenturi"
+                :class="{ isiframe: isiframe }"
+              />
+            </a-card>
+          </div>
+          <!--左边置顶项结束-->
+          <!--左边非置顶项开始-->
+          <div v-for="w in leftWidgets" :key="w.id" :style="{ minHeight: '10px' }">
+            <a-card
+              :class="['widget', { forbid: w.display === 2 }]"
+              :title="w.name"
+              :bodyStyle="{ padding: 0 }"
+              :bordered="false"
+              v-if="w.display !== 2"
+            >
+              <div slot="extra" class="extra">
+                <router-link class="more" :to="w.moreurl" v-if="w.moreurl"
+                  >更多</router-link
+                >
+                <a-dropdown>
+                  <a
+                    class="ant-dropdown-link"
+                    @click="(e) => e.preventDefault()"
+                  >
+                    <a-icon type="more" class="icon" />
+                  </a>
+                  <a-menu slot="overlay" @click="onClick($event, w)">
+                    <a-menu-item
+                      key="1"
+                      style="width: 100px; text-align: center"
+                      >删除</a-menu-item
+                    >
+                  </a-menu>
+                </a-dropdown>
+              </div>
+              <component :is="w.componenturi" :rowcount="w.rowcount" :class="{ isiframe: isiframe }" :style="{ height: `${28 * w.rowcount}px`,boxSizing: 'content-box', }" />
+              <div class="resize-handle" @mousedown.prevent="resizeHeight(w)"></div>
+            </a-card>
+          </div>
+          <!--左边非置顶项结束-->
+        </draggable>
+        <div class="move-handle" @mousedown.prevent="drag()"></div>
+      </div>
+      <div class="right" :style="{ width: `${100 - weightWidth}%` }">
+        <draggable
+          :disabled="this.draggable"
+          :force-fallback="true"
+          :animation="200"
+          v-model="rightWidgets"
+          :move="rightmoveEnd"
+          @end="dragEnd"
+          filter=".forbid"
+          ghostClass="ghostClass"
+          handle=".ant-card-head"
+          :group="{ name: 'menu', put: true }"
+        >
+          <!--右边置顶项开始-->
+          <div
+            slot="header"
+            class="btn-group list-group-item"
+            role="group"
+            aria-label="Basic example"
+            v-for="item in this.rightTop"
+          >
+            <a-card
+              :class="['widget', { forbid: item.display === 2 }]"
+              :title="item.name"
+              :bodyStyle="{ padding: 0 }"
+              :bordered="false"
+            >
+              <div slot="extra" class="extra">
+                <router-link class="more" :to="item.moreurl" v-if="item.moreurl"
+                  >更多</router-link
+                >
+                <a-dropdown>
+                  <a
+                    class="ant-dropdown-link"
+                    @click="(e) => e.preventDefault()"
+                  >
+                    <a-icon type="more" class="icon" />
+                  </a>
+                  <a-menu slot="overlay" @click="onClick($event, item)">
+                    <a-menu-item
+                      key="1"
+                      style="width: 100px; text-align: center"
+                      >删除</a-menu-item
+                    >
+                  </a-menu>
+                </a-dropdown>
+              </div>
+              <component
+                :is="item.componenturi"
+                :class="{ isiframe: isiframe }"
+              />
+            </a-card>
+          </div>
+          <!--右边置顶项结束-->
+          <!--右边非置顶项开始-->
+          <div v-for="w in rightWidgets" :key="w.id" :style="{ minHeight: '10px' }">
+            <a-card
+              :class="['widget', { forbid: w.display === 2 }]"
+              :title="w.name"
+              :bodyStyle="{ padding: 0 }"
+              :bordered="false"
+              v-if="w.display !== 2"
+            >
+              <div slot="extra" class="extra">
+                <router-link :to="w.moreurl" v-if="w.moreurl">更多</router-link>
+                <a-dropdown>
+                  <a
+                    class="ant-dropdown-link"
+                    @click="(e) => e.preventDefault()"
+                  >
+                    <a-icon type="more" class="icon" />
+                  </a>
+                  <a-menu slot="overlay" @click="onClick($event, w)">
+                    <a-menu-item
+                      key="1"
+                      style="width: 100px; text-align: center"
+                      >删除</a-menu-item
+                    >
+                  </a-menu>
+                </a-dropdown>
+              </div>
+              <component
+                :is="w.componenturi"
+                :rowcount="w.rowcount"
+                :class="{ isiframe: isiframe }"
+                :style="{
+                  height: `${28 * w.rowcount}px`,
+                  boxSizing: 'content-box',
+                }"
+              />
+              <div
+                class="resize-handle"
+                @mousedown.prevent="resizeHeight(w)"
+              ></div>
+            </a-card>
+          </div>
+          <!--右边非置顶项结束-->
+        </draggable>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Card, Icon, Dropdown, Menu } from "ant-design-vue";
+import draggable from "vuedraggable";
+import { showError } from "../../utils/index";
+import { getLayout, getWidgets, updateLayout } from "../../api/menu";
+import widgets from "../../widgets";
+
+export default {
+  components: {
+    ACard: Card,
+    AIcon: Icon,
+    ADropdown: Dropdown,
+    AMenu: Menu,
+    AMenuItem: Menu.Item,
+    ...widgets,
+    draggable,
+  },
+  data() {
+    return {
+      layout: {
+        weight: undefined,
+        widgets: undefined,
+      },
+      topWidgets: [],
+      leftWidgets: [],
+      rightWidgets: [],
+      leftTop: [], //左边单独置顶项
+      rightTop: [], //右边单独置顶项
+      upTop: [], //顶部置顶项
+      draggable: false,
+      isiframe: false,
+    };
+  },
+  computed: {
+    weightWidth() {
+      if (this.layout.weight) {
+        return Math.max(Math.min(this.layout.weight * 100, 70), 30);
+      } else {
+        return 50;
+      }
+    },
+  },
+  created() {
+    this.loadLayout();
+    // this.loadWidgets();
+  },
+  mounted(){
+      let data = {
+        weight: 0.5,
+        widgets:[
+          {
+            authorize:false,
+            componenturi:"StarMenu",
+            display:1,
+            id:5,
+            layout:1,
+            mobile:0,
+            moreurl:"/main/menu",
+            name:"常用业务",
+            orderby:1,
+            rowcount:4
+          },
+          {
+            authorize:false,
+            componenturi:"WorkTable",
+            display:1,
+            id:4,
+            layout:1,
+            mobile:0,
+            name:"工作图表",
+            orderby:2,
+            rowcount:10
+          },
+          {
+            authorize:false,
+            componenturi:"Query",
+            display:1,
+            id:3,
+            layout:0,
+            mobile:0,
+            name:"人员机构查询",
+            orderby:3,
+            rowcount:1
+          },
+          {
+            authorize:false,
+            componenturi:"DocCenter",
+            display:1,
+            id:1,
+            layout:0,
+            mobile:0,
+            moreurl:"/person/doc/docsearch",
+            name:"文件中心",
+            orderby:4,
+            rowcount:9
+          },
+          {
+            authorize:false,
+            componenturi:"NewMsg",
+            display:1,
+            id:2,
+            layout:0,
+            mobile:0,
+            moreurl:"/main/message",
+            name:"我的待办",
+            orderby:5,
+            rowcount:9
+          }
+        ]
+      }
+       updateLayout(data)
+        .then((res) => {})
+        .catch((error) => {
+          showError(error);
+        });
+
+  },
+  methods: {
+    //获取首页需要展示的组件
+    loadLayout() {
+      getLayout()
+        .then(({ result }) => {
+          this.layout = result;
+          this.rightWidgets = this.layout.widgets.filter(
+            (item) => item.layout === 0
+          );
+          //寻找右侧置顶项
+          this.rightWidgets.forEach((item, index) => {
+            if (item.display === 2) {
+              this.rightTop = [];
+              this.rightTop.unshift(item);
+              return;
+            }
+          });
+          this.leftWidgets = this.layout.widgets.filter(
+            (item) => item.layout === 1
+          );
+          //寻找左侧置顶项
+          this.leftWidgets.forEach((item, index) => {
+            if (item.display === 2) {
+              this.leftTop = [];
+              this.leftTop.unshift(item);
+              return;
+            }
+          });
+          console.log(this.leftWidgets);
+          this.topWidgets = this.layout.widgets.filter(
+            (item) => item.layout === 2
+          );
+          //寻找顶部置顶项目
+          this.topWidgets.forEach((item, index) => {
+            if (item.display === 2) {
+              this.upTop = [];
+              this.upTop.unshift(item);
+            }
+          });
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    topmoveEnd(evt) {
+      if (this.topWidgets.length < 2) {
+        return false;
+      } else {
+        evt.draggedContext.element.layout = evt.relatedContext.element.layout;
+      }
+      //设置置顶项不允许停靠
+      if (evt.relatedContext.element.display === 2) {
+        return false;
+      }
+      return true;
+    },
+    leftmoveEnd(evt) {
+      if (this.leftWidgets.length < 2) {
+        return false;
+      } else {
+        evt.draggedContext.element.layout = evt.relatedContext.element.layout;
+      }
+      return true;
+    },
+    rightmoveEnd(evt) {
+      if (this.rightWidgets.length < 2) {
+        return false;
+      } else {
+        evt.draggedContext.element.layout = evt.relatedContext.element.layout;
+      }
+      return true;
+    },
+    dragEnd(evt) {
+      this.layout.widgets = [
+        ...this.topWidgets,
+        ...this.leftWidgets,
+        ...this.rightWidgets,
+      ];
+      this.layout.widgets.forEach((item, index) => {
+        item.orderby = index + 1;
+      });
+      let data = this.layout;
+      updateLayout(data)
+        .then((res) => {})
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    //获取全部的组件
+    // loadWidgets(){
+    //   getWidgets().then(res=>{
+    //   })
+    // }
+    onClick(event, w) {
+      if (event.key == 1) {
+        this.layout.widgets.splice(w.orderby - 1, 1);
+        this.layout.widgets.forEach((item, index) => {
+          item.orderby = index + 1;
+        });
+        let data = this.layout;
+        updateLayout(data)
+          .then((res) => {
+            if (w.layout === 0) {
+              this.rightTop = [];
+            } else if (w.layout === 1) {
+              this.leftTop = [];
+            } else if (w.layout === 2) {
+              this.upTop = [];
+            }
+            this.$message.success("删除成功");
+            this.loadLayout();
+          })
+          .catch((error) => {
+            showError(error);
+          });
+      }
+    },
+    resizeHeight(w) {
+      let that = this;
+      let startY = event.y;
+      document.onmousemove = function () {
+        that.isiframe = true; //添加iframe遮罩层
+        let moveY = event.y - startY;
+        if (moveY > 0) {
+          w.rowcount += 1;
+        } else {
+          w.rowcount -= 1;
+        }
+      };
+      document.onmouseup = function () {
+        that.isiframe = false; //取消遮罩层
+        document.onmousemove = null;
+        document.onmouseup = null;
+      };
+      return false;
+    },
+    drag() {
+      let that = this;
+      let startX = event.x;
+      let sw = this.layout.weight; //获取左边区域占领比例
+      document.onmousemove = function () {
+        that.isiframe = true; //添加iframe遮罩层
+        that.draggable = true; //禁用排序拖动
+        let moveX = event.x - startX;
+        //左边占比加上移动占比等于左边总占比
+        that.layout.weight = Math.min(
+          610,
+          sw + moveX / document.documentElement.clientWidth
+        );
+      };
+      document.onmouseup = function () {
+        that.isiframe = false; //取消遮罩层
+        that.draggable = false; //启用排序拖动
+        document.onmousemove = null;
+        document.onmouseup = null;
+      };
+      return false;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.home-body {
+  padding: @layout-space-base;
+  .widget {
+    margin-bottom: 10px;
+    .extra {
+      .more {
+        color: @text-color-secondary;
+      }
+      .ant-dropdown-link {
+        .icon {
+          padding-left: 10px;
+          font-size: 18px;
+          color: @text-color-secondary;
+        }
+      }
+    }
+  }
+  .content {
+    display: flex;
+    .top {
+      width: 100%;
+    }
+    .left {
+      position: relative;
+      width: 50%;
+      padding-right: @layout-space-base / 2;
+      & .move-handle {
+        cursor: w-resize;
+        position: absolute;
+        width: @layout-space-base;
+        height: 100%;
+        top: 0;
+        right: 0;
+      }
+    }
+    .right {
+      padding-left: @layout-space-base / 2;
+      width: 50%;
+    }
+  }
+  /deep/.ant-card-head {
+    height: 41px;
+    min-height: 41px;
+  }
+  /deep/.widget:not(.forbid) .ant-card-head:hover {
+    cursor: move;
+  }
+  /deep/.doc-enter,
+  .my-state {
+    transition: all 0.3s ease;
+  }
+  .isiframe::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 999;
+  }
+  .ghostClass {
+    opacity: 0 !important;
+  }
+  .resize-handle {
+    position: absolute;
+    width: 100%;
+    height: @layout-space-base;
+    cursor: n-resize;
+  }
+}
+</style>

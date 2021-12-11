@@ -1,0 +1,484 @@
+<template>
+  <div class="workflow">
+    <a-form-item
+      v-if="property.childs.length"
+      :require="property.require"
+      :label="property.showName?property.name:''"
+    >
+      <div class="familyMenberWrap">
+        <a-table
+          :columns="columns"
+          :dataSource="data"
+          bordered
+          :pagination="false"
+          :scroll="{x:(property.childs.length+2)*100}"
+        >
+          <template slot="index" slot-scope="text,record,index">{{index+1}}</template>
+          <template
+            v-for="col in columns.slice(1,columns.length)"
+            :slot="col.dataIndex"
+            slot-scope="text"
+          >{{text}}</template>
+          <template slot="operation" slot-scope="text, record">
+            <a href="javascript:;" @click="edit(record.key)" style="color:blue;margin-right:5px;">编辑</a>
+            <a
+              href="javascript:;"
+              @click="onDelete(record._id)"
+              style="color:red;margin-left:5px;"
+            >删除</a>
+          </template>
+        </a-table>
+        <div class="addMenber">
+          <a-button type="primary" icon="plus" v-if="property.editable" @click="openMenber">添加一条</a-button>
+        </div>
+      </div>
+      <a-input
+        type="hidden"
+        v-decorator="[
+          `${property.code}`,
+          {
+            rules: [{required: property.require, message: `请填写${property.name}!`}],
+            initialValue: menber
+          }
+        ]"
+      ></a-input>
+      <!-- 添加人员 -->
+      <a-modal
+        title="添加家庭成员"
+        v-model="visible"
+        @ok="add"
+        @cancel="visible=false"
+        width="600px"
+        style="margin-bottom:50px;"
+        :destroyOnClose="true"
+        :bodyStyle="{'height':autoHeight+'px','overflow':'auto'}"
+      >
+        <a-form :form="form" @submit="add">
+          <template v-for="item in formList">
+            <complex
+              :key="item.code"
+              :item="item"
+              :bindform="form"
+              :current="current"
+              :dateArr="dateArr"
+              :pcode="code"
+              :typecode="typecode"
+              :resourceId="resourceId"
+            ></complex>
+          </template>
+        </a-form>
+      </a-modal>
+    </a-form-item>
+    <stamp
+      :property="property"
+      @imgUrl="getStamp"
+      v-if="property.signcomponent.signcode && property.signcomponent.editable"
+    ></stamp>
+    <a-form-item class="stampNotice" v-if="!imgUrl && property.signcomponent.signcode">
+      <a-input
+        type="hidden"
+        v-decorator="[
+          `${property.signcomponent.code}`,
+          {
+            rules: [{required: property.signcomponent.require, message: `请选择签章!`}],
+            initialValue: stamp
+          }
+        ]"
+      ></a-input>
+    </a-form-item>
+    <div class="seal" v-if="imgUrl">
+      <img :src="imgUrl" />
+    </div>
+  </div>
+</template>
+<script>
+import Stamp from "./stampComponent/Stamp";
+import Complex from "./complexComponent/Complex";
+import { getStampInfo } from "@/workflow/api/stamplist";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { checkIdcard, showError, guid } from "@/framework/utils/index";
+import "@/workflow/style/workflow.css";
+import { Form, Table, Icon, Modal, Input, Button } from "ant-design-vue";
+export default {
+  name: "FamilyMenber",
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      data: [],
+      arr: [],
+      columns: [],
+      visible: false,
+      code: this.property["code"],
+      formData: this.$store.getters.formData,
+      form: this.$form.createForm(this),
+      formList: [],
+      imgUrl: null,
+      stamp: null,
+      type: true,
+      current: {},
+      curIndex: null,
+      autoHeight: 0,
+      windowHeight: window.innerHeight
+    };
+  },
+  props: {
+    property: {
+      type: Object,
+      required: true
+    },
+    bindform: {
+      type: Object,
+      required: true
+    },
+    typecode: {
+      type: Object
+    },
+    resourceId: {
+      type: String
+    }
+  },
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    ATable: Table,
+    AIcon: Icon,
+    AModal: Modal,
+    AInput: Input,
+    AButton: Button,
+    Stamp,
+    Complex
+  },
+  mounted() {
+    this.autoHeight = this.windowHeight * 0.5;
+    const that = this;
+    window.onresize = () => {
+      return (() => {
+        this.windowHeight = window.innerHeight;
+      })();
+    };
+  },
+  computed: {
+    menber() {
+      return this.data.length?this.data.length:'';
+    },
+    tabledata() {
+      return this.$store.getters.formData[this.property.code];
+    }
+  },
+  watch: {
+    tabledata(newVal) {
+      this.init(newVal);
+    },
+    windowHeight(val) {
+      this.windowHeight = val;
+      this.autoHeight = val * 0.5;
+    }
+  },
+  created() {
+    this.columns = [
+      {
+        title: "序号",
+        key: "index",
+        dataIndex: "index",
+        width: 60,
+        align: "center",
+        fixed: "left",
+        scopedSlots: { customRender: "index" }
+      }
+    ];
+    this.dateArr = [];
+    this.property.childs.forEach(item => {
+      this.$set(item, "editable", this.property.editable);
+      this.columns.push({
+        title: item.name,
+        dataIndex: item.code,
+        scopedSlots: { customRender: item.code }
+      });
+      if (item.componenttype == "combobox") {
+        //判断下拉选项是否需要分组
+        let optionObj = {};
+        let options = [];
+        item.options.forEach(obj => {
+          if (obj.group) {
+            if (!optionObj[obj.group]) {
+              this.$set(optionObj, obj.group, []);
+              optionObj[obj.group].push({
+                text: obj.text,
+                value: obj.value
+              });
+            } else {
+              optionObj[obj.group].push({
+                text: obj.text,
+                value: obj.value
+              });
+            }
+          } else if (obj.label) {
+            options = item.options;
+          } else {
+            options.push({ text: obj.text, value: obj.value });
+          }
+        });
+        for (var obj in optionObj) {
+          options.push({
+            label: obj,
+            data: optionObj[obj]
+          });
+        }
+        this.$set(item, "options", options);
+      } else if (item.componenttype == "datebox") {
+        this.dateArr.push(item.code);
+      }
+    });
+    if (this.property.editable) {
+      this.columns.push({
+        title: "操作",
+        dataIndex: "operation",
+        width: 100,
+        align: "center",
+        fixed: "right",
+        scopedSlots: { customRender: "operation" }
+      });
+    }
+    //给表格添加数据
+    this.formList = this.property.childs;
+    if (this.formData[this.code]) {
+      this.arr = this.formData[this.code];
+      this.data = [];
+      this.arr.forEach((o, index) => {
+        let obj = {};
+        this.property.childs.forEach(a => {
+          for (var b in o) {
+            if (a.code == b) {
+              if (a.options) {
+                a.options.forEach(c => {
+                  if (c.label && c.data.length) {
+                    c.data.forEach(d => {
+                      if (d.value == o[b]) {
+                        this.$set(obj, b, d.text);
+                      }
+                    });
+                  } else {
+                    if (c.value == o[b]) {
+                      this.$set(obj, b, c.text);
+                    }
+                  }
+                });
+              } else if (a.componenttype == "datebox" && o[b]) {
+                this.$set(obj, b, o[b].substr(0, 10));
+              } else {
+                this.$set(obj, b, o[b]);
+              }
+            }
+          }
+        });
+        if (o._id) {
+          this.$set(obj, "_id", o._id);
+        } else {
+          this.$set(obj, "_id", guid());
+          this.$set(o, "_id", obj._id);
+        }
+        this.$set(obj, "key", index);
+        this.data.push(obj);
+      });
+    } else {
+      if (!this.property.require) {
+        this.formData[this.code] = null;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.formData
+        });
+      }
+    }
+    if (this.formData[this.property.signcomponent.code]) {
+      //获取签章图片
+      getStampInfo(this.formData[this.property.signcomponent.code])
+        .then(res => {
+          if (res.code == "success") {
+            this.imgUrl =
+              this.uiConfigs["api.url"] +
+              "/file/v1/download" +
+              "?uri=" +
+              encodeURIComponent(res.result.pictureurl);
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  },
+  methods: {
+    init(val) {
+      // todo
+      this.data = [];
+      if (val && val.length) {
+        this.arr = val;
+        // this.data = [];
+        this.arr.forEach((o, index) => {
+          let obj = {};
+          this.property.childs.forEach(a => {
+            for (var b in o) {
+              if (a.code == b) {
+                if (a.options) {
+                  a.options.forEach(c => {
+                    if (c.label && c.data.length) {
+                      c.data.forEach(d => {
+                        if (d.value == o[b]) {
+                          this.$set(obj, b, d.text);
+                        }
+                      });
+                    } else {
+                      if (c.value == o[b]) {
+                        this.$set(obj, b, c.text);
+                      }
+                    }
+                  });
+                } else if (a.componenttype == "datebox" && o[b]) {
+                  this.$set(obj, b, o[b].substr(0, 10));
+                } else {
+                  this.$set(obj, b, o[b]);
+                }
+              }
+            }
+          });
+          if (o._id) {
+            this.$set(obj, "_id", o._id);
+          } else {
+            this.$set(obj, "_id", guid());
+            this.$set(o, "_id", obj._id);
+          }
+          this.$set(obj, "key", index);
+          this.data.push(obj);
+        });
+      }
+    },
+    onDelete(id) {
+      if (this.property.editable) {
+        this.data = this.data.filter(item => item._id !== id);
+        this.arr = this.arr.filter(item => item._id !== id);
+        this.$store.getters.formData[this.code] = this.arr.length?this.arr:undefined;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.$store.getters.formData
+        });
+      }
+    },
+    openMenber() {
+      this.type = true;
+      this.visible = true;
+      this.current={};
+      this.form.resetFields();
+    },
+    add(e) {
+      e.preventDefault();
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let obj = {};
+          //存入vuex的数据
+          this.property.childs.forEach(b => {
+            for (var a in values) {
+              if (b.code == a) {
+                if (b.componenttype == "datebox" && values[a]) {
+                  this.$set(values, a, values[a].format("YYYY-MM-DD"));
+                } 
+              }
+            }
+          });
+          //呈现的数据
+          this.property.childs.forEach(a => {
+            for (var b in values) {
+              if (a.code == b) {
+                if (a.options) {
+                  a.options.forEach(c => {
+                    if (c.label && c.data.length) {
+                      c.data.forEach(d => {
+                        if (d.value == values[b]) {
+                          this.$set(obj, b, d.text);
+                        }
+                      });
+                    } else {
+                      if (c.value == values[b]) {
+                        this.$set(obj, b, c.text);
+                      }
+                    }
+                  });
+                } else {
+                  this.$set(obj, b, values[b]);
+                }
+              }
+            }
+          });
+          if (this.type) {
+            obj._id = guid();
+            values._id = obj._id;
+            this.data.push(obj);
+            this.arr.push(values);
+            this.$message.success("添加成功！");
+          } else {
+            obj._id = this.data[this.curIndex]._id;
+            values._id = this.arr[this.curIndex]._id;
+            this.data[this.curIndex] = obj;
+            this.arr[this.curIndex] = values;
+            this.$message.success("修改成功！");
+          }
+          this.$store.getters.formData[this.code] = this.arr;
+          this.$store.commit({
+            type: "SET_FORM_DATA",
+            data: this.$store.getters.formData
+          });
+          this.visible = false;
+          this.form.resetFields();
+          this.data.forEach((item, index) => {
+            item.key = index;
+          });
+          this.arr.forEach((item, index) => {
+            item.key = index;
+          });
+        }
+      });
+    },
+    //编辑
+    edit(key) {
+      if (this.property.editable) {
+        this.form.resetFields();
+        this.type = false;
+        this.visible = true;
+        this.current = this.arr[key];
+        this.curIndex = key;
+      }
+    },
+    //身份证校验
+    validateIdcode(rule, value, callback) {
+      if (checkIdcard(value) || !this.property.require) {
+        callback();
+      } else {
+        callback("身份证格式不正确，请检查后重新输入！");
+      }
+    },
+    //获取签章
+    getStamp(img) {
+      if (img) {
+        this.imgUrl = img;
+        this.stamp = img;
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.familyMenberWrap {
+  background: #fff;
+  padding: 10px;
+  border-radius: 5px;
+  /deep/.ant-table-thead > tr > th {
+    white-space: nowrap;
+  }
+}
+
+.addMenber {
+  text-align: center;
+  button {
+    margin: 10px auto;
+  }
+}
+</style>
+

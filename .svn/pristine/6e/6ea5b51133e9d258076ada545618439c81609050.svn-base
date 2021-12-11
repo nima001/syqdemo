@@ -1,0 +1,98 @@
+<template>
+  <div class="reformInstitutional">
+    <a-button @click="goindex">跳转</a-button>
+  </div>
+</template>
+<script>
+import { Button } from "ant-design-vue";
+import { orgevolution } from "@/person-shaoxing/api/analysis";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: "reformInstitutional",
+  components: {
+    AButton: Button,
+  },
+  data() {
+    return {
+      g6timedata: [],
+      G6data: {},
+      G6dataid:null,
+    };
+  },
+  props: {
+    typeList: Array,
+  },
+  created() {
+    this.getevolution();
+  },
+  methods: {
+    getevolution() {
+      let data = {
+        orgid: "BBBB",
+        evolutionyear: 3,
+      };
+      orgevolution(data)
+        .then((res) => {
+          //时间轴
+          let g6timedata = [];
+          let g6time = [];
+          res.result.nodelist.forEach((item) => {
+            //截取字符串
+            g6time.push(parseInt(item.evolutiontime.substring(0, 4)));
+            //时间去重
+            g6timedata = new Set(g6time);
+            //排序
+            let arr = [];
+            g6timedata.forEach((item) => {
+              arr.push(item);
+            });
+            arr.sort((a, b) => {
+              return a - b;
+            });
+            this.g6timedata = arr;
+          });
+          //画布
+          this.G6data.nodes = [];
+          this.G6data.edges = [];
+          res.result.nodelist.forEach((item) => {
+            this.G6data.nodes.push({
+              orgname: item.orgname,
+              id:
+                parseInt(item.evolutiontime.substring(0, 4)) + "-" + item.orgid,
+            });
+          });
+          this.G6dataid =  this.G6data.nodes.slice(0, 1)[0].id
+          res.result.linklist.forEach((item) => {
+            if (item.fromevolutiontime && item.toevolutiontime) {
+              this.G6data.edges.push({
+                source:
+                  parseInt(item.fromevolutiontime.substring(0, 4)) +
+                  "-" +
+                  item.fromorgid,
+                target:
+                  parseInt(item.toevolutiontime.substring(0, 4)) +
+                  "-" +
+                  item.toorgid,
+              });
+            }
+          });
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    goindex() {
+      this.$router.push({
+        name: "reformInstitutional",
+        params: {
+          G6data: this.G6data,
+          g6timedata: this.g6timedata,
+          G6dataid:this.G6dataid
+        },
+      });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+</style>

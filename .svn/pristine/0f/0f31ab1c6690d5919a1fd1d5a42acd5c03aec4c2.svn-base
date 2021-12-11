@@ -1,0 +1,119 @@
+<template>
+  <div class="reprot-table-panel">
+    <div class="refresh" v-if="orgid"><a @click="loadTable(true)">刷新</a></div>
+    <iframe id="external-frame" class="coverimg" frameborder="0px" :src="src" :height="height" scrolling="no" />
+    <a-spin v-if="loading" class="loading">
+      <a-icon slot="indicator" type="loading" />
+    </a-spin>
+    <div v-else-if="src == 'about:blank'" class="empty">
+      <empty-data/>
+    </div>
+  </div>
+</template>
+<script>
+import { Layout, Icon, Spin } from "ant-design-vue";
+import EmptyData from "@/framework/components/EmptyData";
+import { getOrgTable } from "@/person/api/org";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  props: {
+    orgid:{
+      type: String,
+    },
+    namespace:{
+      type: String,
+    }
+  },
+  components: {
+    ALayout: Layout,
+    AIcon: Icon,
+    ASpin: Spin,
+    EmptyData
+  },
+  data() {
+    return {
+      loading: false,
+      src: "about:blank",
+      height: 0
+    };
+  },
+  created() {
+    this.loadTable(false);
+  },
+  mounted() {
+    let iframe = document.getElementById("external-frame"), that = this;
+    iframe.onload = function() {
+      that.height = iframe.contentWindow.document.body.scrollHeight;
+    };
+  },
+  watch: {
+    orgid(orgid) {
+      this.loading = false;
+      this.loadTable(false);
+    },
+    namespace(data) {
+      this.loading = false;
+      this.loadTable(false);
+    }
+  },
+  methods: {
+    loadTable(refresh) {
+      if(this.loading){
+        return;
+      }
+      this.src = "about:blank";
+      this.height = 0;
+      if (this.orgid && this.namespace) {
+        this.loading = true;
+        let orgid = this.orgid, namespace = this.namespace;
+        getOrgTable(namespace, orgid, refresh).then(({result}) => {
+          if(orgid == this.orgid && namespace == this.namespace){
+            this.loading = false;
+            if (result && result.content) {
+              this.src = `javascript:void(function(){document.open();document.write('${result.content}');document.close();}())`;
+            }
+          }
+        }).catch(error => {
+          showError(error)
+        })
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.reprot-table-panel {
+  overflow: auto;
+  height: 100%;
+  position: relative;
+  .refresh{
+    width: 1123px;
+    height: 40px;
+    line-height: 40px;
+    margin: 0 auto -40px auto;
+    padding: 0 10px;
+    text-align: right;
+    position: relative;
+  }
+  .loading {
+    position: absolute;
+    top: 0;
+    width: 100%;
+    margin-top: 350px;
+    text-align: center;
+  }
+  .empty{
+    position: absolute;
+    top: 40%;
+    width: 100%;
+  }
+  #external-frame {
+    display: block;
+    width: 1123px;
+    min-height: 100%;
+    margin: 0 auto;
+    background-color: @white;
+  }
+}
+</style>

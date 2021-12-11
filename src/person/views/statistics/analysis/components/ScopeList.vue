@@ -1,0 +1,507 @@
+<template>
+  <div class="content">
+    <div class="addAndSearch">
+      <div>
+        <a-button type="primary" @click="add()">新增</a-button>
+      </div>
+      <div>
+        <a-input-search
+          placeholder="输入名称搜索"
+          enter-button="搜索"
+          @search="onSearch"
+        />
+      </div>
+    </div>
+    <div class="table">
+      <div class="tableBody">
+        <table width="100%">
+          <thead>
+            <tr>
+              <th width="3%"></th>
+              <th width="12%">编码</th>
+              <th>名称</th>
+              <th>数据类型</th>
+              <th>数据源</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <draggable
+            :force-fallback="false"
+            v-model="scopeData"
+            handle=".icon"
+            :animation="200"
+            :delay="20"
+            tag="tbody"
+            ghostClass="ghostClass"
+            :move="getdata"
+            @update="datadragEnd"
+          >
+            <tr v-for="(item) in scopeData" :key="item.id">
+              <td><a-icon type="unordered-list" class="icon" v-show="showIcon" /></td>
+              <td>{{ item.code }}</td>
+              <td>{{ item.name }}</td>
+              <td>{{ dataTypeText(item) }}</td>
+              <td>{{ dataSourceText(item) }}</td>
+              <td class="action">
+                <span>
+                  <a href="javascript:;" @click="edit(item)">编辑</a>
+                </span>
+                <span @click="onDelete(item.id)">
+                  <a href="javascript:;">删除</a>
+                </span>
+              </td>
+            </tr>
+          </draggable>
+        </table>
+        <div class="empty" v-show="showEmpty">
+          <div class="emptyContent">
+            <Empty-data />
+          </div>
+        </div>
+      </div>
+      <a-modal
+        :width="650"
+        :bodyStyle="{height:'565px', padding: '0', overflow: 'scroll'}"
+        :centered="true"
+        class="formModal"
+        v-model="formVisible"
+        title="新增/编辑"
+        :destroyOnClose="true"
+        @ok="handleOk"
+      >
+        <a-form class="form" :form="this.form">
+          <a-row :gutter="20">
+            <a-col :span="12">
+              <a-form-item label="编码">
+                <a-input
+                  v-decorator="[
+                    'code',
+                    {
+                      rules: [
+                        { required: true, message: '请输入编码' },
+                        { pattern: new RegExp(/^[A-Za-z]+$/), message: '编码必须是字母组成' },
+                      ],
+                      initialValue: formData.code
+                    },
+                  ]"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="名称">
+                <a-input
+                  v-decorator="[
+                    'name',
+                    { rules: [{ required: true, message: '请输入节点名称!' }], initialValue: formData.name },
+                  ]"
+                />
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="数据类型">
+                <a-select
+                  v-decorator="[ 'type', { initialValue: formData.type } ]"
+                  @change="onFormValueChange('type', $event)"
+                >
+                  <a-select-option v-for="item in datatypeList" :key="item.key">{{item.label}}</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="是否多选">
+                <a-select
+                  v-decorator="[
+                    'multi',
+                    { initialValue: formData.multi },
+                  ]"
+                  @change="onFormValueChange('multi', $event)"
+                >
+                  <a-select-option :value="1">是</a-select-option>
+                  <a-select-option :value="0">否</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="24" v-if="[2, 3].indexOf(formData.datatype) >= 0">
+              <a-form-item label="数据源">
+                <a-input v-if="formData.datatype == 2"
+                  v-decorator="[
+                    'datasource',
+                    { rules: [ { required: true, message: '请输入数据源' } ], initialValue: formData.datasource },
+                  ]"
+                  @blur="onFormValueChange('datasource', $event.target.value)"
+                >
+                  <a-icon type="filter" slot="suffix" class="filter" title="过滤" @click="showFilter"/>
+                </a-input>
+                <template v-else>
+                  <a-select
+                    v-decorator="[
+                      'datasource',
+                      { rules: [ { required: true, message: '请输入数据源' } ], initialValue: formData.datasource },
+                    ]"
+                    @change="onFormValueChange('datasource', $event)"
+                  >
+                    <a-select-option  value="organization">组织</a-select-option>
+                    <a-select-option  value="user">用户</a-select-option>
+                  </a-select>
+                  <a-icon type="filter" class="filter refer" title="过滤" @click="showFilter"/>
+                </template>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="是否必填">
+                <a-select
+                  v-decorator="[
+                    'require',
+                    { initialValue: formData.require },
+                  ]"
+                >
+                  <a-select-option :value="1">是</a-select-option>
+                  <a-select-option :value="0">否</a-select-option>
+                </a-select>
+              </a-form-item>
+            </a-col>
+            <a-col :span="12">
+              <a-form-item label="提示信息">
+                <a-input
+                  v-decorator="[
+                    'hint',
+                    { rules: [{ required: false, message: '请输入提示信息' }], initialValue: formData.hint },
+                  ]"
+                />
+              </a-form-item>
+            </a-col>
+          </a-row>
+          <PropValueForm v-model="formData" :properties="defaultValueProps" ref="propValueForm" />
+        </a-form>
+      </a-modal>
+      <a-modal :width="400" title="设置过滤" 
+        v-model="dictFilter.show" @ok="onFilterSeleced"
+        :bodyStyle="{padding: '0'}"
+      >
+        <DictTree v-model="dictFilter.selected" :dict="dictFilter.dict" style="height:400px"/>
+      </a-modal>
+      <a-modal :width="600" title="设置过滤" 
+        v-model="referFilter.show" @ok="onFilterEdit"
+        :bodyStyle="{ height: '400px', overflowY: 'auto' }"
+      >
+        <SimpleFilterEditor v-model="referFilter.filter" :namespace="referFilter.namespace" ref="filterEditor"/>
+      </a-modal>
+    </div>
+  </div>
+</template>
+<script>
+import { Button, InputSearch, Table, Icon, Modal, Form, Input, Select, Row, Col } from "ant-design-vue";
+import DictTree from "@/framework/components/DictTree";
+import EmptyData from "@/framework/components/EmptyData";
+import PropValueForm from "@person/components/PropValueForm";
+import SimpleFilterEditor from "@person/components/SimpleFilterEditor";
+import draggable from "vuedraggable";
+
+export default {
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AButton: Button,
+    ATable: Table,
+    AIcon: Icon,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInputSearch: Input.Search,
+    draggable,
+    DictTree, EmptyData, PropValueForm,
+    SimpleFilterEditor
+  },
+  props: {
+    data: {
+      type: Array,
+    },
+  },
+  data() {
+    return {
+      datatypeList: [
+        {key: '2', label: "字典"},
+        {key: '3', label: "引用"},
+        {key: '4-0', label: "字符"},
+        {key: '4-1', label: "整数"},
+        {key: '4-2', label: "浮点数"},
+        {key: '4-3', label: "时间"},
+        {key: '4-4', label: "布尔"}
+      ],
+      beforeid: 0,
+      scopeData: [],
+      showIcon: true,
+      showEmpty: false,
+      dictFilter: {
+        show: false,
+        dict: undefined,
+        selected: [],
+      },
+      referFilter: {
+        show: false,
+        namespace: undefined,
+        filter: {},
+      },
+      formVisible: false,
+      formData: {
+        defaultvalue: undefined
+      },
+      form: this.$form.createForm(this, { name: "scopeForm" }),
+    };
+  },
+  computed: {
+    defaultValueProps(){
+      let { datatype, inputtype, datasource, multi, filter } = this.formData;
+      let obj = { name: '默认值', code: 'defaultvalue', datatype, inputtype, datasource, multi, filter }
+      return [obj];
+    },
+  },
+  watch: {
+    data(newVal, oldVal) {
+      this.scopeData = newVal;
+      if(this.scopeData == ""){
+        this.showEmpty = true
+      }else{
+        this.showEmpty = false;
+      }
+    },
+  },
+  mounted() {
+    this.$emit('getDatabyId',this.$route.query.id);
+  },
+  methods: {
+    //拖动中
+    getdata(event) {
+      this.beforeid = event.draggedContext.element.id; //获取源变更元素id
+    },
+    //排序拖动结束
+    datadragEnd(event) {
+      let where = 0;
+      let afterid = 0;
+      if (event.oldIndex < event.newIndex) {
+        //更新后索引增大，往下,newxIndex和oldIndex从0开始
+        where = -1; //代表移动到目标元素的下方
+        afterid = this.getidbyIndex(Number(event.newIndex - 1)); //寻找目标id
+        this.sort({ from: this.beforeid, to: afterid, where: where }); //调用排序方法
+      } else if (event.oldIndex > event.newIndex) {
+        //更新后索引变小，往上
+        where = 1; //代表移动到目标元素的上方
+        afterid = this.getidbyIndex(Number(event.newIndex + 1)); //寻找目标id
+        this.sort({ from: this.beforeid, to: afterid, where: where }); //调用排序方法
+      } else {
+        where = 0; //位置不变
+      }
+    },
+    getidbyIndex(index) {
+      return this.scopeData[index].id;
+    },
+    sort(data) {
+      this.$emit("sort", data);
+    },
+    onDelete(id) {
+      let that = this;
+      this.$confirm({
+        title: "删除该范围?",
+        okText: "确定",
+        cancelText: "取消",
+        onOk() {
+          that.$emit("delete", id); //通知父组件改变
+        },
+      });
+    },
+    //查询
+    onSearch(value) {
+      if (value) {
+        this.showIcon = false;
+      } else {
+        this.showIcon = true;
+      }
+      this.$emit("search", value);
+    },
+    add() {
+      this.formData = this.getFromData();
+      this.formVisible = true;
+    },
+    edit(item) {
+      this.formData = this.getFromData(item);
+      this.formVisible = true;
+    },
+    getFromData(data){
+      let d = data ? {...data} : {};
+      d.datatype = d.datatype || 4;
+      d.inputtype = d.inputtype || 0;
+      d.type = d.datatype == 4 ? `${d.datatype}-${d.inputtype}` : d.datatype + '';//辅助字段
+      d.require = d.require ? 1 : 0;
+      d.multi = d.multi ? 1 : 0;
+      return d;
+    },
+    dataTypeText(d){
+      let type = d.datatype == 4 ? `${d.datatype}-${d.inputtype}` : d.datatype + ''
+      let a = this.datatypeList.find(e => e.key === type);
+      return a && a.label;
+    },
+    dataSourceText(item){
+      if(item.datatype == 3){
+        if(item.datasource == 'organization'){
+          return '组织'
+        }else if(item.datasource == 'user'){
+          return '用户'
+        }
+      }
+      return item.datasource;
+    },
+    onFormValueChange(type, v){
+      this.$set(this.formData, type, v);
+      if(type == 'type'){
+        let arr = v.split('-');
+        this.$set(this.formData, 'datatype', parseInt(arr[0]));
+        this.$set(this.formData, 'inputtype', parseInt(arr[1]) || null);
+        this.form.setFieldsValue({datasource: undefined});
+        this.$set(this.formData, 'defaultvalue', undefined);//数据类型变更清空默认值
+      }
+    },
+    showFilter() {
+      let datasource = this.form.getFieldValue('datasource');
+      if(!datasource){
+        this.$message.error("请填写数据源")
+        return 
+      }
+      if(this.formData.datatype == 2){
+        this.dictFilter = {
+          show: true,
+          dict: datasource,
+          selected: this.formData.filter
+        }
+      }else{
+        this.referFilter = {
+          show: true,
+          namespace: datasource,
+          filter: this.formData.filter,
+        }
+      }
+    },
+    onFilterSeleced() {
+      this.dictFilter.show = false;
+      let selected = this.dictFilter.selected;
+      this.formData.filter = selected.length ? selected : null;
+    },
+    onFilterEdit(){
+      this.referFilter.show = false;
+      this.formData.filter = this.$refs.filterEditor.getFilter();
+    },
+    handleOk(e) {
+      this.form.validateFields((err, values) => {
+        if(err){
+          return;
+        }
+        this.$refs.propValueForm.getFieldsValue().then((data) => {
+          this.$emit("save", Object.assign(this.formData, values, data, { analyzeid: this.$route.query.id }));
+          this.formVisible = false;
+        }).catch((error) => {
+          this.$message.error(error);
+        });
+      });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.content {
+  height: 100%;
+  padding: @content-padding-v 0;
+  background-color: @white;
+  .addAndSearch {
+    display: flex;
+    justify-content: space-between;
+    padding: @content-padding-v @content-padding-h;
+  }
+  .action {
+    & a:not(:nth-child(2)) {
+      margin-right: 15px;
+      color: @primary-color;
+    }
+  }
+  .table {
+    padding: @content-padding-v 0;
+    & .empty {
+      padding: @content-padding-v 0;
+      & .emptyContent {
+        padding: @padding-lg;
+        border-bottom: 1px solid #e8e8e8;
+      }
+    }
+    & table {
+      table-layout: fixed;
+      & thead {
+        background-color: rgb(250, 250, 250);
+        border-bottom: 1px solid #e8e8e8;
+      }
+      & tbody {
+        tr:hover {
+          background-color: @primary-1;
+        }
+      }
+      & tr {
+        border-bottom: 1px solid #e8e8e8;
+        transition: background-color 0.4s ease;
+        th:not(:last-child),
+        td:not(:last-child) {
+          padding: 6px 6px;
+        }
+        th td,
+        th {
+          text-align: left;
+          word-break: keep-all; /* 不换行 */
+          white-space: nowrap; /* 不换行 */
+          overflow: hidden; /* 内容超出宽度时隐藏超出部分的内容 */
+          text-overflow: ellipsis; /* 当对象内文本溢出时显示省略标记(...) ；需与overflow:hidden;一起使用。*/
+        }
+        & .icon {
+          margin-right: 2%;
+        }
+        & .icon:hover {
+          cursor: move;
+          color: @primary-color;
+        }
+      }
+    }
+    .tableBody {
+      height: 500px;
+      overflow-y: auto;
+      padding: 0 @content-padding-h;
+    }
+    .ghostClass {
+      opacity: 0; //拖拽样式
+    }
+    
+  }
+}
+#empty.empty,.form{
+  padding: @content-padding-v @content-padding-h;
+}
+.checkboxHead {
+  background-color: #e8e8e8;
+  padding: @padding-sm;
+}
+.checkboxGroup {
+  display: flex;
+  flex-direction: column;
+  padding: 0 @padding-sm;
+  & :global(label) {
+    margin-bottom: 24px !important;
+  }
+}
+.filter {
+  color: @primary-color;
+  cursor: pointer;
+  
+  &.refer{
+    position: absolute;
+    right: 34px;
+    top: 3px;
+  }
+}
+</style>

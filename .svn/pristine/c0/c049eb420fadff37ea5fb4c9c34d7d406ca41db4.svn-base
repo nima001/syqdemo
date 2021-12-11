@@ -1,0 +1,263 @@
+<template>
+  <div class="org-info">
+    <div class="title">{{orgData.name}}</div>
+    <div class="top-btn" v-if="hasPermit('/person/org/edit')">
+      <template v-if="edit">
+        <a-button type="primary" @click="save">保存</a-button>
+        <a-button @click="edit=false" style="margin-left: 10px;">取消</a-button>
+      </template>
+      <a-button v-else type="primary" @click="edit=true">编辑</a-button>
+    </div>
+    <div class="main-form">
+      <org-form :data="orgData" :form="formGroup" :edit="edit" ref="orgForm"/>
+    </div>
+  </div>
+</template>
+<script>
+import { Button } from "ant-design-vue";
+import Form from "./form/Form";
+import { showError } from "@/framework/utils/index";
+import { organization, orgupdate, getEditableProps } from "@/person/api/org";
+
+export default {
+  components: {
+    AButton: Button,
+    OrgForm: Form,
+  },
+  props: {
+    orgid:{
+      type: String,
+    }
+  },
+  data() {
+    return {
+      edit: false,
+      orgData: {},
+      formGroup: undefined 
+    };
+  },
+  created() {
+    if (this.orgid) {
+      this.getOrg(this.orgid);
+    }
+  },
+  watch: {
+    orgid(orgid) {
+      this.getOrg(orgid);
+    }
+  },
+  methods: {
+    save(){
+      this.$refs.orgForm.validateFileds().then(data => {
+        orgupdate(this.orgid, data).then(({result}) => {
+          this.edit = false;
+          if(result){
+            Object.keys(result).forEach(key => {
+              this.$set(this.orgData, key, result[key]);
+            })
+            // this.orgData = { ...this.orgData, ...result };
+            this.$message.info('保存成功')
+          }
+        }).catch(error => {
+          showError(error);
+        });
+      }).catch(error => {
+        showError({message: '表单验证失败，请检查表单数据'});
+      })
+    },
+    
+    getOrg(orgid) {
+      organization(orgid).then(({result: org}) => {
+        this.orgData = org;
+        this.createProps(org);
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    async createProps(org){
+      let ps = this.editableProps;
+      if(!ps){
+        try{
+          let {result} = await getEditableProps('organization');
+          console.log(result)
+          ps = this.editableProps = result;
+        }catch(ignore){
+          //empty
+        }
+      }
+      let list = []
+      let baseProps = this.getBaseProps(org, ps);
+      if(baseProps){
+        list.push({id: 'base', title: '基本信息', properties: baseProps});
+      }
+      if(org.unittype >= 1 && org.unittype <= 5){
+        list.push({id: 'register', title: '登记信息', properties: this.getRegisterProps(org, ps)});
+        list.push({id: 'contact', title: '联系信息', properties: this.getContactProps(org, ps)});
+      }
+      this.formGroup = list;
+    },
+    getBaseProps(org, edit){
+      if(org.unittype == 1 || org.unittype == 5){// 行政、行政下设
+        return [
+          { label: "机构名称", code: "name", type: "text", span: 4, require: true, disable: true },
+          { label: "挂牌机构", code: "attachname", type: "text", span: 4, disable: true },
+          { label: "合署机构", code: "unionname", type: "text", span: 4, disable: true },
+          { label: "挂牌合署机构简称", code: "othershortname", type: "text", span: 4, disable: true },
+          { label: "规范简称", code: "shortname", type: "text", span: 1, require: true, disable: true },
+          { label: "批准文号", code: "approvalnum", type: "text", span: 1, disable: true },
+          { label: "机构级别", code: "politicallevel", type: "dict", dict: "usermanage.org.politicallevel", span: 1, require: true, disable: true },
+          { label: "隶属单位", code: "dependent", type: "text", span: 1, disable: true },
+          { label: "系统类别", code: "systype", type: "dict", dict: "usermanage.org.systype", span: 1, disable: true },
+          { label: "机构性质", code: "nature", type: "dict", dict: "usermanage.org.nature", span: 1, disable: true },
+          { label: "机构类别", code: "syssort", type: "dict", dict: "usermanage.org.syssort", span: 1, disable: true },
+          { label: "机构归类", code: "functype", type: "dict", dict: "usermanage.org.functype",  span: 1, disable: true },
+          { label: "批准内设机构数", code: "ratedsubcount", type: "text",  span: 1, disable: true },
+          { label: "机构编码", code: "syscode", type: "dict", dict: "usermanage.org.syscode", span: 1, disable: true },
+          { label: "单位类型", code: "unittype", type: "dict", dict: "usermanage.org.unittype", span: 1, require: true, disable: true },
+          { label: "编外人员控制数", code: "bwrykzs", type: "number", span: 1, disable: true },
+        ].map(item => {
+          if(edit){
+            item.disable = !edit.includes(item.code);
+          }
+          return item;
+        })
+      }else if(org.unittype == 2 || org.unittype == 3){//事业参公
+        return [
+          { label: "机构名称", code: "name", type: "text", span: 4, require: true, disable: true, },
+          { label: "挂牌机构", code: "attachname", type: "text", span: 4, disable: true, },
+          { label: "合署机构", code: "unionname", type: "text", span: 4, disable: true },
+          { label: "挂牌合署机构简称", code: "othershortname", type: "text", span: 4, disable: true, },
+          { label: "规范简称", code: "shortname", type: "text", span: 1, require: true, disable: true },
+          { label: "批准文号", code: "approvalnum", type: "text", span: 1, disable: true },
+          { label: "成立时间", code: "buildtime", type: "date", span: 1, disable: true },
+          { label: "机构级别", code: "politicallevel", type: "dict", dict: "usermanage.org.politicallevel", span: 1, require: true, disable: true },
+          { label: "经费形式", code: "fundform", type: "dict", dict: "usermanage.org.fundform", span: 1, disable: true },
+          { label: "事业单位分类", code: "institutionssort", type: "dict", dict: "usermanage.org.institutionssort", span: 1, disable: true },
+          { label: "隶属单位", code: "dependent", type: "text", span: 1, disable: true },
+          { label: "参公依据", code: "refergist", type: "text", span: 1 },
+          { label: "行业分类", code: "industrysort", type: "dict", dict: "usermanage.org.industrysort", span: 1, disable: true },
+          { label: "批准内设机构数", code: "ratedsubcount", type: "text", span: 1, disable: true },
+          { label: "机构属性", code: "attribute", type: "dict", dict: "usermanage.org.attribute", span: 1, disable: true },
+          { label: "单位类型", code: "unittype", type: "dict", dict: "usermanage.org.unittype", span: 1, require: true, disable: true },
+          { label: "是否参照公务员管理", code: "czgwygl", type: "bool", span: 1, disable: true },
+          { label: "是否医院", code: "hospital", type: "bool", span: 1, disable: true },
+          { label: "是否学校", code: "school", type: "bool", span: 1, disable: true },
+          { label: "是否参加员额管理", code: "cjyegl", type: "bool", span: 1, disable: true },
+          { label: "编外人员控制数", code: "bwrykzs", type: "number", span: 1, disable: true },
+          { label: "核定人员编制控制数", code: "hdrybzkzs", type: "number", span: 1,disable: false },
+          { label: "辅助岗位定员数", code: "fzgwdys", type: "number", span: 1,disable:false}
+        ].map(item => {
+          if(edit){
+            item.disable = !edit.includes(item.code);
+          }
+          return item;
+        });
+      }else if(org.unittype == 9){//内设
+        return [
+          { label: "机构名称", code: "name", type: "text", span: 4, require: true, disable: true, },
+          { label: "挂牌机构", code: "attachname", type: "text", span: 4, disable: true, },
+          { label: "合署机构", code: "unionname", type: "text", span: 4, disable: true, },
+          { label: "机构级别", code: "politicallevel", type: "dict", dict: "usermanage.org.politicallevel", span: 1, require: true, disable: true, },
+          { label: "机构类别", code: "syssort", type: "dict", dict: "usermanage.org.syssort", span: 1, disable: true },
+          { label: "单位类型", code: "unittype", type: "dict", dict: "usermanage.org.unittype", span: 1, require: true, disable: true, },
+          { label: "政法内设机构类别", code: "plsyssort", type: "dict", dict: "usermanage.org.plsyssort", span: 1, disable: true, },
+        ].map(item => {
+          if(edit){
+            item.disable = !edit.includes(item.code);
+          }
+          return item;
+        });
+      }else if(org.unittype == 20 || org.unittype == 21){//镇、街
+        return [
+          { label: "镇街名称", code: "name", type: "text", span: 4, disable: true },
+          { label: "党员人数", code: "dyrs", type: "number", span: 1 },
+          { label: "常住人口数", code: "commonpersoncount", type: "number", span: 1 },
+          { label: "失业人员数", code: "syrs", type: "number", span: 1 },
+          { label: "企业退休人员数量", code: "qytxrs", type: "number", span: 1 },
+          { label: "纳入救助圈的困难家庭户数", code: "knjths", type: "number", span: 1 },
+          { label: "暂住人口数", code: "zzrks", type: "number", span: 1 },
+        ].map(item => {
+          if(edit){
+            item.disable = !edit.includes(item.code);
+          }
+          return item;
+        });
+      }else if(org.unittype == 22){//社区
+        return [
+          { label: "管辖镇街", code: "gxzj", type: "text", span: 1, disable: true, },
+          { label: "社区", code: "name", type: "text", span: 1, disable: true, },
+          { label: "行政区划", code: "district", type: "text", span: 1, disable: true, },
+          { label: "成立日期", code: "buildtime", type: "date", span: 1, disable: true, },
+          { label: "成立批文号", code: "buildnum", type: "text", span: 1, disable: true, },
+          { label: "相关村社情况", code: "xgcsqk", type: "text", span: 1, disable: true, },
+          { label: "社区类型", code: "communitytype", type: "dict", dict: "usermanage.org.communitytype", span: 1, disable: true, },
+          { label: "经联社数", code: "jlss", type: "text", span: 1, disable: true, },
+          { label: "法人证书", code: "legalcert", type: "dict", dict: "usermanage.org.legalcert", span: 1, disable: true, },
+          { label: "党员人数", code: "dyrs", type: "number", span: 1 },
+          { label: "常住人口数", code: "commonpersoncount", type: "number", span: 1 },
+          { label: "失业人员数", code: "syrs", type: "number", span: 1 },
+          { label: "企业退休人员数量", code: "qytxrs", type: "number", span: 1 },
+          { label: "纳入救助圈的困难家庭户数", code: "knjths", type: "number", span: 1 },
+          { label: "暂住人口数", code: "zzrks", type: "number", span: 1 },
+        ];
+      }else if(org.unittype == 23){//村
+        return [
+          { label: "管辖镇街", code: "gxzj", type: "text", span: 1, disable: true, },
+          { label: "村", code: "name", type: "text", span: 1, disable: true, },
+          { label: "行政区划", code: "district", type: "text", span: 1, disable: true, },
+          { label: "法人证书", code: "legalcert", type: "dict", dict: "usermanage.org.legalcert", span: 1, disable: true, }
+        ];
+      }else if(org.unittype == 24){//岗位
+        return [
+          { label: "岗位名称", code: "name", type: "text", span: 4, disable: true, }
+        ];
+      }
+    },
+    getRegisterProps(org, edit){
+      return [
+        { label: "统一社会信用代码", code: "usccode", type: "text", span: 1},
+        { label: "法定代表人", code: "corporate", type: "text", span: 1},
+        { label: "开户银行", code: "bank", type: "text", span: 1},
+        { label: "银行账户", code: "bankaccount", type: "text", span: 1 },
+        { label: "单位地址", code: "address", type: "text", span: 1}
+      ].map(item => {
+        if(edit){
+          item.disable = !edit.includes(item.code);
+        }
+        return item;
+      })
+    },
+    getContactProps(org, edit){
+      return [
+        { label: "编制联系人", code: "admin", type: "user", span: 1, require: true },
+        { label: "编制联系人手机", code: "admin.mobilephone", type: "text", span: 1, disable: true },
+        { label: "电话", code: "admin.officephone", type: "text", span: 1, disable: true },
+      ].map(item => {
+        if(edit){
+          item.disable = !edit.includes(item.code);
+        }
+        return item;
+      })
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.org-info {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .title {
+    font-size: 20px;
+    padding: @content-padding-v @content-padding-h;
+  }
+  .top-btn {
+    padding: 0 @content-padding-h;
+  }
+  .main-form {
+    flex: 1 1 100%;
+    min-height: 0;
+    margin: @content-padding-v 0;
+  }
+}
+</style>

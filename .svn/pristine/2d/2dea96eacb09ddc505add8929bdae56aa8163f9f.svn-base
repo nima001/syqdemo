@@ -1,0 +1,6 @@
+const getters = {
+  assessData: state => state.assessment.assessData,
+  reportArgs: state => state.assessment.reportArgs,
+}
+
+export default getters

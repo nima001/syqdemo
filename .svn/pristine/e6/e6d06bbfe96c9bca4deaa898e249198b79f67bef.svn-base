@@ -1,0 +1,553 @@
+<template>
+  <a-layout class="importexport">
+    <div class="gutter-example">
+      <a-row :gutter="16">
+        <a-col class="gutter-row" :span="6" @click="exportrow">
+          <div class="gutter-box">
+            <span class="span1">信息导出</span>
+            <span class="span2">
+              <a-icon type="right" />
+            </span>
+          </div>
+        </a-col>
+        <a-col class="gutter-row" :span="6" @click="importrow" style="display:none">
+          <div class="gutter-box">
+            <span class="span1">信息导入</span>
+            <span class="span2">
+              <a-icon type="right" />
+            </span>
+          </div>
+        </a-col>
+      </a-row>
+    </div>
+    <a-modal
+      @cancel="exportcancel"
+      :bodyStyle="{padding:' 10px',height:'400px'}"
+      v-model="exportVisible"
+      title="信息导出"
+      :footer="null"
+      class="modelone"
+    >
+      <a-row class="modelrow" style="margin-top: 80px;">
+        <span>导出单位选择:</span>
+        <a-input
+          allowClear
+          read-only
+          style="width:250px;margin-left: 10px"
+          @click="OrgModelShow"
+          @change="resetRange"
+          v-model="node.nodename"
+          placeholder="请选择组织范围"
+        />
+      </a-row>
+      <a-row class="modelrow" style="margin: 40px 0;">
+        <span>人员编制类型:</span>
+        <span style="margin-left:10px;width:250px">事业编制 , 备案编制</span>
+      </a-row>
+      <a-row class="progress" v-if="progress">
+        <a-progress type="circle" :percent="percent" />
+      </a-row>
+      <a-row class="buttonrow" v-else style="margin-top:40px">
+        <a-button
+          type="primary"
+          :disabled="disabled"
+          @click="exportbutton"
+          :loading="iconLoading"
+        >导出</a-button>
+      </a-row>
+    </a-modal>
+    <a-modal
+      @cancel="importcancel"
+      :bodyStyle="{padding:'10px',height:'400px'}"
+      v-model="importVisible"
+      title="信息导入"
+      :footer="null"
+    >
+      <a-row class="modelrow" style="margin-top: 80px;">
+        <span>导入文件上传:</span>
+        <span class="storage-upload" @click="trigger">
+          <span class="spanicon">
+            <a-icon type="upload" class="iconstyle" />点击上传
+          </span>
+        </span>
+        <input
+          type="file"
+          ref="fileBtn"
+          class="fileBtn"
+          @change="getFile($event)"
+          multiple="multiple"
+        />
+      </a-row>
+      <a-row class="modelrow" style="margin-top: 10px;" v-if="docData.fileName">
+        <span>文件标题:</span>
+        <span style="margin-left: 10px;">{{docData.fileName}}</span>
+      </a-row>
+      <a-row class="progress" v-if="progress">
+        <a-progress type="circle" :percent="percent" />
+      </a-row>
+      <a-row class="buttonrow" v-else>
+        <a-button type="primary" :disabled="importdisabled" @click="importbutton">导入</a-button>
+      </a-row>
+    </a-modal>
+    <!--组织选择-->
+    <a-modal
+      title="选择组织"
+      v-model="orgVisible"
+      :footer="null"
+      :width="500"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select
+        mode="orgtree"
+        :defaultTree="catalogid"
+        :root-selectable="true"
+        @finish="selectOrg"
+      />
+    </a-modal>
+    <a-modal
+      :width="700"
+      :bodyStyle="{padding:'10px'}"
+      v-model="showVisible"
+      title="信息收集"
+      :footer="null"
+    >
+      <a-row class="modelrow">
+        <span class="rulename">错误信息记录</span>
+      </a-row>
+      <a-row class="modelrow">
+        <div class="infoBox">
+          <div class="itemName">
+            <span class="rules">
+              <div v-for="(item,index) in recorddata" :key="index" class="datadiv">
+                <div class="info">
+                  <span class="ratio">
+                    <span class="font">姓名：</span>
+                    {{item.username}}
+                  </span>
+                </div>
+                <div class="info">
+                  <span class="ratio">
+                    <span class="font">身份证：</span>
+                    {{item.idcard}}
+                  </span>
+                </div>
+                <div class="info">
+                  <span class="ratio" v-if="item.fieldname">
+                    <span class="font">错误原因：</span>
+                    {{item.fieldname+item.msg}}
+                  </span>
+                  <span class="ratio" v-else>
+                    <span class="font">错误原因：</span>
+                    {{item.msg}}
+                  </span>
+                </div>
+                <div class="info">
+                  <span class="ratio">
+                    <span class="font">行数：</span>
+                    {{item.rownum}}
+                  </span>
+                </div>
+              </div>
+            </span>
+          </div>
+        </div>
+      </a-row>
+    </a-modal>
+  </a-layout>
+</template>
+<script>
+import {
+  Layout,
+  Row,
+  Col,
+  Icon,
+  Modal,
+  Input,
+  Button,
+  Progress
+} from "ant-design-vue";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import { showError } from "@/framework/utils/index";
+import { upload } from "@/framework/api/file";
+import { taskProgress } from "@/framework/api/asynctask";
+import { getuserinfo, getexport } from "@/person/api/userinfo";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+export default {
+  name: "importexport",
+  components: {
+    ALayout: Layout,
+    ARow: Row,
+    ACol: Col,
+    AIcon: Icon,
+    AModal: Modal,
+    AInput: Input,
+    AButton: Button,
+    AProgress: Progress,
+    ATextarea: Input.TextArea,
+    OrgUserSelect
+  },
+  data() {
+    return {
+      docData: {
+        fileid: null,
+        fileName: null,
+        fileUrl: null
+      },
+      node: {
+        nodeid: null,
+        nodename: null,
+        orgid: null
+      },
+      exportVisible: false,
+      importVisible: false,
+      orgVisible: false,
+      catalogid: undefined,
+      disabled: true,
+      importdisabled: true,
+      file: null,
+      progress: false,
+      taskid: null,
+      percent: 0,
+      value: [],
+      showVisible: false,
+      recorddata: [],
+      iconLoading: false
+    };
+  },
+  created() {},
+  destroyed() {
+    clearInterval(this.myInterval);
+  },
+  methods: {
+    getFile(event) {
+      this.file = event.target.files[0];
+      upload(this.file)
+        .then(res => {
+          this.docData.fileUrl = res.data.result;
+          //截取有效字段
+          let indexleft = res.data.result.indexOf("=");
+          let fileName = res.data.result.substring(
+            indexleft + 1,
+            res.data.result.length
+          );
+          this.docData.fileName = decodeURIComponent(fileName);
+          this.$notification.success({
+            message: "提示",
+            description: "文件上传成功!",
+            duration: 3
+          });
+          this.importdisabled = false;
+        })
+        .catch(error => {
+          showError(error);
+          this.importdisabled = true;
+        });
+    },
+    importbutton() {
+      let data = {
+        file: this.file,
+        startRow: 2
+      };
+      getuserinfo(data)
+        .then(res => {
+          this.taskid = res.result;
+          this.import(this.taskid);
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    import(data) {
+      let _that = this;
+      taskProgress(data)
+        .then(res => {
+          let result = res.result;
+          this.progress = true;
+          let percent = parseInt(
+            (res.result.progress / res.result.total) * 100
+          );
+          if (percent > 100) {
+            percent = 100;
+          }
+          this.percent = percent;
+          if (result.status == "FINISH") {
+            this.$message.success("文件校验成功!");
+            this.progress = false;
+            this.percent = 0;
+            this.importVisible = false;
+            if (result.data.length > 0) {
+              this.showVisible = true;
+              this.recorddata = result.data;
+            } else {
+              this.recorddata = [];
+            }
+          } else if (res.result.status == "ERROR") {
+            this.progress = false;
+            this.percent = 0;
+            this.$notification.error({
+              message: "提示",
+              description: "数据错误,请稍后重试！",
+              duration: 3
+            });
+          } else {
+            this.myInterval = window.setTimeout(() => {
+              _that.import(data);
+            }, 2000);
+          }
+        })
+        .catch(error => {
+          this.progress = false;
+          this.percent = 0;
+          showError(error);
+        });
+    },
+    trigger() {
+      this.$refs.fileBtn.value = null;
+      this.$refs.fileBtn.dispatchEvent(new MouseEvent("click"));
+    },
+    exportrow() {
+      this.node = {};
+      this.disabled = true;
+      this.exportVisible = true;
+    },
+    exportbutton() {
+      this.iconLoading = true;
+      let properties = `[
+ {"key":"org.suborg.name","name":"编制所在单位-主管单位"},
+ {"key":"org.name","name":"编制所在单位"},
+ {"key":"username","name":"姓名"},
+ {"key":"idcard","name":"身份证"},
+ {"key":"birthday","name":"出生日期"},
+ {"key":"sex","name":"性别"},
+ {"key":"identitytype","name":"本人身份"},
+ {"key":"hireenterprisetime","name":"招聘为事业编制时间"},
+ {"key":"firstcontracttime","name":"与本单位首次签订聘用合同的起始时间"},
+ {"key":"firstcontractmonth","name":"与本单位首次签订聘用合同的试用期时间（月数）"},
+ {"key":"position","name":"编制职务名称"},
+ {"key":"posttitle","name":"现有专技资格名称"},
+ {"key":"hireposttitle","name":"现聘专技资格名称"},
+ {"key":"technicalgrade","name":"技术等级"},
+ {"key":"occupation","name":"职业（工种）"},
+ {"key":"fteducation","name":"全日制学历"},
+ {"key":"ftgraduationtime","name":"全日制毕业时间"},
+ {"key":"pteducation","name":"非全日制学历"},
+ {"key":"ptgraduationtime","name":"非全日制毕业时间"},
+ {"key":"job.jobtype","name":"岗位类型"},
+ {"key":"job.joblevel","name":"岗位等级"},
+ {"key":"job.hiretime","name":"现聘岗位等级时间"},
+ {"key":"mpwork","name":"是否双肩挑"},
+ {"key":"job.isoccupynum","name":"是否占用七八级普通职员指标"},
+ {"key":"job2.joblevel2","name":"双肩挑岗位等级"},
+ {"key":"job2.hiretime2","name":"现聘双肩挑等级时间"},
+ {"key":"treatlevel","name":"工资等级"},
+ {"key":"salarylevel","name":"薪级"},
+ {"key":"jobsubsidieslevel","name":"享受岗位津贴等级"},
+ {"key":"workyeartime","name":"连续工龄起算时间（不含硕博研）"},
+ {"key":"workyeartimenot","name":"连续工龄起算时间（含硕博研）"},
+ {"key":"teachornurse","name":"是否教护"},
+ {"key":"executiontime","name":"工资执行时间"}
+]`;
+      let title = this.node.nodename + "事业人员岗位工资信息";
+      let data = {
+        nodeid: this.node.nodeid,
+        properties: {
+          complietype: [31, 51]
+        }
+      };
+      getexport(data, properties, title)
+        .then(res => {
+          this.taskid = res.result;
+          this.export(this.taskid);
+        })
+        .catch(error => {
+          this.iconLoading = false;
+          showError(error);
+        });
+    },
+    export(data) {
+      let _that = this;
+      taskProgress(data)
+        .then(res => {
+          let result = res.result;
+          if (result.status == "FINISH") {
+            this.$message.success("文件导出成功!");
+            this.exportVisible = false;
+            if (result.data) {
+              this.iconLoading = false;
+              let uiConfigs = uiConfigsCookies();
+              window.open(
+                uiConfigs["api.url"] +
+                  "/file/v1/download?uri=" +
+                  encodeURIComponent(result.data)
+              );
+            } else {
+              this.iconLoading = false;
+              this.exportVisible = false;
+            }
+          } else if (res.result.status == "ERROR") {
+            this.iconLoading = false;
+            this.$notification.error({
+              message: "提示",
+              description: "数据错误,请稍后重试！",
+              duration: 3
+            });
+          } else {
+            this.myInterval = window.setTimeout(() => {
+              _that.export(data);
+            }, 2000);
+          }
+        })
+        .catch(error => {
+          this.iconLoading = false;
+          showError(error);
+        });
+    },
+    exportcancel() {
+      clearInterval(this.myInterval);
+      this.iconLoading = false;
+      this.exportVisible = false;
+    },
+    importrow() {
+      this.docData = {};
+      this.progress = false;
+      this.importdisabled = true;
+      this.importVisible = true;
+    },
+    importcancel() {
+      clearInterval(this.myInterval);
+      this.importVisible = false;
+    },
+    OrgModelShow() {
+      this.orgVisible = true;
+    },
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok" && list.length) {
+        this.node.nodename = list[0].name;
+        this.node.nodeid = list[0].id;
+        this.node.orgid = list[0].data._id;
+        this.disabled = false;
+      }
+    },
+    resetRange() {
+      if (!this.node.nodename && this.node.nodeid) {
+        clearInterval(this.myInterval);
+        this.node.nodeid = "";
+        this.disabled = true;
+        this.iconLoading = false;
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.importexport {
+  height: 100%;
+  padding: @layout-space-base;
+  .gutter-example > .ant-row > div {
+    border: 0;
+  }
+  .gutter-row {
+    height: 54px;
+    line-height: 54px;
+    background-color: white;
+    margin: 0 5px;
+    position: relative;
+    cursor: pointer;
+    &:hover {
+      box-shadow: 1px 1px @layout-space-base #dad9d9;
+    }
+  }
+  .gutter-box {
+    height: 54px;
+    .span1 {
+      display: inline-block;
+      max-width: 230px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-left: @layout-space-base;
+    }
+    .span2 {
+      position: absolute;
+      color: #ffc62c;
+      width: 15px;
+      right: 15px;
+    }
+  }
+}
+.modelrow {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  .storage-upload {
+    cursor: pointer;
+    // width: 300px;
+    .spanname {
+      padding-left: 15px;
+      width: 180px;
+      overflow: hidden;
+      margin: 0;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .spanicon {
+      padding-left: 15px;
+      width: 75px;
+      .iconstyle {
+        color: @primary-color;
+      }
+    }
+  }
+  .fileBtn {
+    width: 0px;
+    height: 0px;
+  }
+  .rulename {
+    font-size: 24px;
+    font-family: 700;
+  }
+  .infoBox {
+    width: 100%;
+    .itemName {
+      margin-top: @layout-space-base;
+      .rules {
+        width: 100%;
+        display: inline-block;
+        height: 250px;
+        border: 1px solid #d9d9d9;
+        border-radius: 5px;
+        padding: @layout-space-base;
+        overflow-y: auto;
+        .datadiv {
+          margin: @layout-space-base 0;
+          display: flex;
+        }
+        .ratio {
+          margin-left: 10px;
+        }
+        // .font {
+        //   font-size: 18px;
+        // }
+      }
+    }
+  }
+}
+.buttonrow {
+  margin-top: 80px;
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  button {
+    width: 100px;
+  }
+}
+.progress {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, 0%);
+  background: white;
+  border-radius: 50%;
+}
+</style>

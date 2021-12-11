@@ -1,0 +1,495 @@
+<template>
+  <div class="annual-report">
+    <div class="mechanism-div">
+      <div class="small-div"></div>
+      <div class="small-p">三定一评</div>
+    </div>
+    <div class="sanding-table">
+      <a-button class="add" @click="showModal">新增</a-button>
+      <div class="table">
+        <div class="tableheader">
+          <table width="100%">
+            <thead>
+              <tr>
+                <th width="15%">处室</th>
+                <th width="15%">岗位</th>
+                <th width="55%">职责</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <draggable
+              :force-fallback="false"
+              v-model="data"
+              :animation="200"
+              :delay="20"
+              element="tbody"
+              :move="getdata"
+              ghostClass="ghostClass"
+              @update="datadragEnd"
+            >
+              <tr v-for="(item, index) in data" :key="item.id">
+                <td>
+                  <span>{{ item.deptname }}</span>
+                </td>
+                <td>
+                  <span>{{ item.postname }}</span>
+                </td>
+                <td>
+                  <span>{{ item.duty }}</span>
+                </td>
+                <td>
+                  <span>
+                    <a
+                      href="javascript:;"
+                      style="margin-right: 8px"
+                      @click="onEdit(item)"
+                      >查看</a
+                    >
+                    <a href="javascript:;" @click="onDelete(item.id)">删除</a>
+                  </span>
+                </td>
+              </tr>
+            </draggable>
+          </table>
+           <div class="empty" v-show="showEmpty">
+            <div class="emptyContent">
+              <Empty-data/>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer">
+        <a-pagination
+          v-if="pagination.rows && pagination.rows.length"
+          showSizeChanger
+          @showSizeChange="onShowSizeChange"
+          :showTotal="(total) => `总共：${total}条`"
+          :total="pagination.total"
+          :pageSize="pagination.pagesize"
+          v-model="pagination.pagenum"
+          @change="onPageChange"
+          :default-current="1"
+        />
+      </div>
+    </div>
+    <a-modal
+      :width="703"
+      :centered="true"
+      v-model="visible"
+      title="新增/编辑"
+      @ok="handleOk"
+    >
+      <div class="topButton">
+        <a-button class="edit" @click="enabled" v-show="this.records.id">
+          <a-icon type="form" class="icon" />
+          <span
+            ><span v-if="this.disabled">编辑</span
+            ><span v-else="!this.disabled">取消</span></span
+          >
+        </a-button>
+        <a-button v-show="!this.disabled && this.records.id" @click="handleOk"
+          >保存</a-button
+        >
+      </div>
+      <a-form
+        :form="this.form"
+        :label-col="{ span: 3 }"
+        :wrapper-col="{ span: 19 }"
+        :style="{ padding: '8px 24px' }"
+      >
+        <a-form-item label="处室">
+          <a-select
+            :disabled="this.disabled"
+            v-decorator="['deptid', { initialValue: this.records.deptid }]"
+          >
+            <a-select-option
+              v-for="item in result"
+              :value="item._id"
+              :key="item._id"
+            >
+              {{ item.name }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="岗位">
+          <a-input
+            :disabled="this.disabled"
+            v-decorator="['postname', { initialValue: this.records.postname }]"
+          />
+        </a-form-item>
+        <a-form-item label="职责">
+          <a-textarea
+            :rows="10"
+            :disabled="this.disabled"
+            v-decorator="['duty', { initialValue: this.records.duty }]"
+          />
+        </a-form-item>
+      </a-form>
+      <div slot="footer" :class="{'show':!this.records.id}">
+        <div v-show="!this.records.id">
+          <a-button key="back" @click="handleCancel"> 取消 </a-button>
+          <a-button
+            key="submit"
+            type="primary"
+            :loading="loading"
+            @click="handleOk"
+          >
+            确定
+          </a-button>
+        </div>
+      </div>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import {
+  Table,
+  Pagination,
+  Button,
+  Form,
+  Input,
+  Select,
+  Modal,
+  Icon,
+} from "ant-design-vue";
+import assign from "lodash/assign";
+import {
+  sanding,
+  personorgQuery,
+  sandingsave,
+  sandingdel,
+  sandingorderby,
+} from "@/person-shaoxing/api/monitor";
+import EmptyData from '@/framework/components/EmptyData';
+import draggable from "vuedraggable";
+import cloneDeep from "lodash/cloneDeep";
+import { showError } from "../../../../framework/utils";
+export default {
+  props: {
+    orgid: {
+      type: String,
+    },
+  },
+  components: {
+    ATable: Table,
+    APagination: Pagination,
+    AButton: Button,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    AIcon: Icon,
+    draggable,
+    EmptyData,
+  },
+  data() {
+    return {
+      data: [],
+      pagination: {
+        needtotal: true,
+        pagenum: 1,
+        pagesize: 10,
+        total: 0,
+      },
+      visible: false,
+      result: [],
+      id: undefined,
+      records: {},
+      disabled: true,
+      beforeid: 0,
+      showEmpty: false,
+      form: this.$form.createForm(this, { name: "sandingForm" }),
+    };
+  },
+  watch: {
+    orgid(val) {
+      this.getsandingData({ ...this.pagination, orgid: val });
+    },
+    result(val) {
+      return val;
+    },
+    data(val){
+      if(val.length>0){
+        this.showEmpty = false;
+      }else{
+        this.showEmpty = true;
+      }
+      return val;
+    }
+  },
+  created() {
+    this.getsandingData({ ...this.pagination, orgid: this.orgid });
+  },
+  methods: {
+    //拖动中
+    getdata(event) {
+      this.beforeid = event.draggedContext.element.id; //获取源变更元素id
+    },
+    //排序拖动结束
+    datadragEnd(event) {
+      let where = 0;
+      let afterid = 0;
+      if (event.oldIndex < event.newIndex) {
+        //更新后索引增大，往下,newxIndex和oldIndex从0开始
+        where = -1; //代表移动到目标元素的下方
+        afterid = this.getidbyIndex(Number(event.newIndex - 1)); //寻找目标id
+        this.sort({ from: this.beforeid, to: afterid, where: where }); //调用排序方法
+      } else if (event.oldIndex > event.newIndex) {
+        //更新后索引变小，往上
+        where = 1; //代表移动到目标元素的上方
+        afterid = this.getidbyIndex(Number(event.newIndex + 1)); //寻找目标id
+        this.sort({ from: this.beforeid, to: afterid, where: where }); //调用排序方法
+      } else {
+        where = 0; //位置不变
+      }
+    },
+    getidbyIndex(index) {
+      return this.data[index].id;
+    },
+    //页数改变回调
+    onPageChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.getsandingData({ ...this.pagination, orgid: this.orgid });
+    },
+    //pagesize改变回调
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagesize, pagenum: 1 });
+      this.getsandingData({ ...this.pagination, orgid: this.orgid });
+    },
+    showModal() {
+      this.disabled = false;
+      this.records = {};
+      this.visible = true;
+      this.personOrgQuery();
+    },
+    enabled() {
+      this.disabled = !this.disabled;
+    },
+    onEdit(record) {
+      this.showModal();
+      this.records = cloneDeep(record);
+      this.disabled = true;
+    },
+    sort(data) {
+      sandingorderby(data)
+        .then((res) => {
+          this.getsandingData({ ...this.pagination, orgid: this.orgid });
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    handleCancel(e) {
+      this.visible = false;
+    },
+    handleOk(e) {
+      e.preventDefault();
+      //验证输入
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          //输入正确
+          let deptname = "";
+          this.result.forEach((item) => {
+            if (item._id === values.deptid) {
+              deptname = item.name;
+            }
+          });
+          this.sanDingSave({
+            deptid: values.deptid,
+            deptname: deptname,
+            postname: values.postname,
+            duty: values.duty,
+            orgid: this.orgid,
+            id: this.records.id,
+          });
+          //重置所有组件
+          this.form.resetFields();
+          this.visible = false;
+        }
+      });
+    },
+    personOrgQuery() {
+      personorgQuery({
+        pagesize: 50,
+        suporgid: this.orgid,
+        unittypes: [6, 8, 9, 10],
+      })
+        .then((res) => {
+          this.result = cloneDeep(res.result.rows);
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    sanDingSave(data) {
+      sandingsave(data)
+        .then((res) => {
+          this.getsandingData({ ...this.pagination, orgid: this.orgid });
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    onDelete(id) {
+      let that = this;
+      this.$confirm({
+        title: "删除该条数据?",
+        okText: "确定",
+        cancelText: "取消",
+        onOk() {
+          sandingdel(id)
+            .then((res) => {
+              that.getsandingData({ ...that.pagination, orgid: that.orgid });
+            })
+            .catch((err) => {
+              showError(err);
+            });
+        },
+      });
+    },
+    //数据接口调用
+    getsandingData(data) {
+      this.loading = true;
+      let that = this;
+      sanding(data)
+        .then((res) => {
+          that.data = res.result.rows;
+          assign(that.pagination, res.result);
+          that.loading = false;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+.annual-report {
+  padding: 10px 24px;
+  height: 100%;
+  .mechanism-div {
+    display: flex;
+    align-items: center;
+    .small-div {
+      width: 5px;
+      height: 20px;
+      background: @primary-color;
+    }
+    .small-p {
+      font-size: 20px;
+      margin-left: 5px;
+    }
+  }
+  .sanding-table {
+    margin-top: 10px;
+     & .empty{
+      padding: @content-padding-v 0;
+      & .emptyContent{
+        padding: @padding-lg;
+        border-bottom: 1px solid #e8e8e8;
+      }
+    }
+    & table {
+      table-layout: fixed;
+      margin-top: 10px;
+      & thead {
+        background-color: rgb(250, 250, 250);
+        border-bottom: 1px solid #e8e8e8;
+      }
+      & tr {
+        border-bottom: 1px solid #e8e8e8;
+        transition: background-color 0.4s ease;
+        th:not(:last-child),
+        td:not(:last-child) {
+          padding: 6px 6px;
+        }
+        td,
+        th {
+          text-align: left;
+          word-break: keep-all; /* 不换行 */
+          white-space: nowrap; /* 不换行 */
+          overflow: hidden; /* 内容超出宽度时隐藏超出部分的内容 */
+          text-overflow: ellipsis; /* 当对象内文本溢出时显示省略标记(...) ；需与overflow:hidden;一起使用。*/
+        }
+      }
+      & tbody {
+        tr:hover {
+          background-color: @primary-1;
+        }
+        .icon {
+          margin-right: 2%;
+        }
+        .icon:hover {
+          cursor: move;
+          color: @primary-color;
+        }
+      }
+    }
+    /deep/.ant-table-wrapper {
+      margin-top: 10px;
+    }
+    /deep/ .ant-table-tbody > tr > td:nth-child(2) {
+      max-width: 225px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    /deep/ .ant-table-tbody > tr > td:nth-child(3) {
+      max-width: 225px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    /deep/ .ant-table-tbody > tr > td:nth-child(4) {
+      max-width: 550px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .add {
+      background-color: @primary-color;
+      color: #fff;
+    }
+    .footer {
+      float: right;
+      padding: @content-padding-v @content-padding-h;
+      padding-right: 0;
+      .ant-pagination {
+        float: right;
+      }
+    }
+  }
+}
+.edit {
+  width: 65px;
+  padding: 4px;
+  margin-right: 8px;
+  background-color: #e8e8e8;
+  cursor: pointer;
+  .icon {
+    color: @primary-color;
+  }
+}
+.ghostClass {
+  opacity: 0;
+}
+//文本域高度限制
+/deep/#sandingForm_duty {
+  // min-height: 375px;
+  resize: none;
+}
+.topButton {
+  position: relative;
+  left: 57px;
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+</style>

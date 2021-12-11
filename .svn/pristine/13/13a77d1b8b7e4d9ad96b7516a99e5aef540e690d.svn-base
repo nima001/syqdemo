@@ -1,0 +1,226 @@
+<template>
+  <div class="content">
+    <div class="head">
+      <span>平均分</span>
+      <span class="num">
+        <span>9</span>
+        <span>8</span>
+      </span>
+    </div>
+    <div class="body">
+      <table>
+        <thead>
+          <th class="name">机构名称</th>
+          <th>评级</th>
+        </thead>
+        <tbody>
+          <tr v-for="(item) in data" :key="item.id">
+            <td class="name">{{item.name}}</td>
+            <td :class="['grade',{'A': item.current=='A', 'B': item.current=='B', 'C': item.current=='C'}]">
+              {{item.current}}
+              <span>
+                <img v-if="show(item)==false" src="../../../assets/img/screen/icon-up.png"/>
+                <img v-else-if="show(item)==true" src="../../../assets/img/screen/icon-down.png"/>
+                <img v-else alt="">
+              </span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {
+    data: {
+      type: Array,
+      defaul:()=>{
+        return []
+      }
+    }
+  },
+  data() {
+    return {
+    };
+  },
+  methods: {
+    show(item) {
+      if(item.last<item.current) {
+        return true;
+      }else if(item.last>item.current) {
+       return false;
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.content {
+  color: #fff;
+  .head {
+    height: 57px;
+    padding: 0 10%;
+    margin: 10px 20px;
+    font-size: 1.2em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: radial-gradient(circle, fade(#0DEEFF, 15%) 0%, fade(#0DEEFF, 0%) 100%);
+    position: relative;
+    .num {
+      font-size: 1.5em;
+      font-weight: 500;
+      & span {
+        margin-left: 22px;
+        position: relative;
+        &::before {
+          width: 30px;
+          height: 40px;
+          content: "";
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: fade(#fff, 22%);
+        }
+      }
+    }
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 12px;
+      background: url("../../../assets/img/screen/radiance-small.png");
+    }
+    &::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      left: 0;
+      height: 12px;
+      background: url("../../../assets/img/screen/radiance-small.png");
+      transform: rotate(180deg);
+    }
+  }
+  .body {
+    position: relative;
+    padding: 2px 0;
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 10px;
+      background: linear-gradient(to bottom, fade(#22334a, 40%) 0%, fade(#16273e, 10%) 70%, transparent 100%);
+    }
+    table {
+      width: 100%;
+      &::before {
+        height: 10px;
+        content: "";
+        position: absolute;
+        top: 30px;
+        left: 0;
+        right: 0;
+        background: linear-gradient(to top, fade(#22334a, 40%) 0%, fade(#16273e, 10%) 70%, transparent 100%);
+      }
+      thead {
+        display: table;
+        max-width: 100%;
+        min-width: 510px;
+        th {
+          padding: @padding-xs @padding-sm;
+          font-weight: normal;
+          font-size: 1em;
+          position: relative;
+          letter-spacing: 0.5em;
+          &:first-child {
+            width: 60%;
+          }
+          &:not(:first-child) {
+            text-align: center;
+            &::before {
+              width: 10px;
+              content: "";
+              position: absolute;
+              top: 0;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              background: linear-gradient(to right, fade(#22334a, 40%) 0%, fade(#16273e, 10%) 70%, transparent 100%);
+            }
+          }
+          &.name{
+            text-indent: 20px;
+          }
+        }
+      }
+      tbody {
+        display: block;
+        max-height: 515px;
+        overflow-y: auto;
+        tr {
+          width: 100%;
+          min-width: 510px;
+          display: table;
+          table-layout: fixed;
+          td {
+            padding: @padding-xs @padding-sm;
+            font-weight: normal;
+            font-size: 1em;
+            &.name{
+              text-indent: 20px;
+            }
+            &:not(:first-child) {
+              position: relative;
+              &:not(:first-child)::before {
+                width: 10px;
+                content: "";
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(to right, fade(#22334a, 40%) 0%, fade(#16273e, 10%) 70%, transparent 100%);
+              }
+            }
+            &:first-child {
+              width: 60%;
+              white-space: nowrap;
+              overflow-x: hidden;
+              text-overflow: ellipsis;
+            }
+            &.grade {
+              font-size: 16px;
+              font-weight: bold;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              &.A {
+                color: #33DBCD;
+              }
+              &.B {
+                color: #E6AF67;
+              }
+              &.C {
+                color: #CE6129;
+              }
+              & span {
+                margin-left: 12px;
+                display: inline-block;
+                width: 12px;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</style>

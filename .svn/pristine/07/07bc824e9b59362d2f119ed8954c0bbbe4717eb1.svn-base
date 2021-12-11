@@ -1,0 +1,6 @@
+// 基础组件
+export const chartCmpts = {
+  PieChart: () => import('./PieChart'),
+  BarChart: () => import('./BarChart'),
+  LineChart: () => import('./LineChart')
+}

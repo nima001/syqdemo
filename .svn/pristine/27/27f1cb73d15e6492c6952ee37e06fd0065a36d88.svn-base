@@ -1,0 +1,194 @@
+<template>
+  <a-spin :spinning="loading" :id="spinid" class="column-chart">
+    <div class="title">{{title}}</div>
+    <div :id="id">
+    </div>
+  </a-spin>
+</template>
+<script>
+import { Spin } from "ant-design-vue";
+import mixinChart from "@/person-shaoxing/views/monitor/mixins/chart";
+import { AxisOption, colorGroup } from "@/person-shaoxing/utils/index";
+export default {
+  name: 'column-chart',
+  mixins: [mixinChart],
+  components: {
+    ASpin: Spin
+  },
+  props: {
+    loading: {
+      type: Boolean,
+      default: false
+    },
+    title: {
+      type: String
+    },
+    autoFit: {
+      type: Boolean,
+      default: true
+    },
+    // 数据 => 必选
+    data: {
+      type: Array
+    },
+    //  度量配置
+    scaleConfig: {
+      type: Object,
+      default: () => {
+        return {
+        }
+      }
+    },
+    // 坐标轴名称 key => x,y,  value => 坐标轴标题
+    axisName: {
+      type: Object
+    },
+    // 坐标轴颜色
+    axisColor: {
+      type: Object,
+      default: () => {
+        return {
+          lineColor: '#000',
+          labelColor: '#000'
+        }
+      }
+    },
+    showTooltip: {
+      type: Boolean,
+      default: true
+    },
+    //  提示信息配置
+    tooltipConfig: {
+      type: Object
+    },
+    showLegend: {
+      type: Boolean,
+      default: true
+    },
+    //  图例配置
+    legendConfig: {
+      type: Object
+    },
+    //  坐标轴配置
+    axisConfig: {
+      type: Object,
+    },
+    showTitle: {
+      type: Boolean,
+      default: false
+    },
+    //  是否显示网格线
+    showGrid: {
+      type: Boolean,
+      default: true
+    },
+    isRotate: {
+      type: Boolean,
+      default: false
+    },
+    //  图表类型 fold => 
+    type: {
+      type: String,
+      default: 'fold'
+    },
+    singleColor: {
+      type: String,
+      default: '#D15456'
+    }
+  },
+  computed: {
+    spinid() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    }
+  },
+  methods: {
+    setChartConfig(data) {
+      this.chart.data(data)
+
+      //  度量配置 坐标轴title => alias别名
+      let scaleConfig = (() => {
+        let obj = {}
+        for (const key in this.axisName) {
+          if (this.axisName.hasOwnProperty(key)) {
+            obj[key] = {}
+            obj[key]['alias'] = this.axisName[key]
+            Object.assign(obj[key], this.scaleConfig[key])
+          }
+        }
+        return obj
+      })()
+      this.chart.scale(scaleConfig)
+
+      //  默认坐标轴第一个值为x轴 第二只为y轴
+      let axisArr = Object.keys(this.axisName);
+      //  是否使用tooltip
+      if(this.showTooltip) {
+        this.chart.tooltip(this.tooltipConfig);
+      } else {
+        this.chart.tooltip(false);
+      }
+
+      //  图例配置
+      if(this.showLegend) {
+        this.chart.legend(this.legendConfig);
+      } else {
+        this.chart.legend(false);
+      }
+
+      //  坐标轴配置
+      this.chart.axis(axisArr[0], new AxisOption( this.axisColor,  this.showGrid, this.showTitle));
+      this.chart.axis(axisArr[1], new AxisOption( this.axisColor,  this.showGrid, this.showTitle));
+
+      //  是否交换x，y轴位置
+        this.chart.coordinate('rect').transpose();
+      if(this.isRotate) {
+        this.chart.coordinate('rect').transpose();
+        // this.chart.coordinate('rect').transpose();
+      }
+
+      //  图表类型 dodge => 分组   fold => 堆叠 
+      if (this.data.length > 0 && this.data[0].hasOwnProperty(`${axisArr[2]}`)) {
+        // 类型为分组时的配置项
+        if (this.type === 'dodge') {
+          this.chart.interval().position(`${axisArr[0]}*${axisArr[1]}`).color(`${axisArr[2]}`).adjust([{
+            type: 'dodge',
+            marginRatio: 1 / 32
+          }])
+          .label(`${axisArr[1]}`, {
+            position: 'middle',
+            color: '#fff'
+          })
+        }
+        // 类型为堆叠时的配置项
+        if (this.type === 'fold') {
+          this.chart.interval().adjust('stack').position(`${axisArr[0]}*${axisArr[1]}`).color({
+            fields: [`${axisArr[2]}`],
+            values: colorGroup
+          })
+          .label(`${axisArr[1]}`, {
+            position: 'middle',
+            color: '#fff',
+            layout: {
+              type: 'fixedOverlap',
+            },
+          })
+        }
+      } else {
+        this.chart.interval().position(`${axisArr[0]}*${axisArr[1]}`).color(this.singleColor)
+      }
+
+      this.chart.interaction('active-region');
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.column-chart{
+  .title{
+    color: #000;
+    font-size: 20px;
+    text-align: center;
+    padding: 10px 0;
+  }
+}
+</style>

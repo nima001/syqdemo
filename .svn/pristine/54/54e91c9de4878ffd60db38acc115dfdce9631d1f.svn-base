@@ -1,0 +1,890 @@
+<template>
+  <div class="processLibrary-WaitingProcessing">
+    <div class="top">
+      <div class="bussbtn">
+        <a-button type="primary" @click="openbatchStampProcess">批量盖章</a-button>
+        <a-button type="primary" @click="batchSigning">批量签收</a-button>
+        <a-button type="primary" @click="unBatchSigning">批量取消签收</a-button>
+        <a-button type="primary" @click="openSummary">汇总表</a-button>
+      </div>
+      <div class="select">
+        <div class="left">
+          <!-- <a-select v-model="overdue">
+                <a-select-option
+                  v-for="(item,index) in isoverdue"
+                  :value="item.value"
+                  :key="index"
+                >{{item.text}}</a-select-option>
+          </a-select>-->
+          <a-select showSearch placeholder="全部" v-model="onlyme">
+            <a-select-option
+              v-for="(item,index) in bussinessIssuer"
+              :value="item.value"
+              :key="index"
+            >{{item.text}}</a-select-option>
+          </a-select>
+          <a-select showSearch placeholder="所有业务" v-model="process">
+            <a-select-option
+              v-for="(item,index) in processList"
+              :value="item.id"
+              :key="index"
+            >{{item.name}}</a-select-option>
+          </a-select>
+          <a-input @click="visibleOrg=true" v-model="orgname" placeholder="--选择发起单位--"></a-input>
+          <a-input placeholder="选择申请人" v-model="username"></a-input>
+        </div>
+        <div class="right">
+          <a-button type="primary" @click="search">搜索</a-button>
+          <a-button class="reset" @click="reset">重置</a-button>
+        </div>
+      </div>
+    </div>
+    <div class="list">
+      <a-table
+        :columns="columns"
+        size="middle"
+        :dataSource="datalist"
+        :pagination="pagination"
+        :rowSelection="{selectedRowKeys: selectData, onChange: changeData}"
+      >
+        <div slot="applytime" slot-scope="text,record">
+          <span>{{record.applytime?record.applytime.substr(0,10):''}}</span>
+        </div>
+        <div slot="updatetime" slot-scope="text,record">
+          <span>{{record.updatetime?record.updatetime.substr(0,10):''}}</span>
+        </div>
+        <div slot="createtime" slot-scope="text,record">
+          <span>{{record.createtime?record.createtime.substr(0,10):''}}</span>
+        </div>
+        <!-- <div slot="duetime" slot-scope="text,record">
+              <span
+                :style=" record.overdue==1?'color:red':''"
+              >{{record.duetime?record.duetime.substr(0,10):''}}</span>
+        </div>-->
+        <div slot="operate" slot-scope="text,record" style="color:#3990fa;cursor:pointer;">
+          <span @click="operateHandle(record)">{{record.operate}}</span>
+          <a-divider type="vertical" v-show="record.operate_delete && record.isdelete==1 " />
+          <template v-if="record.operate_delete=='删除'">
+            <span v-if="record.isdelete==1">{{record.operate_delete}}</span>
+          </template>
+          <template v-else>
+            <a-popconfirm
+              title="流程撤消后不可恢复，确认撤销?"
+              @confirm="deleteHandle(record)"
+              okText="确定"
+              cancelText="取消"
+            >
+              <span v-if="record.isdelete==1">{{record.operate_delete}}</span>
+            </a-popconfirm>
+          </template>
+        </div>
+      </a-table>
+    </div>
+    <!-- 机构选择 -->
+    <a-modal
+      title="单位名称选择"
+      :visible="visibleOrg"
+      @cancel="visibleOrg=false"
+      width="450px"
+      :bodyStyle="tStyle"
+      class="myModal hand"
+      :footer="null"
+    >
+      <org-user-select mode="org" @finish="orgOk" :rootSelectable="true"></org-user-select>
+    </a-modal>
+    <!-- 批量盖章流程 -->
+    <a-modal
+      title="选择批量盖章流程"
+      :visible="batchStampProcess"
+      @cancel="cancelBatchStamp"
+      :footer="null"
+      width="800px"
+    >
+      <a-table
+        :rowSelection="{selectedRowKeys: selectedRowKeys, onChange: onSelectChange}"
+        :columns="batchStampcolumns"
+        :dataSource="batchStampdata"
+        :pagination="batchStampProcesspagination"
+        :rowKey="record=>record.taskid"
+      >
+        <span slot="operate" slot-scope="text,record" style="color:#3990fa;cursor:pointer;">
+          <span @click="openBatchStamp(record)">查看</span>
+        </span>
+      </a-table>
+      <div style="margin-top:15px;text-align:center;">
+        <a-button type="primary" @click="nextStep">下一步</a-button>
+      </div>
+    </a-modal>
+    <!-- 签章选择 -->
+    <a-modal
+      title="签章选择"
+      :visible="stampvisible"
+      @cancel="cancelStamp"
+      width="500px"
+      :footer="null"
+    >
+      <a-form :form="form">
+        <a-form-item label="选择签章：" :label-col="{ span: 7}" :wrapper-col="{ span: 14 }">
+          <a-select
+            showSearch
+            :filterOption="filterOption"
+            placeholder="--请选择签章--"
+            @change="changeStamp"
+            v-decorator="['signid',
+            {rules: [{ required:true, message:  `请选择签章!` }],
+            initialValue: formData.signid}]"
+          >
+            <a-select-option
+              v-for="(item,index) in stampList"
+              :key="index"
+              :value="item.id"
+            >{{item.name}}</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item
+          class="preview"
+          label="签章预览："
+          :label-col="{ span: 7}"
+          :wrapper-col="{ span: 14 }"
+        >
+          <img :src="imgUrl" v-if="imgUrl" v-decorator="['imageUrl']" />
+        </a-form-item>
+        <a-form-item label="手机号：" :label-col="{ span: 7 }" :wrapper-col="{ span: 14}">
+          <span style="font-size:20px;font-weight:bold;">{{tel}}</span>
+        </a-form-item>
+        <a-form-item label="验证号：" :label-col="{ span: 7}" :wrapper-col="{ span: 14 }">
+          <a-row :gutter="20">
+            <a-col :span="12">
+              <a-input
+                :maxlength="5"
+                v-decorator="['code',
+            {rules: [{ required: true, validator:validateRules }],
+            initialValue: formData.vercode}]"
+              ></a-input>
+            </a-col>
+            <a-col :span="4">
+              <a-button v-if="vercodeFlag" @click="getPhoneVerify">获取验证码</a-button>
+              <span v-else style="display:inline-block;width:150px;">{{time}}秒之后重新发送</span>
+            </a-col>
+          </a-row>
+        </a-form-item>
+      </a-form>
+      <div style="margin-top:15px;text-align:center;">
+        <a-button type="primary" @click="prevStep">上一步</a-button>
+        <a-button type="primary" style="margin-left:10px;" @click="saveStamp">确定</a-button>
+      </div>
+    </a-modal>
+    <!-- 汇总表 -->
+    <a-modal title="汇总表" :visible="summary" @cancel="summary=false" width="600px">
+      <a-table :columns="summarycolumns" :dataSource="summarydata" :rowKey="record=>record.id">
+        <template slot="operate" slot-scope="text,record">
+          <div style="display:flex;">
+            <span @click="downloadSummary(record)" style="color:#3990fa;cursor:pointer;flex:50%">下载</span>
+            <a-progress
+              v-if="percentType && (record.id==nowid)"
+              :percent="percent"
+              size="small"
+              style="flex:50%"
+            />
+          </div>
+        </template>
+      </a-table>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+//待办
+const columns = [
+  {
+    title: "流程名称",
+    dataIndex: "flowname",
+    key: "flowname",
+    ellipsis: true
+  },
+  {
+    title: "发起单位",
+    dataIndex: "applyorg",
+    key: "applyorg",
+    width: "10%"
+  },
+  {
+    title: "申请人",
+    dataIndex: "applyuser",
+    key: "applyuser",
+    width: "5%"
+  },
+  {
+    title: "当前表单",
+    dataIndex: "currentform",
+    key: "currentform",
+    ellipsis: true,
+    width: "20%"
+  },
+  {
+    title: "发起人",
+    dataIndex: "createuser",
+    key: "createuser"
+  },
+  {
+    title: "发起时间",
+    dataIndex: "applytime",
+    key: "applytime",
+    width: "10%",
+    scopedSlots: { customRender: "applytime" }
+  },
+  {
+    title: "最近变更时间",
+    dataIndex: "updatetime",
+    key: "updatetime",
+    width: "10%",
+    scopedSlots: { customRender: "updatetime" }
+  },
+  {
+    title: "签收状态",
+    dataIndex: "signstatus",
+    key: "signstatus",
+    width: "5%"
+  },
+  {
+    title: "签收人",
+    dataIndex: "signeduser",
+    key: "signeduser",
+    width: "5%"
+  },
+  // {
+  //   title: "当前节点处理截止时间",
+  //   dataIndex: "duetime",
+  //   key: "duetime",
+  //   width: "10%",
+  //   scopedSlots: { customRender: "duetime" }
+  // },
+  {
+    title: "操作",
+    dataIndex: "operate",
+    key: "operate",
+    scopedSlots: { customRender: "operate" }
+  }
+];
+//批量盖章
+const batchStampcolumns = [
+  {
+    title: "流程名称",
+    dataIndex: "flowname",
+    key: "flowname",
+    width:"25%",
+    ellipsis: true
+  },
+  {
+    title: "发起单位",
+    dataIndex: "applyorg",
+    key: "applyorg",
+    width:"15%",
+    ellipsis: true
+  },
+  {
+    title: "申请人",
+    dataIndex: "applyuser",
+    key: "applyuser",
+    width:"15%",
+    ellipsis: true
+  },
+  {
+    title: "当前表单",
+    dataIndex: "currentform",
+    key: "currentform",
+    width:"30%",
+    ellipsis: true
+  },
+  {
+    title: "操作",
+    dataIndex: "operate",
+    key: "operate",
+    width:"15%",
+    scopedSlots: { customRender: "operate" }
+  }
+];
+
+//汇总表
+const summarycolumns = [
+  {
+    title: "汇总表名称",
+    dataIndex: "name",
+    key: "name",
+    ellipsis: true
+  },
+  {
+    title: "操作",
+    dataIndex: "operate",
+    key: "operate",
+    width: "20%",
+    scopedSlots: { customRender: "operate" }
+  }
+];
+import {
+  listtasks,
+  listdelete,
+  getListProcessV2,
+  batchComplete,
+  claims,
+  unclaims,
+  getMobileVerify
+} from "@/workflow/api/workflow";
+import { getTables, exportExcle, exportProgress } from "@/workflow/api/summarytable";
+import { getStampInfo, batchCompleteInit } from "@/workflow/api/stamplist";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { showError } from "@/framework/utils/index";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import {
+  Breadcrumb,
+  Button,
+  Icon,
+  Input,
+  Form,
+  Table,
+  Modal,
+  Progress,
+  Select,
+  InputNumber,
+  Divider,
+  Col,
+  Row,
+  Popconfirm
+} from "ant-design-vue";
+export default {
+  props: {},
+  data() {
+    return {
+      datalist: [],
+      columns,
+      pagination: {
+        defaultPageSize: 10,
+        currentPage: 1,
+        total: 0,
+        onChange: this.change,
+        showTotal: function(total, range) {
+          return `共 ${total} 条记录`;
+        }
+      },
+      selectData: [],
+      onlyme: undefined,
+      process: undefined,
+      orgname: "",
+      username: "",
+      bussinessIssuer: [
+        { text: "全部", value: 0 },
+        { text: "仅显示我发起的", value: 1 }
+      ],
+      processList: [],
+      visibleOrg: false,
+      tStyle: {
+        padding: "5px 3px 5px 10px",
+        height: "550px"
+      },
+      //批量盖章流程
+      batchStampProcess: false,
+      batchStampcolumns,
+      selectedRowKeys: [],
+      batchStampdata: [],
+      batchStampProcesspagination: {
+        pageSize: 10,
+        currentPage: 1,
+        total: 0,
+        onChange: this.batchStampProcesschange
+      },
+      //签章选择
+      stampvisible: false,
+      form: this.$form.createForm(this),
+      stampList: [],
+      imgUrl: null,
+      stampId: null,
+      formData: {
+        signid: undefined,
+        vercode: undefined
+      },
+      tel: undefined,
+      time: 60,
+      vercodeTimer: null,
+      vercodeFlag: true,
+      //汇总表
+      summary: false,
+      summarycolumns,
+      summarydata: [],
+      timer: null,
+      percentType: false,
+      percent: 0,
+      nowid: null
+    };
+  },
+  components: {
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    AButton: Button,
+    AIcon: Icon,
+    AInput: Input,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ATable: Table,
+    AModal: Modal,
+    AProgress: Progress,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInputNumber: InputNumber,
+    ADivider: Divider,
+    OrgUserSelect,
+    ACol: Col,
+    ARow: Row,
+    APopconfirm: Popconfirm
+  },
+  created() {
+    this.get();
+  },
+  methods: {
+    //获取待办列表
+    get() {
+      this.selectData = [];
+      let query = {};
+      query.querytype = 2;
+      if (this.process !== -1) {
+        query.catalogid = this.process;
+      }
+      if (this.username) query.username = this.username;
+      if (this.orgId) query.orgid = this.orgId;
+      query.onlyme = this.onlyme;
+      query.pagenum = this.pagination.currentPage;
+      //query.overdue = this.overdue;
+      listtasks(query)
+        .then(res => {
+          if (res.code == "success") {
+            this.datalist = [];
+            this.pagination.total = res.result.total;
+            //待办
+            res.result.rows.forEach(item => {
+              if (item.signstatus == 1) {
+                item.signstatus = "已签收";
+              } else if (item.signstatus == 2) {
+                item.signstatus = "未签收";
+              }
+              this.datalist.push(item);
+            });
+            for (var i = 0; i < this.datalist.length; i++) {
+              this.$set(this.datalist[i], "key", i);
+              this.$set(this.datalist[i], "operate", "处理");
+              this.$set(this.datalist[i], "operate_delete", "撤销");
+            }
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //分页
+    change(page, pageSize) {
+      this.pagination.currentPage = page;
+      this.get();
+    },
+    //搜索
+    search() {
+      this.get();
+    },
+    //重置
+    reset() {
+      this.process = this.id;
+      this.onlyme = 0;
+      this.orgname = "";
+      this.username = "";
+      this.orgId = null;
+      this.get();
+    },
+    //确定选择的机构
+    orgOk(type, list) {
+      if (type == "ok" && list.length > 0) {
+        let org = list[0];
+        this.visibleOrg = false;
+        this.orgname = org.name;
+        this.orgId = org._id;
+      }
+    },
+    //批量签收
+    changeData(selectedRowKeys) {
+      this.selectData = selectedRowKeys;
+    },
+    //打开批量盖章
+    openbatchStampProcess() {
+      this.getbatchStampProcess();
+      this.batchStampProcess = true;
+    },
+    //取消批量盖章
+    cancelBatchStamp() {
+      this.batchStampProcess = false;
+      this.selectedRowKeys = [];
+      clearInterval(this.vercodeTimer);
+      this.time = 60;
+      this.vercodeFlag = true;
+    },
+    //批量盖章流程列表改变
+    onSelectChange(selectedRowKeys) {
+      this.selectedRowKeys = selectedRowKeys;
+    },
+    //查看某一条盖章流程
+    openBatchStamp(value) {
+      const modelinstanceid =
+        value.modelinstanceid == "undefined" ? "" : value.modelinstanceid;
+      const taskid = value.taskid == "undefined" ? "" : value.taskid;
+      const businessinstanceid =
+        value.businessinstanceid == "undefined" ? "" : value.businessinstanceid;
+      const flowname = value.flowname;
+      if (this.type == 3) {
+        const { href } = this.$router.resolve({
+          name: "flowchartofcompletionpage",
+          query: {
+            flowname,
+            businessinstanceid
+          }
+        });
+        window.open(href, "_blank");
+      } else {
+        const { href } = this.$router.resolve({
+          name: "workflowform",
+          query: {
+            modelinstanceid,
+            taskid,
+            businessinstanceid,
+            flowname
+          }
+        });
+        window.open(href, "_blank");
+      }
+    },
+    //下一步
+    nextStep() {
+      this.batchStampProcess = false;
+      this.stampvisible = true;
+      this.getStampLists();
+    },
+    //上一步
+    prevStep() {
+      this.batchStampProcess = true;
+      this.stampvisible = false;
+    },
+    //获取签章列表
+    getStampLists() {
+      batchCompleteInit()
+        .then(res => {
+          this.stampList = [];
+          if (res.code == "success") {
+            this.tel = res.result.mobilePhone;
+            this.stampList = res.result.seals;
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //选择签章
+    changeStamp(val) {
+      getStampInfo(val)
+        .then(res => {
+          if (res.code == "success") {
+            this.stampId = res.result.id;
+            this.imgUrl =
+              this.uiConfigs["api.url"] +
+              "/file/v1/download" +
+              "?uri=" +
+              encodeURIComponent(res.result.pictureurl);
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //手动输入时过滤无关信息
+    filterOption(input, option) {
+      return (
+        option.componentOptions.children[0].text
+          .toLowerCase()
+          .indexOf(input.toLowerCase()) >= 0
+      );
+    },
+    //获取手机验证码
+    getPhoneVerify() {
+      if (this.tel) {
+        if (!/^[1][3,4,5,7,8][0-9]{9}$/.test(this.tel)) {
+          this.$message.error("手机号码有误，请重填");
+        } else {
+          getMobileVerify(this.tel)
+            .then(res => {
+              if (res.code == "success") {
+                this.$message.success("验证码已成功发送至手机！");
+                this.vercodeFlag = false;
+                this.vercodeTimer = null;
+                this.vercodeTimer = setInterval(() => {
+                  this.setTime();
+                }, 1000);
+              }
+            })
+            .catch(err => {
+              showError(err);
+            });
+        }
+      } else {
+        this.$message.error("请先填写有效的手机号码！");
+      }
+    },
+    //倒计时
+    setTime() {
+      if (this.time == 1) {
+        this.vercodeFlag = true;
+        this.time = 60;
+        clearInterval(this.vercodeTimer);
+      } else {
+        this.time--;
+      }
+    },
+    //校验
+    validateRules(rule, value, callback) {
+      if (rule.required) {
+        if (value) {
+          if (!/^[0-9]{5}$/.test(value)) {
+            callback("验证码为5位数字，输入有误，请检查后重新输入！");
+          } else {
+            callback();
+          }
+        } else {
+          callback("请输入验证码！");
+        }
+      } else {
+        callback();
+      }
+    },
+    //保存批量签章
+    saveStamp() {
+      if (this.selectedRowKeys.length == 0) {
+        this.$message.error("请选择批量盖章的流程！");
+        return;
+      }
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let query = {};
+          query.signid = values.signid;
+          let arr = [];
+          this.selectedRowKeys.forEach(a => {
+            this.batchStampdata.forEach(b => {
+              if (a == b.taskid) {
+                arr.push({
+                  businessInstanceId: b.businessinstanceid,
+                  taskId: b.taskid,
+                  modelInstanceId: b.modelinstanceid
+                });
+              }
+            });
+          });
+          query.formDataVos = arr;
+          query.mobilephone = this.tel;
+          query.vercode = values.code;
+          batchComplete(query)
+            .then(res => {
+              if (res.code == "success") {
+                this.$message.success("批量盖章成功！");
+                this.selectedRowKeys = [];
+                this.imgUrl = "";
+                this.tel = "";
+                this.formData.vercode = undefined;
+                this.formData.signid = undefined;
+                this.stampvisible = false;
+                this.vercodeFlag = true;
+                this.time = 60;
+                this.form.resetFields();
+                clearInterval(this.vercodeTimer);
+              }
+            })
+            .catch(err => {
+              showError(err);
+            });
+        }
+      });
+    },
+    //获取批量盖章流程
+    getbatchStampProcess() {
+      let query = {};
+      query.querytype = 2;
+      query.pagenum = this.batchStampProcesspagination.currentPage;
+      query.signstatus = 1;
+      query.pagesize = this.batchStampProcesspagination.pageSize;
+      listtasks(query)
+        .then(res => {
+          if (res.code == "success") {
+            this.batchStampProcesspagination.total = res.result.total
+              ? res.result.total
+              : 0;
+            this.batchStampdata = res.result.rows;
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    batchStampProcesschange(page, pageSize) {
+      this.batchStampProcesspagination.currentPage = page;
+      this.getbatchStampProcess(this.type);
+    },
+    //取消盖章
+    cancelStamp() {
+      this.stampvisible = false;
+      this.time = 60;
+      clearInterval(this.vercodeTimer);
+      this.vercodeFlag = true;
+      this.formData.signid = undefined;
+      this.formData.vercode = undefined;
+      this.form.resetFields();
+      this.selectedRowKeys = [];
+    },
+    batchSigning() {
+      if (this.selectData.length == 0) {
+        this.$message.error("请选择批量签收的流程！");
+      } else {
+        let taskIds = [];
+        this.selectData.forEach(i => {
+          taskIds.push(this.datalist[i].taskid);
+        });
+        claims(taskIds)
+          .then(res => {
+            if (res.code == "success") {
+              this.$message.success("流程批量签收成功！");
+              this.get();
+              this.selectData = [];
+            }
+          })
+          .catch(err => {
+            showError(err);
+          });
+      }
+    },
+    //取消批量签收
+    unBatchSigning() {
+      if (this.selectData.length == 0) {
+        this.$message.error("请选择批量取消签收的流程！");
+      } else {
+        let taskIds = [];
+        this.selectData.forEach(i => {
+          taskIds.push(this.datalist[i].taskid);
+        });
+        unclaims(taskIds)
+          .then(res => {
+            if (res.code == "success") {
+              this.$message.success("流程批量取消签收成功！");
+              this.get();
+              this.selectData = [];
+            }
+          })
+          .catch(err => {
+            showError(err);
+          });
+      }
+    },
+    //打开汇总表列表
+    openSummary() {
+      getTables()
+        .then(res => {
+          if (res.code == "success") {
+            this.summarydata = res.result;
+            this.summary = true;
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //下载汇总表
+    downloadSummary(record) {
+      this.nowid = record.id;
+      exportExcle(record.id).then(res => {
+        if (res.code == "success") {
+          this.percentType = true;
+          let that = this;
+          this.timer = setInterval(() => {
+            that.getDownloadUrl(res.result);
+          }, 500);
+        }
+      });
+    },
+    //获取下载地址
+    getDownloadUrl(taskid) {
+      exportProgress(taskid)
+        .then(res => {
+          if (res.code == "success") {
+            if (res.result.status == "RUN") {
+              this.percent = res.result.progress;
+            } else if (res.result.status == "FINISH") {
+              clearInterval(this.timer);
+              this.timer = null;
+              let downurl =
+                this.uiConfigs["api.url"] +
+                "/file/v1/download" +
+                "?uri=" +
+                encodeURIComponent(res.result.downloadurl);
+              let a = document.createElement("a");
+              a.href = downurl;
+              a.style.display = "none";
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              this.percentType = false;
+              this.percent = 0;
+            }
+          }
+        })
+        .catch(err => {
+          clearInterval(this.timer);
+          this.timer = null;
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.processLibrary-WaitingProcessing {
+  .top {
+    display: flex;
+    justify-content: space-between;
+    .bussbtn {
+      display: flex;
+      flex-wrap: nowrap;
+      button {
+        margin: 0 5px;
+      }
+    }
+    .select {
+      float: right;
+      display: flex;
+      .left {
+        display: flex;
+        > div {
+          margin-left: 10px;
+          flex: 1;
+          min-width: 114px;
+        }
+        > input {
+          margin-left: 10px;
+          flex: 1;
+          min-width: 138px;
+        }
+      }
+      .right {
+        padding-left: 20px;
+        display: flex;
+        flex-wrap: nowrap;
+        button {
+          &.reset {
+            margin-left: 5px;
+          }
+        }
+      }
+    }
+  }
+  .list {
+    margin-top: 24px;
+  }
+}
+</style>

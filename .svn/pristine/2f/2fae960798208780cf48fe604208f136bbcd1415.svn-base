@@ -1,0 +1,16 @@
+import FormItem from './FormItem'
+import { isVoidField } from '@formily/core'
+import { connect, mapProps } from '@formily/vue'
+
+export default connect(
+  FormItem,
+  mapProps(
+    { validateStatus: true, title: 'label', required: true },
+    (props, field) => {
+      return {
+        help: !isVoidField(field) ? (field.errors.length ? field.errors[0] : undefined) : undefined,
+        extra: field.description,
+      }
+    }
+  )
+)

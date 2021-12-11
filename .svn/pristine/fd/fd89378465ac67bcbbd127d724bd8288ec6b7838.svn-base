@@ -1,0 +1,76 @@
+<template>
+  <card title="一票否优">
+    <div class="kpi-veto">
+      <div class="content">
+        <div class="title">机构数</div>
+        <div class="value">
+          <div class="num">0</div>
+        </div>
+      </div>
+    </div>
+  </card>
+</template>
+<script>
+import Card from './ScreenCard'
+import echarts from 'echarts'
+/**
+ * 一票否优
+ */
+export default {
+  components: {
+    Card,
+  },
+}
+</script>
+<style lang="less" scoped>
+  .kpi-veto {
+    color: #FFFFFF;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    .content {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      // padding-left: 10px;
+      // padding-right: 10px;
+      .title{
+      flex: 1;
+      background-color: rgba(84, 16, 16, 0.7);
+      height: 47px;
+      line-height: 46px;
+      text-align: center;
+      margin-left: 16px;
+      font-size: 14px;
+      font-family: Microsoft YaHei;
+      font-weight: 400;
+      background-image:url("../../../assets/img/screen/vetoborder.png"), url("../../../assets/img/screen/vetoborder1.png");
+      background-repeat: no-repeat, no-repeat;  
+      background-position: top left, bottom left;  
+    }
+    .value{
+      flex: 2;
+      background-color: rgba(84, 16, 16, 0.3);
+      height: 47px;
+      position: relative;
+      background-image:url("../../../assets/img/screen/vetoborder2.png"), url("../../../assets/img/screen/vetoborder3.png");
+      background-repeat: no-repeat, no-repeat;  
+      background-position: top right, bottom right;  
+      margin-right: 16px;
+      .num{
+        position: absolute;
+        right: 20px;
+        height: 47px;
+        line-height: 46px;
+        opacity: 0.8;
+        font-size: 24px;
+        font-family: D-DIN Exp;
+        font-weight: 400;
+        color: #FFFFFF;
+      }
+    }
+    }
+
+  }
+</style>

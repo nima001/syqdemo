@@ -1,0 +1,144 @@
+<template>
+  <div>
+    <a-modal
+      title="退休人数预报"
+      :width="800"
+      :visible="showModal"
+      :footer="null"
+      @cancel="handleCancel"
+    >
+      <a-table
+        :pagination="false"
+        :loading="loading"
+        :columns="columndata"
+        :dataSource="data"
+        :scroll="{ y: 510 }"
+      >
+        <div slot="year" slot-scope="text">{{text||0}}</div>
+      </a-table>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import { Modal, Table } from "ant-design-vue";
+import { showError } from "@/framework/utils";
+import { assign, cloneDeep } from 'lodash';
+import { orgReport } from '@/person-shaoxing/api/orgStaffReport'
+export default {
+  props: {
+    visible: {//弹窗是否显示
+      type: Boolean,
+    },
+    district: {//地区
+      type: String,
+    },
+    columns: {//表头
+      type: Array,
+    },
+    name: {//序列名称
+      type: String,
+    }
+  },
+  components: {
+    AModal: Modal,
+    ATable: Table,
+  },
+  data() {
+    return {
+      data: [],
+      loading: false,
+      columndata: [],
+      showModal: false,
+    };
+  },
+  watch: {
+    visible: {
+      immediate: true,
+      handler(val) {
+        if (val) {
+          this.retireorgReport();
+          this.showModal = val;
+        }
+      }
+    },
+    columns: {
+      immediate: true,
+      handler(val) {
+        this.columndata = cloneDeep(val);
+        this.columndata.forEach((item, index)=> {
+          if(index>0) {
+            this.columndata[index]['scopedSlots'] = { customRender: "year" };
+          }else if(index === 0) {
+            this.columndata[index]['width'] = '60%';
+          }
+        });
+      }
+    }
+  },
+  mounted() {
+  },
+  methods: {
+    handleCancel() {
+      if (this.showModal) {
+        this.showModal = false;
+        this.data = [];
+        this.$emit("handleCancel");
+      }
+    },
+    retireorgReport() {
+      this.loading = true;
+      orgReport({district: this.district,searchkey: this.name}).then(({result})=>{
+        let orgs = [];
+        result.rows.forEach((item)=> {
+          Object.keys(item.org).forEach((orgItem)=> {
+            let obj = {};
+            let arr = orgs.filter((nameItem)=>nameItem.name===orgItem);
+            if(!arr.length) {
+              obj['name'] = orgItem;
+              obj['key'] = orgItem;
+              obj[item['k0']] = item.org[orgItem];
+              orgs.push(obj);
+            }else{
+              obj[item['k0']] = item.org[orgItem];
+              let index = orgs.indexOf(arr[0]);
+              if(index>=0) {
+                assign(orgs[index], obj);
+              }
+            }
+          });
+        });
+        this.data = orgs;
+      }).catch((err)=>{
+        showError(err);
+      }).finally(()=>{
+        this.loading = false;
+      });
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+/deep/.ant-modal-body {
+  height: 600px;
+  display: flex;
+  .ant-table-wrapper,.ant-spin-nested-loading {
+    display: flex;
+    .ant-spin-container {
+      display: flex;
+      flex-direction: column;
+      .ant-table.ant-table-fixed-header {
+        flex: 1;
+        td:first-child {
+          text-overflow: ellipsis;
+          overflow: hidden;
+          white-space: nowrap;
+        }
+        .ant-table-placeholder {
+          border-bottom: 0;
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,163 @@
+<template>
+  <div class="proportion" :class="status">
+    <template v-if="cardtype == 'card'">
+      <a-progress type="circle" 
+        :percent="percent" 
+        strokeColor="" 
+        :status="surplus < 0 ? 'exception' : 'success'"
+        :format="format" 
+      />
+      <div class="footer">
+        <div class="left">
+          <div class="text">{{totalText}}</div>
+          <div class="num">{{total ? total : 0}}</div>
+        </div>
+        <div class="right">
+          <div class="text">{{numText}}</div>
+          <div class="num">{{num ? num : 0}}</div>
+        </div>
+      </div>
+    </template>
+    <template v-else>
+      <div class="content">{{overNum}}</div>
+    </template>
+  </div>
+</template>
+<script>
+import { Progress } from "ant-design-vue";
+
+/**
+ * 占比显示
+ */
+export default {
+  components: {
+    AProgress: Progress
+  },
+  props: {
+    //  type: card => 显示全部内容 num  => 显示数字
+    num: Number,
+    cardtype: {
+      type: String,
+      default: 'card'
+    },
+    total: Number,
+    numText: String,
+    overNum: Number,
+    totalText: String,
+    surplusText: String
+  },
+  computed: {
+    percent(){
+      // console.log(this.num, this.total)
+      if(this.num > 0 && this.total > 0){
+        return (this.num/this.total) * 100
+      }
+    },
+    surplus(){
+      return (this.total || 0) - (this.num || 0);
+    },
+    status() {
+      let status = '';
+      let total = this.total ? this.total: 0;
+      let num = this.num ? this.num: 0;
+
+      if (total - num < 0) {
+        return status = 'error';
+      } else {
+        if (total <= 0) return status
+        let res = total * 0.99;
+        if (num < res) {
+          return status = 'normal';
+        } else {
+          return status = 'warn';
+        }
+      }
+    }
+  },
+  methods: {
+    format(percent){
+      return <div class="progress"><span class="text">{this.surplusText}</span><br/><span class="num">{this.surplus}</span></div>
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+@color-default: #8ed306;
+@color-error: #e76043;
+@color-warn: #fec400;
+
+.proportion{
+  min-height: 212px;
+  text-align: center;
+  /deep/ .ant-progress-circle-trail{
+    stroke: lighten(@color-default, 20%) !important;
+  }
+  &.error{
+    .progress .num,.footer .text::before{
+      color: @color-error;
+    }
+    .footer .left .text::before{
+      color: lighten(@color-error, 20%)
+    }
+  }
+  &.warn{
+    /deep/ .ant-progress-circle-path{
+      stroke: lighten(@color-warn, 0) !important;
+    }
+    /deep/ .ant-progress-circle-path{
+      stroke: lighten(@color-warn, 0) !important;
+    }
+    .progress .num,.footer .text::before{
+      color: @color-warn;
+    }
+    .footer .left .text::before{
+      color: lighten(@color-warn, 20%)
+    }
+  }
+  .progress{
+    line-height: 1.6em;
+    .text{
+      color: @text-color;
+    }
+    .num{
+      color: @color-default;
+      font-size: 1.5em;
+      font-weight: bold;
+      transition: color .3s ease 0s;
+    }
+  }
+
+  .footer{
+    overflow: hidden;
+    margin-top: 30px;
+    .left{
+      float: left;
+      width: 50%;
+      & .text::before{
+        color: lighten(@color-default, 20%)
+      }
+    }
+    .right{
+      float: right;
+      width: 50%;
+    }
+    .text{
+      &::before{
+        content: '●';
+        margin-right: 4px;
+        color: @color-default;
+      }
+    }
+    .num{
+      font-weight: bold;
+    }
+  }
+  .content{
+    height: 171px;
+    line-height: 138px;
+    color: #1890ff;
+    font-size: 1.5em;
+    font-weight: bold;
+  }
+}
+</style>

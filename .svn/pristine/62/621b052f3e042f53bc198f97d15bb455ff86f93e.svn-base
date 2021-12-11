@@ -1,0 +1,141 @@
+<template>
+  <div class="wrap">
+    <div class="top">
+      <span class="title">按区域查看权利变化数</span>
+      <ul class="tipList">
+        <li>
+          <span class="dote odd"></span>
+          <span class="text">增加</span>
+        </li>
+        <li>
+          <span class="dote even"></span>
+          <span class="text">减少</span>
+        </li>
+      </ul>
+    </div>
+    <div class="barChart" :id="id"></div>
+  </div>
+</template>
+
+<script>
+import { Chart } from "@antv/g2";
+import { mixins } from "../components/minxin";
+import { powerChange } from "@/person-shaoxing/api/orgStaffReport";
+export default {
+  props: {
+   list:{
+      type:Array,
+      default: () => {
+         return [];
+      }
+    }
+  },
+  data() {
+    return {
+      id: Math.random().toString(32).substr(2)
+    };
+  },
+  mixins: [mixins],
+  mounted() {
+    this.draw();
+  },
+  methods: {
+    draw() {
+      if (this.list.length == 0) {
+        return false;
+      }
+      const chart = new Chart({
+        container: this.id,
+        autoFit: true,
+        height: 500
+      });
+      chart.data(this.list);
+      chart.axis("district", {
+        tickLine: null
+      });
+      chart.tooltip({
+        showMarkers: false
+      });
+      chart.interaction("active-region");
+      chart.legend(false);
+      chart
+        .interval()
+        .position("district*value")
+        .color("district", "#57C1F6")
+        .label("district*value", (district, value) => {
+          return {
+            content: originData => {
+              if (originData.district === "2014") {
+                return null;
+              }
+              return value;
+            }
+          };
+        });
+      chart.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  padding-top: 5px;
+  position: relative;
+  height: 246px;
+  .top {
+    display: flex;
+    align-items: center;
+    .title {
+      font-size: 20px;
+      font-family: Microsoft YaHei;
+      font-weight: bold;
+      line-height: 26px;
+      color: #ffffff;
+      opacity: 0.8;
+    }
+    .tipList {
+      display: flex;
+      margin: 0px 0px 0px 17px;
+      li {
+        display: flex;
+        align-items: center;
+        &:last-child {
+          margin-left: 12px;
+        }
+        span {
+          &.dote {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            opacity: 1;
+
+            &.odd {
+              background: #8fc7ff;
+            }
+            &.even {
+              background: #ff7c52;
+            }
+          }
+          &.text {
+            height: 19px;
+            font-size: 14px;
+            margin-left: 5px;
+            font-family: Microsoft YaHei;
+            font-weight: 400;
+            line-height: 19px;
+            color: #ffffff;
+            opacity: 0.6;
+          }
+        }
+      }
+    }
+  }
+  .barChart {
+    width: 100%;
+    height: 195px;
+    margin-top: 20px;
+    border-radius: 4px;
+    background: url("../img/repeat.png") repeat;
+  }
+}
+</style>

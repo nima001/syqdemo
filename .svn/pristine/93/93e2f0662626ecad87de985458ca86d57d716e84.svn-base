@@ -1,0 +1,170 @@
+<template>
+  <div class="wrap">
+    <p class="title">近五年预计退休人数</p>
+    <div class="chart" :id="id" @click="showRetireList('机构退休人数详情', 0, 'bz','RetireDetail')"></div>
+    <div class="retired">
+      <span class="text">未按时退休人数</span>
+      <span class="num" @click="showRetireList('机构未按时退休人员详情', 0, 'bz','NotRetire')">{{ notRetire }}</span>
+    </div>
+    <retire-list v-model="RetireList.show" :title="RetireList.title" :loadPage="RetireList.loader" :target="RetireList.target"/>
+  </div>
+</template>
+
+<script>
+import DataSet from "@antv/data-set";
+import { Chart } from "@antv/g2";
+import { mixins } from "../components/minxin";
+import { retire, retireError } from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@/framework/utils/index";
+import RetireList from "../components/RetireList.vue";
+import { ckOrgQuery } from "@/person-shaoxing/api/orgStaffReport";
+export default {
+  components: {
+    RetireList
+  },
+  data() {
+    return {
+      id: Math.random().toString(32).substr(2),
+      list: [],
+      notRetire: 0,
+      plot: undefined,
+      RetireList: {
+        show: false,
+        title: "",
+        params: {}
+      }
+    };
+  },
+  mixins: [mixins],
+  watch: {
+    dictId(v) {
+      this.getRetire(v);
+      this.noRetire(v);
+    },
+  },
+  mounted() {
+    this.getRetire(this.dictId);
+    this.noRetire(this.dictId);
+  },
+  methods: {
+    getRetire(dictId) {
+      retire(dictId)
+        .then((res) => {
+          let { keyCols, rows, valueCols } = res.result;
+          this.list = rows.map((item) => {
+            return {
+              name: item[keyCols[0]["column"]],
+              value: item[valueCols[0]["column"]],
+            };
+          });
+          this.draw();
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    noRetire(dictId) {
+      retireError(dictId)
+        .then((res) => {
+          this.notRetire = res.result;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    showRetireList(title, xz, type,target) {
+      this.RetireList = {
+        show: true,
+        title: (this.districtName || "") + title,
+        loader: (page) => {
+          return ckOrgQuery({
+            district: this.dictId,
+            cktype: -1,
+            type,
+            xz,
+            ...page,
+            orders: [{orderby: 'index', ordertype: 'ASC'}]
+          })
+        },
+        target,
+      };
+    },
+    draw() {
+      const chart = new Chart({
+        container: this.id,
+        autoFit: true,
+        height: 220,
+      });
+      chart.data(this.list);
+      chart.scale("name", {
+        range: [0, 1],
+        tickCount: 10,
+        type: "timeCat",
+      });
+      chart.scale("value", {
+        nice: true,
+      });
+      chart.tooltip({
+        showCrosshairs: true,
+      });
+      chart.option("slider", {});
+      chart.line().position("name*value");
+      chart.area().position("name*value");
+      chart.render();
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      this.plot = chart;
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  margin-top: 10px;
+  background: url("../img/short-line.png") center bottom no-repeat;
+  padding-bottom: 35px;
+  .title {
+    height: 26px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.8;
+    margin: 0px;
+  }
+  .chart {
+    margin-top: 20px;
+    height: 220px;
+  }
+  .retired {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 37px;
+    border-radius: 4px;
+    padding: 0px 24px;
+    background: url("../img/retire.png") repeat-x;
+    .text {
+      height: 21px;
+      font-size: 16px;
+      font-family: Microsoft YaHei;
+      font-weight: 400;
+      line-height: 21px;
+      color: #ffffff;
+      opacity: 0.8;
+    }
+    .num {
+      height: 22px;
+      font-size: 20px;
+      font-family: Arial;
+      font-weight: bold;
+      line-height: 23px;
+      color: #fb2626;
+      opacity: 1;
+      cursor: pointer;
+    }
+  }
+}
+</style>

@@ -1,0 +1,472 @@
+<template>
+  <div class="content">
+    <div class="header">
+      <div class="headerBar">
+        <template v-if="query.target">
+          <a-select :value="{
+              key: query.target.id, 
+              label: query.target.title
+            }" 
+            :labelInValue="true" 
+            @change="targetChange"
+            style="width: 120px;" 
+          >
+            <a-select-option v-for="item in targetList" :key="item.id">{{item.title}}</a-select-option>
+          </a-select>
+          <div class="rangs" v-if="catalogid">
+            <a-input :value="query.nodename" 
+              read-only 
+              @click="showSelectNode = true" 
+              :style="{width:'300px'}" 
+              placeholder="选择查询目录" 
+            >
+              <a-icon v-if="query.nodeid" slot="suffix" class="clear-input" 
+                theme="filled" type="close-circle" 
+                @click="clearNode" 
+              />
+              <a-icon slot="addonAfter" type="select" @click="showSelectNode = true"/>
+            </a-input>
+          </div>
+          <div class="fields">
+            <a-button @click="showSelectFields=true">查询字段选择</a-button>
+          </div>
+        </template>
+        <div class="btns">
+          <slot v-if="hasOptsSlot" name="opts"/>
+          <template v-else>
+            <a-button type="primary" @click="search()">查询</a-button>
+            <a-button class="second" @click="reset()">重置</a-button>
+          </template>
+        </div>
+      </div>
+      <div class="headerLine">
+        <div class="sortWrap" :class="{hide:!dataTable}">
+          <span class="lineWrap"><a-divider dashed /></span>
+          <div class="toggleSort" @click="expanded = !expanded" v-if="dataTable">
+            <span>{{expanded?'收起条件':'展开条件'}}</span>
+            <a-icon :type="expanded?'up':'down'" />
+          </div>
+          <span class="lineWrap"><a-divider dashed /></span>
+        </div>
+      </div>
+    </div>      
+    <div class="main" @scroll="onScroll">
+      <div :style="{marginLeft: `${scrollOffsetH}px`, marginRight: `${-scrollOffsetH}px`}">
+        <div v-show="expanded && query.target" class="conditionEditor">
+          <div class="condition">
+            <criteria v-model="query.filter" :target="query.target" style="margin-bottom:15px" ref="criteria"/>
+            <a-button type="dashed" :style="{width:'320px'}" @click="addCondition" >
+              <a-icon type="plus-circle" /> 添加条件
+            </a-button>
+          </div>
+        </div>
+        <div v-if="dataTable" class="table-caption">
+          <span>查询结果</span>
+          <div class="opts">
+            <slot name="dataOpts"/>
+          </div>
+        </div>
+      </div>
+      <result-table v-if="dataTable" :loading="loading" :tableData="dataTable" :orders='query.orders' @tableChange="sortColumn"/>
+      <a-spin v-else-if="loading"><div style="height: 200px"></div></a-spin>
+    </div>
+    <div class="footer" v-if="dataTable && dataTable.total > 0">
+      <a-pagination
+        showSizeChanger
+        @showSizeChange="showSizeChange"
+        @change="pageChange"
+        :pageSize="dataTable.pagesize"
+        :current="dataTable.pagenum"
+        :showTotal="total => `总共：${total}条`"
+        :total="dataTable.total"
+      />
+    </div>
+    <a-modal v-model="showSelectNode" title="选择目录节点" 
+      :width="500" :bodyStyle="{ height: '600px', padding: '0'}" :footer="null">
+      <org-user-select mode="orgtree" :defaultTree='catalogid' :root-selectable="true" @finish="onNodeSelected"/>
+    </a-modal>
+    <a-modal v-model="showSelectFields" title="字段选择" :destroyOnClose="true" 
+      :width='800' :bodyStyle="{ height: '600px', padding: '0px'}" :footer='null'>
+      <select-field :targetid="query.target && query.target.id" :multi='true' :defaultSelected="query.fields" @finish="onFieldsSelected"/>
+    </a-modal>
+    <a-modal v-model="queryContext.show"
+      title="设置自定义数据"
+      :width="500"
+      :destroyOnClose="true"
+      @ok="onFiledsInputFinish"
+      :bodyStyle="{paddingTop: '5px'}"
+    >
+      <prop-value-form v-model="queryContext.value" :properties="contextFields" ref="propValueForm"/>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Select, Input, Divider, Modal, Button, Icon, Spin, Pagination } from 'ant-design-vue';
+import ResultTable from "./components/ResultTable";
+import Criteria from "./components/Criteria";
+import OrgUserSelect from '@/person/components/OrgUserSelect';
+import SelectField from './components/SelectField';
+import PropValueForm from "@person/components/PropValueForm";
+import { queryfields, querytargets, query } from "@/person/api/integratedquery";
+import { showError } from "@/framework/utils/index";
+import cloneDeep from 'lodash/cloneDeep';
+
+/**
+ * 查询编辑
+ * 提供以下Slot
+ * opts: 查询操作（头部区域，设置该slot后默认的查询按钮将隐藏需要自己添加查询按钮）
+ * dataOpts: 查询结果数据操作（数据表左上角区域）
+ */
+export default {
+  name: "CustomQuery",
+  components: {
+    APagination:Pagination,
+    ASelect:Select,
+    ASelectOption:Select.Option,
+    AInput:Input,
+    ADivider:Divider,
+    AModal:Modal,
+    AButton:Button,
+    AIcon:Icon,
+    ASpin:Spin,
+    ResultTable,
+    Criteria,
+    OrgUserSelect,
+    SelectField,
+    PropValueForm,
+  },
+  props:{
+    value: {//查询对象（v-model）
+      type: Object,
+    },
+    contextFields: {//查询上下文数据属性列表
+      type: Array, //{code: 'orgid', name: '组织' ...}
+    },
+  },
+  data() {
+    return {
+      targetList: [],
+      query: {
+        target: undefined,
+        nodeid: undefined,
+        nodename: undefined,
+        filter: undefined,
+        fields: undefined,
+        orders: undefined,
+      },
+      queryContext: {//查询上下文
+        show: false,
+        value: undefined,
+        callback: undefined,
+      },
+      loading: false,
+      showSelectNode: false,
+      showSelectFields: false,
+      expanded: true,//条件是否展开
+      scrollOffsetH: 0,//横向滚动水平滚动偏移量
+      dataTable: undefined,//数据表
+    };
+  },
+  provide() {
+    return { 
+      contextFields: cloneDeep(this.contextFields)
+    };
+  },
+  computed: {
+    catalogid(){
+      return this.query.target && this.query.target.catalogid;
+    },
+    hasOptsSlot(){
+      return !!this.$scopedSlots.opts;
+    }
+  },
+  created() {
+    // console.log('CustomQuery create')
+    this.getTargets();
+    this.initData(this.value);
+  },
+  watch: {
+    value(value){
+      // console.log('CustomQuery change', this.query !== value)
+      if(this.query !== value){
+        this.initData(value);
+      }
+    },
+  },
+  methods: {
+    initData(query = {}){
+      // console.log('CustomQuery init')
+      this.query = Object.assign({
+        target: undefined,
+        nodeid: undefined,
+        nodename: undefined,
+        filter: undefined,
+        fields: undefined,
+        orders: undefined,
+      }, cloneDeep(query));//初始化必须要响应的属性
+      this.reset(this.query);
+    },
+    getTargets(){
+      querytargets().then(res => {
+        this.targetList = res.result || [];
+        if(!this.query.target && this.targetList.length){
+          this.reset({target: this.targetList[0]});
+        }
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    targetChange(t) {
+      let target = this.targetList.find(item => item.id == t.key);
+      if(target){
+        this.reset({target});
+      }
+    },
+    //重置查询 
+    //target为空 默认取当前选择的查询对象，此时fields为空，将不重置fields
+    //target不为空 此时fields为空，将根据查询对象列表去默认的fields列表
+    reset({ target, nodeid, nodename, filter, fields, orders } = {}){//重置查询
+      let replace = { nodeid, filter, orders }
+      if(target){
+        replace.target = { id: target.id, title: target.title, catalogid: target.catalogid};
+        let t = this.targetList.find(item => item.id == target.id);
+        if(t){//重置成查询对象列表中默认字段（如果对象已经不在查询列表中，不重置字段）
+          fields = cloneDeep(t.defaultFields);
+        }
+        replace.fields = fields || [];
+      }else if(fields){
+        replace.fields = fields;
+      }
+      Object.assign(this.query, replace);
+      this.$emit('input', this.query);
+      //清除查询结果
+      this.dataTable = undefined;
+      //清除状态
+      this.scrollOffsetH = 0;
+      this.expanded = true;
+    },
+    search(){
+      this.getQueryContext((context) => {
+        this.doSearch({ pagenum: 1, pagesize: 20 });
+      })
+    },
+    clearNode(){
+      this.query.nodeid = undefined,
+      this.query.nodename = undefined;
+    },
+    onNodeSelected(type, list){
+      this.showSelectNode = false;
+      if(type == 'ok' && list.length){
+        this.query.nodename = list[0].name;
+        this.query.nodeid = list[0].id;
+      }
+    },
+    onFieldsSelected(type, list){
+      if(type == 'ok'){
+        this.query.fields = list;
+      }
+      this.showSelectFields = false;
+    },
+    addCondition() {
+      this.$refs.criteria.add();
+    },
+    onScroll(e){
+      this.scrollOffsetH = e.target.scrollLeft;
+    },
+    doSearch({pagenum, pagesize}) {
+      this.loading = true;
+      this.scrollOffsetH = 0;
+      query({
+        ...this.query,
+        context: this.queryContext.value,
+        needtotal: true,
+        pagenum,
+        pagesize
+      }).then(res => {
+        this.dataTable = res.result;
+        this.expanded = false;
+      }).catch(error => {
+        showError(error);
+      }).finally(()=>{
+        this.loading = false;
+      });
+    },
+    showSizeChange(pagenum, pagesize) {
+      this.doSearch({ pagenum: 1, pagesize });
+    },
+    pageChange(pagenum, pagesize) {
+      this.doSearch({ pagenum, pagesize });
+    },
+    sortColumn(order){
+      let orders = [];
+      if(order.ordertype){
+        orders.push(order);
+      }
+      this.query.orders = orders;
+      this.doSearch({ pagenum: 1, pagesize: this.dataTable.pagesize });
+    },
+    getQueryContext(callback){
+      if(this.contextFields && this.contextFields.length){
+        this.queryContext.show = true;
+        this.queryContext.callback = callback;
+      }else{
+        callback();
+      }
+    },
+    onFiledsInputFinish(){
+      this.$refs.propValueForm.getFieldsValue().then((context) => {
+        this.queryContext.show = false;
+        this.queryContext.value = context;
+        this.queryContext.callback(context);
+      }).catch((error) => {
+        this.$message.error(error);
+      });
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.content {
+  display: flex;
+  flex-direction: column;
+  background-color: @white;
+  height: 100%;
+  padding: 10px 0;
+  .header {
+    padding: @content-padding-v @content-padding-h;
+    flex: none;
+    .clear-input{
+      font-size: 12px;
+      color: @text-color-secondary;
+      &:hover{
+        color: @text-color;
+      }
+    }
+    .headerBar{
+      display: flex;
+      align-items: center;
+      .rangs{
+        margin-left: 10px;
+        input{
+          margin-left: 10px;
+          cursor: pointer;
+        }
+      }
+      .fields{
+        padding: 0px 10px;
+      }
+      .btns {
+        text-align: right;
+        flex: 1;
+        white-space: nowrap;
+        button {
+          margin-right: 10px;
+          &:last-child{
+            margin-right: 0px;
+          }
+        }
+        /deep/.second.ant-btn {
+          color: @primary-color;
+          background-color: @white;
+          border-color: @primary-color;
+          &:hover{
+            color: lighten(@primary-color, 20%);
+            border-color: lighten(@primary-color, 20%);
+          }
+        }
+      }
+    }
+    .headerLine{
+      margin-top: @padding-md - 10;
+      .sortWrap{
+        display: flex;
+        align-items: center;
+        height: 20px;
+        .lineWrap{
+          flex: 1;
+          display: flex;
+          align-items: center;
+          .ant-divider{
+            margin: 0px;
+            border-color: #ddd;
+          }
+        }
+        .toggleSort{
+          width:110px;
+          cursor: pointer;
+          display: flex;
+          justify-content: center;
+          align-items:center;
+          span{
+            color:#000000bf;
+          }
+          i{
+            margin-left: 5px;
+            color: #000000bf;
+          }
+        }
+      }
+    }
+  }
+  .main {
+    flex: auto;
+    min-height: 1px;
+    margin: 0px  @content-padding-h;
+    overflow: auto;
+    .conditionEditor{
+      //条件内容会超出左侧6像素，让超出部分能够显示预览出位置
+      padding: 0 6px 10px 6px;
+      .condition .multiple{
+        margin-top: 15px;
+      }
+    }
+    .table-caption {
+      height: 40px;
+      line-height: 40px;
+      background: #fafafa;
+      font-size: 16px;
+      text-align: center;
+      .opts{
+        float: right;
+        a{
+          display: inline-block;
+          padding: 0 12px;
+          line-height: 40px;
+          color: @text-color;
+          font-size: @font-size-base;
+          transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+          &:hover {
+            color: @primary-color;
+            background: #9e9e9e2e;
+          }
+        }
+      }
+    }
+  }
+  .footer{
+    flex: none;
+    padding: @content-padding-v @content-padding-h;
+    .ant-pagination{
+      float: right;
+    }
+  }
+}
+/deep/ .ant-tabs-nav {
+  width: 100% !important;
+  .ant-tabs-tab {
+    width: 50%;
+    padding: 12px 0;
+    text-align: center;
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0;
+  }
+  .ant-tabs-tab-active,
+  .ant-tabs-tab:hover {
+    color: @primary-color;
+  }
+  .ant-tabs-ink-bar {
+    background-color: @primary-color;
+  }
+}
+</style>

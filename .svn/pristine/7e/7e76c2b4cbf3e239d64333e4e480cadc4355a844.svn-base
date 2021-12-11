@@ -1,0 +1,174 @@
+<template>
+  <div class="multiwrap">
+    <a-input-group compact>
+      <a-select v-model="input.type" style="width:42px;" :showArrow="false">
+        <a-select-option value="">值</a-select-option>
+        <a-select-option value="$"><custom-icon type="fx"/></a-select-option>
+        <a-select-option value="#"><custom-icon color="#f39c2b" type="fx"/></a-select-option>
+      </a-select>
+      <template v-if="input.type">
+        <a-input :value="value"
+          read-only
+          @click="showExprEditor = true"
+          style="width:calc(100% - 42px)"
+        />
+      </template>
+      <MultiInput v-else 
+        v-model="input.value"
+        :optionProps="{key: '_id', label: mode == 'user' ? 'username' : 'name' }"
+        :inputable="false"
+        @selectWindowVisible="showModal" 
+        style="width:calc(100% - 42px);"
+      />
+    </a-input-group>
+    <a-modal
+      :title="`选择${defaultData.field.name}`"
+      v-model="visible"
+      :footer="null"
+      :width="800"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select :mode="mode" :showDept='true' :selected="selected" :maxSelect="800" @finish="finishSelected" />
+    </a-modal>
+    <equation-editor v-if="showExprEditor" :selfFields='context' :fnData="input.value" namespace="query"  @finish="onFinish"/>
+  </div>
+</template>
+<script>
+import { Input, Select,Modal } from "ant-design-vue";
+import CustomIcon from "@/framework/components/CustomIcon";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import MultiInput from "@/framework/components/MultiInput";
+
+//引用类型多选
+export default {
+  name:"ReferArray",
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  inject:['context'],
+  components: {
+    OrgUserSelect,
+    MultiInput,
+    AModal: Modal,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    CustomIcon,
+    EquationEditor:() => import('@person/components/EquationEditor/index')
+  },
+  data() {
+    return {
+      visible: false,
+      selected: [],
+      input: this.initInput(this.defaultData.value),
+      oldValue: undefined,
+      showExprEditor: false
+    };
+  },
+  computed: {
+    mode() {
+      let { datasource, key } = this.defaultData.field;
+      let deptArr = ['dept','workdept','admin@user.dept','admin@user.workdept'];
+      return datasource == "user" ? "user" : deptArr.includes(key) ? "dept" : "org";
+    },
+    value(){
+      let {type, value} = this.input;
+      if(type && value){
+        return type + '{' + value + '}';
+      }else{
+        return value;
+      }
+    }
+  },
+  watch:{
+    'input.type'(vt, ovt){
+      if(!ovt != !vt){
+        let v = this.oldValue;
+        this.oldValue = this.input.value;
+        this.input.value = v;
+      }
+    },
+    value(value){
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value
+      });
+    }
+  },
+  methods: {
+    showModal(visible) {
+      if(visible){
+        this.visible = !this.visible;
+        this.selected = this.input.value || [];
+      }
+    },
+    finishSelected(type, list) {
+      this.visible = false;
+      if (type == "ok" && list.length) {
+        let value = this.filterData(list);
+        this.$store.commit({
+          type: "SET_VALUE",
+          position: this.position,
+          value
+        });
+        this.input.value = value
+      }
+    },
+    filterData(arr) {
+      let arrList = [];
+      for (let i = 0; i < arr.length; i++) {
+        let obj = {};
+        obj._id = arr[i]._id;
+        if(this.mode == 'user'){
+          obj.username = arr[i].username;
+        }else{
+          obj.name = arr[i].name;
+        }
+        arrList.push(obj);
+      }
+      return arrList;
+    },
+    // filterValue(_id) {
+    //   let arrList = this.input.value;
+    //   let newValue = arrList.filter(item => {
+    //     return _id != item._id;
+    //   });
+    //   this.$store.commit({
+    //     type: "SET_VALUE",
+    //     position: this.position,
+    //     value: newValue
+    //   });
+    // },
+    onFinish(type, data) {
+      this.showExprEditor = false;
+      if (type == "ok") {
+        this.input.value = data;
+      }
+    },
+    initInput(v){
+      if(typeof(v) == 'string'){
+        if(v.startsWith('${') && v.endsWith('}')){
+          return { type: '$', value: v.substring(2, v.length-1) };
+        }else if(v.startsWith('#{') && v.endsWith('}')){
+          return { type: '#', value: v.substring(2, v.length-1) };
+        }
+      }
+      return { type: '', value: v};
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.multiwrap {
+  width: 320px;
+}
+</style>

@@ -1,0 +1,198 @@
+<template>
+  <a-modal 
+    :visible="show" 
+    :closable="false" 
+    :destroyOnClose="true"
+    :footer="null"
+    :width="480"
+    class="async-task-progress"
+  >
+    <div class="progress">
+      <div class="info">{{message}}</div>
+      <a-progress :percent="percent" :showInfo="false" :strokeWidth="14" />
+    </div>
+    <div class="footer" v-if="cancelable || closable">
+      <a-button @click="endLoop(cancelable)" type="primary">取消</a-button>
+    </div>
+  </a-modal>
+</template>
+<script>
+import { Modal, Progress, Button } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+import { loopTaskResult, stopLoopTask } from "@/framework/api/asynctask";
+
+
+/**
+ * 异步任务进度控件
+ * 事件 finish 任务完成后触发
+ */
+export default {
+  components: {
+    AModal: Modal,
+    AProgress: Progress,
+    AButton: Button,
+  },
+  props: {
+    cancelable: {//是否可取消，将显示取消按钮通知服务器取消任务
+      type: Boolean,
+      default: true
+    },
+    closable: {//是否可停止轮询，直接关闭窗口 当cancelable为true该参数无效
+      type: Boolean,
+      default: false
+    },
+    defaultInfo: {//当进度信息为空时默认显示的信息
+      type: String,
+    },
+    taskid: {
+      type: String,
+    },
+    percentSign: {//是否需要在进度条中显示百分号%
+      type: Boolean,
+      default: false
+    }
+  },
+  data() {
+    return {
+      id: undefined,
+      percent: 0,
+      progress: {
+        stage: undefined,
+        status: undefined,
+        progress: undefined,
+        total: undefined,
+        message: undefined,
+      },
+      interval: undefined,
+    };
+  },
+  computed: {
+    message(){
+      let {stage, progress, total, message} = this.progress;
+      let text = '';
+      if(total > 0){
+        text += total;
+      }
+      if(text){
+        text = (progress || 0) + '/' + text + (this.percentSign?"%":"")
+      }else if(progress){
+        text = progress;
+      }
+      if(stage){
+        if(text){
+          text = stage + '：' + text;
+        }else{
+          text = stage;
+        }
+      }
+      return text || this.defaultInfo;
+    },
+    show(){
+      if(this.id){
+        let {status} = this.progress;
+        return status == 'RUN' || status == 'PREPARE';
+      }
+      return false;
+    }
+  },
+  created(){
+    if(this.taskid){
+      this.startLoop(this.taskid);
+    }
+  },
+  destroyed(){
+    this.stopInterval();
+    this.endLoop();
+  },
+  watch: {
+    taskid(id){
+      if(id && this.id != id){
+        if(this.show){
+          Modal.confirm({
+            title: '提示', 
+            content: '当前存在正在执行的任务是否取消当前任务？',
+            onOk: () => {
+              this.endLoop(true, () => {
+                this.startLoop(id);
+              });
+            },
+          })
+        }else{
+          this.startLoop(id);
+        }
+      }
+    }
+  },
+  methods: {
+    startLoop(taskid){
+      this.progress = {};
+      this.id = taskid;
+      this.percent = 0;
+      loopTaskResult(taskid, progress => {
+        this.updateProgress(progress);
+      }).then(data => {
+        this.percent = 100;
+        this.progress.status = 'FINISH';
+        this.$emit('finish', data);
+      }).catch(err => {
+        if(err == 'canceled') {
+          this.progress.status = 'CANCEL';
+          this.$message.success('任务取消成功');
+        }else{
+          this.progress.status = 'ERROR';
+          showError(err);
+        }
+      }).finally(() => {
+        this.stopInterval();
+      });
+    },
+    endLoop(cancel, callback){
+      stopLoopTask(this.id, cancel).then(() => {
+        if(callback){
+          callback();
+        }
+      }).catch((err) => {
+        showError(err);
+      })
+    },
+    updateProgress(p){
+      this.progress = p;
+      if(p.total > 0){
+        this.stopInterval();
+        this.percent = Math.max(this.percent, Math.min(99.9, (p.progress || 0) * 100/p.total));
+      }else{//当无法计算百分比，开启Interval
+        this.startInterval();
+      } 
+    },
+    startInterval(){
+      if(!this.interval){
+        this.interval = setInterval(() => {
+          this.percent += 0.5;
+          if(this.percent >= 100){
+            this.percent = 99.9;
+          }
+        }, 500);
+      }
+    },
+    stopInterval(){
+      if(this.interval){
+        clearInterval(this.interval);
+        this.interval = undefined;
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.async-task-progress{
+  .progress{
+    .info{
+      margin-top: 10px;
+    }
+    margin-bottom: 20px;
+  }
+  .footer{
+    text-align: right;
+  }
+}
+</style>

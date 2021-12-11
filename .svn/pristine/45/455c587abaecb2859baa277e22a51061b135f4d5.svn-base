@@ -1,0 +1,74 @@
+import { getAttribute, setAttribute } from "@/formdesign/utils/schema";
+import { reactive } from '@vue/composition-api'
+
+/**
+ * Schema配置公共业务
+ */
+export default {
+  props: {
+    property: {},
+    schema: {},
+    settings: {}
+  },
+  computed: {
+    contentExpand: {
+      get(){
+        return this.property._expanded;
+      },
+      set(value){
+        this.property._expanded = !!value;
+      }
+    },
+    propValue:{
+      get(){
+        return this.getArrribute(this.property.path);
+      },
+      set(value){
+        this.setAttribute(this.property.path, value);
+      },
+    }
+  },
+  methods: {
+    getArrribute(path){
+      const val = getAttribute(this.settings, path);
+      console.log('getter', this.settings, path, val);
+      // if(val !== null && typeof val === 'object'){
+      //   return reactive(val);
+      // }
+      return val;
+    },
+    setAttribute(path, value){
+      console.log('setter', this.settings, path, value);
+      const created = setAttribute(this.settings, path, value);
+      if(created){
+        this.$emit('refresh', this.settings);
+      }
+    },
+    getComponentProp(key){
+      return this.getArrribute('x-component-props.' + key);
+    },
+    setComponentProp(key, value){
+      this.setAttribute('x-component-props.' + key, value);
+    },
+    getDecoratorProp(key){
+      return this.getArrribute('x-decorator-props.' + key);
+    },
+    setDecoratorProp(key, value){
+      this.setAttribute('x-decorator-props.' + key, value);
+    },
+    async validate(value){
+      const { validator } = this.property;
+      let rt;
+      if(validator){
+        rt = validator(value, this.schema);
+        if(rt instanceof Promise){
+          rt = await rt;
+          if(this.value != value){//验证完成后值已经变更
+            return;
+          }
+        }
+      }
+      return { value, error: rt }
+    },
+  }
+}

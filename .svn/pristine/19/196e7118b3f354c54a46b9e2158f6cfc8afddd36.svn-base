@@ -1,0 +1,52 @@
+<template>
+  <div class="wrap">
+    <form-display :formConfig="formConfig" :formData="formData" :showAnchor="false">
+      <ant-chart slot="chart" slot-scope="props" v-bind="props"></ant-chart>
+    </form-display>
+    <Xingzheng></Xingzheng>
+  </div>
+</template>
+
+<script>
+import FormDisplay from "@formdesign/views/FormDisplay";
+import AntChart from "@person/views/statistics/chart/AntChart";
+import Xingzheng from '../demo/Xingzheng'
+export default {
+  components: {
+    FormDisplay,
+    AntChart,
+    Xingzheng
+  },
+  data() {
+    return {
+      formData: { bar: 1 },
+      formConfig: [
+        { type: "titleBar", code: "orginfo", name: "机构信息" },
+        // {
+        //   type: 'colLayout',
+        //   children: [
+        //     { 
+        //       span: 24, 
+        //       components: [
+        //         { 
+        //           type: 'colLayout', 
+        //           children: [
+        //             { span: 12, components: [{ type: 'chart', code: 'bar'}]},
+        //             { span: 12, components: [{ type: 'chart', code: 'bar'}]},
+        //           ]
+        //         }
+        //       ]
+        //     }
+        //   ]
+        // },
+        { type: "chart", code: "bar"},
+        { type: "chart", code: "bar"},
+        { type: "titleBar", code: "orginfo", name: "编制信息" },
+      ]
+    };
+  },
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+</style>

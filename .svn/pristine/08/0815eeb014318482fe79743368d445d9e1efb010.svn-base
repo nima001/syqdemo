@@ -1,0 +1,186 @@
+<template>
+  <div class="functional">
+    <div class="functional-content">
+      <div class="content-header">
+        <div class="header-left">
+          <a-input style="width: 200px;margin-right:15px;" :value="orgValue" placeholder="请选择机构">
+            <a-icon slot="addonAfter" type="select" class="left-icon" @click="orgModelShow" />
+          </a-input>
+          <a-input placeholder="请输入关键字" style="width:400px;margin-right:15px;" />
+          <a-button type="primary" style="margin-right:15px;">搜索</a-button>
+          <a-button>重置</a-button>
+        </div>
+      </div>
+      <div class="content-main">
+        <div class="main-image">
+          <a-empty
+            image="https://gw.alipayobjects.com/mdn/miniapp_social/afts/img/A*pevERLJC9v0AAAAAAAAAAABjAQAAAQ/original"
+            :image-style="{
+      height: '60px',
+    }"
+          >
+            <span slot="description">请选择机构或进行关键字搜索</span>
+          </a-empty>
+        </div>
+        <div class="main-mechanism">
+          <h2 class="mechanism-h2">相关机构</h2>
+          <ul class="mechanism-ul">
+            <li v-for="item in datasss" :key="item.key" class="mechanism-li">
+              <span :class="li1">{{item.key}} {{item.name}}</span>
+              <span style="float:right;">
+                <a-tag>{{item.mark}}</a-tag>
+                <a-icon type="file-search" style="font-size:16px;cursor:pointer;" @click="changeicon"/>
+              </span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <!-- <div class="functional-content">
+
+    </div>-->
+    <!--组织选择-->
+    <a-modal
+      title="单位名称选择"
+      v-model="orgVisible"
+      :width="800"
+      :bodyStyle="{height:'600px',padding:'0'}"
+      :footer="null"
+    >
+      <org-user-select
+        mode="org"
+        :max-select="100"
+        :root-selectable="true"
+        :selected="selected"
+        @finish="selectOrg"
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Input, Icon, Button, Empty, Modal, Tag } from "ant-design-vue";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+export default {
+  name: "",
+  components: {
+    AInput: Input,
+    AIcon: Icon,
+    ATag: Tag,
+    AButton: Button,
+    AModal: Modal,
+    AEmpty: Empty,
+    OrgUserSelect,
+  },
+  watch: {
+    selected: {
+      handler(newValue, oldValue) {
+        for (let i = 0; i < newValue.length; i++) {
+          if (oldValue[i] != newValue[i]) {
+          }
+        }
+      },
+      deep: true,
+    },
+  },
+  data() {
+    return {
+      datasss: [
+        {
+          key: 1,
+          name: "相关机构相关机构相关机构",
+          mark: "相关机构",
+        },
+        {
+          key: 2,
+          name: "相关机构相关机构相关机构相关机构",
+          mark: "单位",
+        },
+      ],
+      orgValue: undefined,
+      orgVisible: false,
+      selected: [],
+    };
+  },
+
+  methods: {
+      changeicon(){
+          this.litype = 1;
+      },
+    orgModelShow() {
+      this.orgVisible = true;
+    },
+    onNameChange() {},
+    //确定选择的机构
+    selectOrg(type, list) {
+      let that = this;
+      that.orgVisible = false;
+      if (type == "ok") {
+        let orgarr = [];
+        list.forEach(function (item) {
+          orgarr.push({
+            orgid: item._id,
+            orgname: item.name,
+            name: item.name,
+          });
+        });
+        that.detail.orgs = orgarr;
+        that.selected = that.detail.orgs;
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.functional {
+  padding: 10px;
+  height: 100%;
+  .functional-content {
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    overflow: hidden;
+    background: @white;
+    height: 100%;
+    .content-header {
+      display: flex;
+      flex-direction: column;
+      height: 70px;
+      box-shadow: 1px 1px 3px 1px #fdf2f2;
+      .header-left {
+        float: left;
+        margin: auto 15px;
+        .left-icon {
+          color: @primary-color;
+        }
+      }
+    }
+    .content-main {
+      height: 100%;
+      .main-image {
+        position: relative;
+        top: 35%;
+        display: none;
+      }
+      .main-mechanism {
+        margin: 15px;
+        .mechanism-h2 {
+          font-weight: 700;
+          color: #666666;
+        }
+        .mechanism-ul {
+          .mechanism-li {
+            padding: 0 15px;
+            border-bottom: 1px dashed #d9d9d9;
+            height: 45px;
+            span {
+              line-height: 45px;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</style>

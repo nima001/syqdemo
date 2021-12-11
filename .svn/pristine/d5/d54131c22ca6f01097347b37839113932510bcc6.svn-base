@@ -1,0 +1,146 @@
+<template>
+  <div class="layout">
+    <div class="content">
+      <div class="banner">
+        <div class="head">
+          <div>
+            <b style="font-size:20px;">{{ $store.getters.appInfo.name }}</b>
+            <span
+              class="appstate"
+              :style="colors($store.getters.appInfo.state)"
+            >{{ verifyAppState($store.getters.appInfo.state) }}</span>
+          </div>
+          <a style="float:right;" @click="goManagerCenter">返回</a>
+        </div>
+        <ul class="tabList">
+          <li
+            v-for="(item,index) in tabList"
+            :key="index"
+            :class="{active:item.cmpt == activeCmpt}"
+            @click="swiperTab(item)"
+          >{{item.name}}</li>
+        </ul>
+      </div>
+      <div class="scrollContent">
+        <component :is="activeCmpt"></component>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Tabs, Layout } from "ant-design-vue";
+import BasicInfo from "./components/BasicInfo";
+import Service from "../service/index";
+import ServiceChangeLog from "../service/ServiceChangeLog";
+export default {
+  components: {
+    BasicInfo,
+    Service,
+    ServiceChangeLog
+  },
+  data() {
+    return {
+      tabList: [
+        { name: "基本信息", cmpt: "BasicInfo" },
+        { name: "服务管理", cmpt: "Service" },
+        { name: "变更日志", cmpt: "ServiceChangeLog" }
+      ],
+      activeCmpt: "BasicInfo"
+    };
+  },
+  methods: {
+    swiperTab(item) {
+      this.activeCmpt = item.cmpt;
+    },
+    colors(state) {
+      switch (state) {
+        case 0:
+          return "color:#0dbc79";
+        case 1:
+          return "color:#faad14";
+        case 2:
+          return "color:#f5222d";
+        default:
+          return;
+      }
+    },
+    verifyAppState(state) {
+      let str = "";
+      switch (state) {
+        case 0:
+          str += "在用";
+          break;
+        case 1:
+          str += "挂起(" + suspendDesc + ")";
+          break;
+        case 2:
+          str += "注销";
+          break;
+        case 3:
+          str += "待接收";
+          break;
+        case 4:
+          str += "转让待确认";
+          break;
+        default:
+      }
+      return str;
+    },
+    goManagerCenter() {
+      this.$router.push("/dev/manage/index");
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  padding: @layout-space-base;
+  .content {
+    width: 100%;
+    height: 100%;
+    background: @white;
+    display: flex;
+    flex-direction: column;
+    .banner{
+      padding: @content-padding-v @content-padding-h;
+      box-shadow: 2px 10px 10px -12px #dad9d9;
+      .head {
+        background: @white;
+        display: flex;
+        justify-content: space-between;
+      }
+      .tabList {
+        display: flex;
+        margin: 0px;
+        padding: @content-padding-v 0px;
+        li {
+          padding: 0px @padding-sm;
+          color: @primary-color;
+          cursor: pointer;
+          height: 26px;
+          line-height: 26px;
+          border-radius: @border-radius-base;
+          margin-left: @padding-md;
+          &:hover{
+            background-color: @primary-1;
+          }
+          &:first-child{
+            margin-left: 0px;
+          }
+          &.active {
+            color: @white;
+            background-color: @primary-color;
+          }
+        }
+      }
+    }
+    .scrollContent{
+      padding: @content-padding-v @content-padding-h;
+      flex: 1;
+      overflow-y: auto;
+    }
+  }
+}
+</style>

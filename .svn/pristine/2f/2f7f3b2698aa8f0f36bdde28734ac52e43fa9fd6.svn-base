@@ -1,0 +1,47 @@
+<template>
+  <ScreenPane :width="1440" :height="900">
+    <div class="contaner">
+      <Header title="智慧监管"/>
+      <div class="body">
+        <div class="left"></div>
+        <div class="center"></div>
+        <div class="right"></div>
+      </div>
+    </div>
+  </ScreenPane>
+</template>
+<script>
+import ScreenPane from './components/ScreenPane'
+import Header from './components/Header'
+
+export default {
+  components: {
+    ScreenPane,
+    Header,
+
+  }
+
+}
+</script>
+<style lang="less" scoped>
+.contaner{
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .body{
+    flex: auto;
+    display: flex;
+    & > .left{
+      width: 31.25%;
+      flex: none;
+    }
+    & > .center{
+      flex: auto;
+    } 
+    & > .right{
+      width: 30%;
+      flex: none;
+    }
+  }
+}
+</style>

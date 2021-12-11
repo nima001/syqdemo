@@ -1,0 +1,244 @@
+<template>
+  <div class="reformInstitutional">
+    <div class="reform-div" v-if="ullistone && ullistone.length > 0">
+      <h3 class="reform-h3">中共绍兴市委机构设置情况</h3>
+      <ul class="reform-ul">
+        <li
+          class="reform-li"
+          v-for="(item, index) in ullistone"
+          :key="index"
+          @click="goReform(item)"
+        >
+          <!-- <p class="li-p">{{ item.orgname }}</p> -->
+         <p class="li-p hascolon" v-if="item.orgname.indexOf('：')!==-1">
+            <v-clamp tag="span" autoresize ellipsis=" ..." :max-lines="13">
+              {{ item.orgname.replace('：','\r‥') }}
+            </v-clamp> 
+          </p>
+          <p class="li-p hascolon" v-else-if="item.orgname.indexOf(':')!==-1">
+            <v-clamp tag="span" autoresize ellipsis=" ..." :max-lines="13">
+              {{ item.orgname.replace(':','\r‥') }}
+            </v-clamp>
+          </p>
+          <p class="li-p" v-else >
+            <v-clamp tag="span" autoresize ellipsis=" ..." :max-lines="13">
+              {{ item.orgname }}
+            </v-clamp>
+          </p>
+        </li>
+      </ul>
+    </div>
+    <div class="reform-div" v-if="ullisttwo && ullisttwo.length > 0">
+      <h3 class="reform-h3">绍兴市人民政府机构设置情况</h3>
+      <ul class="reform-ul">
+        <li
+          class="reform-li"
+          v-for="(item, index) in ullisttwo"
+          :key="index"
+          @click="goReform(item)"
+        >
+          <p class="li-p hascolon" v-if="item.orgname.indexOf('：')!==-1">
+            <v-clamp tag="span" autoresize ellipsis=" ..." :max-lines="13">
+              {{ item.orgname.replace('：','\r‥') }}
+            </v-clamp> 
+          </p>
+          <p class="li-p hascolon" v-else-if="item.orgname.indexOf(':')!==-1">
+            <v-clamp tag="span" autoresize ellipsis=" ..." :max-lines="13">
+              {{ item.orgname.replace(':','\r‥') }}
+            </v-clamp>
+          </p>
+          <p class="li-p" v-else >
+            <v-clamp tag="span" autoresize ellipsis=" ..." :max-lines="13">
+              {{ item.orgname }}
+            </v-clamp>
+          </p>
+        </li>
+      </ul>
+    </div>
+  </div>
+</template>
+<script>
+import { Button } from "ant-design-vue";
+import { orgevolution, orgnode } from "@/person-shaoxing/api/analysis";
+import { showError } from "@/framework/utils/index";
+import VClamp from 'vue-clamp';
+export default {
+  name: "reformInstitutional",
+  components: {
+    AButton: Button,
+    VClamp,
+  },
+  data() {
+    return {
+      g6timedata: null,
+      G6data: {},
+      finddata: null,
+      ullistone: null,
+      ullisttwo: null,
+    };
+  },
+  props: {
+    typeList: Array,
+    active: Object,
+  },
+  created() {
+    this.getulnodeone(this.active);
+    this.getulnodetwo(this.active);
+  },
+  watch: {
+    active(val) {
+      this.getulnodeone(val);
+      this.getulnodetwo(val);
+    },
+  },
+  methods: {
+    getulnodeone(val) {
+      let data = {
+        evolutionyear: val.value,
+        systype: 1,
+      };
+      orgnode(data)
+        .then((res) => {
+          this.ullistone = res.result;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    getulnodetwo(val) {
+      let data = {
+        evolutionyear: val.value,
+        systype: 3,
+      };
+      orgnode(data)
+        .then((res) => {
+          this.ullisttwo = res.result;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    getevolution(item) {
+      let data = {
+        orgid: item.orgid,
+        evolutionyear: this.active.value,
+      };
+      orgevolution(data)
+        .then((res) => {
+          //时间轴
+          let g6timedata = [];
+          let g6time = [];
+          res.result.nodelist.forEach((item) => {
+            //截取字符串
+            g6time.push(parseInt(item.evolutiontime.substring(0, 4)));
+            //时间去重
+            g6timedata = new Set(g6time);
+            //排序
+            let arr = [];
+            g6timedata.forEach((item) => {
+              arr.push(item);
+            });
+            arr.sort((a, b) => {
+              return a - b;
+            });
+            this.g6timedata = arr;
+          });
+          //画布
+          this.G6data.nodes = [];
+          this.G6data.edges = [];
+          res.result.nodelist.forEach((item) => {
+            this.G6data.nodes.push({
+              orgname: item.orgname,
+              id:
+                parseInt(item.evolutiontime.substring(0, 4)) + "-" + item.orgid,
+              evolutiontime: item.evolutiontime,
+              orgid: item.orgid,
+            });
+          });
+          this.finddata = this.G6data.nodes.slice(0, 1)[0];
+          res.result.linklist.forEach((item) => {
+            if (item.fromevolutiontime && item.toevolutiontime) {
+              this.G6data.edges.push({
+                source:
+                  parseInt(item.fromevolutiontime.substring(0, 4)) +
+                  "-" +
+                  item.fromorgid,
+                target:
+                  parseInt(item.toevolutiontime.substring(0, 4)) +
+                  "-" +
+                  item.toorgid,
+              });
+            }
+          });
+          this.$router.push({
+            name: "reformInstitutional",
+            params: {
+              G6data: this.G6data,
+              g6timedata: this.g6timedata,
+              finddata: this.finddata,
+            },
+          });
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    goReform(item) {
+      this.getevolution(item);
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.reformInstitutional {
+  .reform-div {
+    .reform-h3 {
+      padding: 8px 24px;
+      margin-bottom: 0;
+      text-align: center;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    .reform-ul {
+      margin-bottom: 0;
+      padding: 10px 24px;
+      display: flex;
+      .reform-li {
+        width: 70px;
+        height: 300px;
+        border: 1px solid #d9d9d9;
+        display: flex;
+        justify-content: center;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        cursor: pointer;
+        .li-p {
+          height: 100%;
+          width: 16px;
+          margin-bottom: 0;
+          color: #666666;
+          overflow: hidden;
+          text-align: center;
+        }
+        .hascolon{
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          & .colon{
+            display: block;
+            height: 4%;
+            width: 100%;
+            line-height: 36%;
+          }
+        }
+        &:hover {
+          background: #fbe5e5;
+          background-image: url("../../../../assets/img/bg-assessment-reform.png");
+          background-repeat: no-repeat;
+          background-position: bottom;
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,125 @@
+import request from '@/framework/utils/request'
+
+/**
+ * 机构数统计
+ * @param {Number} unittype 
+ */
+export function orgCountReport(unittype){
+  //模拟数据
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        result: {
+          keyCols: [
+            {column: 'k0', showname: '区域'},
+            {column: 'k1', showname: '机构级别'}
+          ],
+          valueCols: [
+            {column: 'v0', showname: '局级机构限额'},
+            {column: 'v1', showname: '局级机构实有'}
+          ],
+          rows: [
+            { k0: '市本级', k1: '正厅局级', v0: 111, v1: 22 },
+            { k0: '市本级', k1: '副厅局级', v0: 121, v1: 32 },
+            { k0: '市本级', k1: '其它', v0: 221, v1: 12 },
+            { k0: '越城区', k1: '正厅局级', v0: 321, v1:32 },
+            { k0: '越城区', k1: '副厅局级', v0: 141, v1: 12 },
+            { k0: '越城区', k1: '其它', v0: 122, v1: 22 },
+            { k0: '柯桥区', k1: '正厅局级', v0: 141, v1: 12 },
+            { k0: '柯桥区', k1: '副厅局级', v0: 141, v1: 32 },
+            { k0: '柯桥区', k1: '其它', v0: 221, v1: 24 },
+            { k0: '上虞区', k1: '正厅局级', v0: 141, v1: 12 },
+            { k0: '上虞区', k1: '副厅局级', v0: 141, v1: 32 },
+            { k0: '上虞区', k1: '其它', v0: 221, v1: 24 },
+            { k0: '诸暨市', k1: '正厅局级', v0: 121, v1: 12 },
+            { k0: '诸暨市', k1: '副厅局级', v0: 141, v1: 112 },
+            { k0: '诸暨市', k1: '其它', v0: 221, v1: 24 },
+            { k0: '嵊州市', k1: '正厅局级', v0: 111, v1: 12 },
+            { k0: '嵊州市', k1: '副厅局级', v0: 141, v1: 52 },
+            { k0: '嵊州市', k1: '其它', v0: 221, v1: 24 },
+            { k0: '新昌县', k1: '正厅局级', v0: 101, v1: 62 },
+            { k0: '新昌县', k1: '副厅局级', v0: 141, v1: 92 },
+            { k0: '新昌县', k1: '其它', v0: 221, v1: 84 },
+          ]
+        }
+      })
+    }, 400)
+  })
+  // return request({
+  //   url: '/sx/orgstaffreport/org',
+  //   method: 'get',
+  //   params: {
+  //     unittype,
+  //   }
+  // })
+}
+
+/**
+ * 机构数统计
+ * @param {Number} unittype 
+ */
+export function orgStaffReport(unittype, district){
+  //模拟数据
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      if(unittype == 1){
+      resolve({
+        result: {
+          keyCols: [
+            {column: 'k0', showname: '区域'},
+          ],
+          valueCols: [
+            {column: 'v0', showname: '机关编制总量'},
+            {column: 'v1', showname: '核定编制数'},
+            {column: 'v2', showname: '实有人数'},
+            {column: 'v3', showname: '行政核定编制'},
+            {column: 'v4', showname: '行政编制实有'},
+            {column: 'v5', showname: '专项核定编制'},
+            {column: 'v6', showname: '专项编制实有'},
+            {column: 'v7', showname: '后勤核定编制'},
+            {column: 'v8', showname: '后勤编制实有'}
+          ],
+          rows: [
+            { k0: '市本级', v0: 111, v1: 22, v2: 23, v3: 43, v4: 21, v5: 45, v6: 35, v7: 99, v8: 11 },
+            { k0: '越城区', v0: 321, v1: 32, v2: 23, v3: 43, v4: 21, v5: 45, v6: 35, v7: 99, v8: 11 },
+            { k0: '柯桥区', v0: 141, v1: 12, v2: 23, v3: 43, v4: 21, v5: 45, v6: 35, v7: 99, v8: 11 },
+            { k0: '上虞区', v0: 141, v1: 12, v2: 23, v3: 43, v4: 21, v5: 45, v6: 35, v7: 99, v8: 11 },
+            { k0: '诸暨市', v0: 121, v1: 12, v2: 23, v3: 43, v4: 21, v5: 45, v6: 35, v7: 99, v8: 11 },
+            { k0: '嵊州市', v0: 111, v1: 12, v2: 23, v3: 43, v4: 21, v5: 45, v6: 35, v7: 99, v8: 11 },
+            { k0: '新昌县', v0: 101, v1: 62, v2: 23, v3: 43, v4: 21, v5: 45, v6: 35, v7: 99, v8: 11 },
+          ]
+        }
+      })
+      }else{
+        resolve({
+          result: {
+            keyCols: [
+              {column: 'k0', showname: '区域'},
+            ],
+            valueCols: [
+              {column: 'v0', showname: '事业编制总量'},
+              {column: 'v1', showname: '核定编制数'},
+              {column: 'v2', showname: '实有人数'},
+            ],
+            rows: [
+              { k0: '市本级', v0: 111, v1: 22, v2: 23 },
+              { k0: '越城区', v0: 321, v1: 32, v2: 23 },
+              { k0: '柯桥区', v0: 141, v1: 12, v2: 23 },
+              { k0: '上虞区', v0: 141, v1: 12, v2: 23 },
+              { k0: '诸暨市', v0: 121, v1: 12, v2: 23 },
+              { k0: '嵊州市', v0: 111, v1: 12, v2: 23 },
+              { k0: '新昌县', v0: 101, v1: 62, v2: 23 },
+            ]
+          }
+        })
+      }
+    }, 400)
+  })
+  // return request({
+  //   url: '/sx/orgstaffreport/staff',
+  //   method: 'get',
+  //   params: {
+  //     unittype, district
+  //   }
+  // })
+}

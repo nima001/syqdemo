@@ -1,0 +1,101 @@
+<template>
+  <div class="home-body">
+    <div class="content">
+      <div class="left content-container">
+        <div class="item" v-for="(item, index) in leftMenu" :key="index">
+          <div class="item-header">
+            <div class="title">{{item.title}}</div>
+          </div>
+          <div class="item-main">
+            <component :is="item.component"></component>
+          </div>
+        </div>
+      </div>
+      <div class="right content-container">
+        <div class="item" v-for="(item, index) in rightMenu" :key="index">
+          <div class="item-header">
+            <div class="title">{{item.title}}</div>
+          </div>
+          <div class="item-main">
+            <component :is="item.component"></component>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import Message from '@/hall/views/home/components/Message';
+import WorkChart from '@/hall/views/home/components/WorkChart';
+import CommonBusiness from '@/hall/views/home/components/CommonBusiness';
+
+export default {
+  props: {},
+  components: { Message, WorkChart, CommonBusiness },
+  data() {
+    return {
+      leftMenu: [
+        { title: '消息中心', component: 'Message' },
+        { title: '工作图表', component: 'WorkChart' }
+      ],
+      rightMenu: [
+        { title: '常用业务', component: 'CommonBusiness' },
+        { title: '事项办理', component: 'WorkChart' }
+      ],
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.home-body{
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  overflow: hidden;
+  .content{
+    width: 100%;
+    height: 100%;
+    background-color: @white;
+    display: flex;
+    .content-container{
+      width: 50%;
+      .item{
+        width: 100%;
+        height: 50%;
+        .item-header{
+          padding: 0 @padding-lg;
+          .title{
+            height: 41px;
+            min-height: 41px;
+            padding: @padding-xs 0;
+            border-bottom: 1px solid #e8e8e8;
+          }
+        }
+        .item-main{
+          padding: 0 @padding-lg;
+          height: calc(~'100% - 41px');
+        }
+      }
+    }
+    .left{
+      margin-right: 10px;
+      .item{
+        &:nth-child(1){
+          height: 285px;
+        }
+        &:nth-child(2){
+          height: calc(~'100% - 285px');
+        }
+      }
+    }
+    .right{
+    }
+  }
+}
+</style>

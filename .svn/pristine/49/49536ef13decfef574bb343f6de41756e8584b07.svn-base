@@ -1,0 +1,38 @@
+<template>
+  <div>
+    <Title title="近5年预计退休人数"/>
+    <div style="height:250px">
+      <AreaChart :data="data" :settings="{ canvas: {width: 400,height: 255}, legend: true, color: ['#FF7C28','#8FC7FF'], slider: true, legend: {visible: true, position: 'top'}}"/>
+    </div>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+import AreaChart from '@person/components/chart/AreaChart';
+export default {
+  props: {
+    districtCode: {
+      type: String,
+    }
+  },
+  components: {
+    Title,
+    AreaChart,
+  },
+  data() {
+    return{
+      data: { "keyCols": [ { "column": "k0", "key": "district", "showname": "所在地区" }, { "column": "k1", "key": "unittype", "showname": "单位类别" } ], "rows": [ { "k0": "2021-1", "k1": "行政", "v0": 160 },{ "k0": "2021-1", "k1": "事业", "v0": 120 }, { "k0": "2022-1", "k1": "行政", "v0": 48 },{ "k0": "2022-1", "k1": "事业", "v0": 48 }, { "k0": "2023-1", "k1": "行政", "v0": 199 },{ "k0": "2023-1", "k1": "事业", "v0": 199 }, { "k0": "2024-1", "k1": "行政", "v0": 200 },{ "k0": "2024-1", "k1": "事业", "v0": 220 }, { "k0": "2025-1", "k1": "行政", "v0": 120 }, { "k0": "2025-1", "k1": "事业", "v0": 100 } ], "valueCols": [ { "column": "v0", "showname": "记录数" } ] }
+    }
+  },
+  watch: {
+    districtCode(val) {
+      return val;
+    }
+  }
+}
+</script>
+
+<style>
+
+</style>

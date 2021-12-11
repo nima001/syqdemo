@@ -1,0 +1,73 @@
+<template>
+  <div class="container">
+    <dict-select
+      :dict="key"
+      @change="onchange"
+      v-model="defaultData.value"
+      :multiple="true"
+      placeholder="请选择"
+    ></dict-select>
+  </div>
+</template>
+<script>
+import DictSelect from "@/framework/components/DictSelect";
+import cloneDeep from "lodash/cloneDeep";
+export default {
+  name: "TypeTen",
+  data() {
+    return {
+      size: "default"
+    };
+  },
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  components: {
+    DictSelect
+  },
+  computed: {
+    key() {
+      return this.defaultData.field.datasource;
+    }
+  },
+  created() {
+    this.inItFn();
+  },
+  methods: {
+    onchange(v) {
+      let value = cloneDeep(v);
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value
+      });
+    },
+    inItFn() {
+      //重置 防止下拉框抖动
+      let value = this.defaultData.value;
+      if (!value) {
+        this.$store.commit({
+          type: "SET_VALUE",
+          position: this.position,
+          value: []
+        });
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  width: 320px;
+  .ant-select {
+    width: 100%;
+  }
+}
+</style>

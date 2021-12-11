@@ -1,0 +1,36 @@
+import Vue from 'vue'
+import Router from 'vue-router'
+
+Vue.use(Router)
+
+/* Router Modules */
+export default new Router({
+  mode: 'history',
+  base: process.env.BASE_URL,
+  routes: [
+    {
+      path: '/login',
+      component: () => import('../views/index'),
+      name: 'login',
+      meta: { title: '登录'}
+    },
+    {
+      path: '/login/sso',
+      component: () => import('../views/sso/SsoLogin'),
+      name: 'ssologin',
+      meta: { title: '单点登录' }
+    },
+    {
+      path: '/login/exit',
+      component: () => import('../views/Exit'),
+      name: 'Exit',
+      meta: { title: '登出' }
+    },
+    {
+       path: '/login/new',
+       component: () => import('../views/modulelogin/login'),
+       name: 'login',
+       meta: { title: '登录'}
+    }
+  ]
+});

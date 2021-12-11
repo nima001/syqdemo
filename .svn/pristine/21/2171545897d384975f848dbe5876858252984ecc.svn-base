@@ -1,0 +1,148 @@
+<template>
+  <div class="container">
+    <a-input read-only placeholder="请输入" v-model="orgName" @click="clickHandler" />
+    <span class="fx" @click="toggleEditor">
+      <img src="../../../assets/img/query-value-fn.png" />
+    </span>
+    <a-modal
+      title="选择单位"
+      v-model="orgVisible"
+      :footer="null"
+      :width="500"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select :mode="mode" :showDept="true" :selected="selected" @finish="selectOrg" />
+    </a-modal>
+    <equation-editor v-if="dataEditor" :fnData="fnData" namespace="query" @finish="onFinish"></equation-editor>
+  </div>
+</template>
+<script>
+import { debounce } from "@/framework/utils/index";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import { Input, Modal } from "ant-design-vue";
+export default {
+  name: "TypeFifteen",
+  data() {
+    return {
+      orgVisible: false,
+      dataEditor: false,
+      selected: []
+    };
+  },
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      required: true
+    }
+  },
+  components: {
+    AInput: Input,
+    AModal: Modal,
+    OrgUserSelect,
+    EquationEditor:() => import('../../../components/EquationEditor')
+  },
+  computed: {
+    mode() {
+      let { datasource, key } = this.defaultData.field;
+      let deptArr = [
+        "dept",
+        "workdept",
+        "admin@user.dept",
+        "admin@user.workdept"
+      ];
+      return datasource == "user"
+        ? "user"
+        : deptArr.includes(key)
+        ? "dept"
+        : "org";
+    },
+    orgName() {
+      return this.defaultData.value
+        ? this.defaultData.value.name
+          ? this.defaultData.value.name
+          : this.defaultData.value
+        : "";
+    },
+    fnData() {
+      let data =
+        typeof this.defaultData.value == "string" ? this.defaultData.value : "";
+      return data;
+    }
+  },
+  methods: {
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok" && list.length) {
+        this.$store.commit({
+          type: "SET_VALUE",
+          position: this.position,
+          value: { _id: list[0]._id, name: list[0].name }
+        });
+      }
+    },
+    clickHandler() {
+      this.orgVisible = !this.orgVisible;
+      if (this.defaultData.value) {
+        this.selected.push(this.defaultData.value);
+      }
+    },
+    setDefaultValue() {
+      // this.$store.commit({
+      //   type: "SET_VALUE",
+      //   position: this.position,
+      //   value: { _id: "0", name: "机构变量" }
+      // });
+    },
+    toggleEditor() {
+      this.dataEditor = !this.dataEditor;
+    },
+    onFinish(type, data) {
+      this.dataEditor = !this.dataEditor;
+      if (type == "ok") {
+        this.$store.commit({
+          type: "SET_VALUE",
+          position: this.position,
+          value: `\${${data}\}`
+        });
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  // flex: 1;
+  width: 320px;
+  display: flex;
+  align-items: center;
+  border: 1px solid @border-color-base;
+  transition: all 0.3s;
+  border-radius: @border-radius-base;
+  padding-right: 11px;
+  &:hover {
+    border-color: @primary-color;
+  }
+  .ant-input {
+    border: none;
+    &:focus {
+      box-shadow: none;
+    }
+  }
+  input {
+    flex: 1;
+  }
+  .fx {
+    cursor: pointer;
+    margin-left: 8px;
+    width: 16px;
+    height: 16px;
+    img {
+      max-width: 100%;
+      vertical-align: top;
+    }
+  }
+}
+</style>

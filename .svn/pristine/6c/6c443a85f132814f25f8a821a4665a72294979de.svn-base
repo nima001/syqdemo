@@ -1,0 +1,75 @@
+<template>
+  <div class="container">
+    <a-input read-only placeholder="请输入" v-model="userName" @click="clickHandler" />
+    <!--用户选择-->
+    <a-modal title="选择用户" v-model="visible" :footer="null"
+      :width="500" :bodyStyle="{ height: '600px', padding: '0'}">
+      <org-user-select :selected='selected' :showDept='true' :mode="mode" @finish="selectUser"/>
+    </a-modal>
+  </div>
+</template>
+<script>
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import { Input, Modal } from "ant-design-vue";
+export default {
+  name: "TypeFourteen",
+  data() {
+    return {
+      visible: false,
+      selected:[]
+    };
+  },
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  components: {
+    AInput: Input,
+    AModal: Modal,
+    OrgUserSelect
+  },
+  computed: {
+    mode() {
+      let { datasource, key } = this.defaultData.field;
+      let deptArr = ['dept','workdept','admin@user.dept','admin@user.workdept'];
+      return datasource == "user" ? "user" : deptArr.includes(key) ? "dept" : "org";
+    },
+    userName() {
+      return this.defaultData.value ? this.defaultData.value.username : "";
+    }
+  },
+  methods: {
+    selectUser(type, list) {
+      this.visible = false;
+      if(type == 'ok' && list.length){
+        this.$store.commit({
+          type: "SET_VALUE",
+          position: this.position,
+          value: {
+            _id: list[0]._id,
+            username: list[0].username
+          }
+        });
+      }
+    },
+    clickHandler() {
+      this.visible = !this.visible;
+      if(this.defaultData.value){
+        this.selected.push(this.defaultData.value);
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  // flex: 1;
+  width: 320px;
+}
+</style>

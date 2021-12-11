@@ -1,0 +1,45 @@
+import request from '@/framework/utils/request'
+/*
+**---------------- 事项办理 ----------------
+*/
+//事项办理-查询
+export function mattersearch(data) {
+    return request({
+        url: '/person/sx/matterhandle/search',
+        method: 'post',
+        data
+    })
+}
+//事项办理-保存
+export function matterinsert(data) {
+    return request({
+        url: '/person/sx/matterhandle/insert',
+        method: 'post',
+        data
+    })
+}
+//事项办理-删除
+export function matterdel(id) {
+    return request({
+        url: `/person/sx/matterhandle/delete?id=${id}`,
+        method: 'delete',
+    })
+}
+//事项办理-返回最大排序号
+export function matterindex(data) {
+    return request({
+        url: '/person/sx/matterhandle/returnMaxIndex',
+        method: 'get',
+        params: {
+            ...data
+        }
+    })
+}
+//事项办理-编辑
+export function matteredit(data) {
+    return request({
+        url: '/person/sx/matterhandle/update',
+        method: 'post',
+        data
+    })
+}

@@ -1,0 +1,143 @@
+<template>
+  <div>
+    <Title title="机构资源分析" />
+    <div class="container" style="height: 140px">
+      <div class="count">
+        <div class="org">
+          <div class="org-content">
+            <div class="title">行政机构实有数</div>
+            <div class="num">
+              <div class="sum" @click="()=>{this.show=true}">{{data.xzjgs||0}}</div>
+              <div class="type">
+                <div class="detail">正厅<span>{{data.ztjxzjgs||0}}</span></div>
+                <div class="detail">副厅<span>{{data.ftjxzjgs||0}}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="unit">
+          <div class="org-content">
+            <div class="title">事业机构实有数</div>
+            <div class="num">
+              <div class="sum" @click="()=>{this.show=true}">{{data.syjgs||0}}</div>
+              <div class="type">
+                <div class="detail">正厅<span>{{data.ztjsyjgs||0}}</span></div>
+                <div class="detail">副厅<span>{{data.ftjsyjgs||0}}</span></div>
+                <div class="detail">处级<span>37</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+     </div>
+     <!-- <List v-model="show" /> -->
+  </div>
+</template>
+
+<script>
+import Title from "./Title";
+import SwiperChart from "./SwiperChart";
+import List from './List';
+import { areaStatistics } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '../../../../framework/utils';
+
+export default {
+  props: {
+    districtCode: {
+      type: String,
+    },
+  },
+  components: {
+    Title,
+    SwiperChart,
+    List
+  },
+  data() {
+    return {
+      data: {},
+      show: false,
+    };
+  },
+  watch: {
+    districtCode(val) {
+      this.loadData(val);
+      return val;
+    },
+  },
+  methods: {
+    loadData(district){
+      areaStatistics(district, [
+        'xzjgs', 'ztjxzjgs',
+        'ftjxzjgs', 'syjgs',
+        'ztjsyjgs', 'ftjsyjgs'
+      ]).then(({result}) => {
+        this.data = result;
+      }).catch(error => {
+        showError(error)
+      });
+    },
+  }
+};
+</script>
+
+<style scoped lang="less">
+.container {
+  padding: 0 @layout-space-base;
+  display: flex;
+  flex-direction: column;
+  .count {
+    margin: 0 @layout-space-base;
+    background: fade(#000, 30%);
+    display: flex;
+    flex-wrap: wrap;
+    .org,
+    .unit {
+      margin: @layout-space-base;
+      width: 45%;
+      background: url("../../../assets/img/screen/top-adorn.png") no-repeat;
+      background-size: 100%;
+      .org-content {
+        position: relative;
+        .title {
+          padding: @padding-xs @padding-md;
+          background: linear-gradient(
+            132deg,
+            transparent,
+            fade(#A27AE4, 20%) 10%,
+            fade(#8e57be, 20%),
+            transparent,
+          );
+          font-size: 1.1em;
+          color: #fff;
+        }
+        .num {
+          padding: 0 @padding-md @padding-xs @padding-md;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          .sum {
+            font-size: 1.9em;
+            font-weight: bold;
+            cursor: pointer;
+            color: fade(#1cb1ee, 80%);
+          }
+          .type {
+            font-size: 0.8em;
+            color: fade(#fff, 60%);
+            .detail {
+              margin: @layout-space-base / 2;
+              span {
+                display: inline-block;
+                margin-left: @layout-space-base;
+              }
+            }
+          }
+        }
+      }
+    }
+    .unit .org-content .num .sum {
+      color: fade(#FEAB2E, 80%);
+    }
+  }
+}
+</style>

@@ -1,0 +1,43 @@
+<template>
+  <div class="add-item">
+    <span>{{`共${count}项`}}</span>
+    <a-button style="margin-left:10px" size="small" icon="plus" @click="addItem">添加</a-button>
+  </div>
+</template>
+<script>
+import { Button, Icon } from 'ant-design-vue'
+import SettingMixin from '../../mixin/setting'
+import { generateCode } from '@/formdesign/utils'
+
+export default {
+  components:{
+    AButton: Button,
+    AIcon: Icon,
+  },
+  mixins: [SettingMixin],
+  computed:{
+    count(){
+      let v = this.propValue;
+      return v && v.length || 0;
+    }
+  },
+  methods: {
+    addItem(){
+      this.contentExpand = true;
+      this.propValue.push({
+        name: generateCode(),
+        type: 'void',
+        'x-component': 'GridLayout.Grid',
+        'x-component-props': { span: 12 },
+      })
+      this.propValue = [...this.propValue]//FIXME sunwen 数组操作响应性丢失 先简单处理下
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.add-item{
+  color: @disabled-color;
+  white-space: nowrap;
+}
+</style>

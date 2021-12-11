@@ -1,0 +1,478 @@
+<template>
+  <div class="report-detail">
+    <div class="main">
+      <div class="main-top">
+        <a-button type="primary" v-if="!this.$route.query.id" @click="saveReport">保存</a-button>
+        <a-button type="primary" v-if="!this.$route.query.id" @click="onAdd">变更</a-button>
+        <a-button type="primary" @click="onExport">一键导出</a-button> 
+      </div>
+      <div class="main-content">
+        <Content v-if="detailData" :content="detailData" ref="content" />
+      </div>
+    </div>
+    <a-modal
+      title="变更"
+      v-model="addvisible"
+      :width="800"
+      :destroyOnClose="true"
+      :bodyStyle="{height: '500px'}"
+      @ok="addOk"
+      @cancel="addCancel">
+      <add-report ref="AddReport" :spin="spinning"></add-report>
+    </a-modal>
+    <a-modal
+      title="标题"
+      v-model="titlevisible"
+      :width="500"
+      :destroyOnClose="true"
+      @ok="handleOk"
+      @cancel="titleCancel">
+      <div class="add-title">
+        <a-form class="title-form" :form="form">
+          <a-form-item
+            label="页面标题"
+            >
+            <a-input
+              v-decorator="[
+                'title',
+                { rules: [{ required: true, message: '请输入页面标题!' }]},
+              ]"
+            />
+          </a-form-item>
+        </a-form>
+      </div>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Button, Modal, Form, Input } from "ant-design-vue";
+import AddReport from '@/person-shaoxing/views/assessment/compileAssist/components/AddReport';
+import Content from "./components/Content";
+import { reportDetail, addReport } from "@/person-shaoxing/api/assessment";
+import {convertHtml2Pdf} from '@framework/api/file';
+import { showError } from "@/framework/utils/index";
+import { loadData } from './components/contentItems';
+
+export default {
+  components: {
+    AButton: Button,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    AddReport,
+    Content
+  },
+  computed: {
+    assessData() {
+      return this.$store.getters.assessData
+    }
+  },
+  data() {
+    return {
+      detailData: undefined,
+      addvisible: false,
+      spinning: false,
+      titlevisible: false
+    }
+  },
+  beforeCreate() {
+    this.form = this.$form.createForm(this);
+  },
+  created() {
+    if(this.$route.query.id) {
+      this.getData();
+    }else{
+      this.detailData = this.assessData.details;
+    }
+  },
+  methods: {
+    getData() {
+      reportDetail(this.$route.query.id)
+      .then(({result}) => {
+        this.detailData = JSON.parse(result.details);
+      })  
+      .catch(err => {
+        showError(err);
+      })
+    },
+    saveReport() {
+      let data = {};
+      data.details = JSON.stringify(this.detailData);
+      data.configid = this.assessData.configid;
+      data.orgname = this.assessData.name;
+      addReport(data)
+      .then(({result}) =>{
+        this.showCloseWindow();
+        return;
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    onAdd() {
+      this.addvisible = true;
+    },
+    async addOk() {
+      this.spinning = true;
+      let value = await this.$refs.AddReport.getFormValue();
+      if(value) {
+        let data = await loadData(value.target, value.itemArr);
+        let assessData = {
+          configid: value.content,
+          name: value.target.hasOwnProperty('org') ? value.target.org.name : value.target.orgname,
+          details: data
+        }
+        if(data) {
+          this.detailData = assessData.details;
+          this.spinning= false;
+          this.addvisible = false;
+        }else{
+          this.spinning = false;
+        }
+      }else{
+        this.spinning = false;
+      }
+    },
+    addCancel() {
+      this.addvisible = false;
+    },
+    showCloseWindow(){
+      let secondsToGo = 3;
+      const modal = Modal.info({
+        title: '提示', 
+        content: `提交成功，窗口将在 ${secondsToGo} 后自动关闭`,
+        okText: '关闭窗口',
+        keyboard: false,
+        onOk: () => {
+          this.$router.push('/person/assessment/compileassist');
+          return;
+        }
+      })
+      const interval = setInterval(() => {
+        secondsToGo -= 1;
+        modal.update({
+          content: `提交成功，窗口将在 ${secondsToGo} 后自动关闭`,
+        });
+      }, 1000);
+      setTimeout(() => {
+        clearInterval(interval);
+        modal.destroy();
+        this.$router.push('/person/assessment/compileassist');
+      }, secondsToGo * 1000);
+    },
+    onExport() {
+      this.titlevisible = true;
+    },
+    titleCancel() {
+      this.titlevisible = false;
+    },
+    handleOk() {
+      this.form.validateFields((err, values) => {
+        if(err){
+          return;
+        } else {
+          this.titlevisible = false;
+          this.exportPDF(values.title);
+        }
+      })
+    },
+    //  生成表格
+    addTable(data) {
+      let tableData = data.tableData;
+      let table = `<table style="width: 100%;">`
+      let thead = `<thead><tr>`
+      let tbody = `<tbody>`
+      if(data.tableData.length > 0) {
+        //  获取数据的每一项key的长度 来判断表头长度
+        let headArr = Object.keys(tableData[0])
+        headArr.forEach((item, index) => {
+          //  目前只考虑colspan
+          if (data.headArr[index].colspan > 1) {
+            thead += `<td style="text-align: center;" colspan="${data.headArr[index].colspan}">${data.headArr[index].text}</td>`
+          } else if (data.headArr[index].colspan == 1) {
+            thead += `<td colspan="${data.headArr[index].colspan}">${data.headArr[index].text}</td>` 
+          } else {
+            thead += ""
+          }
+        })
+        thead  = thead + `</tr></thead>`
+        tableData.forEach((item, index) => {
+          tbody += `<tr>`;
+          headArr.forEach((list, num) => {
+            //  宽度
+            let width = Math.round(1/headArr.length * 10000) / 100 + '%';
+            if (data.isSort) {//  添加序号
+              if (num == 0) {
+                tbody += `<td style="width: ${width};">${index + 1}</td>`
+              } else {
+                let res = tableData[index][headArr[num]] ? tableData[index][headArr[num]] : ''
+                tbody += `<td style="width: ${width};">${res}</td>`
+              }
+            } else if (data.isSpecial) {//  特殊表格 行政/事业 周转编制使用分析评估情况 
+              let res = tableData[index][headArr[num]] == undefined ? '' : tableData[index][headArr[num]];
+              if (tableData.length > 8) {// 事业
+                if (index == 0 || index == 3 || index == 6) {
+                  if (num == 0) {
+                    tbody += `<td style="width: ${width};" rowspan="3">${res}</td>`
+                  } else {
+                    tbody += `<td style="width: ${width};" rowspan="1">${res}</td>`
+                  }
+                } else {
+                  if (num == 0) {
+                    tbody += ``
+                  } else {
+                    tbody += `<td style="width: ${width};" rowspan="1">${res}</td>`
+                  }
+                }
+              } else {//  行政
+                if (index == 0 || index == 5) {
+                  if (num == 0) {
+                    tbody += `<td style="width: ${width};" rowspan="3">${res}</td>`
+                  } else {
+                    tbody += `<td style="width: ${width};" rowspan="1">${res}</td>`
+                  }
+                } else if (index == 3) {
+                  if (num == 0) {
+                    tbody += `<td style="width: ${width};" rowspan="2">${res}</td>`
+                  } else {
+                    tbody += `<td style="width: ${width};" rowspan="1">${res}</td>`
+                  }
+                } else {
+                  if (num == 0) {
+                    tbody += ``
+                  } else {
+                    tbody += `<td style="width: ${width};" rowspan="1">${res}</td>`
+                  }
+                }
+              }
+            } else {
+              let res = tableData[index][headArr[num]] == undefined ? '' : tableData[index][headArr[num]];
+              tbody += `<td style="width: ${width};">${res}</td>`
+            }
+          })
+          tbody += `</tr>`
+        })
+      } else {//  空表格
+        let headArr = data.headArr;
+        headArr.forEach((item, index) => {
+          //  目前只考虑colspan
+          if (data.headArr[index].colspan > 1) {
+            thead += `<td style="text-align: center;" colspan="${data.headArr[index].colspan}">${data.headArr[index].text}</td>`
+          } else if (data.headArr[index].colspan == 1) {
+            thead += `<td colspan="${data.headArr[index].colspan}">${data.headArr[index].text}</td>` 
+          } else {
+            thead += ""
+          }
+        })
+        thead  = thead + `</tr></thead>`
+        tbody += `<tr>`;
+        headArr.forEach((list, num) => {
+          //  宽度
+          let width = Math.round(1/headArr.length * 10000) / 100 + '%';
+          tbody += `<td style="width: ${width};">&nbsp;</td>`
+        })
+        tbody += `</tr>`
+      }
+      if(data.isSort) {// 处理内设机构情况
+        tbody += `<td style="text-align: center;" colspan="2">是否超过33%</td><td></td>`
+      }
+      tbody = tbody + `</tbody>`;
+      table = table + thead + tbody + '</table>';
+      return table;
+    },
+    exportPDF(title) {
+      //  获取评估项
+      const item = this.$refs.content.getVal();
+      let data = this.$store.getters.processedData
+      let template = "", index = 0;
+      let textIndent = "0";
+      for (let i = 0; i < item.length; i ++) {
+        if (item[i].key && typeof(item[i].key) == 'number') {
+          let sort = ['一、', '二、', '三、', '四、'];
+          template += `<h2 calss="sort" style="text-indent: ${textIndent};line-height: 2em;"><span style="font-size: 18px;">${sort[item[i].key - 1]}${item[i].sort}</span></h2></h2>`;
+        } else if (item[i].show) {
+          let title = ['(一)', '(二)', '(三)', '(四)', '(五)', '(六)', '(七)', '(八)', '(九)', '(十)'];
+          template += `<h4 calss="title" style="text-indent: ${textIndent};line-height: 2em;"><span style="font-size: 18px;">${title[index]}${item[i].title}</span></h4>`
+          index ++;
+        } else {
+          //  处理内容
+          switch(item[i].key) {
+            case "baseInfo_new"://  基本信息
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "baseInfo_yetxz":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "baseInfo_yetsy":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "compileJob_yetxz"://  编制职数岗位分析
+              template += `<p calss="title"><span>${data[item[i].key].all}</span><span>${data[item[i].key].bz}</span><span>${data[item[i].key].user}</span>
+                        <span>${data[item[i].key].job}</span><span>${data[item[i].key].bw}</span><span>${data[item[i].key].yb}</span><span>${data[item[i].key].zs}</span></p>`
+              break;
+            case "compileJob_yetsy":
+              template += `<p calss="title"><span>${data[item[i].key].all}</span><span>${data[item[i].key].bz}</span><span>${data[item[i].key].user}</span>
+                        <span>${data[item[i].key].job}</span><span>${data[item[i].key].bw}</span><span>${data[item[i].key].yb}</span><span>${data[item[i].key].zs}</span></p>`
+              break;
+            case "staffViolate_new":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "staffViolate_yet":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "staffBlacklist_new":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+            case "staffBlacklist_yet":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "businessOrgreport_new":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+            case "businessOrgreport_yet":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "orgLimit_newxz":
+              template += `<p calss="title"><span>${data[item[i].key].limit}</span><span>${data[item[i].key].officeOrgLimit}</span></p>`
+              break;
+            case "orgLimit_newsy":
+              template += `<p calss="title"><span>${data[item[i].key].limit}</span><span>${data[item[i].key].officeOrgLimit}</span></p>`
+              break;
+            case "orgCase_new":// 表格
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "orgCase_yet":
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "orgListednumber_new":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "orgListednumber_yet":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "orgNamenotation_new":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "orgNamenotation_yet": 
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "compileLimit_newxz":  //  区域内编制限额
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "compileLimit_yetxz":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "compileLimit_newsy":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "compileLimit_yetsy":
+              template += `<p calss="title">${data[item[i].key]}</p>`
+              break;
+            case "orgStaffcase_newxz":  //  同类机构编制比对情况 ToDo
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "orgStaffcase_yetxz":
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "orgStaffcase_newsy":
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "orgStaffcase_yetsy":
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "policyServercatalog":
+              template += `<p calss="title">${data[item[i].key].duty}</p><p calss="title">${data[item[i].key].scope}</p>`;
+              break;
+            case "policyCompilereport": //  行政周转编制使用分析评估情况
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "businessCompilereport": //  事业周转编制使用分析评估情况
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "importantAreaCompile":
+              template += `<p calss="title">${data[item[i].key].result}</p><p calss="title">${data[item[i].key].addition}</p>`;
+              break;
+            case "orgLeadernumber_new": //  行政机构领导职数配置  
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "orgLeadernumber_yet":
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "businessLeadernumber_new": //  事业机构领导职数配置  
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "businessLeadernumber_yet":
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "schoolLeaderRule_new": //  高校领导职数配置规则  
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "schoolLeaderRule_yet":
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "hospitalLeaderRule_new": //  医院领导职数配置规则  
+              template += this.addTable(data[item[i].key]);
+              break;
+            case "hospitalLeaderRule_yet":
+              template += this.addTable(data[item[i].key]);
+              break;
+          }
+        }
+        template += "\n";
+      }
+      let html = `<!DOCTYPE html>
+        <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${title}</title>
+          <style>
+          body{font-family:sans-serif;font-size:14px;word-break:break-word;text-align:justify;}h2{font-family: SimHei;};h4{font-family: KaiTi_GB2312;};p{font-family: FangSong_GB2312;font-size:16px;margin:5px 0;}table{border-collapse:collapse;}table td, table th{border:1px solid;padding: 2px 6px;word-break:break-word;}body{margin: 60px 60px 60px 60px;}</style>
+        </head>
+        <body>
+          <div calss="main">
+            ${template}
+          </div>
+        </body>
+      </html>
+      `
+      convertHtml2Pdf({
+        html,
+        margin: ['96', '96', '120', '120'],
+        title,
+        pagesize: 'A4',
+        rotate: false
+      })
+      .then(res => {})
+      .catch(err => {
+        showError(err)
+      })
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.report-detail{
+  padding: 10px;
+  height: 100%;
+  .main{
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    overflow: hidden;
+    background: @white;
+    height: 100%;
+    .main-top{
+      padding: 18px @content-padding-h @content-padding-h;
+      button{
+        margin-right: 16px;
+      }
+    }
+    .main-content{
+      flex-shrink: 1;
+      overflow-y: auto;
+    }
+  }
+}
+</style>

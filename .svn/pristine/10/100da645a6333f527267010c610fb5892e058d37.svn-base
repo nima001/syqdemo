@@ -1,0 +1,668 @@
+<template>
+  <!--考核奖-->
+  <a-layout class="assessmentAward">
+    <a-layout-content class="awardcontent">
+      <div class="top">
+        <div class="left">
+          <a-button type="primary" @click="payupload">
+            <a-icon type="upload" />导入
+          </a-button>
+          <input
+            type="file"
+            ref="fileBtn"
+            accept=".xls, .xlsx"
+            class="fileBtn"
+            @change="uploadFile($event)"
+            multiple="multiple"
+          />
+          <a-button type="primary" style="margin-left:8px;" @click="openModel">
+            <a-icon type="download" />导出
+          </a-button>
+        </div>
+        <div class="right">
+          <a-input
+            class="orginput"
+            allowClear
+            read-only
+            @click="OrgModelShow"
+            @change="resetRange"
+            v-model="node.nodename"
+            placeholder="请选择组织范围"
+          />
+          <a-select
+            v-model="yearState.time"
+            showSearch
+            :allowClear="true"
+            placeholder="年份选择"
+            style="width: 165px"
+            optionFilterProp="children"
+            @change="yearChange"
+          >
+            <a-select-option
+              v-for="(item, index) in datasourceSelect"
+              :key="index"
+              :value="index"
+            >{{item}}</a-select-option>
+          </a-select>
+          <a-button type="primary" style="margin-left:8px;" @click="inquiry">查询</a-button>
+        </div>
+      </div>
+      <div class="awardtable">
+        <a-table
+          :scroll="{ x: 1200 }"
+          :loading="loading"
+          :columns="columns"
+          :dataSource="pagination.rows"
+          :pagination="false"
+          bordered
+        >
+          <template v-for="col in coldata" :slot="col" slot-scope="text, record">
+            <div :key="col">
+              <a-input
+                v-if="record.editable"
+                style="margin: -5px 0"
+                :value="text"
+                @change="e => handleChange(e.target.value, record.key, col)"
+              />
+              <template v-else>{{ text }}</template>
+            </div>
+          </template>
+          <template slot="operation" slot-scope="text, record">
+            <div class="editable-row-operations">
+              <span v-if="record.editable">
+                <a @click="() => save(record.key)" style="margin-right:5px">保存</a>
+                <a-popconfirm title="确定取消操作?" @confirm="() => cancel(record.key)">
+                  <a style="margin-left:5px">取消</a>
+                </a-popconfirm>
+              </span>
+              <span v-else>
+                <a :disabled="editingKey !== ''" @click="() => edit(record.key)">编辑</a>
+              </span>
+            </div>
+          </template>
+        </a-table>
+      </div>
+      <div class="footer">
+        <a-pagination
+          v-if="pagination.rows && pagination.rows.length"
+          showSizeChanger
+          :showTotal="total => `总共：${total}条`"
+          @showSizeChange="onShowSizeChange"
+          :total="pagination.total"
+          v-model="pagination.pagenum"
+          @change="onPageChange"
+        />
+      </div>
+      <!--组织选择-->
+      <a-modal
+        title="选择组织"
+        v-model="orgVisible"
+        :footer="null"
+        :width="500"
+        :bodyStyle="{ height: '600px', padding: '0'}"
+      >
+        <org-user-select
+          mode="orgtree"
+          :defaultTree="catalogid"
+          :root-selectable="true"
+          @finish="selectOrg"
+        />
+      </a-modal>
+              <a-modal title="提示" :visible="visible">
+          <p>{{ ModalText }}</p>
+          <template slot="footer">
+            <a-button @click="handleCancel">取消</a-button>
+            <a-button type="primary" @click="exportHandler">确定</a-button>
+          </template>
+        </a-modal>
+      <TaskProgress :taskid="taskid" :defaultInfo="defaultInfo" v-if="taskid" />
+    </a-layout-content>
+  </a-layout>
+</template>
+<script>
+import {
+  Layout,
+  Breadcrumb,
+  Table,
+  Input,
+  Button,
+  DatePicker,
+  Pagination,
+  Modal,
+  Icon,
+  Select,
+  Popconfirm,
+} from "ant-design-vue";
+import moment from "moment";
+import { taskProgress } from "@/framework/api/asynctask";
+import TaskProgress from "@/framework/components/TaskProgress";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { download } from "@/framework/api/file";
+let uiConfigs = uiConfigsCookies();
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import { showError } from "@/framework/utils/index";
+import { treeroot } from "@/salary/api/org";
+import {
+  assessment,
+  assessupdate,
+  modifiablemonth,
+  importawards,
+  exportawards,
+} from "@/salary/api/salaryManage";
+export default {
+  name: "assessmentAward",
+  components: {
+    ALayout: Layout,
+    ALayoutContent: Layout.Content,
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    ATable: Table,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AIcon: Icon,
+    AInput: Input,
+    AButton: Button,
+    ADatePicker: DatePicker,
+    APagination: Pagination,
+    AModal: Modal,
+    APopconfirm: Popconfirm,
+    OrgUserSelect,
+    TaskProgress,
+  },
+  data() {
+    return {
+      moment,
+      visible: false,
+      ModalText: "确认导出《考核表》吗？",
+      taskid: "",
+      yearState: {
+        isOpen: false,
+        time: null,
+      },
+      columns: [
+        {
+          title: "序号",
+          customRender: (text, record, index) => `${index + 1}`,
+          width: 60,
+          height: 68,
+        },
+        {
+          title: "人员列表",
+          dataIndex: "username",
+          key: "userid",
+          width: 90,
+          height: 68,
+        },
+        {
+          title: "按月发放",
+          children: [
+            {
+              title: "1月",
+              dataIndex: "january",
+              scopedSlots: { customRender: "january" },
+              width: 90,
+              height: 68,
+            },
+            {
+              title: "2月",
+              dataIndex: "february",
+              scopedSlots: { customRender: "february" },
+              width: 90,
+              height: 68,
+            },
+            {
+              title: "3月",
+              dataIndex: "march",
+              scopedSlots: { customRender: "march" },
+              width: 90,
+              height: 68,
+            },
+            {
+              title: "4月",
+              dataIndex: "april",
+              scopedSlots: { customRender: "april" },
+              width: 90,
+              height: 68,
+            },
+            {
+              title: "5月",
+              dataIndex: "may",
+              scopedSlots: { customRender: "may" },
+              width: 90,
+              height: 68,
+            },
+            {
+              title: "6月",
+              dataIndex: "june",
+              scopedSlots: { customRender: "june" },
+              width: 90,
+              height: 68,
+            },
+            {
+              title: "7月",
+              dataIndex: "july",
+              scopedSlots: { customRender: "july" },
+              width: 90,
+              height: 68,
+            },
+            {
+              title: "8月",
+              dataIndex: "august",
+              scopedSlots: { customRender: "august" },
+              width: 90,
+              height: 68,
+            },
+            {
+              title: "9月",
+              dataIndex: "september",
+              scopedSlots: { customRender: "september" },
+              width: 90,
+              height: 68,
+            },
+            {
+              title: "10月",
+              dataIndex: "october",
+              scopedSlots: { customRender: "october" },
+              width: 90,
+              height: 68,
+            },
+            {
+              title: "11月",
+              dataIndex: "november",
+              scopedSlots: { customRender: "november" },
+              width: 90,
+              height: 68,
+            },
+            {
+              title: "12月",
+              dataIndex: "december",
+              scopedSlots: { customRender: "december" },
+              width: 90,
+              height: 68,
+            },
+          ],
+        },
+        {
+          title: "月度总计",
+          dataIndex: "monthlytotal",
+          width: 90,
+          height: 68,
+          scopedSlots: { customRender: "monthlytotal" },
+        },
+        {
+          title: "年度发放",
+          dataIndex: "yearlypay",
+          width: 90,
+          height: 68,
+          scopedSlots: { customRender: "yearlypay" },
+        },
+        {
+          title: "总计",
+          dataIndex: "total",
+          width: 90,
+          height: 68,
+          scopedSlots: { customRender: "total" },
+        },
+        {
+          title: "操作",
+          width: 90,
+          height: 68,
+          scopedSlots: { customRender: "operation" },
+        },
+      ],
+      loading: false,
+      node: {
+        nodeid: null,
+        nodename: null,
+        orgid: null,
+      },
+      pagination: {
+        rows: null,
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+      },
+      orgVisible: false,
+      catalogid: undefined,
+      editingKey: "",
+      defaultInfo: "",
+      coldata: [],
+      datasourceSelect: [],
+    };
+  },
+  created() {
+    this.yearState.time = moment().format("YYYY");
+    this.createYear();
+    treeroot().then((res) => {
+      this.node.nodeid = res.result.children[0].id;
+      this.node.nodename = res.result.children[0].data.name;
+      this.node.orgid = res.result.children[0].data._id;
+      this.postList();
+    });
+  },
+  destroyed() {
+    clearInterval(this.myInterval);
+  },
+  methods: {
+          openModel() {
+      this.visible = true;
+    },
+      handleCancel() {
+      this.visible = false;
+    },
+    payupload() {
+      this.$refs.fileBtn.value = null;
+      this.$refs.fileBtn.dispatchEvent(new MouseEvent("click"));
+    },
+    //上传文件
+    uploadFile(event) {
+      let file = event.target.files[0];
+      let data = {
+        date: this.yearState.time,
+        file: file,
+        orgid: this.node.orgid,
+      };
+      importawards(data)
+        .then((res) => {
+          this.fileName = file.name;
+          this.taskid = res.result;
+          this.defaultInfo = "正在上传";
+          this.asyncfunction(this.taskid);
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    // 轮循获取进度
+    asyncfunction(data) {
+      let _that = this;
+      taskProgress(data)
+        .then((res) => {
+          //进度
+          this.progress = res.result.progress;
+          //任务类型
+          this.stage = res.result.stage;
+          //状态
+          this.status = res.result.status;
+          //总条数
+          this.total = res.result.total;
+          //完成后地址
+          this.downloadurl = res.result.data;
+          if (res.result.status === "FINISH") {
+            if (res.result.data) {
+              download(this.downloadurl);
+            } else {
+              this.$notification.success({
+                message: "提示",
+                description: "文件上传成功!",
+                duration: 3,
+              });
+              this.inquiry();
+            }
+          } else if (res.result.status == "ERROR") {
+            clearInterval(this.myInterval);
+          } else {
+            this.myInterval = window.setTimeout(() => {
+              _that.asyncfunction(data);
+            }, 2000);
+          }
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    exportHandler() {
+      let data = {
+        date: this.yearState.time,
+        nodeid: this.node.nodeid,
+        usertype: 4,
+      };
+      exportawards(data)
+        .then((res) => {
+          this.visible = false;
+          this.taskid = res.result;
+          this.asyncfunction(this.taskid);
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    inquiry() {
+      this.pagination.rows = null;
+      this.pagination.pagenum = 1;
+      if (this.node.nodeid && this.yearState.time) {
+        this.postList();
+      } else {
+        this.$notification.warning({
+          message: "提示",
+          description: "请输入内容后再进行查询!",
+          duration: 3,
+        });
+      }
+    },
+    //获取文件列表
+    postList(page) {
+      this.loading = true;
+      const pagination = page ? page : this.pagination;
+      let data = {
+        usertype: 4,
+        nodeid: this.node.nodeid,
+        date: this.yearState.time,
+        needtotal: true,
+        ...pagination,
+      };
+      assessment(data)
+        .then((res) => {
+          if (!res.result) {
+            this.loading = false;
+            this.pagination.rows = null;
+            this.$notification.warning({
+              message: "提示",
+              description: "暂无数据!",
+              duration: 3,
+            });
+          } else {
+            this.loading = false;
+            this.pagination = res.result;
+            for (let i = 0; i < this.pagination.rows.length; i++) {
+              this.$set(
+                this.pagination.rows[i],
+                "key",
+                res.result.pagenum * 10 + i - 9
+              );
+              this.$set(this.pagination.rows[i], "key", i);
+            }
+          }
+        })
+        .catch((error) => {
+          this.loading = false;
+          showError(error);
+        });
+      let information = {
+        orgid: this.node.orgid,
+        date: this.yearState.time,
+      };
+      modifiablemonth(information)
+        .then((res) => {
+          this.coldata = res.result;
+        })
+        .catch((error) => {
+          this.coldata = [
+            "january",
+            "february",
+            "march",
+            "april",
+            "may",
+            "june",
+            "july",
+            "august",
+            "september",
+            "october",
+            "november",
+            "december",
+            "yearlypay",
+            "total",
+          ];
+          showError(error);
+        });
+    },
+    onPageChange(page, pagesize) {
+      this.loadData(page, pagesize);
+    },
+    onShowSizeChange(pagenum, size) {
+      this.loadData(1, size);
+    },
+    loadData(pagenum, pageSize) {
+      this.postList({ pagenum, pageSize });
+    },
+    // onClearDate(value) {
+    //   this.yearState.time = null;
+    // },
+    OrgModelShow() {
+      this.orgVisible = true;
+    },
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok" && list.length) {
+        this.node.nodename = list[0].name;
+        this.node.nodeid = list[0].id;
+        this.node.orgid = list[0].data._id;
+      }
+    },
+    resetRange() {
+      if (!this.node.nodename && this.node.nodeid) {
+        this.node.nodeid = "";
+      }
+    },
+    handleChange(value, key, column) {
+      const newData = [...this.pagination.rows];
+      const target = newData.filter((item) => key === item.key)[0];
+      if (target) {
+        target[column] = value;
+        this.pagination.rows = newData;
+      }
+    },
+    createYear() {
+      let year = new Date().getFullYear();
+      for (let i = year; i > 1970; i--) {
+        this.datasourceSelect.push(i);
+      }
+    },
+    yearChange(value) {
+      this.currentYear = this.datasourceSelect[value];
+      this.yearState.time = this.currentYear;
+    },
+    edit(key) {
+      const newData = [...this.pagination.rows];
+      const target = newData.filter((item) => key === item.key)[0];
+      Object.keys(target).forEach((key) => {
+        if (target[key] == "--") {
+          target[key] = "";
+        }
+      });
+      this.editingKey = key;
+      if (target) {
+        target.editable = true;
+        this.pagination.rows = newData;
+      }
+    },
+    save(key) {
+      this.cacheData = this.pagination.rows.map((item) => ({ ...item }));
+      const newData = [...this.pagination.rows];
+      const newCacheData = [...this.cacheData];
+      const target = newData.filter((item) => key === item.key)[0];
+      const targetCache = newCacheData.filter((item) => key === item.key)[0];
+      if (target && targetCache) {
+        delete target.editable;
+        this.pagination.rows = newData;
+        Object.assign(targetCache, target);
+        this.cacheData = newCacheData;
+      }
+      let data = {
+        date: this.yearState.time,
+        orgid: this.node.orgid,
+        ...target,
+      };
+      this.loading = true;
+      assessupdate(data)
+        .then((res) => {
+          this.postList();
+          this.loading = false;
+        })
+        .catch((error) => {
+          this.loading = false;
+          showError(error);
+        });
+      this.editingKey = "";
+    },
+    cancel(key) {
+      this.cacheData = this.pagination.rows.map((item) => ({ ...item }));
+      const newData = [...this.pagination.rows];
+      const target = newData.filter((item) => key === item.key)[0];
+      this.editingKey = "";
+      if (target) {
+        Object.assign(
+          target,
+          this.cacheData.filter((item) => key === item.key)[0]
+        );
+        delete target.editable;
+        this.postList();
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.assessmentAward {
+  height: 100%;
+  padding: @layout-space-base;
+  .awardcontent {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    width: 100%;
+    background-color: white;
+    .top {
+      padding: @content-padding-v @content-padding-h;
+      width: 100%;
+      height: auto;
+      .right {
+        float: right;
+        .orginput {
+          width: 165px;
+          margin-right: @content-padding-v;
+        }
+      }
+      .left {
+        float: left;
+        .fileBtn {
+          width: 0px;
+          height: 0px;
+          opacity: 0;
+        }
+      }
+    }
+    .awardtable {
+      padding: 0 @content-padding-h;
+      flex-shrink: 1;
+      min-height: 0;
+      overflow-y: auto;
+    }
+    .footer {
+      padding: @content-padding-v @content-padding-h;
+      .ant-pagination {
+        float: right;
+        margin-bottom: 10px;
+      }
+    }
+  }
+  /deep/ .ant-table-thead > tr > th {
+    text-align: center;
+  }
+  /deep/ .ant-table table {
+    text-align: center;
+  }
+}
+</style>

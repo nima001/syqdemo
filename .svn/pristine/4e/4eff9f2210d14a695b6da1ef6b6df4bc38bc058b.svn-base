@@ -1,0 +1,53 @@
+<template>
+  <a-select @change="opChange" v-if="defaultData.opListTwo" :value="defaultData.op2">
+    <a-select-option
+      :value="item.value"
+      v-for="(item,index) in defaultData.opListTwo"
+      :key="index+Math.random()"
+    >{{item.text}}</a-select-option>
+  </a-select>
+</template>
+<script>
+import {Select} from 'ant-design-vue';
+import { queryfields } from "@/person/api/integratedquery";
+import { eachArray } from "../../../utils/index";
+
+
+export default {
+  name: "OpSelectTwo",
+  data() {
+    return {
+      fieldsTwo: []
+    };
+  },
+  components:{
+    ASelect:Select,
+    ASelectOption:Select.Option
+  },
+  props: {
+    defaultData: {
+      type: Object,
+      required: true
+    },
+    position: {
+      type: String,
+      required: true
+    },
+    targetid: {
+      type: Number,
+      required: true
+    }
+  },
+  methods: {
+    opChange(value) {
+      this.$store.commit({
+        type: "SET_OP_TWO",
+        position: this.position,
+        op2: value
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+</style>

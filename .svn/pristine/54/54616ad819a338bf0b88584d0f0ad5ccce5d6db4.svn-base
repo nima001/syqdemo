@@ -1,0 +1,404 @@
+<!-- 权限管理 -->
+<template>
+  <div>
+    <div class="body">
+      <a-row>
+        <a-col :span="6">
+          <div class="body_2">
+            <a-button icon="user" @click="addrole">新增角色</a-button>
+            <a-button icon="delete" @click="deletes">删除</a-button>
+            <!-- <a-button icon="undo">刷新</a-button> -->
+          </div>
+        </a-col>
+        <a-col :span="18">
+          <div class="body_1">
+            <div class="inps">
+              <a-input-group compact>
+                <a-select style="width: 160px" v-model="searchVal">
+                  <a-select-option value="all">全部</a-select-option>
+                  <a-select-option value="namelike">角色名称</a-select-option>
+                  <a-select-option value="codelike">角色代码</a-select-option>
+                </a-select>
+                <a-input style="width: 160px;margin:0 10px" v-model="val" />
+              </a-input-group>
+            </div>
+            <a-button type="primary" @click="search">搜索</a-button>
+            <a-button @click="reset">重置</a-button>
+          </div>
+        </a-col>
+      </a-row>
+      <a-table
+        :rowSelection="rowSelection"
+        :columns="columns"
+        :dataSource="data"
+        :pagination="false"
+        :locale="loca"
+      >
+        <span slot="id" slot-scope="id, record">
+          <a-button type="link" @click="showModal(record)">编辑</a-button>
+          <a-button type="link" @click="goRoleAuth(record)">角色权限</a-button>
+        </span>
+      </a-table>
+      <a-pagination
+        :total="total"
+        :showSizeChanger="true"
+        @showSizeChange="onShowSizeChange"
+        :page-size-options="pageSizeOptions"
+        :pageSize="pagination.pagesize"
+        v-model="pagination.pagenum"
+        @change="onPageChange"
+        :showTotal="(total) => `总共：${total}条`"
+      />
+    </div>
+
+    <a-modal v-model="visible" :footer="null" @cancel="close">
+      <p>修改角色信息</p>
+      <div class="modal_body">
+        角色名称：
+        <a-input v-model="role.name"></a-input>角色代码：
+        <a-input v-model="role.code"></a-input>角色类型：
+        <a-auto-complete :dataSource="dataSource" v-model="role.group" />
+        <a-button type="primary" style="margin-right: 10%;" @click="roleup"
+          >保存</a-button
+        >
+        <a-button @click="close">取消</a-button>
+      </div>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import {
+  Select,
+  Table,
+  Button,
+  Tag,
+  Input,
+  notification,
+  Modal,
+  AutoComplete,
+  Pagination,
+  Row,
+  Col,
+} from "ant-design-vue";
+import {
+  rolelist,
+  roledelete,
+  roleupdate,
+  rolelistgroup,
+} from "@/dev/api/role";
+export default {
+  data() {
+    return {
+      dataSource: ["1", "2", "3"],
+      searchVal: "all",
+      codelike: null,
+      namelike: null,
+      data: [
+        {
+          key: "1",
+          name: "应用名称1",
+          id: 0,
+        },
+        {
+          key: "2",
+          name: "应用名称2",
+          id: 1,
+        },
+        {
+          key: "3",
+          name: "应用名称3",
+          id: 2,
+        },
+        {
+          key: "4",
+          name: "应用名称4",
+          id: 3,
+        },
+        {
+          key: "5",
+          name: "应用名称5",
+          id: 4,
+        },
+      ],
+      role: {
+        id: "",
+        code: "",
+        group: "",
+        name: "",
+      },
+      visible: false,
+      selectedRows: [],
+      selectedRowKeys: [],
+      val: "",
+      columns,
+      pageSizeOptions: ["10", "20", "30", "40", "50"],
+      pagination: {
+        pagesize: 10,
+        pagenum: 1,
+      },
+      total: 20,
+      loca: {
+        emptyText: "暂无数据",
+      },
+    };
+  },
+
+  components: {
+    AInput: Input,
+    AInputGroup: Input.Group,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    AButton: Button,
+    AModal: Modal,
+    AAutoComplete: AutoComplete,
+    notification,
+    APagination: Pagination,
+    ARow: Row,
+    ACol: Col,
+  },
+  computed: {
+    rowSelection() {
+      const { selectedRowKeys } = this;
+      return {
+        onChange: (selectedRowKeys, selectedRows) => {
+          this.selectedRows = selectedRows;
+          this.selectedRowKeys = selectedRowKeys;
+        },
+        selectedRowKeys: selectedRowKeys,
+      };
+    },
+  },
+  created() {
+    this.refresh();
+    this.cesi();
+  },
+  methods: {
+    // 角色权限
+    goRoleAuth(record) {
+      this.$router.push({
+        path: "/dev/authmanage",
+        query: { id: record.id },
+      });
+    },
+    // 添加角色
+    addrole() {
+      this.$router.push("/dev/addrole");
+    },
+    // 每页显示条数
+    onShowSizeChange(current, size) {
+      this.pagination.pagesize = size;
+    },
+    // 点击切换页
+    onPageChange(current) {
+      this.pagination.pagenum = current;
+      this.refresh();
+    },
+    showModal(data) {
+      this.visible = true;
+      this.role = data;
+    },
+    close() {
+      this.visible = false;
+    },
+    cesi() {
+      rolelistgroup(this.$route.query.id).then((res) => {
+        let arr = [];
+        res.result.forEach((i) => {
+          arr.push(i.name);
+        });
+        this.dataSource = arr;
+      });
+    },
+    // 修改
+    roleup() {
+      let obj = this.role;
+      obj.appid = this.$store.state.appinfo.appInfo.id;
+      roleupdate(obj).then((res) => {
+        if (res.code == "success") {
+          this.visible = false;
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.desc,
+            duration: 1.5,
+          });
+        }
+        this.refresh();
+      });
+    },
+    // 分页数据
+    refresh() {
+      var obj = {
+        appId: this.$route.query.id,
+        pagenum: this.pagination.pagenum,
+        pagesize: this.pagination.pagesize,
+        needtotal: true,
+        codelike: null,
+        namelike: null,
+      };
+      switch (this.searchVal) {
+        case "all":
+          obj.namelike = this.val;
+          obj.codelike = this.val;
+          break;
+        case "namelike":
+          obj.namelike = this.val;
+          break;
+        case "codelike":
+          obj.codelike = this.val;
+          break;
+      }
+      rolelist(obj).then((res) => {
+        if (res.code == "success") {
+          this.pagination.pagesize = res.result.pagesize;
+          this.total = res.result.total;
+          this.pagination.pagenum = res.result.pagenum;
+          let data = res.result.rows;
+          let serial = (res.result.pagenum - 1) * 10;
+          data.forEach(function(x, y) {
+            x.key = y + 1 + serial;
+          });
+          if (res.result.total < 11) {
+            serial = 0;
+          }
+          this.data = data;
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.message,
+            duration: 1.5,
+          });
+        }
+      });
+    },
+    // 搜索
+    search() {
+      this.pagination.pagenum = 1;
+      this.refresh();
+    },
+    // 重置
+    reset() {
+      this.searchVal = "all";
+      this.codelike = null;
+      this.namelike = null;
+      this.val = "";
+      this.refresh();
+    },
+    // 删除
+    deletes() {
+      if (this.selectedRows.length <= 0) {
+        return;
+      }
+      let selectedRows = this.selectedRows;
+      let arr = [];
+      selectedRows.forEach(function(i) {
+        arr.push(i.id);
+      });
+      this.selectedRowKeys = [];
+      roledelete(arr).then((res) => {
+        if (res.code == "success") {
+          this.refresh();
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.message,
+            duration: 1.5,
+          });
+        }
+      });
+    },
+  },
+};
+const columns = [
+  {
+    title: "序号",
+    dataIndex: "key",
+    key: "key",
+    width: 100,
+  },
+  {
+    title: "角色名称",
+    dataIndex: "name",
+    key: "name",
+    width: 300,
+  },
+  {
+    title: "角色代码",
+    dataIndex: "code",
+    key: "code",
+    width: 300,
+  },
+  {
+    title: "操作",
+    key: "id",
+    dataIndex: "id",
+    scopedSlots: { customRender: "id" },
+  },
+];
+</script>
+<style lang="less" scoped>
+.ant-pagination {
+  margin-top: 30px;
+  text-align: right;
+}
+.body_1 {
+  display: flex;
+  margin-top: 25px;
+  justify-content: flex-end;
+  span {
+    margin-right: 20px;
+  }
+  .antdxk {
+    width: 250px;
+    margin-right: 12px;
+  }
+  .ant-btn {
+    width: 60px;
+    height: 32px;
+    margin-right: 13px;
+  }
+}
+.body {
+  width: 100%;
+}
+.body_2 {
+  margin-top: 25px;
+  .ant-btn {
+    color: @primary-color;
+    border: 1px solid @primary-color;
+    margin-right: 22px;
+  }
+}
+
+.ant-table-wrapper {
+  margin-top: 25px;
+}
+.ant-modal-content {
+  padding: 0 20%;
+  .modal_body {
+    width: 80%;
+    margin: 0 auto;
+    .ant-select {
+      width: 80%;
+      margin-bottom: 30px;
+    }
+    .ant-input {
+      width: 80%;
+      margin-bottom: 30px;
+    }
+    .ant-btn {
+      width: 45%;
+      height: 40px;
+      margin: 20px 0 20px 0;
+    }
+  }
+  p {
+    color: #171717;
+    font-size: 18px;
+    text-align: center;
+    margin: 20px 0 30px 0;
+  }
+}
+</style>

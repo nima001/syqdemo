@@ -1,0 +1,432 @@
+<!--  -->
+<template>
+  <a-layout class="dev-layout">
+    <div class="body">
+      <div class="head">
+        <div>
+          <h3>
+            <b>{{ $route.query.name }}</b>
+          </h3>
+          <p>业务</p>
+        </div>
+        <div style="text-align: right;">
+          <h3 class="auditstatus">
+            <b>审核通过</b>
+          </h3>
+          <p>状态</p>
+        </div>
+      </div>
+      <a-tabs v-model="activeKey" @change="callback" tab-position="left">
+        <a-tab-pane
+          :tab="item.name"
+          v-for="(item, index) in roleArr"
+          :key="index"
+        >
+          <section class="message">
+            <div style="display: flex;">
+              <a-divider type="vertical" />
+              <h4>角色</h4>
+            </div>
+            <div style="display: flex;justify-content: space-between;">
+              <p>
+                角色说明角色说明角色说明角色说明角色说明角色说明角色说明角色说明
+              </p>
+              <p>
+                <a @click="boo">{{ str }}</a>
+              </p>
+            </div>
+
+            <div class="tag">
+              <a-button icon="plus" @click="show">添加人员</a-button>
+              <a-popover title="基本信息" v-for="i in arr" :key="i.key">
+                <template slot="content">
+                  <p>姓名：{{ i.name }}</p>
+                  <p>单位：浙江省余杭</p>
+                  <p>联系方式：xxxxxx</p>
+                  <p style="text-align: right;">
+                    <a>更多...</a>
+                  </p>
+                </template>
+                <!--  -->
+                <a-tag :class="clas" closable @close="del(i.key)">
+                  {{ i.name }}
+                  <!-- <div class="cesi" style="display: none">
+              <span class="cesis"></span>
+              <span class="gou">√</span>
+              </div>-->
+                </a-tag>
+              </a-popover>
+            </div>
+          </section>
+        </a-tab-pane>
+      </a-tabs>
+      <!-- <a-menu style="width: 100px" mode="vertical" :defaultSelectedKeys="[1]">
+        <a-menu-item v-for="i in data" :key="i.key" @click="user(i.id)">{{i.name}}</a-menu-item>
+        <a-menu-item>张三</a-menu-item>
+        <a-menu-item>李四</a-menu-item>
+      </a-menu> -->
+
+      <a-modal
+        v-model="visible"
+        :footer="null"
+        title="添加人员"
+        @cancel="close"
+      >
+        <div class="modal_body">
+          <a-table
+            :rowSelection="rowSelection"
+            :columns="columns"
+            :dataSource="datas"
+          ></a-table>
+          <a-button type="primary" style="margin-right: 10%;" @click="add"
+            >确定</a-button
+          >
+          <a-button @click="close">取消</a-button>
+        </div>
+      </a-modal>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import {
+  Layout,
+  Tabs,
+  Menu,
+  Divider,
+  Tag,
+  Button,
+  Modal,
+  Table,
+  Popover,
+  notification,
+} from "ant-design-vue";
+import {
+  rolelist,
+  roleuserlist,
+  roleuseradd,
+  roleuserdel,
+  roleuserdels,
+} from "@/dev/api/role";
+export default {
+  name: "serviceauthority",
+  data() {
+    return {
+      data: [],
+      arr: [],
+      arrs: [],
+      str: "全选",
+      boole: true,
+      selectedRowKeys: [],
+      notification,
+      visible: false,
+      columns,
+      datas,
+      activeKey: 0,
+      roleArr: [
+        { name: "张三", id: 0 },
+        { name: "李四", id: 1 },
+        { name: "王五", id: 2 },
+      ],
+    };
+  },
+  components: {
+    ALayout: Layout,
+    AMenu: Menu,
+    AMenuItem: Menu.Item,
+    ADivider: Divider,
+    ATag: Tag,
+    APopover: Popover,
+    ATable: Table,
+    AButton: Button,
+    AModal: Modal,
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+  },
+  computed: {
+    rowSelection() {
+      const { selectedRowKeys } = this;
+      return {
+        onChange: (selectedRowKeys, selectedRows) => {
+          this.selectedRowKeys = selectedRowKeys;
+        },
+        selectedRowKeys: selectedRowKeys,
+        getCheckboxProps: (record) => ({
+          props: {
+            disabled: this.arrs.includes(record.key),
+            defaultChecked: this.arrs.includes(record.key),
+            name: record.name,
+          },
+        }),
+      };
+    },
+    clas() {
+      if (this.boole == true) {
+        return "";
+      } else {
+        return "checked";
+      }
+    },
+  },
+  created() {
+    //  this.refresh(this.$store.state.app.accessCode)
+  },
+  methods: {
+    // 切换tabs获取关联用户
+    callback(key) {
+      this.activeKey = key;
+      this.roleArr.find((item, index) => {
+        if (index == key) {
+          console.log(item);
+        }
+      });
+    },
+    boo() {
+      if (this.str == "全选") {
+        this.str = "删除";
+        this.boole = false;
+      } else {
+        this.str = "全选";
+        this.boole = true;
+        let obj = {
+          roleid: this.id,
+          userids: this.arrs,
+        };
+        roleuserdels(obj).then((res) => {
+          if (res.code == "success") {
+            this.user(this.id);
+          } else {
+            notification.error({
+              message: "提示",
+              description: res.message,
+              duration: 1.5,
+            });
+          }
+        });
+      }
+    },
+    del(x) {
+      let obj = {
+        roleid: this.id,
+        userid: x,
+      };
+      roleuserdel(obj).then((res) => {
+        if (res.code == "success") {
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.message,
+            duration: 1.5,
+          });
+        }
+      });
+    },
+    add() {
+      let obj = {
+        roleid: this.id,
+        userids: this.selectedRowKeys,
+      };
+      roleuseradd(obj).then((res) => {
+        if (res.code == "success") {
+          this.visible = false;
+          this.user(this.id);
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.message,
+            duration: 1.5,
+          });
+        }
+      });
+      this.selectedRowKeys = [];
+    },
+    // 获取角色列表
+    refresh(x) {
+      rolelist(x).then((res) => {
+        if (res.code == "success") {
+          let data = res.result.rows;
+          data.forEach(function(x, y) {
+            x.key = y + 1;
+          });
+          this.user(data[0].id);
+          this.data = data;
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.message,
+            duration: 1.5,
+          });
+        }
+      });
+    },
+    user(x) {
+      this.id = x;
+      roleuserlist(x).then((res) => {
+        if (res.code == "success") {
+          let data = res.result;
+          let arr = [];
+          data.forEach((i) => {
+            arr.push(this.datas.filter((item) => item.key == i)[0]);
+          });
+          this.arr = arr;
+          this.arrs = data;
+          this.datas = datas;
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.message,
+            duration: 1.5,
+          });
+        }
+      });
+    },
+    show() {
+      this.visible = true;
+    },
+    close() {
+      this.visible = false;
+    },
+  },
+};
+
+const columns = [
+  {
+    title: "序号",
+    dataIndex: "key",
+    key: "key",
+    width: 100,
+  },
+  {
+    title: "人员名称",
+    dataIndex: "name",
+    key: "name",
+    width: 300,
+  },
+];
+
+const datas = [
+  {
+    name: "张三",
+    key: "1",
+  },
+  {
+    name: "李四",
+    key: "2",
+  },
+  {
+    name: "王五",
+    key: "3",
+  },
+  {
+    name: "晓红",
+    key: "4",
+  },
+  {
+    name: "小明",
+    key: "5",
+  },
+];
+</script>
+<style lang="less" scoped>
+.dev-layout {
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  .body {
+    // display: flex;
+    padding: 8px 24px;
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    .head {
+      display: flex;
+      justify-content: space-between;
+      margin: 20px 0 20px;
+    }
+    .auditstatus {
+      color: @primary-color;
+    }
+  }
+  .message {
+    margin-left: 100px;
+    width: 850px;
+    h4 {
+      color: @primary-color;
+      font-size: 18px;
+      margin-bottom: 30px;
+    }
+    .ant-divider {
+      width: 3px;
+      height: 20px;
+      background-color: @primary-color;
+      margin-top: 5px;
+    }
+    .tag {
+      margin-top: 20px;
+      padding: 15px 0 0 15px;
+      border: dashed 1px #e6e6e6;
+      .ant-btn {
+        color: @primary-color;
+        border: 1px solid @primary-color;
+        width: 120px;
+        height: 40px;
+        text-align: center;
+        line-height: 40px;
+        margin: 0 20px 20px 0;
+        font-size: 15px;
+      }
+      .ant-tag {
+        padding: 0 35px;
+        height: 40px;
+        line-height: 40px;
+        margin: 0 20px 20px 0;
+        font-size: 15px;
+      }
+    }
+  }
+  .ant-modal-content {
+    padding: 0 20%;
+    .modal_body {
+      width: 80%;
+      margin: 0 auto;
+      .ant-input {
+        width: 80%;
+        margin-bottom: 30px;
+      }
+      .ant-btn {
+        width: 45%;
+        height: 40px;
+        margin: 20px 0 20px 0;
+      }
+    }
+    p {
+      color: #171717;
+      font-size: 18px;
+      text-align: center;
+      margin: 20px 0 30px 0;
+    }
+  }
+  .checked {
+    // position: relative;
+    border: 1px solid #1b5293;
+    background-color: #c9e2ff;
+    color: #1b5293;
+  }
+
+  .cesis {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-top: 15px solid #1b5293;
+    border-left: 15px solid transparent;
+  }
+  .gou {
+    position: absolute;
+    top: -18px;
+    right: 0;
+    color: white;
+  }
+}
+</style>

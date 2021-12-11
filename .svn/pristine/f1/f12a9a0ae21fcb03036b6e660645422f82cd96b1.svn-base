@@ -1,0 +1,533 @@
+<template>
+  <div class="wrap">
+    <a-spin v-if="loading" :spinning="loading"></a-spin>
+    <template v-else>
+      <div class="map">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="leaflet-zoom-animated"
+          width="100%"
+          height="100%"
+          viewBox="320 140 760 650"
+          @mousemove="svgMove($event)"
+          @mouseout="reset()"
+        >
+          <g>
+            <path
+              stroke-linejoin="round"
+              stroke-linecap="round"
+              fill-rule="evenodd"
+              stroke="#f9e9cb"
+              stroke-opacity="1"
+              stroke-width="1"
+              fill="#f9e9cb"
+              fill-opacity="1"
+              d="M776 706L772 710L765 711L758 719L749 714L744 718L743 716L740 716L735 713L722 714L718 707L714 705L711 711L708 711L707 709L711 701L705 694L699 694L698 692L701 689L701 687L695 680L692 681L683 675L676 664L676 651L678 645L682 641L680 640L679 635L672 634L669 636L669 631L655 619L655 621L652 622L650 625L638 629L636 628L633 630L624 645L618 642L611 642L607 646L602 648L600 655L603 658L605 665L590 669L585 673L583 682L580 687L576 687L572 695L565 698L567 701L563 702L561 699L554 695L547 681L547 678L555 667L558 654L558 651L549 643L547 639L549 630L558 624L556 618L551 617L546 619L540 617L541 613L539 610L531 608L528 603L520 600L522 594L518 587L509 587L508 592L501 603L494 609L484 611L477 620L472 618L466 612L464 612L461 616L454 613L452 608L457 607L457 603L460 597L458 594L451 594L443 591L439 587L441 582L437 580L434 575L428 577L416 572L416 561L419 554L422 551L423 546L427 545L431 547L437 540L425 531L426 528L432 525L432 520L429 516L428 525L424 528L420 528L414 524L408 525L405 518L399 513L399 504L396 501L388 498L381 493L377 495L379 498L378 500L376 498L371 498L367 490L367 484L364 481L362 481L362 471L356 466L356 460L360 461L364 465L368 464L370 467L374 469L374 471L386 464L392 465L401 458L402 462L409 466L419 464L419 461L428 456L428 449L432 445L431 439L428 435L433 425L445 425L453 422L460 428L464 427L466 424L465 420L469 411L476 407L487 396L490 386L490 376L491 374L495 375L498 369L502 369L504 371L503 373L508 376L511 375L518 365L516 361L520 359L523 355L527 354L536 355L539 358L542 357L544 353L548 358L549 364L554 367L558 366L561 363L562 358L574 363L575 362L580 356L581 351L588 346L591 335L599 335L600 328L598 326L600 321L597 318L597 313L595 310L590 307L590 299L588 297L584 297L580 293L581 289L584 288L587 284L587 278L585 275L585 263L574 256L572 256L570 260L566 262L562 259L561 256L567 249L569 244L566 244L569 240L574 238L577 245L581 245L588 235L595 235L594 230L598 232L599 229L612 226L615 233L618 234L617 238L622 239L621 242L624 243L625 241L624 231L628 231L629 229L630 231L631 230L632 234L631 239L634 241L639 240L643 239L643 234L645 233L645 230L652 228L653 219L657 218L668 218L676 226L697 227L701 231L705 229L717 232L726 229L728 221L744 190L757 181L770 164L785 149L794 155L819 163L838 163L859 158L885 207L886 214L890 221L897 245L895 249L892 251L896 252L899 261L902 265L907 263L910 264L914 273L913 278L917 283L919 283L924 288L925 299L923 303L936 311L937 313L945 312L947 310L947 320L950 320L954 315L957 317L961 315L967 318L971 326L975 327L972 335L970 337L967 337L965 341L962 343L959 342L951 346L949 361L943 370L944 371L940 378L940 381L936 382L944 392L945 396L957 406L959 406L960 403L963 404L966 409L972 409L983 417L981 423L978 426L978 429L982 437L977 440L969 453L958 461L956 462L954 459L951 458L941 458L946 470L945 472L942 470L935 473L933 477L936 483L942 483L947 487L933 492L931 498L935 502L935 504L924 506L923 510L924 512L934 514L937 516L948 512L956 506L958 507L966 520L967 537L973 540L976 539L980 541L982 547L986 548L984 552L988 553L989 555L986 555L987 558L984 559L985 562L982 564L985 566L987 565L990 571L986 577L986 584L995 584L998 586L1000 591L1008 591L1015 594L1023 593L1025 595L1034 594L1035 597L1038 598L1041 596L1044 597L1043 599L1046 602L1047 608L1043 610L1042 614L1038 615L1045 621L1041 629L1041 638L1039 638L1039 643L1043 646L1043 648L1039 653L1038 665L1046 668L1045 675L1047 679L1045 680L1044 684L1046 690L1046 697L1043 701L1037 703L1031 709L1027 710L1029 713L1028 721L1021 717L1018 721L1014 721L1012 719L1012 714L1010 711L1006 716L997 712L993 712L988 716L988 720L990 723L989 729L988 732L985 733L978 731L977 728L979 725L967 721L957 721L949 729L942 730L939 729L939 725L934 722L923 729L911 730L907 738L906 745L900 743L897 740L891 739L885 732L878 737L878 748L877 750L874 750L871 754L875 762L875 770L869 771L863 767L860 767L857 762L854 761L841 774L837 776L828 773L813 778L811 774L813 768L810 754L812 749L804 745L802 742L811 732L805 726L799 725L795 728L787 728L784 732L779 733L773 723L777 707z"
+            />
+          </g>
+          <g>
+            <path
+              id="越城区"
+              class="mapActive"
+              name="越城区"
+              stroke-linejoin="round"
+              stroke-linecap="round"
+              fill-rule="evenodd"
+              stroke="#999"
+              stroke-opacity="1"
+              stroke-width="1"
+              stroke-dasharray="1 6"
+              fill="transparent"
+              fill-opacity="1"
+              d="M745 242L749 249L770 266L774 268L790 270L790 273L793 274L792 278L794 279L793 282L795 288L789 293L788 299L795 297L797 300L800 299L802 302L801 305L805 308L805 312L814 314L812 321L810 321L808 326L812 326L815 328L813 331L816 335L814 337L814 340L810 342L812 342L811 344L809 342L808 343L810 345L808 345L808 349L810 350L810 352L813 353L811 354L809 360L810 362L808 362L807 364L810 366L811 365L811 372L800 378L803 386L800 391L802 391L798 392L797 395L797 393L794 392L788 397L783 397L783 395L777 393L775 386L772 386L773 384L770 380L768 371L769 370L763 362L764 358L760 354L752 352L751 346L748 344L741 346L741 351L734 350L730 351L728 354L728 358L723 368L723 371L726 375L726 379L722 385L714 389L707 387L700 390L696 386L694 378L692 377L688 380L685 377L687 373L686 368L698 346L697 339L691 331L689 319L680 317L675 311L672 311L671 309L671 307L675 303L676 304L679 302L678 299L681 295L678 292L678 290L682 280L678 273L682 268L686 269L684 260L688 259L689 257L699 259L698 261L700 259L703 260L704 263L706 263L706 261L708 261L707 254L713 242L723 243L728 248L743 242z"
+            />
+          </g>
+          <g>
+            <path
+              id="柯桥区"
+              class="mapActive"
+              stroke-linejoin="round"
+              stroke-linecap="round"
+              fill-rule="evenodd"
+              stroke="#999"
+              stroke-opacity="1"
+              stroke-width="1"
+              stroke-dasharray="1 6"
+              fill="transparent"
+              fill-opacity="1"
+              d="M600 332L600 328L598 326L600 321L597 318L597 313L595 310L590 307L590 299L588 297L584 297L580 293L581 289L584 288L587 284L587 278L585 275L585 263L574 256L572 256L570 260L566 262L562 259L561 256L567 249L569 244L566 244L569 240L574 238L577 245L581 245L588 235L595 235L594 230L598 232L599 229L612 226L615 233L618 234L617 238L622 239L621 242L624 243L625 241L624 231L628 231L629 229L630 231L631 230L632 234L631 239L634 241L639 240L643 239L643 234L645 233L645 230L652 228L653 219L657 218L668 218L672 221L673 224L680 227L691 226L697 227L701 231L705 229L717 232L726 229L728 221L744 190L757 181L770 164L785 149L799 157L818 162L808 174L774 206L755 236L745 242L728 248L723 243L716 243L713 241L707 254L708 261L706 261L706 263L704 263L703 260L700 259L699 261L699 259L696 258L690 257L688 259L685 259L684 262L686 264L686 269L683 268L678 273L678 275L681 277L682 282L678 290L678 292L681 295L678 299L679 302L677 304L675 303L671 307L672 311L675 311L680 317L689 319L691 331L697 339L698 346L686 368L687 373L685 376L688 380L692 377L694 378L696 386L700 390L707 387L714 389L722 385L726 379L726 375L723 371L723 368L728 358L728 354L730 351L734 350L741 351L741 346L748 344L751 345L752 352L758 353L764 358L763 361L767 369L769 370L769 378L773 384L772 386L775 386L775 390L777 391L777 393L783 395L783 397L787 397L793 394L794 392L797 392L793 399L793 409L795 412L794 416L796 422L792 435L795 442L797 441L801 446L797 456L800 458L795 463L794 467L790 467L785 472L783 480L787 480L788 484L783 492L769 499L767 496L759 491L761 479L757 477L757 471L755 470L747 474L737 469L730 472L720 481L712 483L709 492L707 493L703 491L699 494L694 494L693 496L686 497L691 488L682 474L680 472L679 473L677 470L675 462L677 456L677 454L675 453L676 445L675 443L672 442L672 440L682 426L685 415L690 410L687 408L680 409L674 406L674 404L670 403L664 397L664 391L657 389L650 383L643 366L634 363L626 366L625 363L627 356L621 354L617 346L616 333L614 334L610 330L608 332L607 330L605 330L604 333z"
+            />
+          </g>
+          <g>
+            <path
+              id="上虞区"
+              class="mapActive"
+              stroke-linejoin="round"
+              stroke-linecap="round"
+              fill-rule="evenodd"
+              stroke="#999"
+              stroke-opacity="1"
+              stroke-width="1"
+              stroke-dasharray="1 6"
+              fill="transparent"
+              fill-opacity="1"
+              d="M796 395L798 392L802 391L800 391L800 389L803 386L800 378L802 376L805 377L809 374L808 373L811 372L811 365L810 366L807 364L808 362L810 362L809 360L811 354L813 353L810 352L810 350L808 349L808 345L810 345L808 343L809 342L811 344L812 342L810 342L814 340L814 337L816 335L813 331L815 329L812 326L808 326L810 321L812 321L814 314L805 312L805 308L801 305L802 302L800 299L788 299L789 293L796 286L793 282L793 274L790 273L790 270L779 269L770 266L749 249L745 242L755 236L774 206L800 182L818 162L838 163L859 158L885 207L886 214L890 221L897 245L895 249L892 251L896 252L899 261L902 265L907 263L910 264L914 273L913 278L917 283L919 283L924 288L925 299L923 303L936 311L937 313L945 312L947 310L947 320L950 320L954 315L957 317L961 315L967 318L971 326L975 327L972 335L970 337L967 337L965 341L962 343L959 342L951 346L949 361L943 370L944 371L940 378L940 381L936 382L944 392L945 396L957 406L959 406L960 403L963 404L966 409L972 409L983 417L981 423L978 426L978 429L982 437L977 440L969 453L958 461L956 462L954 459L951 458L941 458L946 470L945 472L942 470L937 472L933 477L920 472L914 477L905 478L902 471L886 479L882 476L879 477L877 475L878 472L874 465L869 466L866 470L859 471L852 466L855 459L849 442L844 439L846 434L844 428L845 422L831 422L823 425L811 433L806 432L799 444L797 441L796 442L792 435L796 422L794 416L795 412L793 409L794 398z"
+            />
+          </g>
+          <g>
+            <path
+              id="新昌县"
+              class="mapActive"
+              stroke-linejoin="round"
+              stroke-linecap="round"
+              fill-rule="evenodd"
+              stroke="#999"
+              stroke-opacity="1"
+              stroke-width="1"
+              stroke-dasharray="1 6"
+              fill="transparent"
+              fill-opacity="1"
+              d="M776 706L776 703L783 699L786 692L790 688L791 681L794 678L797 668L797 661L802 657L804 653L803 650L808 648L810 654L813 650L814 647L812 636L823 623L822 621L814 622L813 620L815 617L823 612L834 611L834 609L844 602L846 598L853 594L855 595L864 593L869 598L876 595L880 590L880 585L887 583L893 584L903 592L903 585L907 587L913 587L916 591L919 591L923 590L923 582L930 586L931 591L940 592L942 594L942 606L945 604L952 606L954 605L957 607L963 605L976 609L984 594L984 587L988 583L995 584L998 586L1000 591L1008 591L1015 594L1023 593L1025 595L1034 594L1035 597L1038 598L1041 596L1044 597L1043 599L1046 602L1047 608L1043 610L1042 614L1038 615L1045 621L1041 629L1041 638L1039 638L1039 643L1043 646L1043 648L1039 653L1038 665L1046 668L1045 675L1047 679L1045 680L1044 684L1046 690L1046 697L1043 701L1037 703L1031 709L1027 710L1029 713L1028 721L1021 717L1018 721L1014 721L1012 719L1012 714L1010 711L1006 716L997 712L993 712L988 716L988 720L990 723L989 729L988 732L985 733L978 731L977 728L979 725L967 721L957 721L949 729L942 730L939 729L939 725L934 722L923 729L911 730L907 738L906 745L900 743L897 740L891 739L885 732L878 737L878 748L877 750L874 750L871 754L875 762L875 770L869 771L863 767L860 767L857 762L854 761L841 774L837 776L828 773L813 778L811 774L813 768L810 754L812 749L804 745L802 742L811 732L805 726L799 725L795 728L787 728L784 732L779 733L773 723L777 707z"
+            />
+          </g>
+          <g>
+            <path
+              id="诸暨市"
+              class="mapActive"
+              stroke-linejoin="round"
+              stroke-linecap="round"
+              fill-rule="evenodd"
+              stroke="#999"
+              stroke-opacity="1"
+              stroke-width="1"
+              stroke-dasharray="1 6"
+              fill="transparent"
+              fill-opacity="1"
+              d="M655 619L655 621L652 622L650 625L638 629L636 628L633 630L624 645L618 642L611 642L607 646L602 648L600 655L603 658L605 665L590 669L585 673L583 682L580 687L576 687L572 695L565 698L567 701L563 702L561 699L554 695L547 681L547 678L555 667L558 654L558 651L549 643L547 639L549 630L558 624L556 618L551 617L546 619L540 617L541 613L539 610L531 608L528 603L520 600L522 594L518 587L509 587L508 592L501 603L494 609L484 611L477 620L472 618L466 612L464 612L461 616L454 613L452 608L457 607L457 603L460 597L458 594L451 594L443 591L439 587L441 582L437 580L434 575L428 577L416 572L416 561L419 554L422 551L423 546L427 545L431 547L437 540L425 531L426 528L432 525L432 520L429 516L428 525L424 528L420 528L414 524L408 525L405 518L399 513L399 504L396 501L388 498L381 493L377 495L379 498L378 500L376 498L371 498L367 490L367 484L364 481L362 481L362 471L356 466L356 460L360 461L364 465L368 464L370 467L374 469L374 471L386 464L392 465L401 458L402 462L409 466L419 464L419 461L428 456L428 449L432 445L431 439L428 435L433 425L445 425L453 422L460 428L464 427L466 424L465 420L469 411L476 407L487 396L490 386L490 376L491 374L495 375L498 369L502 369L504 371L503 373L508 376L511 375L518 365L516 361L520 359L523 355L527 354L536 355L539 358L542 357L544 353L548 358L549 364L554 367L558 366L561 363L562 358L574 363L580 356L581 351L588 346L591 335L599 335L600 332L604 333L605 330L607 330L608 332L610 330L614 334L616 333L617 346L621 354L627 356L625 365L628 366L633 363L643 366L647 373L647 377L650 383L657 389L664 391L664 397L670 403L674 404L674 406L680 409L687 408L690 410L685 415L682 426L672 440L672 442L675 443L676 445L675 453L677 454L677 456L675 462L677 470L679 473L680 472L682 474L691 488L686 497L686 501L689 505L687 507L684 507L681 515L678 518L679 523L677 525L677 528L682 542L682 545L679 550L681 553L670 562L673 573L674 586L679 598L667 606L664 605L659 609L657 615L655 615L654 618z"
+            />
+          </g>
+
+          <g>
+            <path
+              id="嵊州市"
+              class="mapActive"
+              stroke-linejoin="round"
+              stroke-linecap="round"
+              fill-rule="evenodd"
+              stroke="#999"
+              stroke-opacity="1"
+              stroke-width="1"
+              stroke-dasharray="1 6"
+              fill="transparent"
+              fill-opacity="1"
+              d="M933 477L936 483L942 483L947 487L933 492L931 498L935 502L935 504L924 506L924 512L934 514L937 516L948 512L956 506L958 507L966 520L967 537L973 540L976 539L980 541L982 547L986 548L984 552L988 553L989 555L986 555L987 558L984 559L985 562L982 564L985 566L987 565L990 571L986 577L984 594L977 608L976 609L963 605L958 607L954 605L952 606L945 604L942 606L942 594L940 592L931 591L930 586L923 582L923 590L919 591L916 591L913 587L907 587L904 585L903 592L893 584L887 583L880 585L880 589L877 595L873 597L869 598L864 593L855 595L853 594L846 598L839 607L834 608L834 611L823 612L815 617L813 620L814 622L823 622L812 636L814 647L813 650L811 654L809 648L804 650L802 657L797 661L797 668L794 678L791 681L790 688L786 692L783 699L776 703L776 706L772 710L765 711L758 719L749 714L744 718L743 716L740 716L735 713L722 714L718 707L714 705L711 711L708 711L707 709L711 701L705 694L699 694L698 692L701 689L701 687L695 680L692 681L683 675L676 664L676 651L678 645L682 641L680 640L679 635L672 634L669 636L669 631L654 618L654 616L657 615L659 609L664 605L669 605L679 598L674 586L673 573L670 566L670 562L671 560L681 554L679 550L682 545L682 542L677 525L679 523L678 518L681 515L684 507L689 506L686 501L687 498L693 496L694 494L699 494L702 491L706 493L709 492L712 483L720 481L730 472L737 469L747 474L755 470L757 471L757 477L760 479L759 491L767 496L769 499L773 498L786 489L785 487L788 484L788 481L783 480L785 472L790 467L794 467L795 463L800 458L797 456L801 446L799 444L806 432L811 433L830 422L839 423L845 421L844 428L846 433L844 439L849 442L853 451L853 456L855 459L852 465L857 470L865 470L869 466L873 465L876 467L878 472L877 475L879 477L881 476L886 479L902 471L905 478L914 477L920 472L931 476z"
+            />
+          </g>
+
+          <text class="诸暨市" transform="matrix(1 0 0 1 532 476.7196)">诸暨市</text>
+          <text class="柯桥区" transform="matrix(1 0 0 1 607.2401 290)">柯桥区</text>
+          <text class="越城区" transform="matrix(1 0 0 1 722.4804 306.7402)">越城区</text>
+          <text class="上虞区" transform="matrix(1 0 0 1 836.1199 311.24)">上虞区</text>
+          <text class="嵊州市" transform="matrix(1 0 0 1 782.2802 542.28)">嵊州市</text>
+          <text class="新昌县" transform="matrix(1 0 0 1 890.4802 660.04)">新昌县</text>
+          <path
+            id="市本级"
+            fill="#D60002"
+            d="M748.1,278.6l-4.4,2.3c-0.5,0.3-1.2,0.1-1.5-0.5c-0.1-0.2-0.1-0.4-0.1-0.7l0.8-4.9l-3.6-3.5
+		c-0.4-0.4-0.4-1.1,0-1.5c0.2-0.2,0.4-0.3,0.6-0.3l4.9-0.7l2.2-4.5c0.3-0.5,0.9-0.8,1.5-0.5c0.2,0.1,0.4,0.3,0.5,0.5l2.2,4.5
+		l4.9,0.7c0.6,0.1,1,0.6,0.9,1.2c0,0.2-0.1,0.5-0.3,0.6l-3.6,3.5l0.8,4.9c0.1,0.6-0.3,1.1-0.9,1.2c-0.2,0-0.5,0-0.7-0.1L748.1,278.6
+		z"
+          />
+        </svg>
+      </div>
+      <div class="introduce">
+        <div class="unit">
+          <p class="title">{{city}}</p>
+          <ul>
+            <li>
+              <p class="subTitle">党政机构</p>
+              <div class="row">
+                <div class="col">
+                  <span>限额</span>
+                  <span class="limit">{{result['_id@organization.statistic.dzhgzl_xe']}}</span>
+                </div>
+                <div class="col">
+                  <span>实有</span>
+                  <span class="real">{{result['_id@organization.statistic.dzjgzl_sy']}}</span>
+                </div>
+                <div class="col">
+                  <span>剩余</span>
+                  <span
+                    class="remain"
+                  >{{result['_id@organization.statistic.dzhgzl_xe'] - result['_id@organization.statistic.dzjgzl_sy']}}</span>
+                </div>
+              </div>
+            </li>
+
+            <li>
+              <p class="subTitle">局级行政机构</p>
+              <div class="row">
+                <div class="col">
+                  <span>限额</span>
+                  <span class="limit">{{result['_id@organization.statistic.xzjjjg_xe']}}</span>
+                </div>
+                <div class="col">
+                  <span>实有</span>
+                  <span class="real">{{result['_id@organization.statistic.xzjjjg_sy']}}</span>
+                </div>
+                <div class="col">
+                  <span>剩余</span>
+                  <span
+                    class="remain"
+                  >{{result['_id@organization.statistic.xzjjjg_xe'] - result['_id@organization.statistic.xzjjjg_sy']}}</span>
+                </div>
+              </div>
+            </li>
+
+            <li>
+              <p class="subTitle">事业机构</p>
+              <div class="row">
+                <div class="col">
+                  <span>限额</span>
+                  <span class="limit">{{result['_id@organization.statistic.syjg_xe']}}</span>
+                </div>
+                <div class="col">
+                  <span>实有</span>
+                  <span class="real">{{result['_id@organization.statistic.syjg_sy']}}</span>
+                </div>
+                <div class="col">
+                  <span>剩余</span>
+                  <span
+                    class="remain"
+                  >{{result['_id@organization.statistic.syjg_xe'] - result['_id@organization.statistic.syjg_sy']}}</span>
+                </div>
+              </div>
+            </li>
+
+            <li>
+              <p class="subTitle">局级事业机构</p>
+              <div class="row">
+                <div class="col">
+                  <span>限额</span>
+                  <span class="limit">{{result['_id@organization.statistic.syjjjg_xe']}}</span>
+                </div>
+                <div class="col">
+                  <span>实有</span>
+                  <span class="real">{{result['_id@organization.statistic.syjjjg_sy']}}</span>
+                </div>
+                <div class="col">
+                  <span>剩余</span>
+                  <span
+                    class="remain"
+                  >{{result['_id@organization.statistic.syjjjg_xe'] - result['_id@organization.statistic.syjjjg_sy'] }}</span>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        <div class="unit">
+          <p class="title">{{city}}</p>
+          <ul>
+            <li>
+              <p class="subTitle">行政编制</p>
+              <div class="row">
+                <div class="col">
+                  <span>核定</span>
+                  <span class="limit">{{xzResult['_id@organization.statistic.xzbzhds']}}</span>
+                </div>
+                <div class="col">
+                  <span>实有</span>
+                  <span class="real">{{xzResult['_id@organization.statistic.xzbzsys']}}</span>
+                </div>
+                <div class="col">
+                  <span>剩余</span>
+                  <span
+                    class="remain"
+                  >{{xzResult['_id@organization.statistic.xzbzhds'] - xzResult['_id@organization.statistic.xzbzsys']}}</span>
+                </div>
+              </div>
+            </li>
+            <li>
+              <p class="subTitle">事业编制</p>
+              <div class="row">
+                <div class="col">
+                  <span>核定</span>
+                  <span class="limit">{{syResult['_id@organization.statistic.syhdbzs']}}</span>
+                </div>
+                <div class="col">
+                  <span>实有</span>
+                  <span class="real">{{syResult['_id@organization.statistic.sybzsys']}}</span>
+                </div>
+                <div class="col">
+                  <span>剩余</span>
+                  <span
+                    class="remain"
+                  >{{syResult['_id@organization.statistic.syhdbzs'] - syResult['_id@organization.statistic.sybzsys']}}</span>
+                </div>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </template>
+  </div>
+</template>
+<script>
+import {
+  orgCountReport,
+  orgStaffReport
+} from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@framework/utils";
+import { Spin } from "ant-design-vue";
+export default {
+  data() {
+    return {
+      loading: true,
+      key: [
+        "_id@organization.statistic.dzhgzl_xe", // 党政机构总量限额
+        "_id@organization.statistic.dzjgzl_sy", // 党政机构总量实有
+        "_id@organization.statistic.xzjjjg_xe", // 行政局级机构限额
+        "_id@organization.statistic.xzjjjg_sy", // 行政局级机构实有数
+        "_id@organization.statistic.syjg_xe", // 事业机构限额数
+        "_id@organization.statistic.syjg_sy", // 事业机构实有
+        "_id@organization.statistic.syjjjg_xe", // 事业局级机构限额数
+        "_id@organization.statistic.syjjjg_sy" // 事业局级机构实有数
+      ],
+      key_XZ: [
+        "_id@organization.statistic.xzbzhds", // 行政编制核定数
+        "_id@organization.statistic.xzbzsys" // 行政编制事业数
+      ],
+      key_SY: [
+        "_id@organization.statistic.syhdbzs", // 事业核定数
+        "_id@organization.statistic.sybzsys" // 事业实有数
+      ],
+      city: "全市",
+      orgRes: [],
+      result: {},
+      xzRes: [],
+      xzResult: {},
+      syRes: [],
+      syResult: {}
+    };
+  },
+  components: {
+    ASpin: Spin
+  },
+  mounted() {
+    Promise.all([orgCountReport(), orgStaffReport(1), orgStaffReport(3)])
+      .then(res => {
+        let resOrg = res[0]["result"];
+        this.orgRes = resOrg;
+        this.createData(resOrg);
+        let xzRes = res[1]["result"];
+        this.xzRes = xzRes;
+        this.createDataXZ(xzRes);
+        let syRes = res[2]["result"];
+        this.syRes = syRes;
+        this.createDataSY(syRes);
+      })
+      .catch(err => {
+        showError(err);
+      })
+      .finally(() => {
+        this.loading = false;
+      });
+  },
+  watch: {
+    city: {
+      handler(v) {
+        this.createData(this.orgRes);
+        this.createDataXZ(this.xzRes);
+        this.createDataSY(this.syRes);
+      }
+    }
+  },
+  methods: {
+    sum(list, valueCols) {
+      //求和
+      let sum = {};
+      (list || []).forEach(item => {
+        valueCols.forEach(col => {
+          let key = col.column;
+          sum[key] = (sum[key] || 0) + (item[key] || 0);
+        });
+      });
+      return sum;
+    },
+    createDataSY(dataTable) {
+      let { keyCols, rows, valueCols } = dataTable;
+      valueCols = valueCols.filter(item => {
+        return this.key_SY.includes(item["key"]);
+      });
+
+      let obj = this.sum(rows, valueCols);
+      obj[keyCols[0]["column"]] = "全市";
+      rows.push(obj);
+      let curRow = rows.find(item => {
+        return item[keyCols[0]["column"]] == this.city;
+      });
+      let result = {};
+      valueCols.forEach(item => {
+        result[item["key"]] = curRow[item["column"]];
+      });
+      this.syResult = result;
+    },
+    createDataXZ(dataTable) {
+      let { keyCols, rows, valueCols } = dataTable;
+      valueCols = valueCols.filter(item => {
+        return this.key_XZ.includes(item["key"]);
+      });
+      let obj = this.sum(rows, valueCols);
+      obj[keyCols[0]["column"]] = "全市";
+      rows.push(obj);
+      let curRow = rows.find(item => {
+        return item[keyCols[0]["column"]] == this.city;
+      });
+      let result = {};
+      valueCols.forEach(item => {
+        result[item["key"]] = curRow[item["column"]];
+      });
+      this.xzResult = result;
+    },
+    createData(dataTable) {
+      let { header, rows } = dataTable;
+      header = header.filter(item => {
+        return this.key.includes(item["key"]);
+      });
+      let obj = this.sum(rows, header);
+      obj.name = "全市";
+      rows.push(obj);
+      let curRow = rows.find(item => {
+        return item["name"] == this.city;
+      });
+      let result = {};
+      header.forEach(item => {
+        result[item["key"]] = curRow[item["column"]];
+      });
+      this.result = result;
+    },
+    svgMove(e) {
+      let id = e.target.id;
+      if (id) {
+        this.city = id;
+        // 移除l7Active
+        let domList = document.getElementsByClassName("l7Active");
+        for (let i = 0; i < domList.length; i++) {
+          let dom = domList[i];
+          if (dom && dom.classList) {
+            dom.classList.remove("l7Active");
+          }
+        }
+        // 添加l7Active
+        let textDom = document.getElementsByClassName(id)[0];
+        if (textDom && textDom.classList) {
+          textDom.classList.add("l7Active");
+        }
+        // 数据展示
+      } else {
+        this.reset();
+      }
+    },
+    reset() {
+      // 超出边界 重置
+      this.city = "全市";
+      let domList = document.getElementsByClassName("l7Active");
+      for (let i = 0; i < domList.length; i++) {
+        let dom = domList[i];
+        if (dom && dom.classList) {
+          dom.classList.remove("l7Active");
+        }
+      }
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  display: flex;
+  .ant-spin{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .map {
+    flex: 1;
+    min-width: 0px;
+    .ant-spin {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    path,
+    text {
+      cursor: pointer;
+    }
+    .mapActive:hover {
+      fill: #de3234;
+    }
+    text.l7Active {
+      fill: #fff;
+    }
+    text {
+      font-size: 20px;
+      pointer-events: none;
+    }
+    #star {
+      fill: #d60002;
+      pointer-events: none;
+    }
+  }
+  .introduce {
+    .unit {
+      .title {
+        margin: 0px;
+        padding: 0px;
+        color: #666;
+        font-size: 14px;
+        font-weight: bold;
+      }
+      ul {
+        li {
+          padding: @padding-xs / 2 0px;
+          .subTitle {
+            margin: 0px;
+            padding: 0px;
+            color: #797979;
+          }
+          .row {
+            display: flex;
+            justify-content: space-between;
+            .col {
+              min-width: 56px;
+              span {
+                display: block;
+                color: #bfbfbf;
+                &.limit {
+                  color: #d15456;
+                  font-weight: bold;
+                }
+                &.real {
+                  color: #5488d1;
+                  font-weight: bold;
+                }
+                &.remain {
+                  color: #edba55;
+                  font-weight: bold;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</style>

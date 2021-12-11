@@ -1,0 +1,180 @@
+<template>
+  <div class="layout-reform">
+    <div class="header" v-show="type==2">
+      <div class="evolutionlist">
+        <span
+          v-for="item in evolutionList"
+          :key="item.value"
+          :class="{ active: active && active.value == item.value }"
+          @click="check(item)"
+          >{{ item.text }}</span
+        >
+      </div>
+    </div>
+    <div class="main">
+      <reform-institutional v-if="type==1" title="中共绍兴市委机构设置情况" :type="type" :data="data" :active="active" :isActive.sync="isActive"/>
+      <reform-institutional v-else-if="type==2" title="绍兴市人民政府机构设置情况" :type="type" :data="data" :active="active" :isActive.sync="isActive"/>
+      <div class="desc">
+        <p v-html="showDesc(desc)"/>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { replace } from 'lodash';
+import ReformInstitutional from "./components/reformInstitutional";
+import { orgnode } from "@/person-shaoxing/api/analysis";
+export default {
+  name: 'reform',
+  props: {
+    type: Number,
+  },
+  data() {
+    return {
+      data: [],
+      desc: undefined,
+      isActive: undefined,//机构选择选中
+      active: null,//年份切换选中
+      g6timedata: [],
+      G6data: {},
+      listType: this.type,
+    };
+  },
+  components: {
+    ReformInstitutional,
+  },
+  computed: {
+    evolutionList() {
+      return this.$store.getters.dict("person.evolutionyear") || [];
+    },
+  },
+  watch: {
+    evolutionList: {
+      handler(v) {
+        this.active = v[0];
+      },
+      deep: true,
+      immediate: true,
+    },
+    active: {
+      immediate: true,
+      handler(val) {
+        if(val) {
+          if(this.type==2) {
+            if(val.value===5) {
+              this.desc = '绍关市人民政府设置办公室和工作部门32个。办公室挂市政府研究室和机关事务管理局牌子；发展和改革委员会挂粮食和物资储备局牌子；经济和信息化局挂中小企业局牌子；司法局挂行政复议局牌子；自然资源和规划局挂林业局牌子；文化广电旅游局挂文物局牌子；市政府外事办公室挂市政府港澳事务办公室牌子；市场监督管理辑挂知识产权局牌子；人民防空办公室挂民防局牌子；综合行政执法局挂城市管理局牌子。';
+            }else if(val.value===4) {
+              this.desc = '绍兴市人民政府设置工作部门32个，其中特设机构1个。监察局与纪律检查委员会机关合署办公、民族宗教事务局与统战部合署办公，列入政府工作部门序列，不计入政府机构个数；法制办公室、研究室与政府办公室合署办公；粮食局与发展和改革委员会合署办公；建筑业管理局与住房和城乡建设局合署办公；体育局与文化广电新闻出版局合署办公；人民对外友好协会机关、归国华侨联合会机关与外事与侨务办公室合署办公；政府办公室挂突发公共事件应急管理办公室、机关事务管理局牌子；发展和改革委员会挂物价局、国内合作交流办公室牌子；经济和信息化委员会挂中小企业局牌子；科学技术局挂地震局、知识产权局牌子；规划局挂测绘和地理信息局牌子；外事与侨务办公室挂港澳事务办公室牌子；安全生产监督管理局挂安全生产委员会办公室牌子；市场监督管理局挂工商行政管理局、食品药品监督管理局、食品安全委员会办公室牌子；台湾事务管理办公室挂市委台湾工作办公室牌子；人民防空办公室挂民防局牌子。';
+            }else if(val.value===3) {
+              this.desc = '绍兴市政府设置工作部门32个，其中特设机构1个。监察局与纪律检查委员会机关合署办公、民族宗教事务局与统战部合署办公，列入政府工作部门序列，不计入政府机构个数；法制办公室与政府办公室合署办公；粮食局与发展和改革委员会合署办公；建筑业管理局与住房和城乡建设局合署办公；体育局与文化广电新闻出版局合署办公；政府办公室挂突发公共事件应急管理办公室、机关事务管理局牌子；发展和改革委员会挂物价局、国内合作交流办公室牌子；经济和信息化委员会挂中小企业局牌子；科学技术局挂地震局牌子；规划局挂测绘和地理信息局牌子；台湾事务办公室挂市委台湾工作办公室牌子；人民防空办公室挂民防局牌子。此外，设置部门管理机构1个：现代服务业管理局，由发展和改革委员会管理。';
+            }else if(val.value===2) {
+              this.desc = '市政府设置工作部门30个，设置特设机构1个。其中：市监察局与市纪律检查委员会机关合署办公，市民族宗教事务局与市委统战部合署办公，列入市政府序列，不计入政府机构个数。此外，市政府法制办公室与市政府办公室合署办公，市政府办公室保留市级机关事务管理局牌子，市政府商贸办公皇挂靠市政府办公室；市建筑业管理局与市建设局合署办公；市体育局与市文化广电新闻出版局合署办公；市粮食局与市发展和改革委员会合署办公，市发展和改革委员会挂市物价局、市经济发展协作办公室牌子；市经济贸易委员会挂市中小企业局牌子。另设议事协调机构的常设办事机构1个：市人民防空办公室，为市国防动员委员会的常设办事机构，也是市政府人民防空工作的主管部门。';
+            }else if(val.value===1) {
+              this.desc = '1、市委设置工作部门9个。其中，纪律检查委员会机关与监察局合署办公；政法委员会与社会治安综合治理委员会合署办公；政策研究室与农业和农村工作办公室合署办公，并挂政府研究中心牌子；市委办公室挂保密局牌子；设置部门管理机构1个：市老干部局由组织部管理；机构编制委员会办公室为市机构编制委员会的常设办事机构，既是市委的工作机构，又是市政府的工作机构，挂靠市人事局。2、市政府设置工作部门28个。其中，监察局与市纪委机关合署办公，民族宗教事务局与市委统战部合署办公，不计政府机构数；广播电视局与文化体育局合署办公；政府办公室保留法制办公室牌子和机关事务管理局牌子；发展计划委员会挂物价局、粮食局牌子；经济贸易委员会挂中小企业局牌子；设置议事协调机构2个：经济体制改革委员会为经济改革委员会的办事机构；人民防空办公室为国防动员委员会的办事机构，也是市政府人民防空工作的主管部门。';
+            }
+            this.getulnodetwo(val);
+          }else if(this.type==1) {
+            this.desc = '绍兴市委设置纪检监察机关 1个,计入机构限额的工作机关13个(设在相关部门的市委议事协调机构的办事机构不计入机构限额)。其中，纪律检查委员会与监察委员会合署办公，实行一套工作机构、两个机关名称；办公室挂市档案局、机要局(市密码管理局)、保密委员会办公室(市国家保密局)牌子:组织部挂新经济与新社会组织工作委员会、市公务员局牌子;宣传部挂市政府新闻办公室、市新闻出版局牌子;统一战线工作部挂市民族宗教事务局、市政府侨务办公室牌子;全面深化改革委员会办公室挂政策研究室、市最多题一次改革办公室牌子；网络安全和信息化委员会办公室挂市互联网信息办公室牌子；台湾工作办公室挂市政府台湾事务办公室牌子;市委市政府信访局挂市统一政务咨询投诉举报平台管理办公室牌子。'
+            this.getulnodeone(val);
+          }
+        }
+        return val;
+      }
+    }
+  },
+  methods:{
+    check(item) {
+      this.isActive = undefined;
+      this.active = item;
+    },
+    showDesc(desc) {
+      return desc;
+    },
+    getulnodeone(val) {
+      let data = {
+        evolutionyear: val.value,
+        systype: 1,
+      };
+      orgnode(data)
+        .then((res) => {
+          this.data = res.result;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    getulnodetwo(val) {
+      let data = {
+        evolutionyear: val.value,
+        systype: 3,
+      };
+      orgnode(data)
+        .then((res) => {
+          this.data = res.result;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.layout-reform {
+  min-height: 100%;
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  .header {
+    background: #ffffff;
+    // box-shadow: 1px 1px 3px 1px fade(@primary-color, 5%);
+    margin: 0px 10px 3px 10px;
+    padding: @layout-space-base @content-padding-h;
+    height: 70px;
+    align-items: center;
+    display: flex;
+    .evolutionlist {
+      span {
+        cursor: pointer;
+        display: inline-block;
+        height: 40px;
+        line-height: 40px;
+        padding: 0 12px;
+        margin-left: 6px;
+        border-radius: @border-radius-base;
+        &:hover {
+          background: @primary-1;
+        }
+      }
+      span:first-child {
+        margin-left: 0;
+      }
+      span.active {
+        background-color: @primary-color;
+        color: white;
+        &:hover {
+          background: lighten(@primary-color, 5%);
+        }
+      }
+    }
+  }
+  .main {
+    flex: 1;
+    background: #ffffff;
+    // margin: 0px 10px 10px 10px;
+    .desc {
+      padding: 10px 24px;
+      p {
+        text-indent: 2em;
+        text-align: justify;
+        font-size: 1.07em;
+        font-weight: 549;
+        line-height: 2;
+        /deep/span.nextline {
+          display: inline-block;
+        }
+      }
+    }
+  }
+}
+</style>

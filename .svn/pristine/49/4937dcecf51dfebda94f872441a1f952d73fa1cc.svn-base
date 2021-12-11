@@ -1,0 +1,259 @@
+<template>
+  <div class="criterion">
+    <div class="field">
+      <a-input read-only class="code-one" :value="showname" @click.native="treeSelect=true">
+        <a-icon slot="suffix" type="select"/>
+      </a-input>
+      <a-modal title="字段选择" :destroyOnClose="true" :footer='null' 
+        @cancel="treeSelect=false" :visible="treeSelect"
+        width='500px' :bodyStyle="{height: '600px', padding:'0px'}">
+        <select-field :targetid="target.id" @finish="onFieldSelected"/>
+      </a-modal>
+    </div>
+    <a-select :value="value.op" @change="onOpChange" class="op-select">
+      <a-select-option v-for="item in opList" :key="item.value">{{item.text}}</a-select-option>
+    </a-select>
+    <component v-if="cType" :is="cType" :cond="value" :target="target" />
+    <a-input v-else :read-only="true" class="input-holder"/>
+    <a class="remove" @click="$emit('remove')"><custom-icon type="delete"/></a>
+  </div>
+</template>
+<script>
+import { Input, Icon, Select } from "ant-design-vue";
+import CustomIcon from "@/framework/components/CustomIcon";
+import SelectField from './SelectField';
+import { querylistop } from "@person/api/integratedquery";
+import NumberArith from '../fields/NumberArith';
+import NumberArray from '../fields/NumberArray';
+import NumberBetween from '../fields/NumberBetween';
+import NumberValue from '../fields/NumberValue';
+import BooleanValue from '../fields/BooleanValue';
+import DateBetween from "../fields/DateBetween";
+import DateValue from "../fields/DateValue";
+import StringArray from '../fields/StringArray';
+import StringValue from "../fields/StringValue";
+import DictArray from '../fields/DictArray';
+import DictValue from "../fields/DictValue";
+import ReferArray from '../fields/ReferArray';
+import ReferValue from "../fields/ReferValue";
+import { showError } from "@/framework/utils/index";
+
+
+/**
+ * 单个条件
+ */
+export default {
+  name: "Criterion",
+  components: {
+    AInput: Input,
+    AIcon: Icon,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    CustomIcon,
+    NumberArith,
+    NumberArray,
+    NumberBetween,
+    NumberValue,
+    BooleanValue,
+    DateBetween,
+    DateValue,
+    StringArray,
+    StringValue,
+    DictArray,
+    DictValue,
+    ReferArray,
+    ReferValue,
+    SelectField
+  },
+  props: {
+    value: {
+      type: Object,
+      default: () => ({})
+    },
+    target: {
+      type: Object,
+      required: true,
+      default: () => ({})
+    }
+  },
+  data(){
+    return{
+      treeSelect: false,
+      opList: undefined,
+    }
+  },
+  created() {
+    if (this.value.field) {
+      if(this.value.opList){
+        this.opList = this.value.opList;
+      }else{
+        this.loadOpList(this.value.field.key);
+      }
+    }
+  },
+  computed: {
+    cType() {
+      return this.comType(this.value.field, this.value.op);
+    },
+    showname() {
+      return this.value.field && this.value.field.showname;
+    }
+  },
+  watch: {
+    opList(list){
+      this.value.opList = list;//同步缓存到条件对象上，防止条件变化层级时操作列表重复加载
+    }
+  },
+  methods: {
+    onFieldSelected(type, data){
+      if(type == 'ok'){
+        this.setField(data);
+      }
+      this.treeSelect = false;
+    },
+    onOpChange(value){
+      if(this.isArrayOp(this.value.op)){
+        if(!this.isArrayOp(value)){
+          if(Array.isArray(this.value.value)){
+            this.value.value = this.value.value[0]
+          }
+        }
+      }else if(this.isArrayOp(value)){
+        if(!Array.isArray(this.value.value)){
+          this.value.value = [this.value.value]
+        }
+      }
+      this.value.field2 = undefined;
+      this.value.op2 = undefined;
+      this.value.opList2 = undefined;
+      this.value.op = value;
+    },
+    setField(field) {
+      this.value.field = field;
+      this.value.op = undefined;
+      this.opList = undefined;
+      this.value.field2 = undefined;
+      this.value.op2 = undefined;
+      this.value.opList2 = undefined;
+      this.value.value = undefined;
+      this.loadOpList(field.key)
+    },
+    loadOpList(fieldKey) {
+      querylistop({
+        targetid: this.target.id,
+        key: fieldKey
+      }).then(({result}) => {
+        this.opList = result;
+        if(!this.value.op){//设置默认操作符
+          this.value.op = result[0].value;
+        }
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    isArrayOp(op){
+      if(op){
+        return ['between', 'in', 'nin'].includes(op);
+      }
+    },
+    comType (field, op) {
+      let { datatype, inputtype } = field || {};
+      if (datatype == 2) { /** 字典 */
+        if (op == 'in' || op == 'nin') {
+          return 'DictArray'
+        } else if (op) {
+          return 'DictValue'
+        }
+      } else if (datatype == 3) { /** 引用 */
+        if (op == 'in' || op == 'nin') {
+          // 引用数据多选
+          return 'ReferArray'
+        } else if (op) {
+          // 引用数据
+          return 'ReferValue'
+        }
+      } else if (datatype == 4) { /** 输入 */
+        if (inputtype == 1 || inputtype == 2) {
+          // 数字
+          if (
+            op == 'add' ||
+            op == 'subtract' ||
+            op == 'multiply' ||
+            op == 'divide'
+          ) {
+            return 'NumberArith'
+          } else if (op == 'in' || op == 'nin') {
+            return 'NumberArray'
+          } else if (op == 'between') {
+            return 'NumberBetween'
+          } else if (op) {
+            return 'NumberValue'
+          }
+        } else if (inputtype == 3) {
+          // 时间
+          if (op == 'between') {
+            return 'Date-between'
+          } else if (op) {
+            return 'DateValue'
+          }
+        } else if (inputtype == 4) {
+          // 布尔
+          return 'BooleanValue'
+        }else{
+          // 字符
+          if (op == 'in' || op == 'nin') {
+            return 'StringArray'
+          } else if (op) {
+            return 'StringValue'
+          }
+        }
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.criterion {
+  display: flex;
+  align-items: center;
+  .field {
+    flex: none;
+    width: 320px;
+    height: 30px;
+    margin-right: 10px;
+    position: relative;
+    /deep/ input {
+      cursor: pointer;
+      border-top-left-radius: 0px;
+      border-bottom-left-radius: 0px;
+    }
+    svg{
+      width: 12px;
+      height: 12px;
+    }
+  }
+  .op-select {
+    flex: none;
+    width: 120px;
+    margin-right: 10px;
+  }
+  .input-holder{
+    width: 300px;
+  }
+  .remove {
+    flex: none;
+    color: @primary-color;
+    cursor: pointer;
+    .icon{
+      width: 20px;
+      height: 20px;
+    }
+    &:hover {
+      color: fade(@primary-color, 75%);
+    }
+    &:last-child {
+      margin-left: 10px;
+    }
+  }
+}
+</style>

@@ -1,0 +1,36 @@
+export default {
+  created(){
+    this.$nextTick(() => {
+      const dom = this.$refs.map;
+      if(dom){
+        for(let area of dom.getElementsByTagName('g')){
+          this.addText(dom, area.getBBox(), area.getAttribute('title'), area.getAttribute('pos'));
+        }
+      }
+    })
+  },
+  methods: {
+    addText(svg, rect, text, pos){
+      if(!text){
+        return;
+      }
+      const fontSize = 18, spacing = 1;
+      let posX = 0, posY = 0;
+      if(pos){
+        let posArr = pos.split(' ');
+        posX = Number(posArr[0]) || 0;
+        posY = Number(posArr[1]) || 0;
+      }
+      let t = svg.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute("x", rect.x + rect.width/2 - (fontSize + spacing) * text.length / 2 + posX);
+      t.setAttribute("y", rect.y + rect.height/2 + fontSize / 2 + posY);
+      t.setAttribute("font-size", fontSize);
+      t.setAttribute("letter-spacing", spacing);
+      t.setAttribute("font-weight", "bold");
+      t.setAttribute('fill', '#FFF');
+      t.setAttribute('pointer-events', 'none');
+      t.innerHTML = text;
+      svg.appendChild(t);
+    }
+  }
+}

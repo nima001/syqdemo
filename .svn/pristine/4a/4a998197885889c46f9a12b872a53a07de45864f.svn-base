@@ -1,0 +1,240 @@
+<template>
+  <div class="detail_info">
+    <div class="top">
+      <div class="left"></div>
+      <div class="right">
+        <div class="title_bar">
+          <div class="title_cell active">
+            <span class="title">今年总分</span>
+            <span class="num">77.38</span>
+            <span class="unit">分</span>
+          </div>
+          <div class="title_cell">
+            <span class="title">去年总分</span>
+            <span class="num">77.38</span>
+            <span class="unit">分</span>
+          </div>
+        </div>
+        <div class="info_cell">
+          <div class="cell" v-for="(item,index) in trend" :key="index">
+            <p class="title">{{item.name}}</p>
+            <div class="trend" :class="item.trend">
+              <span class="name">{{item.num}}项</span>
+              <span class="icon" v-if="item.trend"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="table">
+        <a-table rowKey="index" :columns="columns" :data-source="dataSource" :pagination="false"></a-table>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Table } from "ant-design-vue";
+import counterData from "./count";
+const renderContent = (value, row, index) => {
+  console.log(value)
+  const obj = {
+    children: value  instanceof Object ? value['value'] : value,
+    attrs: {},
+  };
+  if (value && !(value  instanceof String)) {
+    obj.attrs.rowSpan  = value['rowspan'];
+  }else{
+    obj.attrs.rowSpan  = 0
+  }
+  return obj;
+};
+const columns = [
+  { title: "序号", dataIndex: "index",width:60 },
+  { title: "项目", dataIndex: "project",customRender: renderContent,width:120 },
+  { title: "评分办法", dataIndex: "scoremethods" },
+  { title: "核心指标", dataIndex: "indicator" },
+  { title: "指标数据", dataIndex: "indicatornum",width:70 },
+  { title: "平均值", dataIndex: "averagenum",width:70 },
+  { title: "排名", dataIndex: "rank",width:70 },
+  { title: "得分", dataIndex: "score",width:70 },
+  { title: "同比去年", dataIndex: "compare",width:70 }
+];
+
+export default {
+  components: {
+    ATable: Table
+  },
+  data() {
+    return {
+      columns,
+      dataSource:counterData['市委组织部'],
+      trend: [
+        { name: "单项指标相比往年上升", num: "1", trend: "up" },
+        { name: "单项指标相比往年持平", num: "5" },
+        { name: "单项指标相比往年下降", num: "1", trend: "down" }
+      ]
+    };
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+@font-face {
+  font-family: LESLIE;
+  src: url("../components/assets/font/LESLIEB_.TTF") format("truetype");
+}
+.detail_info {
+  .top {
+    display: flex;
+    .left {
+      width: 390px;
+      height: 160px;
+    }
+    .right {
+      padding-top: 20px;
+      .title_bar {
+        width: 754px;
+        height: 58px;
+        padding: 0px 114px;
+        line-height: 58px;
+        background: url("../../../assets/img/screen/title-bj.png") no-repeat
+          center center;
+        display: flex;
+        justify-content: space-between;
+        .title_cell {
+          display: inline-flex;
+          &.active {
+            .num,
+            .unit {
+              color: #2bffff;
+              opacity: 1;
+            }
+          }
+          .title {
+            font-size: 18px;
+            font-family: Microsoft YaHei;
+            font-weight: 400;
+            color: @white;
+            opacity: 1;
+          }
+          .num {
+            font-size: 48px;
+            font-family: LESLIE;
+            font-weight: 400;
+            color: @white;
+            opacity: 0.6;
+            margin: 0px 8px 0px 12px;
+          }
+          .unit {
+            font-size: 16px;
+            font-family: Microsoft YaHei;
+            font-weight: 400;
+            line-height: 21px;
+            line-height: 80px;
+            color: @white;
+            opacity: 0.6;
+          }
+        }
+      }
+      .info_cell {
+        width: 100%;
+        height: 64px;
+        display: flex;
+        margin-top: 20px;
+        justify-content: space-between;
+        .cell {
+          width: 220px;
+          height: 64px;
+          background: #34343499;
+          border-radius: 4px;
+          padding-top: 8px;
+          .title {
+            margin: 0px;
+            font-size: 16px;
+            font-family: Microsoft YaHei;
+            font-weight: 400;
+            line-height: 21px;
+            color: #ffffff;
+            opacity: 0.6;
+            text-align: center;
+          }
+          .trend {
+            margin-top: 6px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            .name {
+              font-size: 16px;
+              font-family: Microsoft YaHei;
+              font-weight: 400;
+              line-height: 21px;
+              color: #ffffff;
+              opacity: 1;
+            }
+            .icon {
+              width: 13px;
+              height: 7px;
+              margin-left: 16px;
+            }
+            &.up {
+              .name {
+                color: #57ff79;
+              }
+              .icon {
+                background: url("../../../assets/img/screen/icon-up.png")
+                  no-repeat center center;
+              }
+            }
+            &.down {
+              .name {
+                color: #ff7457;
+              }
+              .icon {
+                background: url("../../../assets/img/screen/icon-down.png")
+                  no-repeat center center;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  .bottom {
+    background: linear-gradient(270deg, rgba(0, 85, 78, 0) 0%, rgba(0, 85, 78, 0.4) 100%);
+    opacity: 1;
+    padding: 0px 20px;
+    margin-top: 12px;
+    .table{
+      padding-bottom: 12px;
+      /deep/ th{
+      background: none;
+      border-bottom: 1px solid #30555B;
+      color: #FFF;
+      opacity: 0.6;
+      text-align: center;
+      font-size: 14px;
+      line-height: 50px;
+    }
+    /deep/tr{
+      td{
+        border-right: 1px solid #30555B;
+        border-bottom: 1px solid #30555B;
+        padding: 8px;
+        &:first-child{
+          border-left: 1px solid #30555B;
+        }
+      }
+    }
+    /deep/ table{
+      color: #FFF;
+      opacity: 0.6;
+      text-align: center;
+      font-size: 14px;
+    }
+    }
+  }
+}
+</style>

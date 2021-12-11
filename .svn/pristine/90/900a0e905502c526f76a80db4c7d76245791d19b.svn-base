@@ -1,0 +1,351 @@
+<template>
+  <div class="layout">
+    <div class="tab">
+      <ul>
+        <li v-for="item in tasktypeList" :key="item.key" 
+          :class="{selected: search.tasktype == item.value}"
+          @click="onTypeChange(item.value)"
+        >{{item.text}}</li>
+      </ul>
+    </div>
+    <div class="content">
+      <div class="header">
+        <div class="left"></div>
+        <ul class="right">
+          <li><dict-select v-model="search.category" 
+            dict="person.work.taskcategory" allowClear
+            placeholder="所有分类" style="width: 105px"/></li>
+          <li>
+            <a-select v-model="search.status" allowClear placeholder="所有状态" style="width: 105px">
+              <a-select-option v-for="item in statusList" :key="item.value">{{item.label}}</a-select-option>
+            </a-select>
+          </li>
+          <li>
+            <a-range-picker v-model="search.createtime"
+              :placeholder="['截止开始时间', '截止结束时间']"
+              style="width: 240px"
+            /> 
+          </li>
+          <li>
+            <a-range-picker v-model="search.deadtime"
+              :placeholder="['发布开始时间', '发布结束时间']"
+              style="width: 240px"
+            /> 
+          </li>
+          <li>
+            <a-input v-model="search.createusername"
+              placeholder="选择发布人" 
+              :read-only="true"
+              @click="showSelectUser = true"
+              style="width: 120px;"
+            >
+              <a-icon v-if="!search.createuser" slot="suffix" type="user" />
+              <a-icon v-else slot="suffix" class="clear-user"
+                theme="filled" type="close-circle" 
+                @click="clearCreateUser()" 
+              />
+            </a-input>
+            <a-modal v-model="showSelectUser" title="选择发布人"
+              :footer="null"
+              :width="500"
+              :bodyStyle="{ height: '600px', padding: '0'}"
+            >
+              <org-user-select mode="user" defaultRoot="04e19e21ed48425b8aa3f17a0015452f" @finish="onUserSelected"/>
+            </a-modal>
+          </li>
+          <li>
+            <a-input v-model="search.title" allowClear placeholder="输入关键词查询"/>
+          </li>
+          <li><a-button type="primary" @click="onSearch()">搜索</a-button></li>
+          <li><a-button @click="resetSeach()">重置</a-button></li>
+        </ul>
+      </div>
+      <div class="body">
+        <a-table
+          rowKey="id"
+          :columns="columns"
+          :dataSource="page.rows"
+          :pagination="false"
+          :loading="loading"
+        >
+          <div slot="endtime" slot-scope="text,record">
+            <span>{{text && text.substr(0, 10)}}</span>
+            <span v-if="record.timelimit == 2" class="will expire">临</span>
+            <span v-else-if="record.timelimit == 3" class="expire">超</span>
+          </div>
+          <div slot="opts" slot-scope="record">
+            <a @click="showDetails(record)">查看</a>
+          </div>
+        </a-table>
+      </div>
+      <div class="footer">
+        <a-pagination 
+          v-if="page.rows && page.rows.length"
+          :current="page.pagenum"
+          :total="page.total"
+          :pageSize="page.pagesize"
+          showSizeChanger
+          :showTotal="total => `总共：${total}条`"
+          @change="onPageChange"
+          @showSizeChange="onShowSizeChange"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Modal, Icon, Table, Pagination, Select, DatePicker, Input, Button } from 'ant-design-vue'
+import DictSelect from '@framework/components/DictSelect'
+import OrgUserSelect from '@person/components/OrgUserSelect'
+import { showError } from '../../../framework/utils'
+import { queryWorkTask } from '@/person-shaoxing/api/workTask'
+
+
+/**
+ * 我的任务
+ */
+export default {
+  name: 'MyWorkTask',
+  components: {
+    AModal: Modal,
+    AIcon: Icon,
+    ATable: Table,
+    APagination: Pagination,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ARangePicker: DatePicker.RangePicker,
+    AInput: Input,
+    AButton: Button,
+    DictSelect,
+    OrgUserSelect
+  },
+  data(){
+    return {
+      statusList: [
+        { value: 1, label: '进行中'},
+        { value: 2, label: '已撤销'},
+        { value: 3, label: '已完成'},
+      ],
+      columns: [
+        { title: '序号', width: 50, customRender: this.indexRender},
+        { title: '标题', dataIndex: 'title'},
+        { title: '分类', dataIndex: 'category', customRender: this.dictRender("person.work.taskcategory")},
+        { title: '发布人', dataIndex: 'createuser'},
+        { title: '协办处室', dataIndex: 'assistorg'},
+        { title: '协办人', dataIndex: 'assistuser'},
+        { title: '截止时间', dataIndex: 'deadtime', scopedSlots: { 
+          customRender: "endtime" 
+        }},
+        { title: '发布时间', dataIndex: 'createtime', customRender: (text) => {
+          return text && text.substr(0, 10)
+        }},
+        { title: '状态', dataIndex: 'status', customRender: (text) => {
+          let s = this.statusList.find(item => item.value == text);
+          return s && s.label;
+        }},
+        { title: '操作', scopedSlots: { 
+          customRender: "opts" 
+        }},
+      ],
+      loading: true,
+      search: {
+        tasktype: undefined,
+        category: undefined,
+        status: undefined,
+        createtime: undefined,
+        deadtime: undefined,
+        createuser: undefined,
+        createusername: undefined,
+        title: undefined,//模糊匹配
+      },
+      page: {
+        rows: [],
+        pagesize: 20,
+        pagenum: 1,
+        total: 0,
+      },
+      showSelectUser: false,
+    }
+  },
+  computed: {
+    tasktypeList(){
+      return this.$store.getters.dict('person.work.tasktype');
+    },
+    taskcategoryList(){
+      return this.$store.getters.dict('person.work.taskcategory');
+    }
+  },
+  watch: {
+    tasktypeList: {
+      immediate: true,
+      handler(list){
+        if(list && list.length && !this.search.tasktype){//任务类型常量加载到后才加载数据
+          this.search.tasktype = list[0].value;
+          this.loadData(1, this.page.pagesize);
+        }
+      }
+    }
+  },
+  created(){
+    //Empty
+  },
+  methods: {
+    onTypeChange(type){
+      this.search.tasktype = type;
+      this.resetSeach();
+    },
+    onPageChange(pagenum, pagesize) {
+      this.loadData(pagenum, pagesize);
+    },
+    onShowSizeChange(current, pagesize) {
+      this.loadData(1, pagesize);
+    },
+    onSearch() {
+      this.loadData(1, this.page.pagesize);
+    },
+    resetSeach(){
+      Object.keys(this.search).forEach((key) => {
+        if(key != 'tasktype') this.search[key] = undefined;
+      });
+      this.loadData(1, this.page.pagesize);
+    },
+    onUserSelected(type, list){
+      this.showSelectUser = false;
+      if(type == 'ok'){
+        let { _id, username } = list[0];
+        this.search.createuser = _id;
+        this.search.createusername = username;
+      }
+    },
+    clearCreateUser(){
+      this.search.createusername = undefined;
+      this.search.createuser = undefined;
+    },
+    indexRender(text, row, index){
+      let p = this.page;
+      return (p.pagenum - 1) * p.pagesize + index + 1;
+    },
+    dictRender(key) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key, text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    showDetails(item){
+      console.log(item)
+    },
+    loadData(pagenum, pagesize){
+      if(!this.search.tasktype){
+        //任务类型未设置时，不查询数据
+        return;
+      }
+      this.loading = true
+      let params = Object.assign({
+        pagenum, pagesize, 
+        needtotal: true,
+      }, this.search);
+      if(params.createtime){
+        let [start, end] = params.createtime;
+        params.createtimestart = start;
+        params.createtimeend = end;
+        params.createtime = undefined;
+      }
+      if(params.deadtime){
+        let [start, end] = params.deadtime;
+        params.deadtimestart = start;
+        params.deadtimeend = end;
+        params.deadtime = undefined;
+      }
+      queryWorkTask(params).then(({result}) => {
+        this.page = result;
+      }).catch(error => {
+        showError(error);
+      }).finally(() => {
+        this.loading = false;
+      })
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.layout{
+  height: 100%;
+  display: flex;
+  border-radius: @border-radius-base;
+  background: white;
+  & > .tab{
+    width: 150px;
+    background-color: #f2f2f2;
+    ul{
+      margin-top: 50px;
+    }
+    li{
+      line-height: 40px;
+      text-align: center;
+      cursor: pointer;
+      &:hover{
+        background-color: @primary-1;
+        color: @primary-color;
+      }
+      &.selected{
+        background-color: white;
+        color: @primary-color;
+        font-weight: bold;
+      }
+    }
+  }
+  & > .content{
+    flex: auto;
+    display: flex;
+    flex-direction: column;
+    padding: 10px 0;
+    .header{
+      padding: @content-padding-v @content-padding-h;
+      overflow: hidden;
+      & > .left{
+        float: left;
+        margin-bottom: 8px;
+      }
+      & > .right{
+        float: right;
+        margin-bottom: 8px;
+      }
+      li{
+        display: inline-block;
+        margin-left: 5px;
+      }
+      .clear-user{
+        color: @disabled-color;
+        font-size: 12px;
+      }
+    }
+    .body{
+      padding: 0 @content-padding-h;
+      flex: 0 1 auto;
+      overflow-y: auto;
+      .expire{
+        display: inline-block;
+        width: 1.4em;
+        margin-left: 4px;
+        border: 1px solid @accent-color;
+        border-radius: @border-radius-base;
+        line-height: 1.4em;
+        font-size: 12px;
+        text-align: center;
+        color: @accent-color;
+        &:not(.will){
+          border-color: @error-color;
+          color: @error-color;
+        }
+      }
+    }
+    .footer{
+      padding: @content-padding-v @content-padding-h;
+      .ant-pagination{
+        float: right;
+      }
+    }
+  }
+}
+</style>

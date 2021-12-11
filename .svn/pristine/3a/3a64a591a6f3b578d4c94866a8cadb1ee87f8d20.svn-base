@@ -1,0 +1,81 @@
+<template>
+  <iframe v-if="src" 
+    :src="src"
+    :height="height"
+    id="report-template-display" 
+    frameborder="0"
+    scrolling="no"
+  />
+</template>
+<script>
+import get from "lodash/get";
+import { previewById } from "@/person/api/booklet";
+
+/**
+ * 报表模板显示组件
+ */
+export default {
+  props: {
+    code: {
+      type: String,
+      required: true
+    },
+    defalutValue: {}
+  },
+  inject: ["formData"],
+  computed:{
+    tempId() {
+      return get(this.formData.data, this.code) || this.defalutValue;
+    },
+    context(){
+      return this.formData.data;
+    }
+  },
+  watch: {
+    tempId(v){
+      this.loadData();
+    },
+    context(){
+      this.loadData();
+    }
+  },
+  data(){
+    return {
+      src: undefined,
+      height: 0,
+    }
+  },
+  created(){
+    this.loadData();
+  },
+  methods: {
+    loadData(){
+      console.log(this.tempId, this.context);
+      this.dataTable = undefined;
+      if(this.tempId){
+        previewById(this.tempId, this.context).then(({result}) => {
+          if(result.template){
+            this.src = `javascript:void(function(){document.open();document.write('${result.template}');document.close();}())`;
+            this.$nextTick(() => {
+              let iframe = document.getElementById("report-template-display");
+              if(iframe){
+                iframe.onload = () => {
+                  this.height = iframe.contentWindow.document.body.scrollHeight;
+                  iframe.onload = undefined;
+                };
+              }
+            })
+          }
+        }).catch(err => {
+          console.log(err);
+        })
+      }
+    },
+  }
+}
+</script>
+<style lang="less" scoped >
+#report-template-display{
+  width: 100%;
+}
+</style>

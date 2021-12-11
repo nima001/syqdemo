@@ -1,0 +1,144 @@
+<template>
+  <div class="form-panel">
+    <div class="form-body" ref="formBody">
+      <div v-for="item in tables" :key="item.key" :id="item.key">
+        <chart-table :value="item.data" 
+          :name="item.name" 
+          :chartCols="item.chartCols" 
+          :tableCols="item.tableCols"
+          :unittype="unittype" 
+          :district="district"
+        />
+      </div>
+    </div>
+    <a-anchor wrapperClass="form-anchor" :getContainer="() => $refs.formBody">
+      <a-anchor-link v-for="item in tables" :href="`#${item.key}`" :title="item.name" :key="item.key"/>
+    </a-anchor>
+  </div>
+</template>
+<script>
+import { Anchor, Table } from "ant-design-vue";
+import ChartTable from './ChartTable'
+import { orgCountReport } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '@framework/utils'
+
+/**
+ * 机构数监测
+ */
+export default {
+  components: {
+    AAnchor: Anchor,
+    AAnchorLink: Anchor.Link,
+    ATable: Table,
+    ChartTable,
+  },
+  props: {
+    unittype: {
+      type: Number,
+      required: true,
+    }
+  },
+  data(){
+    return {
+      tables: undefined
+    }
+  },
+  watch: {
+    unittype(v){
+      this.tables = null;
+      this.loadData();
+    }
+  },
+  created(){
+    this.loadData();
+  },
+  methods: {
+    loadData(){
+      orgCountReport(this.unittype).then(({result}) => {
+        let tables = [];
+        let { keyCols, valueCols, rows } = result;
+        
+        valueCols.splice(1, 0, {column: 'v', key: 'v', showname: '剩余可用数'})
+        rows.forEach(item => {
+          item.v = item.v0 - item.v1;
+        })
+
+        tables.push({ 
+          key: 'all', 
+          name: this.unittype == 1 ? '党政机构情况表' : '事业机构情况表',
+          data: {
+            keyCols: [keyCols[0]],
+            valueCols,
+            rows: this.groupSum(rows, keyCols[0], valueCols),
+          },
+          chartCols: ['v'],
+          tableCols: undefined
+        });
+
+        tables.push({ 
+          key: 'zjj', 
+          name: this.unittype == 1 ? '行政局级情况表' : '事业局级情况表',
+          data: {
+            keyCols: [keyCols[0]],
+            valueCols,
+            rows: rows.filter(item => item[keyCols[1].column] == '正厅局级'),
+          },
+          chartCols: ['v'],
+          tableCols: undefined
+        })
+
+        tables.push({ 
+          key: 'fjj', 
+          name: this.unittype == 1 ? '行政副局级情况表' : '事业副局级情况表',
+          data: {
+            keyCols: [keyCols[0]],
+            valueCols,
+            rows: rows.filter(item => item[keyCols[1].column] == '副厅局级'),
+          },
+          chartCols: ['v'],
+          tableCols: undefined
+        })
+        this.tables = tables;
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    groupSum(list, groupCol, valueCols){//分组求和
+      let map = new Map(), newList = [];
+      (list || []).forEach(item => {
+        let key = item[groupCol.column];
+        let _item = map.get(key);
+        if(!_item){
+          _item = { [groupCol.column]: key };
+          map.set(key, _item);
+          newList.push(_item);
+        }
+        valueCols.forEach(col => {
+          let key = col.column;
+          _item[key] = (_item[key] || 0) + (item[key] || 0);
+        })
+      });
+      return newList;
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  position: relative;
+  height: 100%;
+  .form-body {
+    height: 100%;
+    padding: 0 @content-padding-h;
+    overflow-y: scroll;
+    padding-right: 200px + @content-padding-h;
+  }
+  /deep/.form-anchor {
+    position: absolute;
+    top: 50px;
+    right: @content-padding-h;
+    width: 180px;
+    padding-left: 5px;
+  }
+}
+</style>

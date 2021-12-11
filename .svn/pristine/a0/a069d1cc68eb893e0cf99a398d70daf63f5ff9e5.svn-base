@@ -1,0 +1,86 @@
+<template>
+  <a-layout class="main">
+    <a-layout-sider class="sider">
+      <a-menu mode="inline" :default-selected-keys="['1']">
+        <a-menu-item key="1">
+          <a-icon type="user" />
+          <span class="nav-text">
+            <router-link to="/zfw/overview/index">数据概览</router-link>
+          </span>
+        </a-menu-item>
+        <a-sub-menu key="sub1">
+          <span slot="title"><a-icon type="team" /><span>自然人用户</span></span>
+          <a-menu-item key="2">
+            <router-link to="/zfw/overview/naturalreg">用户注册</router-link>
+          </a-menu-item>
+          <a-menu-item key="3">
+            用户登陆
+          </a-menu-item>
+        </a-sub-menu>
+      </a-menu>
+    </a-layout-sider>
+    <a-layout :style="{ marginLeft: '230px' }">
+      <!-- <div class="layout_header">
+        <SelectCondition></SelectCondition>
+      </div> -->
+      <!-- <a-layout-content :style="{ margin: '16px', overflow: 'initial' }">
+      </a-layout-content> -->
+        <router-view></router-view>
+    </a-layout>
+  </a-layout>
+</template>
+
+<script>
+import { Layout, Menu, Icon } from "ant-design-vue";
+import SelectCondition from '@/zfw/components/overview/SelectCondition';
+
+export default {
+  props: {},
+  components: {
+    ALayout: Layout,
+    ALayoutHeader: Layout.Header,
+    ALayoutContent: Layout.Content,
+    ALayoutSider: Layout.Sider,
+    AMenu: Menu,
+    AMenuItem: Menu.Item,
+    ASubMenu: Menu.SubMenu,
+    AIcon: Icon,
+    SelectCondition
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.main{
+  /deep/.sider{
+    overflow: auto;
+    position: fixed;
+    left: 0;
+    height: 100vh;
+    width: 230px !important;
+    max-width: 230px !important;
+    background-color: @white;
+    -moz-box-shadow:4px 0px 8px #E7E7E7; 
+    -webkit-box-shadow:4px 0px 8px #E7E7E7; 
+    box-shadow:4px 0px 8px #E7E7E7;
+    .ant-layout-sider-children{
+      ul{
+        margin-top: @padding-lg;
+        border-right: none;
+        li{
+          margin: 0;
+          height: 50px;
+        }
+      }
+    }
+  }
+}
+</style>

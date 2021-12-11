@@ -1,0 +1,62 @@
+<template>
+  <accordion-layout nav-title="组织架构">
+    <org-tree slot="nav"  
+      :nodeid="nodeid" 
+      :treeid="treeid" 
+      title="name" 
+      :dir-selectable="true"
+      @select="onOrgSelect"
+    />
+    <template slot="content">
+      <keep-alive include="orgMain">
+        <router-view :load-data="selected" />
+      </keep-alive>
+    </template>
+  </accordion-layout>
+</template>
+<script>
+import AccordionLayout from '@/framework/components/AccordionLayout'
+import OrgTree from "@/person/components/OrgTree";
+
+export default {
+  components: {
+    AccordionLayout,
+    OrgTree,
+  },
+  data() {
+    return {
+      nodeid: Number(this.$route.query.id) || undefined,
+      treeid: Number(this.$route.query.treeid) || undefined,
+      selected: null,
+    };
+  },
+  methods: {
+    onOrgSelect(node, dept, init) {
+      this.selected = { node, dept, treeid: this.treeid};
+      let route = this.$route.name;
+      if(init && (route != 'orgIndex' && route != 'orgMain' && route != 'orgReport')){
+        return
+      }
+      let org = dept || node.data;
+      if(!org || org.orgtype == 3){//区域或分组显示报表
+        this.$router.replace({path: '/person/org/report', query: {id: node.id, treeid: this.treeid}});
+      }else{
+        this.$router.replace({path: '/person/org/index', query: {id: node.id, treeid: this.treeid}});
+      }
+    },
+  },
+  beforeRouteUpdate(to, from, next){
+    if(to.name == 'orgIndex' && this.selected){//跳到实名制首页根据当前选择的节点选择分发
+      let { node, dept, treeid } = this.selected;
+      let org = dept || node.data;
+      if(!org || org.orgtype == 3){//区域显示报表
+        next({path: '/person/org/report', query: {id: node.id, treeid}});
+      }else{
+        next({path: '/person/org/index', query: {id: node.id, treeid}});
+      }
+      return;
+    }
+    next()
+  }
+};
+</script>

@@ -1,0 +1,121 @@
+import request from '@/framework/utils/request'
+
+/************************  分析管理接口 *************************/
+
+/************************  1.统计分析 *************************/
+
+//统计分析查询
+export function analysisquery(data) {
+    return request({
+        url: '/person/analyze/query',
+        method: 'post',
+        data
+    })
+}
+
+//保存统计分析
+export function analysissave(data) {
+    return request({
+        url: '/person/analyze',
+        method: 'post',
+        data
+    })
+}
+
+//删除统计分析
+export function analysisdel(id) {
+    return request({
+        url: `/person/analyze/${id}`,
+        method: 'delete',
+        params: {
+            id
+        }
+    })
+}
+
+//统计分析排序
+export function analysisorderby(data) {
+    return request({
+        url: '/person/analyze/orderby',
+        method: 'post',
+        params: {
+            ...data,
+        }
+    })
+}
+
+/************************  2.统计范围分析 *************************/
+
+//分析范围查询
+export function analysisscopequery(data) {
+    return request({
+        url: '/person/analyze/scope/query',
+        method: 'post',
+        data
+    })
+}
+
+//保存分析范围
+export function analysisscopesave(data) {
+    return request({
+        url: '/person/analyze/scope',
+        method: 'post',
+        data
+    })
+}
+
+//删除分析范围
+export function analysisscopedel(id) {
+    return request({
+        url: `/person/analyze/scope/${id}`,
+        method: 'delete'
+    })
+}
+
+//排序分析范围
+export function analysisscopeorderby(data) {
+    return request({
+        url: `/person/analyze/scope/orderby`,
+        method: 'post',
+        params: {
+            ...data,
+        }
+    })
+}
+
+/************************  3.统计内容分析 *************************/
+//分析内容查询
+export function analysiscontentquery(data) {
+    return request({
+        url: '/person/analyze/content/query',
+        method: 'post',
+        data
+    })
+}
+
+//保存统计分析内容
+export function analysiscontentsave(data) {
+    return request({
+        url: '/person/analyze/content',
+        method: 'post',
+        data
+    });
+}
+//删除统计分析内容
+export function analysiscontentdel(id){
+    return request({
+        url: `/person/analyze/content/${id}`,
+        method: 'delete',
+    })
+}
+
+//排序分析范围
+export function analysiscontentorderby(data) {
+    return request({
+        url: `/person/analyze/content/orderby`,
+        method: 'post',
+        params: {
+            ...data,
+        }
+    })
+}

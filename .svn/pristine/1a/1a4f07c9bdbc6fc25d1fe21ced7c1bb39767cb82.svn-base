@@ -1,0 +1,822 @@
+export default {
+  list: [
+    {
+      type: 'titleBar',
+      code: 'baseinfo',
+      name: '基本信息'
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputText',
+              code: 'username',
+              name: '姓名',
+              required: true,
+              disabled: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'sex',
+              name: '性别2',
+              dict: 'usermanage.user.sex'
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'nation',
+              name: '民族',
+              required: true,
+              dict: 'usermanage.user.nation',
+              location:{
+                code:'sex',
+                lable:'性别'
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputText',
+              code: 'idcard',
+              name: '身份证',
+              required: true,
+              disabled: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputNumber',
+              code: 'idcard',
+              name: '数字',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'datePicker',
+              code: 'birthday',
+              name: '出生日期',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'maritalstatus',
+              name: '婚姻状况',
+              dict: 'usermanage.user.maritalstatus'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'casCader',
+              code: 'jiguan',
+              name: '籍贯',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputText',
+              code: 'address',
+              name: '户口所在地'
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputText',
+              code: 'currentaddr',
+              name: '现居住地'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'politicsface',
+              name: '政治面貌',
+              dict: 'usermanage.user.politicsface',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'datePicker',
+              code: 'joinpartytime',
+              name: '入党(团)时间'
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'datePicker',
+              code: 'worktime',
+              name: '参加工作时间',
+              required: true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'inputText',
+      code: 'nativeaddress',
+      name: '详细户籍地',
+      required: true
+    },
+    {
+      type: 'titleBar',
+      code: 'work',
+      name: '编制所在单位信息',
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 16,
+          components: [
+            {
+              type: 'selectOrg',
+              code: 'org.name',
+              name: '编制所在单位',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectOrg',
+              code: 'dept',
+              name: '人员所在科室',
+              mode: 'dept',
+              location: {
+                code: 'org.name',
+                label: '编制所在单位'
+              }
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputBool',
+              code: 'dept222',
+              name: '布尔',
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputBool',
+              code: 'dept2223',
+              name: '布尔22',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectUser',
+              code: 'dept',
+              name: '用户'
+            }
+          ]
+        },       
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectUser',
+              code: 'dept22',
+              name: '用户2',
+              required: true
+            }
+          ]
+        },  
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputNumber',
+              code: 'd34fd',
+              name: '数字',
+              required: true
+            }
+          ]
+        },  
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputNumber',
+              code: 'fsfsdfsd',
+              name: '数字2'
+            }
+          ]
+        },  
+      ]
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'complietype',
+              name: '编制类型',
+              required: true,
+              dict: 'usermanage.user.complietype',
+              disabled: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'identitytype',
+              name: '本人身份',
+              dict: 'usermanage.user.identitytype',
+              required: true,
+              disabled: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputText',
+              code: 'position',
+              name: '职务名称',
+              required: true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'postkind',
+              name: '人员分类',
+              required: true,
+              dict: 'usermanage.user.postkind'
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'positionlevel',
+              name: '职务级别',
+              dict: 'usermanage.user.positionlevel',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'dutylevel',
+              name: '职级级别',
+              dict: 'usermanage.user.dutylevel',
+              required: true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'posttitle',
+              name: '职称名称',
+              required: true,
+              dict: 'usermanage.user.posttitle'
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'treatmentlevel',
+              name: '享受待遇职级',
+              dict: 'usermanage.user.treatmentlevel',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'cadresaclclassify',
+              name: '干部管理权限分类',
+              dict: 'usermanage.user.cadresaclclassify',
+              required: true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'isservant',
+              name: '公务员登记',
+              dict: 'usermanage.user.servant'
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'zfjgryfl',
+              name: '政法机构人员分类',
+              dict: 'usermanage.user.zfjgryfl'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'titleBar',
+      code: 'partwork',
+      name: '兼职顶岗信息'
+    },
+    {
+      type: 'formGroup',
+      code: 'work',
+      label: '兼职顶岗信息',
+      properties: [
+        {
+          name: '工作所在单位',
+          code: 'workorg',
+          type: 'selectOrg',
+          required: true,
+          span: 16,
+          mode: 'org',
+          usePermit: false
+        },
+        {
+          name: '工作所在科室',
+          code: 'workdept',
+          type: 'selectOrg',
+          span: 8,
+          mode: 'dept',
+          location: {
+            code: 'workorg',
+            label: '工作所在单位'
+          }
+        },
+        {
+          name: '工作职务级别',
+          code: 'workpositionlevel',
+          type: 'selectDict',
+          dict: 'usermanage.user.positionlevel',
+          required: true,
+          span: 8
+        },
+        {
+          name: '工作人员分类',
+          code: 'workpostkind',
+          type: 'selectDict',
+          dict: 'usermanage.user.postkind',
+          span: 8,
+          required: true
+        },
+        {
+          name: '工作职务名称',
+          code: 'workposition',
+          type: 'inputText',
+          span: 8,
+          required: true
+        },
+        {
+          name: '工作状态',
+          code: 'workstatus',
+          type: 'selectDict',
+          dict: 'usermanage.user.workstatus',
+          span: 8,
+          required: true
+        }
+      ]
+    },
+    {
+      type: 'titleBar',
+      code: 'educate',
+      name: '教育信息'
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'fteducation',
+              name: '全日制学历',
+              dict: 'usermanage.user.education',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'ftdegree',
+              name: '全日制学位',
+              dict: 'usermanage.user.degree',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputText',
+              code: 'ftspecialty',
+              name: '全日制专业',
+              required: true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputText',
+              code: 'ftschools',
+              name: '全日制毕业院校',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'datePicker',
+              code: 'ftgraduationtime',
+              name: '全日制学历毕业时间',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'pteducation',
+              name: '非全日制学历',
+              dict: 'usermanage.user.education'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'ptdegree',
+              name: '非全日制学位',
+              dict: 'usermanage.user.degree'
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputText',
+              code: 'ptspecialty',
+              name: '非全日制专业'
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputText',
+              code: 'ptschools',
+              name: '非全日制毕业院校'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'datePicker',
+              code: 'ptgraduationtime',
+              name: '非全日制学历毕业时间'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'titleBar',
+      code: 'join',
+      name: '进员信息'
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'joinway',
+              name: '首次进入队伍方式',
+              dict: 'usermanage.user.joinway',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'selectDict',
+              code: 'entryway',
+              name: '进入单位形式',
+              dict: 'usermanage.user.entryway',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'datePicker',
+              code: 'entrytime',
+              name: '进入单位时间',
+              required: true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'titleBar',
+      code: 'contact',
+      name: '联系信息'
+    },
+    {
+      type: 'colLayout',
+      children: [
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputText',
+              code: 'mobilephone',
+              name: '手机号码',
+              required: true
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputText',
+              code: 'telephone',
+              name: '虚拟短号'
+            }
+          ]
+        },
+        {
+          span: 8,
+          components: [
+            {
+              type: 'inputText',
+              code: 'officephone',
+              name: '办公电话号码'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'titleBar',
+      code: 'family',
+      name: '家庭成员信息'
+    },
+    {
+      type: 'customTable',
+      code: 'fami',
+      edit: true,
+      label: '家庭成员',
+      simple: false,
+      properties: [
+        {
+          name: '与本人关系',
+          code: 'fami_relation',
+          type: 'selectDict',
+          dict: 'usermanage.user.familyrelation',
+          show: true,
+          required: true,
+          span: 8
+        },
+        {
+          name: '姓名',
+          code: 'fami_name',
+          type: 'inputText',
+          required: true,
+          show: true,
+          span: 8
+        },
+        {
+          name: '性别',
+          code: 'fami_sex',
+          type: 'selectDict',
+          dict: 'usermanage.user.sex',
+          required: true,
+          show: true,
+          span: 8
+        },
+        {
+          name: '身份证',
+          code: 'fami_idcard',
+          type: 'inputText',
+          show: true,
+          span: 8
+        },
+        {
+          name: '出生日期',
+          code: 'fami_birth',
+          type: 'datePicker',
+          show: true,
+          span: 8
+        },
+        {
+          name: '政治面貌',
+          code: 'fami_politicsface',
+          type: 'selectDict',
+          dict: 'usermanage.user.politicsface',
+          show: true,
+          span: 8
+        },
+        {
+          name: '工作单位',
+          code: 'fami_workunitandposition',
+          type: 'inputText',
+          show: true,
+          span: 8
+        },
+        {
+          name: '籍贯',
+          code: 'fami_area',
+          type: 'inputText',
+          span: 8
+        },
+        {
+          name: '户口所在地',
+          code: 'fami_domicileplace',
+          type: 'inputText',
+          span: 8
+        },
+        {
+          name: '出生地',
+          code: 'fami_birthplace',
+          type: 'inputText',
+          span: 8
+        },
+        {
+          name: '现居地',
+          code: 'fami_liveinplace',
+          type: 'inputText',
+          span: 8
+        },
+        {
+          name: '职业',
+          code: 'fami_job',
+          type: 'inputText',
+          span: 8
+        },
+        {
+          name: '备注',
+          code: 'fami_remark',
+          type: 'inputText',
+          multiline: true,
+          span: 24
+        }
+      ]
+    }
+  ]
+}

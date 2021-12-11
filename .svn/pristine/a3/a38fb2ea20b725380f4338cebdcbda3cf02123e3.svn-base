@@ -1,0 +1,124 @@
+<template>
+  <div class="main">
+    <div class="top">
+      <ul class="topList">
+        <li class="map">
+          <svg-map></svg-map>
+        </li>
+        <li class="table">
+          <!--机构-->
+          <org-report></org-report>
+        </li>
+        <li class="table">
+          <!--编制-->
+          <staff-report></staff-report>
+        </li>
+        <li class="table">
+          <!--职数-->
+          <post-report></post-report>
+        </li>
+      </ul>
+       <split-line />
+    </div>
+    <div class="bottom">
+      <ul>
+        <li class="capsuleSlide">
+          <capsule-slide></capsule-slide>
+        </li>
+        <li class="circleChart">
+          <circle-chart :list="list_xz" :type="0" :queryId='202'></circle-chart>
+        </li>
+        <li class="circleChart">
+          <circle-chart :list="list_sy" :type="1" :queryId='203'></circle-chart>
+        </li>
+      </ul>
+    </div>
+  </div>
+</template>
+<script>
+import SvgMap from "../resourcemap/SvgMap";
+import Swiper from "../components/Swiper";
+import CapsuleSlide from "../resourcemap/CapsuleSlide";
+import CircleChart from "../resourcemap/CircleChart";
+import OrgReport from "../resourcemap/OrgReport";
+import StaffReport from "../resourcemap/StaffReport";
+import PostReport from "../resourcemap/PostReport";
+import { mixins } from "./minxin";
+import SplitLine from './SplitLine.vue';
+
+export default {
+  components: { CapsuleSlide, CircleChart, SvgMap, Swiper,OrgReport,StaffReport,PostReport, SplitLine },
+  data() {
+    return {
+      list_xz: [
+        { item: "党政群机关编制", count: 2784 },
+        { item: "司法专项编制", count: 185 },
+        { item: "公安专项编制", count: 168 },
+        { item: "法院专项编制", count: 168 },
+        { item: "检察院专项编制", count: 155 },
+        { item: "法院专项编制", count: 8 },
+        { item: "其它", count: 14 }
+      ],
+      list_sy: [
+        { item: "教育", count: 278 },
+        { item: "卫生", count: 157 },
+        { item: "政府", count: 87 },
+        { item: "文化新闻传播", count: 79 },
+        { item: "农林牧水", count: 28 },
+        { item: "交通", count: 15 },
+        { item: "其它", count: 5 }
+      ]
+    };
+  },
+  mixins:[mixins],
+  created(){
+    if(this.dictCode.dictId == 'all'){
+      this.dictCode.dictId = undefined
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.main {
+  .top {
+    width: 100%;
+    padding: 0px 45px;
+    .topList {
+      height: 356px;
+      display: flex;
+      margin-bottom: 20px;
+      padding: 0px;
+      justify-content: space-between;
+      li {
+        &.map {
+          width: 325px;
+        }
+        &.table {
+          width: 270px;
+        }
+      }
+    }
+  }
+  .bottom {
+    width: 100%;
+    height: 330px;
+    margin-top: 50px;
+    padding: 0px 20px;
+    ul {
+      margin: 0px;
+      display: flex;
+      justify-content: space-between;
+      height: 100%;
+      .capsuleSlide {
+        width: 350px;
+      }
+      .circleChart {
+        width: 468px;
+      }
+      li {
+        overflow: hidden;
+      }
+    }
+  }
+}
+</style>

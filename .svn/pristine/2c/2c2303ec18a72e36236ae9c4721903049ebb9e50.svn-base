@@ -1,0 +1,143 @@
+<template>
+  <div class="barChart">
+    <a-spin :spinning="loading" v-if="loading"></a-spin>
+    <div class="chart" ref="chart" v-else></div>
+  </div>
+</template>
+<script>
+import { Chart } from "@antv/g2";
+import { Spin } from "ant-design-vue";
+import { rate } from "@/hall/api/attendance";
+import { showError } from "@/framework/utils/index";
+import moment from 'moment';
+export default {
+  components: {
+    ASpin: Spin
+  },
+  props: {
+    date: {
+      required: true
+    }
+  },
+  watch: {
+    date() {
+      this.getData();
+    }
+  },
+  data() {
+    return {
+      loading: false,
+      plot:undefined,
+      list: [],
+      pagination: {
+        pagesize: 10000,
+        pagenum: 1,
+        total: 0,
+        needtotal: true
+      }
+    };
+  },
+  mounted() {
+    this.getData();
+  },
+  methods: {
+    // 去百分数
+    toNumber(percent) {
+      return parseInt(percent.replace("%", ""));
+    },
+    formatData(list =[]){
+      list= list.map(item=>{
+        return {
+          type:item['orgname'],
+          value:this.toNumber(item.rate)
+        }
+      })
+      list.sort((a,b)=>{
+        return b.value - a.value
+      })
+      return list.slice(0,10)
+    },
+    getData() {
+      this.loading = true;
+      let query = {
+        starttime:moment(this.date).startOf('month').format("YYYY-MM-DD"),
+        endtime: moment(this.date).endOf('month').format("YYYY-MM-DD"),
+        ...this.pagination
+      };
+      rate(query)
+        .then(({result:{rows=[]}}) => {
+          this.list = this.formatData(rows)
+          this.loading = false;
+          this.$nextTick(() => {
+            this.draw();
+          });
+        })
+        .catch(err => {
+          showError(err);
+        })
+        .finally(() => {
+          this.loading = false;
+        });
+    },
+    draw() {
+      if(!this.$refs.chart){
+        return false;
+      }
+      if(this.plot){
+        this.plot.destroy()
+      }
+      const chart = new Chart({
+        container: this.$refs.chart,
+        autoFit: true,
+        padding: [50, 20, 50, 20]
+      });
+      chart.data(this.list);
+      chart.scale("value", {
+        alias: "比率"
+      });
+
+      chart.axis("type", {
+        tickLine: {
+          alignTick: false
+        }
+      });
+      chart.axis("value", false);
+
+      chart.tooltip({
+        showMarkers: false
+      });
+      chart.interval().position("type*value");
+      chart.interaction("element-active");
+
+      // 添加文本标注
+      this.list.forEach(item => {
+        chart.annotation().text({
+          position: [item.type, item.value],
+          content: item.value  + "%",
+          style: {
+            textAlign: "center"
+          },
+          offsetY: -12
+        });
+      });
+      chart.render();
+      this.plot = chart;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.barChart {
+  height: 300px;
+    /deep/.ant-spin {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .chart {
+    height: 100%;
+  }
+}
+</style>

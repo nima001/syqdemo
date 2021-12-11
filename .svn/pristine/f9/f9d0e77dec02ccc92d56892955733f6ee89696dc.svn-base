@@ -1,0 +1,214 @@
+<template>
+  <div class="wrap">
+    <div class="cell">
+      <p class="title">人员身份概况</p>
+      <ul class="list">
+        <li class="item" v-for="(item,index) in list" :key="index">
+          <span class="icon" :style="{background:item.background}">
+            <custom-icon :type="item.svgType"></custom-icon>
+          </span>
+          <span class="num">{{item.num}}</span>
+          <span class="desc">{{item.desc}}</span>
+        </li>
+      </ul>
+    </div>
+    <div class="cell">
+      <p class="title">人员身份占比</p>
+      <div class="chart" ref="chart"></div>
+    </div>
+  </div>
+</template>
+<script>
+import CustomIcon from "@/framework/components/CustomIcon";
+import { Chart } from "@antv/g2";
+export default {
+  components: { CustomIcon },
+  data() {
+    return {
+      list: [
+        { num: 32, desc: "公务员", svgType: "person", background: "#e0eafe" },
+        { num: 32, desc: "参公人员", svgType: "person", background: "#e3f4fc" },
+        { num: 32, desc: "事业人员", svgType: "person", background: "#fdf2d2" },
+        { num: 32, desc: "企业", svgType: "person", background: "#e3e0fe" },
+        { num: 32, desc: "编外人员", svgType: "person", background: "#dff8ee" },
+        { num: 32, desc: "其它人员", svgType: "person", background: "#e0e3ea" }
+      ]
+    };
+  },
+  mounted() {
+    this.draw();
+  },
+  methods: {
+    draw() {
+      const data = [
+        { item: "事例一", count: 40, percent: 0.4 },
+        { item: "事例二", count: 21, percent: 0.21 },
+        { item: "事例三", count: 17, percent: 0.17 },
+        { item: "事例四", count: 13, percent: 0.13 },
+        { item: "事例五", count: 9, percent: 0.09 }
+      ];
+      const chart = new Chart({
+        container: this.$refs.chart,
+        autoFit: true
+      });
+      chart.data(data);
+      chart.scale("percent", {
+        formatter: val => {
+          val = val * 100 + "%";
+          return val;
+        }
+      });
+      chart.coordinate("theta", {
+        radius: 0.75,
+        innerRadius: 0.6
+      });
+      chart.tooltip({
+        showTitle: false,
+        showMarkers: false,
+        itemTpl:
+          '<li class="g2-tooltip-list-item"><span style="background-color:{color};" class="g2-tooltip-marker"></span>{name}: {value}</li>'
+      });
+      // 辅助文本
+      chart
+        .annotation()
+        .text({
+          position: ["50%", "50%"],
+          content: "主机",
+          style: {
+            fontSize: 14,
+            fill: "#8c8c8c",
+            textAlign: "center"
+          },
+          offsetY: -20
+        })
+        .text({
+          position: ["50%", "50%"],
+          content: "200",
+          style: {
+            fontSize: 20,
+            fill: "#8c8c8c",
+            textAlign: "center"
+          },
+          offsetX: -10,
+          offsetY: 20
+        })
+        .text({
+          position: ["50%", "50%"],
+          content: "台",
+          style: {
+            fontSize: 14,
+            fill: "#8c8c8c",
+            textAlign: "center"
+          },
+          offsetY: 20,
+          offsetX: 20
+        });
+      chart
+        .interval()
+        .adjust("stack")
+        .position("percent")
+        .color("item")
+        .label("percent", percent => {
+          return {
+            content: data => {
+              return `${data.item}: ${percent * 100}%`;
+            }
+          };
+        })
+        .tooltip("item*percent", (item, percent) => {
+          percent = percent * 100 + "%";
+          return {
+            name: item,
+            value: percent
+          };
+        });
+      chart.legend({
+        position: "right"
+      });
+      chart.interaction("element-active");
+
+      chart.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-height: 100%;
+  .cell {
+    padding: @content-padding-v @content-padding-h;
+    background: @white;
+    margin-top: @layout-space-base;
+    border-radius: @border-radius-base;
+    flex: 1;
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+    &:first-child {
+      margin-top: 0px;
+    }
+    .title {
+      margin: 0px;
+    }
+    .list {
+      margin: 0px;
+      flex: 1;
+      display: flex;
+      justify-content: space-between;
+      .item {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        &::after {
+          content: "";
+          width: 1px;
+          height: 40px;
+          background: #d1dce9;
+          position: absolute;
+          right: 0px;
+          top: 50%;
+          transform: translateY(-50%);
+        }
+        &:last-child {
+          &::after {
+            width: 0px;
+          }
+        }
+        .icon {
+          width: 48px;
+          height: 48px;
+          border-radius: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          /deep/svg {
+            width: 25px;
+            height: 25px;
+            border-radius: 0px;
+          }
+        }
+        .num {
+          padding: @padding-md 0px;
+          font-size: 35px;
+          font-weight: bold;
+          color: #000;
+        }
+        .desc {
+          color: #999;
+          font-size: 16px;
+        }
+      }
+    }
+    .chart {
+      flex: 1;
+    }
+  }
+}
+</style>

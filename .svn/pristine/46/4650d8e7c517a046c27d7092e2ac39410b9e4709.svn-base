@@ -1,0 +1,136 @@
+<template>
+  <a-modal
+    title="设置页边距"
+    :width="460"
+    :visible="value"
+    @ok="onOK"
+    @cancel="$emit('finish', 'cancel')"
+    :bodyStyle="{ paddingBottom: 0 }"
+  >
+    <a-row :gutter="12">
+      <a-col :span="12" v-for="(item, index) in ms" :key="index">
+        <div class="label">{{item.label}}</div> 
+        <a-input-group compact>
+          <a-input-number v-model="ms[index].value" 
+            :min="0" v-bind="units[item.unit]"
+            style="width:calc(100% - 52px)"
+          />
+          <a-select :value="ms[index].unit"
+            :showArrow="false" 
+            @change="onUnitChange(item, $event)"
+            style="width: 52px"
+          >
+            <a-select-option v-for="(value, key) in units" :key="key">{{value.name}}</a-select-option>
+          </a-select>
+        </a-input-group>
+      </a-col>
+    </a-row>
+  </a-modal>
+</template>
+<script>
+import { Modal, Row, Col, Input, InputNumber, Select } from "ant-design-vue";
+
+export default {
+  components: {
+    AModal: Modal,
+    ARow: Row,
+    ACol: Col,
+    AInputGroup: Input.Group,
+    AInputNumber:InputNumber,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+  },
+  props: {
+    value: {
+      type: Boolean,
+      default: false,
+    },
+    margins: {
+      type: Array,
+      default() {
+        return [0, 0, 0, 0];
+      }
+    }
+  },
+  data() {
+    return {
+      ms: [
+        { label: '上边距', value: 0, unit: 'px' },
+        { label: '下边距', value: 0, unit: 'px' },
+        { label: '左边距', value: 0, unit: 'px' },
+        { label: '右边距', value: 0, unit: 'px' },
+      ],
+      units: {//边距暂定最大不超过2.5英寸 后续可根据纸张大小计算
+        px: { name: '像素', scale: 96, max: 2.5 * 96, step: 1, precision: 0 },
+        pt: { name: '磅', scale: 72, max: 2.5 * 72, step: 1, precision: 0 },
+        cm: { name: '厘米', scale: 2.54, max: 2.5 * 2.54, step: 0.01, precision: 2 },
+        in: { name: '英寸', scale: 1, max: 2.5, step: 0.01, precision: 2 },
+      }
+    };
+  },
+  watch: {
+    margins(){
+      this.initData();
+    },
+    value(v){
+      if(v){
+        this.initData();
+      }
+    }
+  },
+  created(){
+    this.initData();
+  },
+  methods: {
+    initData(){
+      let [top, right, bottom, left] = this.margins;
+      this.ms[0].value = top;
+      this.ms[0].unit = 'px';
+      this.ms[1].value = bottom;
+      this.ms[1].unit = 'px';
+      this.ms[2].value = left;
+      this.ms[2].unit = 'px';
+      this.ms[3].value = right;
+      this.ms[3].unit = 'px';
+    },
+    onUnitChange(item, value){
+      item.value = this.convert(item.value, item.unit, value);
+      item.unit = value;
+    },
+    onOK() {
+      let [top, bottom, left, right] = this.ms;
+      this.$emit("finish", "ok", [
+        this.convert(top.value, top.unit, 'px'), 
+        this.convert(right.value, right.unit, 'px'), 
+        this.convert(bottom.value, bottom.unit, 'px'), 
+        this.convert(left.value, left.unit, 'px')
+      ]);
+    },
+    convert(value, from, to){
+      if(value){
+        let toUnit = this.units[to];
+        value = value * (toUnit.scale / this.units[from].scale);
+        value = parseFloat(value.toFixed(toUnit.precision));
+      }
+      return value;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.ant-col{
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+}
+.label{
+  flex: none;
+  &::after{
+    content: ':';
+    margin: 0 8px 0 2px;
+  }
+}
+.ant-input-group-compact{
+  flex: auto;
+}
+</style>

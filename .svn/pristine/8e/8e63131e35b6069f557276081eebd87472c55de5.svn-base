@@ -1,0 +1,370 @@
+<template>
+  <div class="main">
+    <div class="top">
+      <ul class="topList">
+        <li class="map"></li>
+        <li class="table">
+          <div class="title">
+            <span class="icon jigou"></span>
+            <span class="text">机构</span>
+          </div>
+          <div class="cell">
+            <div class="cellItem">
+              <p>党政机构剩余数</p>
+              <div class="num">
+                <span class="fake">0000</span>
+                <span class="real">60</span>
+              </div>
+              <div class="type">
+                <span class="name">限额</span>
+                <span class="number">169</span>
+              </div>
+              <div class="type">
+                <span class="name">实有</span>
+                <span class="number">142</span>
+              </div>
+            </div>
+            <div class="cellItem">
+              <p>局级党政机构剩余数</p>
+              <div class="num">
+                <span class="fake">0000</span>
+                <span class="real">60</span>
+              </div>
+              <div class="type">
+                <span class="name">限额</span>
+                <span class="number">169</span>
+              </div>
+              <div class="type">
+                <span class="name">实有</span>
+                <span class="number">142</span>
+              </div>
+            </div>
+          </div>
+          <div class="cell">
+            <div class="cellItem">
+              <p>事业单位剩余数</p>
+              <div class="num accent">
+                <span class="fake">0000</span>
+                <span class="real">60</span>
+              </div>
+              <div class="type">
+                <span class="name">限额</span>
+                <span class="number">169</span>
+              </div>
+              <div class="type">
+                <span class="name">实有</span>
+                <span class="number">142</span>
+              </div>
+            </div>
+            <div class="cellItem">
+              <p>局级事业单位剩余数</p>
+              <div class="num accent">
+                <span class="fake">0000</span>
+                <span class="real">60</span>
+              </div>
+              <div class="type">
+                <span class="name">限额</span>
+                <span class="number">169</span>
+              </div>
+              <div class="type">
+                <span class="name">实有</span>
+                <span class="number">142</span>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="table">
+          <div class="title">
+            <span class="icon bianzhi"></span>
+            <span class="text">编制</span>
+          </div>
+          <div class="cell">
+            <div class="cellItem">
+              <p>行政编制待分配数</p>
+              <div class="num">
+                <span class="fake">0000</span>
+                <span class="real">60</span>
+              </div>
+              <div class="type">
+                <span class="name">限额</span>
+                <span class="number">169</span>
+              </div>
+              <div class="type">
+                <span class="name">实有</span>
+                <span class="number">142</span>
+              </div>
+            </div>
+            <div class="cellItem">
+              <p>行政编制空编数</p>
+              <div class="num">
+                <span class="fake">0000</span>
+                <span class="real">60</span>
+              </div>
+              <div class="type">
+                <span class="name">限额</span>
+                <span class="number">169</span>
+              </div>
+              <div class="type">
+                <span class="name">实有</span>
+                <span class="number">142</span>
+              </div>
+            </div>
+          </div>
+          <div class="cell">
+            <div class="cellItem">
+              <p>事业编制待分配数</p>
+              <div class="num accent">
+                <span class="fake">0000</span>
+                <span class="real">60</span>
+              </div>
+              <div class="type">
+                <span class="name">限额</span>
+                <span class="number">169</span>
+              </div>
+              <div class="type">
+                <span class="name">实有</span>
+                <span class="number">142</span>
+              </div>
+            </div>
+            <div class="cellItem">
+              <p>事业编制空编数</p>
+              <div class="num accent">
+                <span class="fake">0000</span>
+                <span class="real">60</span>
+              </div>
+              <div class="type">
+                <span class="name">限额</span>
+                <span class="number">169</span>
+              </div>
+              <div class="type">
+                <span class="name">实有</span>
+                <span class="number">142</span>
+              </div>
+            </div>
+          </div>
+        </li>
+        <li class="table">
+          <div class="title">
+            <span class="icon zhishu"></span>
+            <span class="text">职数</span>
+          </div>
+          <div class="cell">
+            <div class="cellItem">
+              <p>行政领导空职数</p>
+              <div class="num">
+                <span class="fake">0000</span>
+                <span class="real">60</span>
+              </div>
+              <div class="type">
+                <span class="name">限额</span>
+                <span class="number">169</span>
+              </div>
+              <div class="type">
+                <span class="name">实有</span>
+                <span class="number">142</span>
+              </div>
+            </div>
+            <div class="cellItem">
+              <p>行政中层空职数</p>
+              <div class="num">
+                <span class="fake">0000</span>
+                <span class="real">60</span>
+              </div>
+              <div class="type">
+                <span class="name">限额</span>
+                <span class="number">169</span>
+              </div>
+              <div class="type">
+                <span class="name">实有</span>
+                <span class="number">142</span>
+              </div>
+            </div>
+          </div>
+          <div class="cell">
+            <div class="cellItem">
+              <p>事业领导空职数</p>
+              <div class="num accent">
+                <span class="fake">0000</span>
+                <span class="real">60</span>
+              </div>
+              <div class="type">
+                <span class="name">限额</span>
+                <span class="number">169</span>
+              </div>
+              <div class="type">
+                <span class="name">实有</span>
+                <span class="number">142</span>
+              </div>
+            </div>
+            <div class="cellItem">
+              <p>事业中层空职数</p>
+              <div class="num accent">
+                <span class="fake">0000</span>
+                <span class="real">60</span>
+              </div>
+              <div class="type">
+                <span class="name">限额</span>
+                <span class="number">169</span>
+              </div>
+              <div class="type">
+                <span class="name">实有</span>
+                <span class="number">142</span>
+              </div>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </div>
+    <div class="bottom"></div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: "",
+  components: {},
+  data() {
+    return {};
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+@font-face {
+  font-family: LESLIEB;
+  src: url("../img/LESLIEB_.TTF") format("truetype");
+}
+.main {
+  padding: 0px 24px 24px;
+  .top {
+    width: 100%;
+    .topList {
+      height: 356px;
+      display: flex;
+      margin: 0px;
+      padding: 0px;
+      justify-content: space-between;
+      li {
+        flex: 1;
+        &.table {
+          .title {
+            display: flex;
+            align-items: center;
+            .icon {
+              width: 24px;
+              height: 24px;
+              &.jigou {
+                background: url("../img/jigou.png");
+              }
+              &.bianzhi {
+                background: url("../img/bainzhi.png");
+              }
+              &.zhishu {
+                background: url("../img/zhishu.png");
+              }
+            }
+            .text {
+              width: 80px;
+              height: 80px;
+              line-height: 80px;
+              text-align: center;
+              background: url("../img/text_bj.png");
+              font-size: 20px;
+              font-family: Microsoft YaHei;
+              font-weight: bold;
+              color: #ffffff;
+              -webkit-text-stroke: 1 #66d9ec;
+              opacity: 0.9;
+              margin-left: -8px;
+            }
+          }
+          .cell {
+            display: flex;
+            width: 270px;
+            justify-content: space-between;
+            &:last-child {
+              margin-top: 20px;
+            }
+            .cellItem {
+              p {
+                margin: 0px;
+                height: 22px;
+                line-height: 22px;
+                font-size: 16px;
+                font-family: Microsoft YaHei;
+                font-weight: 400;
+                color: #ffffff;
+                opacity: 0.8;
+              }
+              .num {
+                width: 110px;
+                height: 48px;
+                margin: 4px auto;
+                position: relative;
+                font-size: 48px;
+                font-family: LESLIEB;
+                font-weight: 400;
+                line-height: 48px;
+                color: #8fc7ff;
+                -webkit-text-stroke: 1 #66d9ec;
+                opacity: 0.8;
+                text-align: right;
+                &.accent {
+                  color: #ffd3a3;
+                  -webkit-text-stroke: 1 #eca066;
+                }
+                .fake {
+                  display: block;
+                  width: 100%;
+                  height: 100%;
+                  color: #343434;
+                }
+                .real {
+                  width: 100%;
+                  height: 100%;
+                  position: absolute;
+                  left: 0px;
+                  top: 0px;
+                }
+              }
+              .type {
+                width: 110px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin: 4px auto;
+                padding: 0px 5px;
+                .name {
+                  height: 21px;
+                  font-size: 16px;
+                  font-family: Microsoft YaHei;
+                  font-weight: 400;
+                  line-height: 21px;
+                  color: #ffffff;
+                  opacity: 0.6;
+                }
+                .number {
+                  height: 18px;
+                  font-size: 16px;
+                  font-family: Arial;
+                  font-weight: 400;
+                  line-height: 18px;
+                  color: #ffffff;
+                  opacity: 0.6;
+                  flex: 1;
+                  text-align: right;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  .bottom {
+    width: 100%;
+    height: 330px;
+  }
+}
+</style>

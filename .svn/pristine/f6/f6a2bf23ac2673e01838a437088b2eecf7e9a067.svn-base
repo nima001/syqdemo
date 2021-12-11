@@ -1,0 +1,128 @@
+<template>
+  <div class="content">
+    <a-table :columns="columns" :data-source="data" :pagination="false">
+        <span slot="action" class="action"><a href="javascript:;">编辑</a></span>
+        <span slot="action" class="action"><a href="javascript:;">删除</a></span>
+    </a-table>
+  </div>
+</template>
+
+<script>
+import { Table } from "ant-design-vue";
+const columns = [
+  {
+    title: "节点名称",
+    dataIndex: "name",
+    width: "60%",
+  },
+  {
+    title: "操作",
+    dataIndex: "action",
+    scopedSlots: {customRender: 'action'}
+  },
+];
+const data = [
+  {
+    key: 1,
+    name: "John Brown sr.",
+    age: 60,
+    address: "New York No. 1 Lake Park",
+    children: [
+      {
+        key: 11,
+        name: "John Brown",
+        age: 42,
+        address: "New York No. 2 Lake Park",
+      },
+      {
+        key: 12,
+        name: "John Brown jr.",
+        age: 30,
+        address: "New York No. 3 Lake Park",
+        children: [
+          {
+            key: 121,
+            name: "Jimmy Brown",
+            age: 16,
+            address: "New York No. 3 Lake Park",
+          },
+        ],
+      },
+      {
+        key: 13,
+        name: "Jim Green sr.",
+        age: 72,
+        address: "London No. 1 Lake Park",
+        children: [
+          {
+            key: 131,
+            name: "Jim Green",
+            age: 42,
+            address: "London No. 2 Lake Park",
+            children: [
+              {
+                key: 1311,
+                name: "Jim Green jr.",
+                age: 25,
+                address: "London No. 3 Lake Park",
+              },
+              {
+                key: 1312,
+                name: "Jimmy Green sr.",
+                age: 18,
+                address: "London No. 4 Lake Park",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+  {
+    key: 2,
+    name: "Joe Black",
+    age: 32,
+    address: "Sidney No. 1 Lake Park",
+  },
+];
+export default {
+  components: {
+    ATable: Table,
+  },
+  data() {
+    return {
+      data,
+      columns,
+    };
+  },
+  mounted() {},
+  methods: {
+    onExpand(expanded, record) {
+      if (expanded) {
+        // 设置展开窗Key
+        this.onExpandedRowsChange(record);
+      } else {
+        if (this.expandedKeys.length) {
+          this.expandedKeys = this.expandedKeys.filter((v) => {
+            return v != record.id;
+          });
+        }
+      }
+    },
+    onExpandedRowsChange(rows) {
+      this.expandedKeys.push(rows.id);
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.content {
+  padding: @padding-lg;
+  .action {
+    & a:not(:nth-child(4)) {
+      margin-right: 15px;
+      color: @primary-color;
+    }
+  }
+}
+</style>

@@ -1,0 +1,68 @@
+<template>
+  <div style="height: 100%" ref="pieChart"></div>
+</template>
+<script>
+import { Pie } from '@antv/g2plot';
+
+export default {
+  props: {
+    dataTable: {//数据表(dimension:维度列 measure:指标列 rows:数据列)
+      type: Object
+    },
+    uiConfig: {
+      type: Object
+    }
+  },
+  data(){
+    return {
+      plot: undefined,
+    }
+  },
+  watch: {
+    dataTable(dataTable){
+      this.updateData(dataTable);
+    }
+  },
+  mounted(){
+    this.updateData(this.dataTable);
+  },
+  methods: {
+    createData(dataTable){
+      if(!dataTable){
+        return;
+      }
+      let { keyCols, valueCols, rows } = dataTable;
+      // if(dimension.)//按指标名称（列分布）
+      return rows.map(item => {
+        let keys = keyCols.map(k => item[k.column]);
+        return {
+          key: keys.join('-'),
+          value: item[valueCols[0].column] || 0 //饼图指标暂时只能显示一个数据
+        }
+      })
+    },
+    updateData(dataTable){
+      let data = this.createData(dataTable);
+      if(!data){
+        return;
+      }
+      if(this.plot){
+        this.plot.destroy();
+      }
+      this.plot = new Pie(this.$refs.pieChart, {
+        forceFit: true,
+        radius: 0.8,
+        data,
+        angleField: 'value',
+        colorField: 'key',
+        label: {
+          visible: true,
+          type: 'outer-center',
+          formatter: (text, item) => `${item._origin.key} ${item._origin.value}`,
+        },
+      });
+      this.plot.render();
+    }
+  }
+}
+</script>

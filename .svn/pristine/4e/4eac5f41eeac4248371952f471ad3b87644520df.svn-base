@@ -1,0 +1,100 @@
+<template>
+  <a-select
+    :value="type"
+    :options="options"
+    :filterOption="filter"
+    @change="onTypeChange"
+    @dropdownVisibleChange="(v) => open = v"
+    :open="open"
+    showSearch
+    ref="select"
+  >
+    <a-icon slot="suffixIcon" type="swap" @click="toggle" class="toggle" title="切换"/>
+  </a-select>
+</template>
+<script>
+import { Select, Icon } from 'ant-design-vue'
+
+import { queryDict } from '@/framework/api/dict'
+import { showError } from '@/framework/utils'
+
+import SettingMixin from '../../mixin/setting'
+
+/**
+ * 字典类型选择
+ */
+export default {
+  components: {
+    ASelect: Select,
+    AIcon: Icon,
+  },
+  mixins: [SettingMixin],
+  data(){
+    return {
+      type: this.propValue,
+      open: false,
+      options: []
+    }
+  },
+  created(){
+    queryDict().then(({result}) => {
+      // console.log(result)
+      this.options = result.map(item => ({ value: item.id, title: item.name }))
+    }).catch(error => {
+      showError(error);
+    })
+  },
+  watch: {
+    propValue: {
+      immediate: true,
+      handler(v){
+        if(Array.isArray(v) || !v){
+          this.type = '自定义'
+        }else{
+          this.type = v;
+        }
+      }
+    },
+  },
+  methods: {
+    toggle(e){
+      if(this.propValue && !Array.isArray(this.propValue)){//不是自定义时设置为自定义
+        if(!this.open){//当前下拉菜单未打开时阻止冒泡不打开下拉菜单
+          e.stopPropagation();
+        }
+        this.propValue = [];
+        this.type = '自定义';
+      }else if(this.open){
+        e.stopPropagation();
+      }
+    },
+    onTypeChange(v){
+      this.type = v;
+      this.propValue = v;
+    },
+    filter(inputValue, option){
+      let { componentOptions: { propsData: { value, title } }} = option;
+      return title && title.indexOf(inputValue) >= 0;
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+  .ant-select{
+    width: 100%;
+    /deep/ .ant-select-arrow {
+      right: 0px;
+      margin-top: -14px;
+      font-size: 16px;
+      padding: 5px;
+      transition: all .2s cubic-bezier(.645,.045,.355,1);
+      color: @text-color-secondary;
+      &:hover{
+        color: @text-color;
+      }
+      .ant-select-arrow-icon svg{
+        transform: none;
+      }
+    }
+  }
+</style>

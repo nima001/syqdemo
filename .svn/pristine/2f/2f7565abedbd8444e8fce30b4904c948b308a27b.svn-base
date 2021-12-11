@@ -1,0 +1,39 @@
+<template>
+  <a-form-item :label="name" :required="!!required" :disabled="!!disabled" :class="{editor:!editor}">
+    <a-switch
+      v-model="propValue"
+      :disabled="!!disabled"
+    />
+  </a-form-item>
+</template>
+<script>
+import { Form, Switch } from "ant-design-vue";
+import { mixins } from "@formdesign/views/mixin/index";
+export default {
+  title: '开关',
+  components: {
+    AFormItem: Form.Item,
+    ASwitch: Switch,
+  },
+  mixins: [mixins]
+}
+</script>
+<style lang="less" scoped>
+.ant-form-item {
+  margin-bottom: 0;
+  &.editor{
+    position: relative;
+    &::before{
+      position: absolute;
+      left: 0px;
+      top: 0px;
+      content: '';
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: not-allowed;
+      z-index: 3;
+    }
+  }
+}
+</style>

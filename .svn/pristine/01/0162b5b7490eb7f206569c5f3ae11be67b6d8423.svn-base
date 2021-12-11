@@ -1,0 +1,20 @@
+// 大厅管理api
+import request from '@/framework/utils/request'
+
+
+//好评反馈
+//好评反馈列表
+/**
+ *
+ *查看好评反馈列表
+ * @param {*} data
+ * @returns
+ */
+export function getfavorablefeedbacklist(data) {
+    return request({
+        url: '/hall2/favorablefeedback/getfavorablefeedbacklist',
+        method: 'post',
+        data
+    })
+}
+

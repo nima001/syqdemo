@@ -1,0 +1,340 @@
+<template>
+  <div :style="{position:'relative'}">
+      <div class="container">
+        <div class="ring" v-for="item in data">
+          <RingChart
+            :data="item"
+            :settings="{
+              canvas: { width: 300, height: 400 },
+              padding: [-90, 0, 0, -50],
+              radius: 0.5,
+              innerRadius: 0.8,
+              tooltip: {
+                visible: true,
+              },
+              color: [
+                '#F2A54D',
+                '#60B4F5',
+                '#F84848',
+                '#DF6EA3',
+                '#6EDF75',
+                '#A66DF5',
+                '#C3F1CE',
+                '#A0A4F5',
+              ],
+              infoText: {
+                title: item.rows[0].k0,
+                offsetY: -20,
+                style: { fontSize: 18, fill: '#fff', textAlign: 'center' },
+              },
+              contentStyle: {
+                offsetY: 10,
+                fontSize: 25,
+                fill: '#fff',
+                textAlign: 'center',
+              },
+            }"
+          >
+            <template v-slot:customLegend="props">
+              <div class="legend">
+                <p class="title">{{ title }}</p>
+                <ul>
+                  <li v-for="(row, index) in item.rows" @click="showUserList(row)">
+                    <span class="left">
+                      <span :style="{ background: props[index] }" class="spot"></span>
+                      <span>{{ row.k0 }}</span>
+                    </span>
+                    <span>{{ row.v0||0 }}</span>
+                  </li>
+                </ul>
+              </div>
+            </template>
+          </RingChart>
+        </div>
+      </div>
+    <UserList :showList.sync="showList" :query="query"/>
+  </div>
+</template>
+<script>
+import DialogBox from "../components/DialogBox";
+import UserList from "./UserList";
+import RingChart from "@person/components/chart/RingChart";
+import { includes } from 'lodash';
+
+export default {
+  components: {
+    DialogBox,
+    RingChart,
+    UserList,
+  },
+  props: {
+    districtCode: String,
+    showChart: Boolean,
+    title: String,
+    dataList: {
+      type: Array,
+    },
+  },
+  data() {
+    return {
+      show: false,
+      data: undefined,
+      showList: false,
+      query: {
+        target: { id: 2, title: "人员", catalogid: 57 },
+        fields: [
+          {
+            datasource: "",
+            datatype: 4,
+            inputtype: 0,
+            key: "username",
+            name: "姓名",
+            required: true,
+            showname: "姓名",
+            sort: "基本信息",
+            icon: "string",
+          },
+          {
+            datatype: 4,
+            inputtype: 1,
+            joinable: false,
+            key: "age",
+            name: "年龄",
+            required: false,
+            showname: "年龄",
+            sort: "基本信息",
+            title: '<span class="key">年龄</span>',
+            icon: "int",
+          },
+          {
+            datasource: "usermanage.user.leaderpostlevel",
+            datatype: 2,
+            joinable: false,
+            key: "leaderpostlevel",
+            name: "职务层次",
+            required: false,
+            showname: "职务层次",
+            sort: "工作信息",
+            title: '职务<span class="key">层次</span>',
+            icon: "dict",
+          },
+          {
+            datasource: "usermanage.user.education",
+            datatype: 2,
+            joinable: false,
+            key: "education",
+            name: "学历",
+            required: false,
+            showname: "学历",
+            sort: "教育信息",
+            title: '<span class="key">学历</span>',
+            icon: "dict",
+          },
+        ],
+        filter: undefined,
+        nodename: undefined,
+      },
+    };
+  },
+  computed: {
+    leaderpostlevel() {
+      let v = this.$store.getters.dict('usermanage.user.leaderpostlevel');
+      return v;
+    }
+  },
+  watch: {
+    districtCode() {
+      let v = this.$store.getters.dictKey('usermanage.org.district', this.districtCode);
+      this.query.nodename = v.text;
+    },
+    showChart(value) {
+      this.show = value;
+    },
+    show(show) {
+      if (!show) {
+        this.$emit("update:showChart", show);
+      }
+    },
+    dataList(val) {
+      this.data = val;
+    },
+  },
+  mounted() {
+    this.showList = false;
+  },
+  methods: {
+    showUserList(row) {
+      let leaders = this.leaderpostlevel.filter((item)=>item.text==row.k0);
+      if(leaders.length) {
+        let values = { 
+          op: 'and',
+          criteria:[{
+            field: {
+              datasource: "usermanage.user.leaderpostlevel",
+              datatype: 2,
+              icon: "dict",
+              joinable: false,
+              key: "leaderpostlevel",
+              name: "职务层次",
+              required: false,
+              showname: "职务层次",
+              sort: "工作信息",
+              title: "职务<span class=\"key\">层次</span>",
+            },
+            id: "jsxyf",
+            op: "eq",
+            value: leaders[0].value,
+            opList: [
+              {text: "等于", value: "eq"},
+              {text: "不等于", value: "ne"},
+              {text: "在列表中", value: "in"},
+              {text: "不在列表中", value: "nin"},
+            ]
+          }],
+        };
+        this.$set(this.query,'filter',values);
+      }else{
+        let op = undefined;
+        let value = undefined;
+        if(includes(row.k0,'岁及以上')) {
+          op = 'gte';
+          value = (row.k0).split('岁及以上')[0];
+        }else if(includes(row.k0,'-')) {
+          op = 'between';
+          let string = (row.k0).split('岁')[0];
+          value = [string.split('-')[0], string.split('-')[1]];
+        }else if(includes(row.k0,'岁及以下')) {
+          op = 'lte';
+          value = (row.k0).split('岁及以下')[0];
+        }
+        let values = { 
+          op: 'and',
+          criteria:[{
+            field: {
+              datatype: 4,
+              icon: "int",
+              inputtype: 1,
+              joinable: false,
+              key: "age",
+              name: "年龄",
+              required: false,
+              showname: "年龄",
+              sort: "基本信息",
+              title: "<span class=\"key\">年龄</span>",
+            },
+            id: "jsxyf",
+            op: op,
+            value: value,
+            opList: [
+              {text: "等于", value: "eq"},
+              {text: "不等于", value: "ne"},
+              {text: "在列表中", value: "in"},
+              {text: "不在列表中", value: "nin"},
+            ]
+          }],
+        };
+        this.$set(this.query,'filter',values);
+      }
+      this.showList = true;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.container {
+  height: 90%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  .ring {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    position: relative;
+    /deep/.ring-chart {
+      height: 300px;
+      .chart {
+        width: 60%;
+        position: relative;
+        top: 50%;
+        &::before {
+          content: "";
+          background: #242b5b;
+          position: absolute;
+          width: 210px;
+          height: 210px;
+          left: 14%;
+          top: 12.5%;
+          border-radius: 50%;
+        }
+      }
+    }
+    .title {
+      margin-bottom: 20px;
+      font-size: 1.4em;
+      font-weight: 600;
+    }
+    .legend {
+      width: 50%;
+      height: 500px;
+      padding: @padding-lg;
+      text-align: left;
+      position: absolute;
+      top: 15%;
+      left: 45%;
+      color: fade(#fff, 80%);
+      display: flex;
+      flex-direction: column;
+      .title {
+        text-align: center;
+        position: relative;
+        left: -50%;
+      }
+      ul {
+        width: 100%;
+        height: 500px;
+        padding: @padding-md @padding-xs @padding-md 50px;
+        margin: 0;
+        margin-left: auto;
+        background: url("../../../assets/img/screen/age-education-bg.png") no-repeat;
+        background-size: cover;
+        overflow-y: scroll;
+        li {
+          width: 100%;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          font-size: 1.2em;
+          cursor: pointer;
+          user-select: none;
+          .left {
+            width: 70%;
+            margin-right: 10px;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            overflow: hidden;
+            .spot {
+              width: 10px;
+              height: 10px;
+              margin-right: 10px;
+              border-radius: @border-radius-base;
+              display: inline-block;
+            }
+          }
+          &:hover {
+            color: #fff;
+          }
+          span:last-child {
+            text-align: right;
+          }
+          & > span:last-child {
+            color: #02e7ef;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,124 @@
+<template>
+  <a-select
+    show-search
+    :value="value"
+    placeholder="查找历史"
+    style="width: 200px"
+    :show-arrow="false"
+    :filter-option="false"
+    :not-found-content="null"
+    @search="onSearch"
+    @change="onChange"
+    @focus="allSearch()"
+    @popupScroll="onScroll"
+  >
+    <a-select-option v-for="res in data" :key="res.id">
+      {{ res.title }}
+    </a-select-option>
+  </a-select>
+</template>
+<script>
+import { Select } from "ant-design-vue";
+import { querylist } from "@/person/api/integratedquery";
+import { showError } from "@framework/utils";
+
+/**
+ * 查询选择
+ * 提供外部事件
+ * 1.select 选中查询事件 返回查询ID
+ */
+let timeout;
+let canceltoken = 0;
+export default {
+  components: {
+    ASelect: Select,
+    ASelectOption: Select.Option,
+  },
+  props: {
+    namespace: {
+      //搜索查询的命名空间
+      type: String,
+      required: true,
+    },
+  },
+  data() {
+    return {
+      data: [],
+      pagenum: 1,
+      pagesize: 20,
+      value: undefined,
+      dataLoading: false,
+    };
+  },
+  created() {
+    console.log("select source", this.namespace);
+  },
+  methods: {
+    fetch(value, time) {
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
+      this.pagenum = 1;
+      let token = ++canceltoken;
+      timeout = setTimeout(() => {
+        querylist({
+          searchkey: value,
+          pagenum: this.pagenum,
+          pagesize: this.pagesize,
+        })
+          .then((res) => {
+            if (canceltoken == token) {
+              this.data = res.result.rows;
+            }
+          })
+          .catch((error) => {
+            showError(error);
+          });
+      }, time);
+    },
+    onSearch(value) {
+      this.value = value;
+      this.fetch(value, 500);
+    },
+    onChange(value) {
+      this.$emit("select", value);
+      this.value = undefined;
+    },
+    allSearch(value) {
+      this.fetch(value, 0);
+    },
+    onScroll(e) {
+      if (
+        !this.loadStatus &&
+        this.pagenum >= 1 &&
+        e.target.scrollHeight - e.target.clientHeight - e.target.scrollTop <= 34
+      ) {
+        //剩余可滚动区域小于底部加载中高度
+        this.loadStatus = "scroll";
+        this.pagenum++;
+        let token = ++canceltoken;
+        querylist({
+          searchkey: this.value,
+          pagenum: this.pagenum,
+          pagesize: this.pagesize,
+        })
+          .then((res) => {
+            this.loadStatus = false;
+            if (canceltoken == token) {
+              let list = res.result.rows || [];
+              this.data = [...this.data, ...list];
+              return list;
+            }
+          })
+          .catch((error) => {
+            this.loadStatus = false;
+            showError(error);
+          });
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+</style>

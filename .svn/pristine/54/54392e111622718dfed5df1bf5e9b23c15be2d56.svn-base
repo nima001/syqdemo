@@ -1,0 +1,289 @@
+<template>
+  <a-modal
+    :visible="value"
+    :title="record.id ? '编辑字段' : '新增字段'"
+    :width="800"
+    :bodyStyle="{
+      overflow: 'auto',
+      height: '550px',
+      padding: '8px 24px'
+    }"
+    destroyOnClose
+    @ok="ok"
+    @cancel="cancel"
+  >
+  <a-form :form="form">
+    <a-row :gutter="20">
+      <a-col :span="12">
+        <a-form-item label="统计对象">
+          <a-select
+            :disabled="!!record.id"
+            @change="form.setFieldsValue({expression: undefined})"
+            v-decorator="['targetid',
+            {
+              initialValue: record.targetid, 
+              rules: [
+                { required: true, message: '请选择统计对象' }
+              ]
+            }]"
+          >
+            <a-select-option v-for="item in targetlist" :key="item.id">{{item.title}}</a-select-option>
+          </a-select>
+        </a-form-item>
+      </a-col>
+      <a-col :span="12">
+        <a-form-item label="是否启用">
+          <a-switch
+            checked-children="启用"
+            un-checked-children="禁用"
+            v-decorator="['enable', { valuePropName: 'checked', initialValue: record.enable }]"
+          />
+        </a-form-item>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="12">
+        <a-form-item label="字段编码">
+          <a-input
+            v-decorator="['code',
+            {
+              initialValue: record.code, 
+              rules: [
+                { required: true, message: '请输入字段编码' }, 
+                { pattern: /^[a-zA-Z][0-9a-zA-Z_]*$/, message: '字段编码由数字、字母、下划线组成，且是字母开头' }
+              ] 
+            }]"
+            :disabled="!!record.id"
+          />
+        </a-form-item>
+      </a-col>
+      <a-col :span="12">
+        <a-form-item label="字段名称">
+          <a-input
+            v-decorator="['name',
+            {
+              initialValue: record.name, 
+              rules: [
+                { required: true, message: '请输入字段名称' }, 
+              ] 
+            }]"
+          />
+        </a-form-item>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="12">
+        <a-form-item label="字段分类">
+          <a-input
+            v-decorator="['sort',
+              {
+                initialValue: record.sort, 
+                rules: [
+                  { required: true, message: '请输入字段分类' }, 
+                ] 
+              }]"
+          />
+        </a-form-item>
+      </a-col>
+      <a-col :span="12">
+        <a-form-item label="输入类型" :required="true">
+          <a-select
+            v-decorator="['inputtype',
+            {
+              initialValue: record.inputtype, 
+              rules: [
+                { required: true, message: '请选择输入类型' }
+              ] 
+            }]"
+          >
+            <a-select-option :value="1">整数</a-select-option>
+            <a-select-option :value="2">浮点数</a-select-option>
+            <a-select-option :value="3">时间</a-select-option>
+          </a-select>
+        </a-form-item>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="12">
+        <a-form-item label="统计规则" :required="true">
+          <a-select
+            @change="(v) => type = v"
+            v-decorator="['type',
+            {
+              initialValue: record.type, 
+              rules: [
+                { required: true, message: '请选择计算规则' }
+              ]
+            }]"
+          >
+            <a-select-option :value="0">自定义</a-select-option>
+            <a-select-option :value="1">计算公式</a-select-option>
+          </a-select>
+        </a-form-item>
+      </a-col>
+      <a-col :span="12">
+        <a-form-item label="字段排序">
+            <a-input
+              v-decorator="['index',
+                {
+                  initialValue: record.index,
+                  rules: [
+                    { pattern: /^[1-9]\d*$/, message: '请输入数字' }
+                  ] 
+                }]"
+            />
+          </a-form-item>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20"
+      v-if="1 == type"
+    >
+      <a-col :span="24">
+        <a-form-item label="计算公式">
+          <a-textarea
+            :rows="4"
+            @click="openbox"
+            :read-only="true"
+            v-decorator="['expression',
+            {
+              initialValue: record.expression, 
+              rules: [{ required: true, message: '请输入公式' }] 
+            }]"
+          />
+        </a-form-item>
+      </a-col>
+    </a-row>
+  </a-form>
+  <equation-editor
+    v-if="expr.show"
+    @finish="finish"
+    v-model="datasets"
+    :fnData="expr.data"
+    namespace="statisticfield"
+    :contextParams="expr.params"
+    :foreach="expr.foreach"
+  ></equation-editor>
+</a-modal>
+</template>
+<script>
+import { Modal, Row, Col, Select, Input, Form, Switch, InputNumber } from "ant-design-vue";
+import EquationEditor from "../../../../components/EquationEditor/index";
+import { newfield, editupd } from "@/person/api/field";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  name: "StatisticsChange",
+  components: {
+    ARow: Row,
+    ACol: Col,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInput: Input,
+    AInputNumber: InputNumber,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASwitch: Switch,
+    ATextarea: Input.TextArea,
+    AModal: Modal,
+    EquationEditor
+  },
+  props: {
+    value: {
+      type: Boolean,
+      default: false,
+    },
+    record: {
+      type: Object,
+      default: () => ({})
+    },
+    targetlist: {
+      type: Array,
+    }
+  },
+  data() {
+    return {
+      form: this.$form.createForm(this, { name: "dynamic_rule" }),
+      type: undefined,
+      datasets: [],
+      expr: {
+        show: false,
+        params: {},
+        data: ""
+      },
+    };
+  },
+  watch: {
+    record(v){
+      this.initData();
+    }
+  },
+  created() {
+    this.initData();
+  },
+  methods: {
+    initData(){
+      this.type = this.record.type;
+      this.datasets = this.record.datasets || [];
+    },
+    cancel() {
+      this.$emit("input", false);
+    },
+    ok() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let obj = {
+            id: this.record.id,
+            targetid: values.targetid,
+            code: values.code,
+            enable: values.enable,
+            name: values.name,
+            index: values.index,
+            sort: values.sort,
+            inputtype: values.inputtype,
+            type: values.type,
+            expression: values.expression,
+            datasets: this.datasets
+          };
+          if (!this.record.id) {
+            newfield(obj).then(({result}) => {
+              obj.id = result;
+              this.$message.success("新增成功");
+              this.$emit("finish", obj);
+            }).catch(err => {
+              showError(err);
+            });
+          } else {
+            editupd(obj).then(res => {
+              this.$message.success("编辑成功");
+              this.$emit("finish", obj);
+            }).catch(err => {
+              showError(err);
+            });
+          }
+        }
+      });
+    },
+    openbox() {
+      let targetid = this.form.getFieldValue('targetid');
+      if(!targetid){
+        this.$message.info("请先选择统计对象");
+        return
+      }
+      let t = this.targetlist.find(item => item.id == targetid);
+      this.expr.params = {target: t.namespace};
+      this.expr.data = this.record.expression;
+      this.expr.show = true;
+    },
+    finish(type, expr) {
+      if (type == "ok") {
+        this.form.setFieldsValue({
+          expression: expr
+        });
+        this.expr.show = false;
+      } else {
+        this.expr.show = false;
+      }
+    }
+  }
+};
+</script>

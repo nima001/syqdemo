@@ -1,0 +1,58 @@
+<template>
+  <div class="pagination">
+    <a-table
+      v-if="this.tableData.length"
+      :pagination="false"
+      :defaultExpandAllRows="true"
+      :data-source="this.tableData"
+      :columns="this.columns"
+    >
+      <span slot="title" v-if="this.active === 5 && this.charttitle.value">
+        <span class="titleLeft">{{ `权力基本码：${this.charttitle.value}` }}</span>
+        <span class="titleRight">{{ `事项名称：${this.charttitle.label}` }}</span>
+      </span>
+      <span slot="check" slot-scope="text">
+        <a-icon type="check" v-if="text" />
+      </span>
+    </a-table>
+    <slot v-else name="empty" />
+    <slot name="pagination" />
+  </div>
+</template>
+
+<script>
+import { Table, Icon } from "ant-design-vue";
+export default {
+  props: {
+    tableData: {//表格数据
+      type: Array,
+    },
+    columns: {//表头数据
+      type: Array,
+    },
+    active: {//左侧菜单选中下标
+      type: Number,
+    },
+    charttitle: {//图表标题
+      type: Object,
+    }
+  },
+  components: {
+    ATable: Table,
+    AIcon: Icon,
+  },
+  data() {
+    return {};
+  },
+};
+</script>
+<style scoped lang="less">
+  .ant-table-title {
+    & span{
+      font-weight: bolder;
+    }
+    & .titleLeft{
+      margin-right: 15%;
+    }
+  }
+</style>

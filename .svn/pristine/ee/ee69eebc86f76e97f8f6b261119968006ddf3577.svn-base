@@ -1,0 +1,76 @@
+import { getAttribute, setAttribute, getComponentProp, setComponentProp } from "@/formdesign/utils/schema";
+import { reactive } from '@vue/composition-api'
+
+/**
+ * Schema配置公共业务
+ */
+export default {
+  props: {
+    property: {},
+    schema: {},
+    settings: {}
+  },
+  computed: {
+    contentExpand: {
+      get(){
+        return this.property._expanded;
+      },
+      set(value){
+        this.property._expanded = !!value;
+      }
+    },
+    propValue:{
+      get(){
+        const { name, getter } = this.property;
+        return this._get_(getter || getComponentProp, name);
+      },
+      set(value){
+        const { name, setter } = this.property;
+        this._set_(setter || setComponentProp, name, value);
+      },
+    }
+  },
+  methods: {
+    _get_(method, key){
+      const val = method(this.settings, key);
+      console.log('gettter', this.settings, key, val);
+      // if(val !== null && typeof val === 'object'){
+      //   return reactive(val);
+      // }
+      return val;
+    },
+    _set_(method, key, value){
+      console.log('setter', this.settings, key, value);
+      const created = method(this.settings, key, value);
+      if(created){
+        this.$emit('refresh', this.settings);
+      }
+    },
+    getArrribute(key){
+      return this._get_(getAttribute, key);
+    },
+    setAttribute(key, value){
+      this._set_(setAttribute, key, value);
+    },
+    getComponentProp(key){
+      return this._get_(getComponentProp, key);
+    },
+    setComponentProp(key, value){
+      this._set_(setComponentProp, key, value);
+    },
+    async validate(value){
+      const { validator } = this.property;
+      let rt;
+      if(validator){
+        rt = validator(value, this.schema);
+        if(rt instanceof Promise){
+          rt = await rt;
+          if(this.value != value){//验证完成后值已经变更
+            return;
+          }
+        }
+      }
+      return { value, error: rt }
+    },
+  }
+}

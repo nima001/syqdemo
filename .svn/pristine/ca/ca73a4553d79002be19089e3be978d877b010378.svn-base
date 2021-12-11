@@ -1,0 +1,270 @@
+<template>
+  <div style="position:relative">
+    <a-form-item :label="property.showName?property.name:''">
+      <div class="evidenceWrap">
+        <a-table
+          bordered
+          class="hand"
+          :columns="columns"
+          :dataSource="data"
+          :pagination="false"
+          size="middle"
+        >
+          <template slot="operation" slot-scope="text,record">
+            <span>
+              <a
+                @click="preview(record.key)"
+                :style="$store.getters.formData[record.key]?'':'color:gray'"
+              >预览</a>
+            </span>
+          </template>
+        </a-table>
+      </div>
+    </a-form-item>
+
+    <!-- 点击预览的窗口 -->
+    <a-modal
+      title="文件预览"
+      :visible="visible"
+      @cancel="visible=false"
+      width="900px"
+      :footer="null"
+      :destroyOnClose="true"
+      style="top:50px"
+      :bodyStyle="{'paddingBottom':'48px'}"
+    >
+      <div style="text-align:center;margin:10px 0;">
+        <a :href="downUrl" v-if="type==1||type==2">点击下载</a>
+      </div>
+      <div class="preview" :style="{'overflow':'auto'}">
+        <span v-if="index!==0" class="left" @click="go(prevIndex)">
+          <a-icon type="left" />
+        </span>
+        <div>
+          <div class="showpdf" v-if="type==1" style="height:630px;">
+            <pdf v-for="i in numPages" :key="i" :page="i" :src="url" style="width:100%"></pdf>
+          </div>
+          <img :src="url" alt="文件图片" v-else-if="type==2" />
+          <a :href="url" v-else>暂不支持预览，可点击下载...</a>
+        </div>
+        <span v-if="index!==listArr.length - 1" class="right" @click="go(nextIndex)">
+          <a-icon type="right" />
+        </span>
+      </div>
+    </a-modal>
+  </div>
+</template>
+<script>
+import pdf from "vue-pdf-sign";
+import { parseQueryString } from "@/workflow/utils/index";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+const columns = [
+  {
+    title: "材料名称",
+    dataIndex: "name"
+  },
+  {
+    title: "操作",
+    dataIndex: "operation",
+    scopedSlots: { customRender: "operation" }
+  }
+];
+import { Form, Table, Modal, Icon } from "ant-design-vue";
+export default {
+  name: "Evidence",
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      columns,
+      data: [],
+      formData: this.$store.getters.formData,
+      visible: false,
+      listArr: [],
+      url: "",
+      downUrl: "",
+      type: null,
+      index: 0,
+      numPages: undefined,
+      autoHeight: 0,
+      windowHeight: window.innerHeight
+    };
+  },
+  props: {
+    property: {
+      type: Object,
+      required: true
+    },
+    bindform: {
+      type: Object,
+      required: true
+    }
+  },
+  mounted() {
+    this.autoHeight = this.windowHeight * 0.6;
+    const that = this;
+    window.onresize = () => {
+      return (() => {
+        this.windowHeight = window.innerHeight;
+      })();
+    };
+  },
+  watch: {
+    windowHeight(val) {
+      this.windowHeight = val;
+      this.autoHeight = val * 0.6;
+    }
+  },
+  computed: {
+    //上一页
+    prevIndex() {
+      if (this.index == 0) {
+        return this.listArr.length - 1;
+      } else {
+        return this.index - 1;
+      }
+    },
+    //下一页
+    nextIndex() {
+      if (this.index == this.listArr.length - 1) {
+        return 0;
+      } else {
+        return this.index + 1;
+      }
+    }
+  },
+  components: {
+    AFormItem: Form.Item,
+    ATable: Table,
+    AModal: Modal,
+    AIcon: Icon,
+    pdf
+  },
+  created() {
+    if (this.property.childs.length) {
+      this.property.childs.forEach(item => {
+        let obj = {};
+        obj.name = item.name;
+        obj.key = item.code;
+        this.data.push(obj);
+      });
+    }
+  },
+  methods: {
+    //预览
+    preview(code) {
+      this.index = 0;
+      if (this.formData[code] && this.formData[code].length) {
+        this.listArr = [];
+        //获取文件后缀和来源
+        this.formData[code].forEach(item => {
+          let name = parseQueryString(item).filename;
+          let arr = name.split(".");
+          let type = arr[arr.length - 1];
+          this.listArr.push({
+            type: type,
+            src:
+              this.uiConfigs["api.url"] +
+              "/file/v1/download/" +
+              "?uri=" +
+              encodeURIComponent(item)
+          });
+        });
+        this.url = this.listArr[0].src;
+        this.downUrl = this.listArr[0].src;
+        this.isType(this.listArr[0].type);
+        this.visible = true;
+      } else {
+        this.$message.error("这条材料下没有文件可以预览！");
+      }
+    },
+    //判断后缀名
+    isType(value) {
+      value = value.toLowerCase();
+      if (
+        value == "psd" ||
+        value == "pdd" ||
+        value == "jpg" ||
+        value == "gif" ||
+        value == "png" ||
+        value == "jpeg"
+      ) {
+        this.type = 2;
+      } else if (value == "pdf") {
+        this.type = 1;
+        this.url = pdf.createLoadingTask(this.url);
+        this.url.promise.then(pdf => {
+          this.numPages = pdf.numPages;
+        });
+      } else {
+        this.type = 3;
+      }
+    },
+    go(idx) {
+      this.index = idx;
+      this.url = this.listArr[this.index].src;
+      this.downUrl = this.listArr[this.index].src;
+      this.isType(this.listArr[this.index].type);
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.evidenceWrap {
+  background: #fff;
+  padding: 10px;
+  border-radius: 5px;
+}
+/deep/.ant-table-bordered .ant-table-body > table {
+  border: none;
+  border-top: 1px solid #e8e8e8;
+  .ant-table-thead > tr > th:last-child {
+    border-right: none;
+  }
+  tr > td:last-child {
+    border-right: none;
+  }
+}
+.preview {
+  display: flex;
+  align-items: center;
+  justify-items: center;
+  img {
+    max-width: 100%;
+    max-height: 500px;
+  }
+  > div {
+    width: 90%;
+    margin: 0 auto 20px;
+    text-align: center;
+    padding: 0 10px;
+  }
+  span {
+    cursor: pointer;
+    display: inline-block;
+    border: 1px solid #ddd;
+    padding: 3px 8px;
+    font-size: 18px;
+    border-radius: 4px;
+    position: absolute;
+    &.left {
+      left: 10px;
+    }
+    &.right {
+      right: 10px;
+    }
+    &:hover {
+      box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.05),
+        -1px -1px 5px rgba(0, 0, 0, 0.05);
+    }
+  }
+  .showpdf {
+    span {
+      border-bottom: 1px solid #ddd;
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+  }
+}
+</style>
+

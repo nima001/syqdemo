@@ -1,0 +1,284 @@
+<template>
+  <div class="dialog">
+    <ul class="info">
+      <li class="titleBar">
+        <span class="icon">
+          <city-icon></city-icon>
+        </span>
+        <span class="cityName">{{cityName}}</span>
+      </li>
+      <li class="top">
+        <div class="item">
+          <span class="name">面积</span>
+          <div class="cell">
+            <span class="value">{{cityInfo['mj'] || 0}}</span>
+          </div>
+          <span class="unite">km²</span>
+        </div>
+        <div class="item">
+          <span class="name">常住人口</span>
+          <div class="cell">
+            <span class="value">{{cityInfo['czrk'] || 0}}</span>
+          </div>
+          <span class="unite">万</span>
+        </div>
+      </li>
+      <li>
+        <split-line/>
+      </li>
+      <li class="middle">
+        <div class="item">
+          <span class="name">地区GDP</span>
+          <div class="cell">
+            <span class="value">{{cityInfo['gdp'] || 0}}</span>
+            <div class="rate">
+              <span class="icon"></span>
+              <span class="num">{{gdpzz}}</span>
+            </div>
+          </div>
+          <span class="unite">亿元</span>
+        </div>
+        <div class="item">
+          <span class="name">财政总收入</span>
+          <div class="cell">
+            <span class="value">{{cityInfo['czzsr'] || 0}}</span>
+            <div class="rate">
+              <span class="icon"></span>
+              <span class="num">{{czzsrzz}}</span>
+            </div>
+          </div>
+          <span class="unite">亿元</span>
+        </div>
+      </li>
+      <li>
+        <split-line/>
+      </li>
+      <li class="bottom">
+        <div class="item">
+          <span class="name">街道</span>
+          <div class="cell">
+            <span class="value">{{cityInfo['jd'] || 0}}</span>
+          </div>
+          <span class="unite"></span>
+        </div>
+        <div class="item">
+          <span class="name">镇</span>
+          <div class="cell">
+            <span class="value">{{cityInfo['zhen'] || 0}}</span>
+          </div>
+          <span class="unite"></span>
+        </div>
+        <div class="item">
+          <span class="name">乡</span>
+          <div class="cell">
+            <span class="value">{{cityInfo['xiang'] || 0}}</span>
+          </div>
+          <span class="unite"></span>
+        </div>
+      </li>
+    </ul>
+    <div class="ball"></div>
+  </div>
+</template>
+<script>
+import CityIcon from "../index/CityIcon";
+import { areaStatistics } from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@/framework/utils/index";
+import SplitLine from '../components/SplitLine.vue';
+
+export default {
+  props: {
+    dictId: {
+      required: true
+    }
+  },
+  data() {
+    return {
+      fields: ["mj","czrk","gdp","gdpzz","czzsr","czzsrzz","zhen","jd","xiang"],
+      cityInfo: {},
+      // 缓存数据
+      resultMap: new Map()
+    };
+  },
+  watch: {
+    dictId(v) {
+      this.countCity(v || '');
+    }
+  },
+  components: {
+    CityIcon,
+    SplitLine
+  },
+  mounted() {
+    this.countCity(this.dictId || '');
+  },
+  computed: {
+    cityName() {
+      if(!this.dictId){
+        return '绍兴市'
+      }else{
+        let v = this.$store.getters.dictKey("usermanage.org.district", this.dictId);
+        return v && v.text;
+      }
+    },
+    gdpzz() {
+      if (this.cityInfo.gdpzz) {
+        return Number(this.cityInfo.gdpzz * 100).toFixed(1) + "%";
+      } else {
+        return 0;
+      }
+    },
+    czzsrzz() {
+      if (this.cityInfo.czzsrzz) {
+        return Number(this.cityInfo.czzsrzz * 100).toFixed(1) + "%";
+      } else {
+        return 0;
+      }
+    }
+  },
+  methods: {
+    countCity(district) {
+      let cached = this.resultMap.get(district);
+      if (cached) {
+        this.cityInfo = cached;
+      } else {
+        areaStatistics(district, this.fields).then(res => {
+          this.resultMap.set(district, res.result);
+          this.cityInfo = res.result;
+        }).catch(err => {
+          showError(err);
+        })
+      }
+    },
+  }
+};
+</script>
+<style lang='less' scoped>
+@font-face {
+  font-family: LESLIEB;
+  src: url("../img/LESLIEB_.TTF") format("truetype");
+}
+.dialog {
+  width: 100%;
+  position: relative;
+  .info {
+    width: 100%;
+    margin: 0 auto;
+    li {
+      .item {
+        width: 328px;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        padding: 8px 30px;
+        .name {
+          width: 82px;
+          height: 21px;
+          font-size: 16px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 21px;
+          color: #ffffff;
+          text-shadow: 0px 0px 6px rgba(0, 0, 0, 0.3);
+          opacity: 0.6;
+        }
+        .cell {
+          position: relative;
+          width: 150px;
+          .value {
+            height: 36px;
+            font-size: 36px;
+            font-family: LESLIEB;
+            font-weight: 400;
+            line-height: 43px;
+            color: #92b4d6;
+            opacity: 1;
+            display: block;
+            text-align: right;
+          }
+          .rate {
+            display: flex;
+            height: 18px;
+            flex-direction: row-reverse;
+            margin-top: 5px;
+            .icon {
+              width: 18px;
+              height: 18px;
+              background: url("../img/up.png") center center no-repeat;
+            }
+            .num {
+              height: 18px;
+              font-size: 16px;
+              font-family: Microsoft YaHei;
+              font-weight: 400;
+              line-height: 18px;
+              color: #7dc8a3;
+              -webkit-text-stroke: 1 #66d9ec;
+              opacity: 0.8;
+              margin-right: 8px;
+            }
+          }
+        }
+        .unite {
+          width: 33px;
+          height: 36px;
+          font-size: 16px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 55px;
+          color: #ffffff;
+          opacity: 0.6;
+          margin-left: 5px;
+        }
+      }
+      &.titleBar {
+        position: relative;
+        padding: 20px 30px;
+        &::before {
+          content: "";
+          width: 254px;
+          height: 4px;
+          background: #111111;
+          opacity: 0.8;
+          position: absolute;
+          bottom: 0px;
+          left: 30px;
+        }
+        .icon {
+          width: 20px;
+          height: 20px;
+        }
+        .cityName {
+          height: 28px;
+          font-size: 20px;
+          font-family: Alibaba PuHuiTi;
+          font-weight: bold;
+          line-height: 28px;
+          color: #ffffff;
+          text-shadow: 0px 0px 16px rgba(0, 247, 250, 0.8);
+          letter-spacing: 4px;
+          opacity: 0.8;
+          margin-left: 16px;
+        }
+      }
+      &.top {
+        padding-bottom: 10px;
+      }
+      &.middle {
+        padding-bottom: 10px;
+        .unite {
+          line-height: 32px;
+        }
+      }
+    }
+  }
+  .ball {
+    position: absolute;
+    top: 435px;
+    left: -114px;
+    width: 243px;
+    height: 243px;
+    background: url("../img/ball.png");
+  }
+}
+</style>

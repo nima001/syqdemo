@@ -1,0 +1,454 @@
+export default 
+{
+    "list":[
+        {
+            "type":"titleBar",
+            "code":"baseinfo",
+            "name":"基本信息"
+        },
+        {
+            type: 'colLayout',
+            children: [
+              {
+                span: 8,
+                components: [
+                  { type: 'inputText', code: 'username', name: '姓名', required: true,disabled:true}
+                ]
+              },
+              {
+                span: 8,
+                components: [
+                  { type: 'inputText', code: 'username', name: '身份证', required: true,disabled:true}
+                ]
+              },
+              {
+                span: 8,
+                components: [
+                    { type: 'datePicker', code: 'birthday', name: '出生日期', required: true }
+                ]
+              }
+            ]
+        },
+        {
+            type: 'colLayout',
+            children: [
+              {
+                span: 8,
+                components: [
+                  { type: 'inputNumber', code: 'age', name: '年龄(周岁)',required:true}
+                ]
+              },
+              {
+                span: 8,
+                components: [
+                    { type: 'selectDict', code: 'sex', name: '性别', required: true, dict: 'usermanage.user.sex' }
+                ]
+              },
+              {
+                span: 8,
+                components: [
+                    { type: 'selectDict', code: 'maritalstatus', name: '婚姻状况', required: true, dict: 'usermanage.user.maritalstatus' }
+                ]
+              }              
+            ]
+        },
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span: 8,
+                    components: [
+                        { type: 'selectDict', code: 'nation', name: '民族', required: true, dict: 'usermanage.user.nation' }
+                    ]
+                },
+                {
+                    span: 8,
+                    components: [
+                      { type: 'inputText', code: 'nativeplace', name: '籍贯', required: true}
+                    ]
+                },
+                {
+                    span: 8,
+                    components: [
+                        { type: 'inputText', code: 'address', name: '户口所在地'}
+                    ]
+                }
+            ]
+        },
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span: 8,
+                    components: [
+                        { type: 'inputText', code: 'currentaddr', name: '现居住地'}
+                    ]
+                },
+                {
+                    span: 8,
+                    components: [
+                      { type: 'selectDict', code: 'politicsface', name: '政治面貌', required: true, dict: "usermanage.user.politicsface"}
+                    ]
+                  },
+                  {
+                    span: 8,
+                    components: [
+                        { type: 'datePicker', code: 'joinpartytime', name: '入党(团)时间'}
+                    ]
+                }               
+            ]
+        },
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span: 8,
+                    components: [
+                        { type: 'selectDict',code: "healthstate",name:"健康状况",dict: "workflow.custom.health", required:true}
+                    ]
+                },
+                {
+                    span: 16,
+                    components: [
+                        { type: 'inputText', code: 'nativeaddress', name: '详细户籍地'}
+                    ]
+                }                
+            ]
+        },
+        {type:"titleBar",code:"work",name:"工作信息"},
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span: 8,
+                    components: [
+                        { type: 'inputText',code: "org.suporg.name",name:"所属镇街",disabled:true}
+                    ]
+                },
+                {
+                    span: 8,
+                    components: [
+                        { type: 'inputText',code: "org.name",name:"所属社区",disabled:true}
+                    ]
+                },
+                {
+                    span: 8,
+                    components: [
+                        { type: 'inputText',code: "work[0].workorg.suporg.name",name:"实际工作镇街",disabled:true}
+                    ]
+                }                   
+            ]
+        },
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span: 8,
+                    components: [
+                        { type: 'inputText',code: "work[0].workorg.name",name:"实际工作岗位",disabled:true}
+                    ]
+                },
+                {
+                    span: 8,
+                    components: [
+                        { type: 'selectDict',code: "party.partypost",name:"党组织职务",dict: "usermanage.user.partposition", required:true}
+                    ]
+                },
+                {
+                    span: 8,
+                    components: [
+                        { type: 'datePicker',code: "party.partyetime",name:"任职时间",required:true}
+                    ]
+                }                   
+            ]
+        }, 
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span: 8,
+                    components: [
+                        { type: 'inputNumber',code: "party.partyeyear",name:"任职年限",required:true}
+                    ]
+                },
+                {
+                    span: 8,
+                    components: [
+                        { type: 'inputText',code: "jwpost",name:"纪委职务",required:true}
+                    ]
+                }, 
+                {
+                    span: 8,
+                    components: [
+                        { type: 'selectDict',code: "committee.committeepost",name:"居委会职务",dict: "usermanage.user.commposition", required:true}
+                    ]
+                }                  
+            ]
+        }, 
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span:8,
+                    components:[
+                        { type: 'datePicker',code: "committee.committeetime",name:"任职时间",required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputText',code: "committee.committeeyear",name:"任职年限",required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputText',code: "jjhpost",name:"居监会职务",required:true}
+                    ]
+                }
+            ]
+        },
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span:8,
+                    components:[
+                        { type: 'selectDict',code: "cooperation.cooperationpost",name:"股份经济合作社职务",dict: "usermanage.user.gdjjhzspost", required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'datePicker',code: "cooperation.cooperationetime",name:"任职时间",required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputText',code: "cooperation.cooperationeyear",name:"任职年限",required:true}
+                    ]
+                },
+            ]
+        },
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputText',code: "gjhpost",name:"股监会职务",required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputText',code: "lyssszj.name",name:"录用时所属镇街",required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputText',code: "lyssssq.name",name:"录用时所属村社区",required:true}
+                    ]
+                },
+            ]
+        },
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span:8,
+                    components:[
+                        { type: 'datePicker',code: "hiresqgzztime",name:"录用为专职社区工作者时间",required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputText',code: "empcontract",name:"录用文件依据",required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'datePicker',code: "worktime",name:"参加工作时间",required:true}
+                    ]
+                },
+            ]
+        },
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span:8,
+                    components:[
+                        { type: 'selectDict',code: "shgzslevel",name:"社会工作者职业水平",dict: "usermanage.user.shgzslevel", required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'selectDict',code: "postlevel",name:"现任职级",dict: "usermanage.user.postlevel", required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'datePicker',code: "xrzjtime",name:"现任职级时间",required:true}
+                    ]
+                },
+            ]
+        },
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span:8,
+                    components:[
+                        { type: 'selectDict',code: "commlevel",name:"级别(工资)",dict: "usermanage.user.commlevel", required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputText',code: "othertitle",name:"其他职称", required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputBool',code: "istysb",name:"是否退役士兵",required:true}
+                    ]
+                },
+            ]
+        },
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputBool',code: "isdxscg",name:"是否大学生村官",required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'datePicker', code: 'retirement.enliststarttime', name: '退役士兵开始服役时间', required: true }
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'datePicker', code: 'retirement.enlistendtime', name: '退役士兵结束时间', required: true }
+                    ]
+                },
+            ]
+        },
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputNumber',code: "retirement.retireyear",name:"服役年限",required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputBool', code: 'retirement.soldincludeyear', name: '是否计入套改年限', required: true }
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'datePicker', code: 'stuvillageofficial.offistarttime', name: '大学生村官开始时间', required: true }
+                    ]
+                }
+            ]
+        }, 
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span:8,
+                    components:[
+                        { type: 'datePicker',code: "stuvillageofficial.offiendtime",name:"大学生村官结束时间",required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputText', code: 'stuvillageofficial.offitotalyear', name: '大学生村官年限', required: true }
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputNumber', code: 'sstuvillageofficial.stuincludeyear', name: '可计入套改年限', required: true }
+                    ]
+                }
+            ]
+        },
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputNumber',code: "sqworkyears",name:"社区工作年限(审核)",required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputNumber', code: 'changeyear', name: '可视作套改年限', required: true }
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputNumber', code: 'ykcchangeyear', name: '应扣除套改年限', required: true }
+                    ]
+                }
+            ]
+        },
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputNumber',code: "totalchangeyear",name:"累计套改年限(社区+可视-应扣)",required:true}
+                    ]
+                }
+            ]
+        },
+        {type:'titleBar',code:"educate",name:'教育信息'},
+        {
+            type:'colLayout',
+            children:[
+                {
+                    span:8,
+                    components:[
+                        { type: 'selectDict',code: "education",name:"最高学历",dict: "usermanage.user.education", required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'selectDict',code: "degree",name:"最高学位",dict: "usermanage.user.degree", required:true}
+                    ]
+                },
+                {
+                    span:8,
+                    components:[
+                        { type: 'inputText', code: 'school', name: '最高毕业院校', required: true }
+                    ]
+                }
+            ]
+        }                                                              
+    ]
+}

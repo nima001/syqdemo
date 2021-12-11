@@ -1,0 +1,53 @@
+<template>
+  <div class="compile">
+    <div class="icon">
+      <span>
+        <img src="../../../assets/img/icon_report_blue.png" alt="">
+      </span>
+    </div>
+    <div class="total">132</div>
+    <div class="title">周转编制</div>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {},
+  components: {},
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.compile{
+  width: 214px;
+  border: 1px solid #e8e8e8;
+  border-radius: 5px;
+  text-align: center;
+  .icon{
+    display: flex;
+    justify-content: center;
+    padding-top: 30px;
+    span{
+      display: inline-block;
+      width: 34px;
+      height: 34px;
+    }
+  }
+  .total{
+    font-size: 30px;
+    font-weight: bold;
+    margin-top: @padding-lg;
+  }
+  .title{
+    padding: 24px 0 30px 0;
+  }
+}
+</style>

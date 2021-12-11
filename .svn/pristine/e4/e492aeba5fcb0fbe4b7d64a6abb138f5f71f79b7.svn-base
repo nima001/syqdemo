@@ -1,0 +1,154 @@
+<!-- 接口管理>组织服务申请 -->
+<template>
+  <a-layout class="open-layout">
+    <div class="body">
+      <div class="body_1">
+        <p>接口地址</p>
+        <p>http://www.sdfds.com</p>
+      </div>
+
+      <div class="body_2">
+        <article>
+          <a-divider type="vertical" />
+          <h5>组织范围</h5>
+        </article>
+
+        <span
+          >杭州市余杭区人民代表大会常务委员会教育科学文化卫生（民族宗教侨务）工作委员会</span
+        >
+        <span>中共杭州市余杭区委纪律检查委员会</span>
+        <span>秘书科</span>
+      </div>
+
+      <div class="body_3">
+        <article>
+          <a-divider type="vertical" />
+          <h5>组织信息</h5>
+        </article>
+        <div>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+          <p>机构名称</p>
+        </div>
+      </div>
+
+      <div class="body_4">
+        <article>
+          <a-divider type="vertical" />
+          <h5>申请说明</h5>
+        </article>
+        <p>
+          业务说明业务说明业务说明业务说明业务说明业务说明业业务说明业务说明业务说业务说明业务说业务说务说明业务说明业务说明业务说明业务说明业务说明业务业务说明业务说明说明业务说
+          明业务说明业务说明业务说明业务说明业务说
+        </p>
+      </div>
+
+      <div class="body_5">
+        <article>
+          <a-divider type="vertical" />
+          <h5>IP限制</h5>
+        </article>
+        <p>192.168.1.1</p>
+      </div>
+
+      <a-button type="primary">修改</a-button>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import { Button, Divider, Layout } from "ant-design-vue";
+export default {
+  data() {
+    return {};
+  },
+
+  components: {
+    ALayout: Layout,
+    ADivider: Divider,
+    AButton: Button,
+  },
+};
+</script>
+<style lang="less" scoped>
+.css () {
+  background-color: #f6f6f6;
+  color: #171717;
+}
+.open-layout {
+  padding: 10px;
+  height: 100%;
+  .body {
+    overflow-y: auto;
+    height: 100%;
+    width: 100%;
+    margin: 0 auto;
+    padding: 8px 10%;
+    background: #fff;
+    > div {
+      margin-top: 50px;
+    }
+    .ant-btn {
+      margin-top: 30px;
+    }
+    article {
+      display: flex;
+      h5 {
+        color: @primary-color;
+        font-size: 18px;
+        margin-bottom: 30px;
+      }
+      .ant-divider {
+        width: 3px;
+        height: 20px;
+        background-color: @primary-color;
+        margin-top: 5px;
+      }
+    }
+    .body_1 {
+      .css;
+      padding: 18px;
+    }
+    .body_2 {
+      span {
+        .css;
+        padding: 10px 15px;
+        margin-right: 15px;
+      }
+    }
+    .body_3 {
+      > div {
+        display: flex;
+        flex-wrap: wrap;
+      }
+
+      p {
+        .css;
+        padding: 10px 25px;
+        margin-right: 15px;
+      }
+    }
+  }
+}
+</style>

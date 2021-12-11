@@ -1,0 +1,21 @@
+
+import Layout from '@/framework/views/Layout';
+
+//  统计图
+export const chartRoutes = {
+	path: '/person/statistics/chart',
+	component: Layout,
+	redirect: '/person/statistics/chart/index',
+	name: 'statisticsChart',
+	children: [
+		{
+			path: 'index',
+			component: () => import('../../views/statistics/chart/index'),
+			name: 'statisticsChartIndex',
+			meta: {
+				auth: 'login',
+				path: [{ name: '图形化分析', path: '/person/statistics/chart/index' }]
+			}
+		},
+	]
+}

@@ -1,0 +1,778 @@
+<template>
+  <div class="settings">
+    <a-collapse v-model="activeKey" :bordered="false" style="background-color:unset;" v-if="chartData.settings.chartType=='table'">  
+        <a-collapse-panel class="table-setting" key="5" header="表格">
+            <div class="table-border">
+                <span>边框</span>
+                <a-switch @click="(check,e)=>{e.stopPropagation()}" v-model="chartData.settings.table.bordered"/>
+            </div> 
+            <div class="line-height">
+                <span>行高</span>
+                <a-input-number v-model="chartData.settings.table.lineHeight" allowClear :min="0"/>
+            </div>
+            <a-collapse :bordered="false" style="background-color:unset;">
+                <a-collapse-panel class="head-setting" key="13" header="表头">
+                    <div class="font-color">
+                        <span>文字颜色</span>
+                        <ColorPicker class="color" :color.sync="chartData.settings.table.headColor"/>
+                    </div>
+                    <div class="head-color">
+                        <span>背景颜色</span>
+                        <ColorPicker class="color" :color.sync="chartData.settings.table.headBackgroundColor"/>
+                    </div>
+                </a-collapse-panel>
+            </a-collapse>
+            <a-collapse :bordered="false" style="background-color:unset;">
+                <a-collapse-panel class="body-setting" key="14" header="表体">
+                    <div class="font-color">
+                        <span>文字颜色</span>
+                        <ColorPicker class="color" :color.sync="chartData.settings.table.bodyColor"/>
+                    </div>
+                    <div class="body-color">
+                        <span>背景颜色</span>
+                        <ColorPicker class="color" :color.sync="chartData.settings.table.bodyBackgroundColor"/>
+                    </div>
+                </a-collapse-panel>
+            </a-collapse>
+        </a-collapse-panel>
+    </a-collapse>
+    <a-collapse v-model="activeKey" :bordered="false" style="background-color:unset;" v-else>
+        <div class="canvas-size">
+            <div class="width">
+                <span>宽度</span>
+                <a-input-number v-model="chartData.settings.canvas.width" allowClear :min="0" :max="1270" :formatter="value => `${this.getValue(value)}px`" :parser="value => value.replace(/p|x/g, '')"/>
+            </div>
+            <div class="height">
+                <span>高度</span>
+                <a-input-number v-model="chartData.settings.canvas.height" allowClear :min="0" :max="585" :formatter="value => `${this.getValue(value)}px`" :parser="value => value.replace(/p|x/g, '')"/>
+            </div>
+        </div>
+        <a-collapse-panel key="4" header="标题">
+            <div class="title-setting">
+                <div class="title">主标题</div>
+                <div class="titlecontent">
+                    <a-input :disabled="!chartData.settings.titleVisible" :read-only="true" :value="chartData.settings.title" @click="editTitle({
+                        value: chartData.settings.title,
+                        placeholder: chartData.fields,
+                        callback: (value) => chartData.settings.title = value
+                    })" style="cursor: pointer;"/>
+                    <a-switch @click="(check,e)=>{e.stopPropagation()}" v-model="chartData.settings.titleVisible"/>
+                </div>
+                <div class="subtitle">副标题</div>
+                <div class="titlecontent">
+                    <a-input :disabled="!chartData.settings.subtitleVisible" :read-only="true" :value="chartData.settings.subtitle" @click="editTitle({
+                        value: chartData.settings.subtitle,
+                        placeholder: chartData.fields,
+                        callback: (value) => chartData.settings.subtitle = value
+                    })" style="cursor: pointer;"/>
+                    <a-switch @click="(check,e)=>{e.stopPropagation()}" v-model="chartData.settings.subtitleVisible"/>
+                </div>
+                <div class="subtitle">位置</div>
+                <a-select @change="onchange" allowClear>
+                    <a-select-option v-for="item in titlePosition" :key="item.value">{{item.label}}</a-select-option>
+                </a-select>
+            </div>
+        </a-collapse-panel>
+        <div class="tip-setting">
+            <span>提示</span>
+            <a-switch @click="(check,e)=>{e.stopPropagation()}" v-model="chartData.settings.tooltip.visible"/>
+        </div>
+        <a-collapse-panel class="legend-setting" key="6" header="图例" :disabled="!chartData.settings.legend.visible">
+            <template v-slot:extra>
+                <a-switch @click="(check,e)=>{e.stopPropagation();open('6')}" v-model="chartData.settings.legend.visible"/>
+            </template>
+            <div class="position">
+                <span>方位</span>
+                <a-radio-group :value="directionValue" @change="legendChange">
+                    <a-radio-button v-for="item in legendPosition" :value="item.value" :key="item.value"><CustomIcon :type="item.label"/></a-radio-button>
+                </a-radio-group>
+            </div>
+            <div class="horizontal">
+                <span>{{label}}位置</span>
+                <a-radio-group :value="positionValue" @change="positionChange">
+                    <a-radio-button v-for="item in label==='水平'?legendHorizontal:legendVertical" :value="item.value" :key="item.value"><CustomIcon :type="item.label"/></a-radio-button>
+                </a-radio-group>
+            </div>
+            <div class="flipPage">
+                <span>翻页</span>
+                <a-switch @click="(check,e)=>{e.stopPropagation()}" v-model="chartData.settings.legend.flipPage"/>
+            </div>
+            <div class="marker">
+                <span>标记类型</span>
+                <ul>
+                    <li :class="{'active': MarkerActive(item.value)}" v-for="item in markers" @click="checkMarker(item.value)" :key="item.value">{{item.label}}</li>
+                </ul>
+            </div>
+        </a-collapse-panel>
+        <a-collapse-panel class="x-setting" key="7" v-if="chartData.settings.xAxis.display!==false" header="x轴" :disabled="chartData.settings.xAxis.visible==false">
+            <template v-slot:extra>
+                <a-switch @click="(check,e)=>{e.stopPropagation();open('7')}" v-model="chartData.settings.xAxis.visible"/>
+            </template>
+            <a-collapse v-model="activeKey" :bordered="false" style="background-color:unset;">
+                <a-collapse-panel class="titlesetting" key="8" header="标题" :disabled="!chartData.settings.xAxis.title.visible">
+                    <template v-slot:extra>
+                        <a-switch @click="(check,e)=>{e.stopPropagation();open('8')}" v-model="chartData.settings.xAxis.title.visible"/>
+                    </template>
+                    <div class="content">
+                        <span>内容</span>
+                        <a-input v-model="chartData.settings.xAxis.title.content"/>
+                    </div>
+                </a-collapse-panel>
+                <div class="grid">
+                    <span>网格线</span>
+                    <a-switch @click="(check,e)=>{e.stopPropagation()}" v-model="chartData.settings.xAxis.grid"/>
+                </div>
+            </a-collapse>
+        </a-collapse-panel>
+        <a-collapse-panel class="y-setting" key="9" v-if="chartData.settings.yAxis.display!==false" header="y轴" :disabled="chartData.settings.yAxis.visible==false">
+            <template v-slot:extra>
+                <a-switch @click="(check,e)=>{e.stopPropagation();open('9')}" v-model="chartData.settings.yAxis.visible"/>
+            </template>
+            <a-collapse v-model="activeKey" :bordered="false" style="background-color:unset;">
+                <a-collapse-panel class="titlesetting" key="10" header="标题" :disabled="!chartData.settings.yAxis.title.visible">
+                    <template v-slot:extra>
+                        <a-switch @click="(check,e)=>{e.stopPropagation();open('10')}" v-model="chartData.settings.yAxis.title.visible"/>
+                    </template>
+                    <div class="content">
+                        <span>内容</span>
+                        <a-input v-model="chartData.settings.yAxis.title.content"/>
+                    </div>
+                </a-collapse-panel>
+                <div class="grid">
+                    <span>网格线</span>
+                    <a-switch @click="(check,e)=>{e.stopPropagation()}" v-model="chartData.settings.yAxis.grid"/>
+                </div>
+            </a-collapse>
+        </a-collapse-panel>
+        <a-collapse-panel key="11" header="图形属性">
+            <div class="label">
+                <a-checkbox v-model="chartData.settings.label">显示标签</a-checkbox>
+            </div>
+            <div v-show="chartData.settings.chartType=='bar-chart'||chartData.settings.chartType=='stack-bar-chart'">
+                <div class="size" >
+                    <span>条宽度</span>
+                    <a-input-number v-model="chartData.settings.size" allowClear :min="0"/>
+                </div>
+                <div class="background">
+                    <span>添加背景颜色</span>
+                    <a-switch @click="(check,e)=>{e.stopPropagation();}" v-model="chartData.settings.background"/>
+                </div>
+                <div class="annotation">
+                    <span>标注</span>
+                    <a-switch @click="(check,e)=>{e.stopPropagation();}" v-model="chartData.settings.annotation"/>
+                </div>
+            </div>
+            <div class="color">
+                <div class="colors">
+                    <div>颜色</div>
+                    <a-popover placement="left" :getPopupContainer="triggerNode => {return triggerNode.parentNode;}">
+                        <template slot="content">
+                            <div class="coloritem">
+                                <div class="title" v-if="(typeof color=='object')&&color.length>0">
+                                    <span>自定义颜色</span>
+                                </div>
+                                <div class="color_list" v-for="(item,index) in color" :index="index" @mouseover.prevent="()=>iconhover=true" @mouseout.prevent="()=>iconhover=false">
+                                    <div class="colorcontent">
+                                        <ColorPicker :index="index" :color.sync="color"/>
+                                        <a-icon type="minus-circle" :class="{'iconhover':iconhover,'display': index===0}" @click="del(index)"/>
+                                    </div>
+                                </div>
+                            </div>
+                           <a-button style="width: 200px;" icon="plus" type="primary" ghost @click="add">添加颜色</a-button>
+                        </template>
+                        <div class="color-select">
+                            <div class="select">
+                                <div class="selectitem selectone"></div>
+                                <div class="selectitem selecttwo"></div>
+                                <div class="selectitem selectthree"></div>
+                            </div>
+                            <a-icon type="caret-down" />
+                        </div>
+                    </a-popover>
+                </div>
+            </div>
+            <div class="color-array">
+                <div class="title">
+                    <span>色卡</span>
+                </div>
+                <div class="color-list">
+                    <div class="color">
+                        <div class="color_con" :style="{ background: item }" v-for="item in colorArray[0]" @click="choose(colorArray[0])"/>
+                    </div>
+                    <div class="color">
+                        <div class="color_con" :style="{ background: item }" v-for="item in colorArray[1]" @click="choose(colorArray[1])"/>
+                    </div>
+                </div>
+            </div>
+            <div class="slider" v-show="chartData.settings.chartType=='line-chart'||chartData.settings.chartType=='bar-chart'||chartData.settings.chartType=='stack-bar-chart'">
+                <span>滑块</span>
+                <a-switch @click="(check,e)=>{e.stopPropagation();}" v-model="chartData.settings.slider"/>
+            </div>
+            <div class="exchange" v-show="chartData.settings.chartType=='line-chart'||chartData.settings.chartType=='bar-chart'||chartData.settings.chartType=='stack-bar-chart'">
+                <span>翻转</span>
+                <a-switch @click="(check,e)=>{e.stopPropagation();}" v-model="chartData.settings.exchange"/>
+            </div>
+        </a-collapse-panel>
+        <a-collapse-panel key="12" header="数据操作" v-if="this.showOptions">
+            <div class="sort">
+                <span>排序</span>
+                <a-select @change="sortChange">
+                    <a-select-option v-for="item in sortArray" :key="item.value">{{item.label}}</a-select-option>
+                </a-select>
+            </div>
+           <a-button class="merge" style="width: 90%" type="primary" ghost @click="showModal">排序/截取</a-button>
+           <a-modal title="选择截取区间" v-model="showSlideModal" :destroyOnClose="true" :footer="null" width="450px">
+            <a-slider range v-model="rangeData" :max="interceptLength" :min="1" :default-value="[1,interceptLength?interceptLength:1]" :tooltip-visible="showSlideModal" @change="range"/>
+                <div :class="['merge',{'show':rangeData&&(rangeData[1]-rangeData[0])<interceptLength-1}]">
+                    <span>是否合并剩余项：</span>
+                    <!-- <a-switch v-model="chartData.settings.merge"/> -->
+                    <a-switch v-model="chartData.settings.sort.mergeOther"/>
+                </div>
+            </a-modal>
+        </a-collapse-panel>
+    </a-collapse>
+    <!-- 图表标题 -->
+    <a-modal v-model="titleModel.show" title="标题" @ok="onTitleEdit">
+      <a-input v-model="titleModel.value" allowClear ref="titleInput"/>
+      <div style="margin-top: 10px" v-if="titleModel.placeholder">
+        <tags :value="titleModel.placeholder" text="name" :deleteable="false" @click="onTagChecked"/>
+      </div>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import { Collapse, Switch, Input, InputNumber, Modal, Select, Radio, Checkbox, Icon, Popover, Button, Slider } from 'ant-design-vue'
+import CustomIcon from "@/framework/components/CustomIcon";
+import Tags from '@framework/components/Tags';
+import ColorPicker from './ColorPicker';
+
+export default {
+  props: {
+    chartData: {
+        type: Object
+    },
+    titleModel: {
+        type: Object
+    },
+    markers: {
+        type: Array
+    },
+    queryData: {
+        type: Object
+    },
+  },
+  components: {
+    CustomIcon,
+    AInput: Input,
+    AInputNumber: InputNumber,
+    AModal: Modal,
+    ASwitch: Switch,
+    ACheckbox: Checkbox,
+    ACollapse: Collapse,
+    ARadioButton: Radio.Button,
+    ARadioGroup: Radio.Group,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ACollapsePanel: Collapse.Panel,
+    APopover: Popover,
+    AButton: Button,
+    ASlider: Slider,
+    ColorPicker,
+    AIcon: Icon,
+    Tags,
+  },
+  watch: {
+    show: {
+        immediate: true,
+        handler(val){
+            return val;
+        }
+    },
+    queryData: {
+        handler(val) {
+            if(this.queryData) {
+                this.getLength(val.data.rows);
+            }
+        }
+    },
+    directionValue(val) {
+      if(val==='top'||val==='bottom') {
+        this.positionValue='left';
+      }else{
+        this.positionValue='top'; 
+      }
+      this.$emit('onlegendEdit', `${val}-${this.positionValue}`, 'position');
+    },
+    positionValue(val) {
+      if(val==='center') {
+        this.$emit('onlegendEdit', this.directionValue, 'position');
+      }else{
+        this.$emit('onlegendEdit', `${this.directionValue}-${this.positionValue}`, 'position');
+      }
+    },
+    markerCheck:{
+      immediate: true,
+      handler(val) {
+        this.$emit('onlegendEdit', val, 'marker');
+      }
+    },
+    color(val) {
+        if(val) {
+            this.$emit('changeColor', val);
+        }
+    },
+    chartData(val) {
+        if(val.settings.color) {
+            this.color = val.settings.color;
+        }
+    },
+  },
+  computed: {
+    muitl(){
+        if(this.queryData&&this.queryData.data){
+            let { keyCols, valueCols, rows } = this.queryData.data;
+            return valueCols.length > 1 || keyCols.length > 1;
+        }
+    },
+    showOptions() {
+        if(this.chartData.chartType==='pie-chart'||this.chartData.chartType==='ring-chart') {
+            return true;
+        }else if(this.chartData.chartType!=='radar-chart') {
+            if(!this.muitl) {
+                return true;
+            }
+        }
+        return false;
+    },
+    label() {
+        if(this.directionValue==='top'||this.directionValue==='bottom') {
+            this.positionValue='left';
+            return '水平';
+        }else if(this.directionValue==='right'||this.directionValue==='left'){
+            this.positionValue='top';
+            return '垂直';
+        }
+    },
+  },
+  data() {
+    return {
+        num: 0,
+        show: false,
+        iconhover: false,
+        color: ['#000'],
+        rangeData: undefined,
+        interceptLength: undefined,
+        showSlideModal: false,
+        activeKey: undefined,
+        markerCheck: 'square',
+        directionValue: 'top',
+        positionValue: undefined,
+        sort: 'recover',
+        colorArray: [
+            ["#4c84ff","#72c2ff","#82e1fc","#1dbb8a","#8fe94e","#fbc800","#ed9421","#f25f93","#ef8bcf","#c562f1"],
+            ["#D15456", "#5488D1", "#EDBA55", "#D48265", "#91C7AE", "#749F83", "#BDA29A", "#6E7074", "#585470", "#706254"]
+        ],
+        sortArray: [
+            {label: '升序', value: 'asc'},
+            {label: '降序', value: 'desc'},
+            {label: '还原', value: 'recover'},
+        ],
+        titlePosition: [
+            {label:'左', value: 'left'},
+            {label:'居中', value: 'center'},
+            {label:'右', value: 'right'}
+        ],
+        //方位
+        legendPosition: [
+            {label: 'chart-iconlegend-above', value: 'top'},
+            {label: 'chart-iconlegend-right', value: 'right'},
+            {label: 'chart-iconlegend-below', value: 'bottom'},
+            {label: 'chart-iconlegend-left', value: 'left'},
+        ],
+        //垂直位置
+        legendVertical: [
+            {label: 'chart-iconvertical-top', value: 'top'},
+            {label: 'chart-iconvertical-center', value: 'center'},
+            {label: 'chart-iconvertical-bottom', value: 'bottom'},
+        ],
+        //水平位置
+        legendHorizontal: [
+            {label: 'chart-iconhorizontal-left', value: 'left'},
+            {label: 'chart-iconhorizontal-center', value: 'center'},
+            {label: 'chart-iconhorizontal-right', value: 'right'},
+        ],
+    };
+  },
+  methods: {
+    getValue(val) {
+        return val.toString().replace(/\D/g,'');
+    },
+    add() {
+      this.num+=1;
+      this.color.push('#000');
+    },
+    del(index) {
+      this.num-=1;
+      this.color.splice(index,1);
+    },
+    choose(val) {
+        this.$emit('changeColor', val);
+    },
+    open(key){
+        if(this.activeKey&&this.activeKey.length) {
+            let index = this.activeKey.indexOf(key);
+            if(index>=0) {
+                this.activeKey.splice(index,1);
+            }
+        }
+    },
+    checkMarker(val) {
+      this.markerCheck = val;
+    },
+    MarkerActive(val) {
+      if(val===this.markerCheck) {
+        return true;
+      }
+      return false;
+    },
+    onTagChecked(field){
+      let dom = this.$refs.titleInput.$el;
+      if(dom.tagName != 'INPUT'){
+        dom = dom.getElementsByTagName('input')[0];
+      }
+      let start = dom.selectionStart, end = dom.selectionEnd;
+      let text = this.titleModel.value || '';
+      this.titleModel.value = text.substr(0, start) + '${' + field.code + '}' + text.substr(end);
+      this.$nextTick(() => {
+        dom.setSelectionRange(start, start + field.code.length + 3);
+        dom.focus();
+      })
+    },
+    legendChange(e) {
+      this.directionValue = e.target.value;
+    },
+    positionChange(e) {
+      this.positionValue = e.target.value;
+    },
+    onTitleEdit() {
+      this.$emit('onTitleEdit');
+    },
+    editTitle({value, placeholder, callback}){
+      this.$emit('editTitle',{ show: true, value, placeholder, callback });
+      this.$nextTick(() => this.$refs.titleInput.focus())
+    },
+    onchange(value) {
+      this.$emit('changeTitlePosition', value);
+    },
+    showModal() {
+      if(this.showSlideModal) {
+        this.showSlideModal = false;
+        return;
+      }
+      this.showSlideModal = true;
+    },
+    range(val) {
+      this.$emit('changeData',val);
+    },
+    sortChange(val) {
+        this.$emit('sort', val);
+        this.sort = val;
+    },
+    getLength(data) {
+      this.interceptLength = data.filter((item)=>item.v0!==null||0).length;
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.settings {
+    width: 100%;
+    overflow-y: auto;
+    user-select: none;
+    .title {
+        margin-bottom: @layout-space-base;   
+    }
+    .subtitle {
+        margin: @layout-space-base 0;
+    }
+    .title-setting {
+        padding-left: 24px;
+        .titlecontent {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            .ant-switch {
+                position: relative;
+                right: -10px;
+            }
+        }
+        .ant-select {
+            width: 105%;
+        }
+    }
+    .ant-collapse-item {
+        min-height: 52px;
+    }
+    .tip-setting, .canvas-size .width, .canvas-size .height{
+        height: 52px;
+        padding: @padding-xs @padding-md @padding-xs 40px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #e8e8e8;
+    }
+    .legend-setting {
+        /deep/.ant-collapse-content-box {
+            padding-left: 40px;
+            .position, .horizontal {
+                display: flex;
+                flex-direction: column;
+                & > span {
+                    white-space: nowrap;
+                    margin-bottom: @padding-xs;
+                }
+            }   
+        }
+        .position {
+            .ant-radio-group{
+                display: flex;
+            }
+        }
+        .horizontal {
+            & > span {
+                margin-top: @padding-xs;
+            }
+            .ant-radio-group{
+                display: flex;
+            }
+        }
+        .marker {
+            display: flex;
+            flex-direction: column;
+            span {
+                white-space: nowrap;
+            }
+            ul {
+                height: 145px;
+                margin-top: @padding-xs;
+                // overflow-y: scroll;
+                display: flex;
+                justify-content: space-between;
+                flex-wrap: wrap;
+                li {
+                    white-space: nowrap;
+                    padding: 0 @padding-xs;
+                    margin-bottom: @padding-xs;
+                    border: 1px solid #e8e8e8;
+                    border-radius: @border-radius-base;
+                    cursor: pointer;
+                }
+                li.active {
+                    color: @primary-color;
+                    border-color: @primary-color;
+                }
+            }
+        }
+        .flipPage {
+            margin: @padding-md 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    }
+    .x-setting,.y-setting {
+        /deep/.titlesetting{
+            border-bottom: 0;
+            & .ant-collapse-header {
+                padding-right: 0;
+            }
+            & .ant-collapse-content-box {
+                padding-left: @padding-lg*2;
+                padding-right: 0;
+                .content {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    span {
+                        white-space: nowrap;
+                    }
+                    .ant-input {
+                        margin-left: @padding-lg;
+                    }
+                }
+            } 
+        }
+        .grid {
+            padding-left: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+    }
+    .table-setting {
+        .table-border, .line-height {
+            padding-left: 24px;
+            margin: 12px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            .color {
+                height: 30px;
+                margin: 0;
+                flex: 1;
+            }
+        }
+        .table-border {
+            margin: 0;
+        }
+        .head-setting, .body-setting {
+            border-bottom: 0;
+            /deep/.ant-collapse-content-box {
+                padding-left: 40px;
+                .font-color {
+                    margin-bottom: 12px;
+                }
+                .head-color, .body-color, .font-color {
+                    display: flex;
+                    align-items: center;
+                    .color {
+                        height: 30px;
+                        margin: 0;
+                        flex: 1;
+                    }
+                }
+            }
+        } 
+    }
+    .label, .color, .background, .slider, .exchange, .sort, .bordered, .size, .annotation, .color-array {
+        margin: 12px 0;
+        padding-left: 24px;
+    }
+    .background, .slider, .exchange, .size, .annotation {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .sort {
+        display: flex;
+        align-items: center;
+        .ant-select {
+            flex: 1;
+            margin-left: @padding-sm;
+        }
+    }
+    .merge.ant-btn {
+        margin-left: 24px;
+    }
+    .color .colors {
+        display: flex;
+        justify-content: space-between;
+        margin: @padding-sm 0;
+        & /deep/.ant-popover {
+            .ant-popover-content .ant-popover-inner .coloritem {
+                width: 200px;
+                height: 250px;
+                overflow-y:auto;
+                .color_list {
+                    .colorcontent {
+                        display: flex;
+                        align-items: center;
+                        .colorPicker {
+                            flex: 1;
+                        }
+                        .anticon {
+                            height: 30px;
+                            margin-left: 8px;
+                            font-size: 1.3em;
+                            color: red;
+                            display: none;
+                            cursor: pointer;
+                        }
+                        &:hover .anticon {
+                            &.iconhover {
+                                display: inline-block;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .color-select {
+            display: flex;
+            align-items: center;
+            padding: @padding-xs/2;
+            cursor: pointer;
+            &:hover {
+                background: #f1eaff;
+            }
+            & .select {
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                line-height: 1;
+                overflow: hidden;
+                & .selectitem {
+                    width: 33.3333%;
+                    height: 100%;
+                    display: inline-block;
+                }
+                & .selectone {
+                   background-color: rgb(91, 143, 249);
+                   color: rgb(91, 143, 249);
+                }
+                & .selecttwo {
+                    background-color: rgb(205, 221, 253);
+                    color: rgb(205, 221, 253);
+                }
+                & .selectthree{
+                   background-color: rgb(97, 221, 170);
+                   color: rgb(97, 221, 170);
+                }
+            }
+            & .anticon {
+                height: 16px;
+                color: #873bf4;
+            }
+        }
+    }
+    .color-array {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        .title {
+            margin: 0;
+        }
+        .color-list {
+            flex: 1;
+            .color {
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+                /deep/.color_con {
+                    width: 10px;
+                    height: 30px;
+                    cursor: pointer;
+                    position: relative;
+                }
+            }
+        }
+    }
+    .type  {
+        padding: 12px 0 12px 24px;
+    }
+}
+/deep/.ant-modal-body {
+  padding: 48px 24px;
+  height: 150px;
+  
+  .merge{
+    opacity: 0;
+    width: 92%;
+    transition: all .3s;
+    &.show {
+      opacity: 1;
+    }
+  }
+}
+</style>

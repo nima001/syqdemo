@@ -1,0 +1,18 @@
+import request from '@/framework/utils/request'
+
+//用户查询
+export function accountquery(data) {
+    return request({
+        url: '/idm/v2/am/account/query',
+        method: 'post',
+        dataType: 'json',
+        data
+    });
+}
+//账号信息
+export function getAccount(id) {
+    return request({
+        url: '/idm/v2/am/account/' + id,
+        method: 'get'
+    });
+}

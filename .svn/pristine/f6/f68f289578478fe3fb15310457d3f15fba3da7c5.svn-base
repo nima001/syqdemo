@@ -1,0 +1,48 @@
+<template>
+  <div class="wrap">
+    <a-row>
+      <a-col :span="12">
+        <pie-chart></pie-chart>
+      </a-col>
+      <a-col :span="12">
+        <pie-chart2></pie-chart2>
+      </a-col>
+    </a-row>
+    <title-bar name="实有信息"></title-bar>
+    <a-row>
+      <a-col :span="12">
+        <pie-chart></pie-chart>
+      </a-col>
+      <a-col :span="12">
+        <pie-chart2></pie-chart2>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+import { Row, Col } from "ant-design-vue";
+import PieChart from "./PieChart";
+import PieChart2 from "./pieChart2";
+import TitleBar from "@formdesign/views/components/TitleBar.vue"
+export default {
+  components: {
+    ARow: Row,
+    ACol: Col,
+    PieChart,
+    PieChart2,
+    TitleBar
+  },
+  data() {
+    return {};
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+//@import url(); 引入公共css类
+.wrap {
+  padding: 0px @content-padding-h;
+}
+</style>

@@ -1,0 +1,108 @@
+<template>
+  <div class="container">
+    <a-input-group compact>
+      <a-select v-model="input.type" :showArrow="false">
+        <a-select-option value="">值</a-select-option>
+        <a-select-option value="$"><custom-icon type="fx"/></a-select-option>
+        <a-select-option value="#"><custom-icon color="#f39c2b" type="fx"/></a-select-option>
+      </a-select>
+      <a-input :value="_value" v-if="input.type" read-only @click="showExprEditor = true"/>
+      <a-select v-else class="input-value"
+        v-model="input.value" 
+        :allowClear="true"
+        @change="onChange" 
+        placeholder="(空)"
+      >
+        <a-select-option value="true">是</a-select-option>
+        <a-select-option value="false">否</a-select-option>
+      </a-select>
+    </a-input-group>
+    <equation-editor v-if="showExprEditor" :selfFields='contextFields' :fnData="input.value" namespace="query"  @finish="onFinish"/>
+  </div>
+</template>
+<script>
+import { Input, Select } from "ant-design-vue";
+import CustomIcon from "@/framework/components/CustomIcon";
+//  Boolean选择(true/false)
+export default {
+  name:"BooleanValue",
+  props: {
+    value: {
+      // type: Object,
+    }
+  },
+  data(){
+    return{
+      input: this.initInput(this.value),
+      oldValue: undefined,
+      showExprEditor: false,
+    }
+  },
+  inject:['contextFields'],
+  components: {
+    AInput: Input,
+    AInputGroup: Input.Group,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    CustomIcon,
+    EquationEditor:() => import('@person/components/EquationEditor/index')
+  },
+  computed:{
+    _value(){
+      let {type, value} = this.input;
+      if(type && value){
+        return type + '{' + value + '}';;
+      }else{
+        return value;
+      }
+    }
+  },
+  watch: {
+    'input.type'(vt, ovt){
+      if(!ovt != !vt){
+        let v = this.oldValue;
+        this.oldValue = this.input.value;
+        this.input.value = v;
+      }
+    },
+    _value(value){
+      this.$emit('input', value);
+    },
+  },
+  methods: {
+    onChange(value) {
+      this.$emit('input', value);
+    },
+    initInput(v){
+      if(typeof(v) == 'string'){
+        if(v.startsWith('${') && v.endsWith('}')){
+          return { type: '$', value: v.substring(2, v.length-1) };
+        }else if(v.startsWith('#{') && v.endsWith('}')){
+          return { type: '#', value: v.substring(2, v.length-1) };
+        }else{
+          return { type: '', value: v};
+        }
+      }
+      return { type: '', value: v};
+    },
+    onFinish(type, data) {
+      this.showExprEditor = false;
+      if (type == "ok") {
+        this.input.value = data;
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container{
+  width: 300px;
+  .ant-input-group-compact{
+    display: flex;
+    .input-value{
+      flex: auto;
+      min-width: 1px;
+    }
+  }
+}
+</style>

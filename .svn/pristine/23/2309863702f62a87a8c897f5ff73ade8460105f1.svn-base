@@ -1,0 +1,314 @@
+<template>
+  <div class="booklet-change">
+    <a-form class="book-form" :form="form">
+      <a-row :gutter="24">
+        <a-col :span="24">
+          <a-form-item label="报表名称">
+            <a-input
+              v-decorator="['editnote', { rules: [{ required: true, message: '请输入报表名称'}],
+              }]"
+            />
+          </a-form-item>
+        </a-col>
+      </a-row>
+      <a-row :gutter="24">
+        <a-col :span="12">
+          <a-form-item label="分类">
+            <a-select
+              v-decorator="['namespace', { rules: [{ required: true, message: '请选择分类'}] }]"
+              >
+              <a-select-option value="home">首页报表</a-select-option>
+              <a-select-option value="xiaocezi2">实名制一览表</a-select-option>
+              <a-select-option value="report">统计表</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="报表类型">
+            <a-select 
+              allowClear 
+              v-decorator="['onepage', { rules: [{ required: true, message: '请选择报表类型'}] }]"
+              >
+              <a-select-option value=true>统计表</a-select-option>
+              <a-select-option value=false>统计册</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+      </a-row>
+      <a-row :gutter="24">
+        <a-col :span="12">
+          <a-form-item label="是否按月归档">
+            <a-select 
+              allowClear  
+              v-decorator="['archive', { rules: [{ required: true, message: '请选择是否按月归档'}] }]"
+              >
+              <a-select-option value="true">是</a-select-option>
+              <a-select-option value="false">否</a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+        <a-col :span="12">
+          <a-form-item label="相关单位">
+            <a-input
+              :read-only="true"
+              :value="relatedUnit && relatedUnit.name"
+              @click="showOrgSelect"
+            >
+              <a-icon slot="addonAfter" type="select" @click="showOrgSelect"/>
+            </a-input>
+          </a-form-item>
+        </a-col>
+      </a-row>
+      <a-row :gutter="24">
+        <a-col :span="24">
+          <a-form-item label="模板">
+            <a-select
+              show-search
+              @search="handleSearch"
+              @popupScroll="onScroll"
+              @change="tempChange"
+              :filter-option="false"
+              v-decorator="[
+                'edittemplate',
+                { rules: [{ required: true, message: '请选择模板' }] },
+              ]">
+              <a-spin v-if="selectConfig.fetching" slot="notFoundContent" size="small" />
+              <!-- 下拉滚动加载 -->
+              <div slot="dropdownRender" slot-scope="menu">
+                <v-nodes :vnodes="menu" />
+                <a-spin v-if="selectConfig.loading" style="position: absolute; bottom: 0;left: 0;width: calc(100% - 6px);height: 30px;background: #fff;border-radius: 0 0 5px 5px;" slot="notFoundContent" size="small" />
+              </div>
+              <a-select-option
+                v-for="(item,index) in tempList"
+                :key="index"
+                :value="item.id"
+                >
+                {{item.name}}
+              </a-select-option>
+            </a-select>
+          </a-form-item>
+        </a-col>
+      </a-row>
+      <a-row :gutter="24">
+        <a-col :span="12" v-for="(item, index) in fields" :key="index">
+          <input-dict v-if="item.datatype == 2" :field="item" :data="bookInfo.context" ref="inputBox"></input-dict>
+          <input-org v-if="item.datatype == 3" :field="item" :data="bookInfo.context" ref="inputBox"></input-org>
+          <input-text v-if="item.datatype == 4 && item.inputValue == 0" :field="item" :data="bookInfo.context" ref="inputBox"></input-text>
+          <input-number v-if="item.datatype == 4 && item.inputValue == 1" :field="item" :data="bookInfo.context" ref="inputBox"></input-number>
+          <input-number v-if="item.datatype == 4 && item.inputValue == 2" :field="item" :data="bookInfo.context" ref="inputBox"></input-number>
+          <input-date v-if="item.datatype == 4 && item.inputValue == 3" :field="item" :data="bookInfo.context" ref="inputBox"></input-date>
+          <input-bool v-if="item.datatype == 4 && item.inputValue == 4" :field="item" :data="bookInfo.context" ref="inputBox"></input-bool>
+        </a-col>
+      </a-row>
+    </a-form>
+    <!-- 相关单位 -->
+    <a-modal
+      :footer="null"
+      v-model="orgvisible"
+      :width="500"
+      title="选择单位"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+      >
+      <org-user-select 
+        mode="org" 
+        @finish="orgOk" 
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import { templateList, detailbook } from "@/person/api/booklet";
+import { Row, Col, Select, Form, Input, Spin, Modal, Icon } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import InputDict from "./InputDict";
+import InputOrg from "./InputOrg";
+import InputText from "./InputText";
+import InputNumber from "./InputNumber";
+import InputDate from "./InputDate";
+import InputBool from "./InputBool";
+export default {
+  props: ['record'],
+  data() {
+    return {
+      tempList: [],
+      orgvisible: false,
+      selectvisible: false,
+      selectConfig: {
+        loading: false,
+        isEnd: false,       
+        fetching: false
+      },
+      pagination: {
+        needtotal: false,
+        pagenum: 1,
+        pagesize: 20,
+        searchkey: undefined
+      },
+      bookInfo: {},
+      fields: [], 
+      relatedUnit: {},
+      isChangeTemp: false
+    }
+  },
+  components:{
+    ARow: Row,
+    ACol: Col,
+    AForm:Form,
+    AFormItem:Form.Item,
+    ASelect:Select,
+    ASelectOption:Select.Option,
+    AInput:Input,
+    ASpin: Spin,
+    AModal: Modal,
+    AIcon: Icon,
+    OrgUserSelect,
+    InputDict,
+    InputOrg,
+    InputText,
+    InputNumber,
+    InputDate,
+    InputBool,
+    VNodes: {
+      functional: true,
+      render: (h, ctx) => ctx.props.vnodes,
+    }
+  },
+  beforeCreate() {
+    this.form = this.$form.createForm(this);
+  },
+  created() {
+    this.loadTemplist();
+    if(this.record.id) {
+      this.loadBookinfo();
+    }
+  },
+  methods: {
+    loadTemplist() {
+      templateList(this.pagination).then(({result}) => {
+        this.tempList = result.rows;
+      });
+    },
+    loadBookinfo() {
+      detailbook(this.record.id)
+      .then(({result}) => {
+        this.bookInfo = result;
+        this.fields = result.fields;
+        this.$nextTick(() => {
+          this.form.setFieldsValue({
+            editnote: this.bookInfo.name,
+            edittemplate: this.bookInfo.tempname,
+            namespace: this.bookInfo.namespace,
+            onepage: this.bookInfo.onepage + "",
+            archive: this.bookInfo.archive + "",
+          });
+        });
+      })
+      .catch(err => { 
+        showError(err); 
+      })
+    },
+    async getFormValue(){
+      let data = await this.getVal();
+      return new Promise((resolve, reject) => {
+        this.form.validateFields((error, values) => {
+          if(error){
+            reject({code:'form_validate_fail', message: '表单验证失败'});
+          }else{
+            if(!this.isChangeTemp) {//  解决如果没进行模板切换，默认取到模板名称
+              values.edittemplate = this.bookInfo.tempid;
+            };
+            values.relatedUnit = this.relatedUnit._id;
+            values = {...values, ...data};
+            resolve(values);
+          }
+        })
+      })
+    },
+    showOrgSelect() {
+      this.orgvisible = true;
+    },
+    orgOk(type, list) {
+      this.orgvisible = false;
+      if (type == "ok" && list.length > 0) {
+        this.relatedUnit = list[0]
+      }
+    },
+    tempChange(value) {
+      this.isChangeTemp = true;
+      (this.tempList || []).forEach(item => {
+        if(item.id == value) {
+          this.fields = item.fields;
+        }
+      })
+    },
+    getVal() {
+      if(this.fields && this.fields.length) {
+        let obj = {};
+        return Promise.all(this.$refs.inputBox.map(ele => {
+          return ele.validateField(obj);
+        })).then(() => {
+          return obj;
+        });
+      }
+    },
+    onScroll(e) {
+      if(!this.selectConfig.loading && !this.selectConfig.isEnd) {
+        if(e.target.scrollHeight - e.target.clientHeight - e.target.scrollTop <= 0) {//  滚动到底部 继续加载
+          this.pagination.pagenum ++;
+          this.selectConfig.loading = true;
+          templateList(this.pagination).then(res => {
+            this.selectConfig.loading = false;
+            this.selectConfig.isEnd = res.result.rows.length == 0 ? true : false;
+            this.tempList = [...this.tempList, ...res.result.rows];
+          })
+          .catch(err => {
+            this.selectConfig.loading = false;
+            showError(err);
+          });
+        }
+      }
+    },
+    handleSearch(value) {
+      this.selectConfig.isEnd = false;
+      if(value) {
+        this.selectConfig.fetching = true;
+        this.pagination.pagenum = 1;
+        this.pagination.searchkey = value;
+        templateList(this.pagination)
+        .then(res => {
+          this.selectConfig.fetching = false;
+          this.tempList = res.result.rows;
+        })
+        .catch(err => {
+          this.selectConfig.fetching = false;
+          showError(err);
+        })
+      }else{
+        this.pagination.pagenum = 1;
+        this.pagination.searchkey = undefined;
+        templateList(this.pagination)
+        .then(res => {
+          this.tempList = res.result.rows;
+        })
+        .catch(err => {
+          showError(err);
+        })
+      }
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.booklet-change{
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .book-form{
+    flex: auto;
+    min-height: 0;
+    overflow: auto;
+    padding: @content-padding-v @content-padding-h;
+  }
+}
+</style>

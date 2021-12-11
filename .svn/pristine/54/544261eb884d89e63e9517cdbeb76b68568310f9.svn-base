@@ -1,0 +1,217 @@
+<template>
+  <div class="gti-detail">
+    <div class="header">
+      <ul>
+          <li>
+          <div class="name">公益指数</div>
+          <lcd-font :length="3" :smooth="false" :precision="1" :realNumber="kpiTotal" :realStyle="{color: '#7dc8a3'}"/>
+        </li>
+        <template v-for="(item, index) in items">
+          <li class="operater" :key="index + '_opt'">{{index == 0 ? '=' : '+'}}</li>
+          <li :key="index">
+            <div class="name">{{item.name}}</div>
+            <lcd-font :length="3" :smooth="false" :precision="1" :realNumber="kips ? kips[index].kpi : 0"/>
+          </li>
+        </template>
+      </ul>
+    </div>
+    <split-line/>
+    <div class="body">
+      <a-tabs :animated="false">
+        <a-tab-pane v-for="(item, index) in items" :key="index" :tab="item.name" class="tab-content">
+          <div v-for="(item,index) in item.children"  class="item-group" :key="index">
+            <div class="title">{{item.name}}</div>
+            <ul>
+              <li v-for="(item,index) in item.children" :key="index">
+                <div class="sub-title"><span>{{item.name}}</span><span class="num">{{formatC(item)}}</span></div>
+                <div class="desc"><span>实际值：{{formatA(item)}}</span><span>标杆值：{{formatB(item, item.b == 'yhbbgz' && '1:1 - ')}}</span></div>
+              </li>
+            </ul>
+          </div>
+        </a-tab-pane>
+      </a-tabs>
+    </div>
+  </div>
+</template>
+<script>
+import { Tabs, } from 'ant-design-vue'
+import LcdFont from "../components/LcdFont";
+import { getKpiConfig, calcKpi, calcItem, formatValue } from './kpiUtils'
+import { getstatisinfo } from "@/person/api/org";
+import { showError } from '../../../../framework/utils';
+import SplitLine from '../components/SplitLine.vue';
+
+export default {
+  components: {
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    LcdFont,
+    SplitLine
+  },
+  props: {
+    id: String,
+    type: String,
+  },
+  data(){
+    return {
+      data: undefined
+    }
+  },
+  computed: {
+    items(){
+      return getKpiConfig(this.type);
+    },
+    kips(){
+      if(this.data){
+        return calcKpi(this.type, this.data);
+      }
+    },
+    kpiTotal(){
+      let sum = 0;
+      (this.kips || []).forEach(item => {
+        sum += item.kpi || 0;
+      })
+      return sum;
+    }
+  },
+  created(){
+    if(this.id){
+      getstatisinfo(this.id).then(({result}) => {
+        this.data = result;
+      }).catch(error => {
+        showError(error);
+      })
+    }
+  },
+  methods: {
+    formatA(item){
+      if(this.data){
+        return formatValue(this.data[item.a], item.unit);
+      }
+    },
+    formatB(item, suffux){
+      if(this.data){
+        let v = formatValue(this.data[item.b], item.unit);
+        if(v && suffux){
+          return suffux + v;
+        }
+        return v;
+      }
+    },
+    formatC(item){
+      if(this.data){
+        let v = calcItem(item, this.data);
+        return Number((v).toFixed(1));
+      }
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.gti-detail{
+  height: 600px;
+  & > .header{
+    height: 125px;
+    margin: 0 16px;
+    background-color: #00454f;
+    background: linear-gradient(to right, rgba(0, 247, 250, 0.28), rgba(11, 27, 45, 0) 50%,  rgba(0, 246, 250, 0.28));
+    ul{
+      overflow: hidden;
+      text-align: center;
+      padding-top: 20px;
+      .operater{
+        padding: 0 20px;
+        color: #8fc7ff;
+        line-height: 56px;
+        vertical-align: bottom;
+        font-size: 30px;
+        font-weight: bold;
+      }
+      li{
+        display: inline-block;
+        .name{
+          color: white;
+          text-align: center;
+          line-height: 1.6em;
+          font-size: 16px;
+        }
+      }
+    }
+  }
+  & > .split-line{
+    margin-top: -13px;
+  }
+  & > .body{
+    margin: 10px 16px;
+    /deep/ .ant-tabs-bar{
+      margin: 0;
+      border-bottom-color: transparent;
+      text-align: center;
+      .ant-tabs-tab {
+        border-color: transparent;
+        background: transparent;
+        font-size: 18px;
+        font-weight: bold;
+        color: fade(#fff, 60%);
+      }
+      .ant-tabs-ink-bar {
+        background-color: #00a2b6;
+        height: 3px;
+      }
+    }
+    .tab-content{
+      display: flex;
+    }
+    .item-group{
+      float: left;
+      width: 25%;
+      width: 265px;
+      margin-left: 24px;
+      font-size: 16px;
+      color: fade(#fff, 80%);
+      &:first-child{
+        margin-left: 0;
+      }
+      & > .title{
+        line-height: 48px;
+        text-align: center;
+        color: #8fc7ff;
+        font-weight: bold;
+      }
+      li{
+        background-color: #151920;
+        margin-bottom: 12px;
+        border-radius: 3px;
+        .sub-title{
+          padding: 4px 15px;
+          background-color: #212327;
+          border-radius: 3px;
+          display: flex;
+          align-items: center;
+          & > span{
+            flex: auto;
+          }
+          .num{
+            flex: none;
+            margin-left: 4px;
+            color: #8fc7ff;
+            font-weight: bold;
+          }
+        }
+        .desc{
+          font-size: 14px;
+          color: fade(#fff, 60%);
+          line-height: 1.75em;
+          padding: 4px 15px;
+          span{
+            display: inline-block;
+            width: 50%;
+          }
+        }
+      }
+
+    }
+  }
+
+}
+</style>

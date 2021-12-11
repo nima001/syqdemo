@@ -1,0 +1,50 @@
+<template>
+  <div class="org-listednumber">
+    <a-row :gutter="20">
+      <a-col :span="6">
+        <span class="name">{{attachname}}</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+import { Row, Col } from "ant-design-vue";
+export default {
+  props: {
+    data: String
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+    attachname() {
+      if(this.data) {
+        if(this.data.indexOf("、") != -1) {
+          return "是"
+        }else{
+          return "否"
+        }
+      }else{
+        return '否'
+      }
+    }
+  },
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.org-listednumber{  
+  /deep/.ant-row{
+    line-height: 30px;
+  }
+}
+</style>

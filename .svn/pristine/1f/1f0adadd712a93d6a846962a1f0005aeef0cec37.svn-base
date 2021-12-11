@@ -1,0 +1,113 @@
+<template>
+  <div class="org-staff-distr-report">
+    <div class="toolbar">
+      <a-upload name="file" 
+        :action="uiConfigs['api.url'] + '/person/org/distr/comunity/save'"
+        accept=".xls,.xlsx"
+        :showUploadList="false"
+        @change="handleUploadChange"
+        :headers="headers"
+        :disabled="loading"
+        style="display: inline-block;"
+      >
+        <a-button type="primary"><a-icon type="upload"/>导入</a-button>
+      </a-upload>
+      <a-button @click="downloadTemp">下载模板</a-button>
+    </div>
+    <div class="body">
+      <ReoprtTable :orgid="orgid" namespace="xiaocezi2" />
+    </div>
+    <a-modal :visible="loading" :closable="false" :footer="null">
+        <div class="progress-desc">正在导入，请稍后...</div>
+        <a-progress :showInfo="false" :percent="progress" :strokeWidth="16"/>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Icon, Button, Upload, Modal, Progress } from "ant-design-vue";
+import ReoprtTable from '@person/views/org/components/ReoprtTable'
+import { showError } from "@/framework/utils/index";
+import { uiConfigsCookies,getCookie } from '@/framework/utils/auth'
+import request from "@/framework/utils/request";
+import { loopTaskResult } from "@/framework/api/asynctask";
+
+export default {
+  props: {
+    orgid:{
+      type: String,
+    },
+  },
+  components: {
+    AIcon: Icon,
+    AButton: Button,
+    AUpload: Upload,
+    AModal: Modal,
+    AProgress: Progress,
+    ReoprtTable,
+  },
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      headers: {
+        'X-Commnet-Token': getCookie('X-Commnet-Token')
+      },
+      loading: false,
+      progress: 0,
+    };
+  },
+  methods: {
+    handleUploadChange(info) {
+      if (info.file.status == 'uploading') {
+        if(!this.loading){
+          this.progress = 0;
+          this.loading = true;
+        }else{
+          this.addPorgress(1);
+        }
+      }else if (info.file.status === 'done') {
+        let response = info.file.response;
+        if(response.code == 'success'){
+          loopTaskResult(response.result, (progress) => {
+            this.addPorgress(10);
+          }).then(data => {
+            this.loading = false;
+            this.$message.success('导入成功');
+          }).catch(err => {
+            this.loading = false;
+            showError(err);
+          });
+        }else{
+          this.loading = false;
+          showError(response);
+        }
+      } else if (info.file.status === 'error') {
+        this.loading = false;
+        this.$message.error(`${info.file.name} 上传失败`);
+      }
+    },
+    downloadTemp(){
+      window.open(this.uiConfigs['api.url'] + '/person/org/comunity/template/download')
+    },
+    addPorgress(num){
+      this.progress = Math.max(99, this.progress + num);
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.org-staff-distr-report{
+  height: 100%;
+  flex-direction: column;
+  display: flex;
+  & > .toolbar {
+    padding: @content-padding-v @content-padding-h;
+    button{
+      margin-right: 10px;
+    }
+  }
+  & > .body{
+    flex: auto;
+    min-height: 0;
+  }
+}
+</style>

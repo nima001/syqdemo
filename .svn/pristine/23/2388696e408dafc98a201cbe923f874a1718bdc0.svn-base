@@ -1,0 +1,179 @@
+<template>
+  <div class="wrap">
+    <div class="left">
+      <span class="title">机构编制问题数</span>
+      <div class="num" @click="()=> questionList = {show:true,title:'机构编制问题详情',params:{handlestatus: 0,needtotal:true,district:dictId}}">
+        <lcd-font :length="5" :realStyle="realStyle" :realNumber="questionNum.unhandle || 0"></lcd-font>
+      </div>
+    </div>
+    <div class="right">
+      <ul>
+        <li>
+          <span class="text">暂缓问题数</span>
+          <span class="num" @click="()=> questionList = {show:true,title:'暂缓问题详情',params:{needtotal:true,defer: 1,handlestatus: 3,district:dictId}}">{{questionNum.temp || 0}}</span>
+        </li>
+        <li>
+          <span class="text">黑名单机构</span>
+          <span class="num" @click="showBlack">{{questionNum.black || 0}}</span>
+        </li>
+      </ul>
+    </div>
+    <question-list v-model="questionList.show" :title="questionList.title" :ajaxParams="questionList.params" />
+    <org-list v-model="orgList.show" :title="orgList.title" :loadPage="orgList.loader"  @click="blackOrg" >
+      <template slot="item" slot-scope="slotProps">
+        <div>{{slotProps.orgname}}</div>
+      </template>
+    </org-list>
+    <black-question-list v-model="blackList.show" :title="blackList.title" :ajaxParams="blackList.params"></black-question-list>
+  </div>
+</template>
+
+<script>
+import { mixins } from "../components/minxin";
+import { question } from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@/framework/utils/index";
+import LcdFont from "../components/LcdFont";
+import QuestionList from "../components/QuestionList";
+import { ckOrgQuery } from "@/person-shaoxing/api/orgStaffReport";
+import OrgList from "../components/OrgList";  
+import { orgBlacklist} from "@/person-shaoxing/api/monitor";
+import BlackQuestionList from "./BlackQuestionList";
+export default {
+  components:{
+    QuestionList,
+    LcdFont,
+    OrgList,
+    BlackQuestionList
+  },
+  data() {
+    return {
+      realStyle: {
+        color: "#fb2626"
+      },
+      questionNum: {},
+      questionList: {
+        show: false,
+        title: "",
+        params:{}
+      },
+      orgList: {
+        show: false,
+        title: "",
+        params: {}
+      },
+      blackList:{
+        show:false,
+        title:'',
+        params:{}
+      }
+    };
+  },
+  mixins: [mixins],
+  watch: {
+    dictId(v) {
+      this.getQuestion(v);
+    }
+  },
+  mounted() {
+    this.getQuestion(this.dictId);
+  },
+  methods: {
+    showBlack(){
+      this.orgList = {
+        show: true,
+        title: "黑名单机构详情",
+        loader: (page) => {
+          return orgBlacklist({
+            district: this.dictId,
+            handlestatus: 2,
+            ...page
+          })
+        }
+      };
+    },
+    blackOrg(item){
+      this.blackList = {show:true,title:"黑名单机构问题详情",params:{needtotal:true,orgblacklistid: item.id,orgid:item.orgid,district:dictId}}
+    },
+    getQuestion(dictId) {
+      question(dictId)
+        .then(res => {
+          this.questionNum = res.result;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    showQuestionList(title, xz, type,target,num) {
+      this.questionList = {
+        show: true,
+        title: (this.districtName || "") + title,
+      }
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  width: 100%;
+  height: 100px;
+  background: url("../img/question.png") repeat;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  padding: 0px 24px;
+  margin-top: 12px;
+  .left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    .title {
+      height: 21px;
+      font-size: 16px;
+      font-family: Microsoft YaHei;
+      font-weight: 400;
+      line-height: 21px;
+      color: #ffffff;
+    }
+    .num {
+      position: relative;
+      height: 58px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+    }
+  }
+  .right {
+    display: flex;
+    align-items: center;
+    ul {
+      margin: 0px;
+      li {
+        display: flex;
+        &:last-child {
+          margin-top: 16px;
+        }
+        .text {
+          height: 22px;
+          font-size: 16px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 22px;
+          color: #ffffff;
+          opacity: 0.6;
+        }
+        .num {
+          margin-left: 30px;
+          height: 22px;
+          font-size: 16px;
+          font-family: Arial;
+          font-weight: 400;
+          line-height: 22px;
+          color: #ffffff;
+          opacity: 0.6;
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,217 @@
+<template>
+  <a-modal :visible="value" :title="record.id ? '编辑规则' : '新增规则'" :width="800" :bodyStyle="{ overflow: 'auto', height: '550px', padding: '8px 24px' }"
+    destroyOnClose @ok="ok" @cancel="cancel"
+  >
+  <a-form :form="form">
+    <a-row :gutter="20">
+      <a-col :span="12">
+        <a-form-item label="字段">
+          <!-- 显示fieldname   提交code -->
+          <a-input :read-only="true" v-if="record.id"  :disabled='true'       
+            v-decorator="['code',{initialValue: record.field.name}]"/>
+          <a-input :read-only="true" v-else @click="showField"
+            v-decorator="['code',{
+              initialValue: fields.name, 
+              rules: [{ required: true, message: '请输入字段' }] 
+            }]"
+          />
+        </a-form-item>
+      </a-col>
+      <a-col :span="12">
+        <a-form-item label="是否启用">
+          <a-switch checked-children="启用" un-checked-children="禁用" v-decorator="['enable', { valuePropName: 'checked', initialValue: record.enable }]"/>
+        </a-form-item>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="12">
+        <a-form-item label="统计对象">
+          <a-select v-decorator="['targetid', {initialValue: getTarget(record.targetid), rules: [{ required: true, message: '请选择统计模型' }]}]">
+            <a-select-option v-for="item in targetlist" :key="item.id" :disabled="namespace != item.namespace">{{item.title}}</a-select-option>
+          </a-select>
+        </a-form-item>
+      </a-col>
+      <a-col :span="12">
+        <a-form-item label="排序">
+            <a-input v-decorator="['index', { initialValue: record.index, rules: [ { pattern: /^[1-9]\d*$/, message: '请输入数字' }]}]"/>
+          </a-form-item>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="24" >
+         <a-form-item label="计算公式">
+          <a-textarea :rows="4" @click="openbox(record.targetid)" :read-only="true"
+            v-decorator="['expression', { initialValue: record.expression, rules: [{ required: true, message: '请输入公式' }]}]"
+          />
+        </a-form-item>
+      </a-col>
+    </a-row>
+  </a-form>
+  <equation-editor v-if="expr.show" v-model="datasets" @finish="finish" :fnData="expr.data" 
+      namespace="statisticfield" :contextParams="expr.params" :foreach="expr.foreach"
+      >
+  </equation-editor>
+  <a-modal :visible="searchVisible" title="选择字段编码" :width="800" :bodyStyle="{ overflow: 'auto', height: '550px', padding: '0px 24px' }"
+    destroyOnClose @ok="onOk" @cancel="onCancel">
+      <search-list @codeValue="getcode"/>
+  </a-modal>
+</a-modal>
+</template>
+<script>
+import EquationEditor from "@person/components/EquationEditor/index";
+import SearchList from "./SearchList";
+import { Modal, Row, Col, Select, Input, Form, Switch, InputNumber } from "ant-design-vue";
+import { newfield, editupd, saveExpression } from "@/person/api/field";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  name: "StatisticsChange",
+  components: {
+    ARow: Row,
+    ACol: Col,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInput: Input,
+    AInputNumber: InputNumber,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASwitch: Switch,
+    ATextarea: Input.TextArea,
+    AModal: Modal,
+    EquationEditor,
+    SearchList
+  },
+  props: {
+    value: {
+      type: Boolean,
+      default: false,
+    },
+    // 编辑的记录
+    record: {
+      type: Object,
+      default: () => ({})
+    },
+    targetlist: {
+      type: Array,
+      default: () => ([])
+    },
+    modelList: {
+      type: Array,
+      default: () => ([])
+    },
+  },
+  data() {
+    return {
+      // 新增的记录
+      fields:{},
+      form: this.$form.createForm(this, { name: "dynamic_rule" }),
+      datasets: [],
+      searchVisible:false,
+      expr: {
+        show: false,
+        params: {},
+        data: ""
+      },
+    };
+  },
+  computed:{
+    namespace(){
+      return this.fields.model || (this.record.field ? this.record.field.model : undefined)
+    }
+  },
+  watch: {
+    record(v){
+      this.initData();
+    }
+  },
+  mounted() {
+    this.initData();
+  },
+  methods: {
+    showField(){
+      this.searchVisible = true;
+    },
+    onCancel(){
+      this.searchVisible = false;
+    },
+    onOk(){
+      this.searchVisible = false;
+    },
+    getcode(value){
+      this.fields = value
+      this.form.setFieldsValue({'code': this.fields.name})
+    },
+    getTarget(target){
+        let t = this.targetlist.find(item => item.id == target);
+        return t && t.title;
+    },
+    getTargetid(target){
+        let t = this.targetlist.find(item => item.title == target);
+        return t && t.id;
+    },
+    initData(){
+      this.datasets = this.record.datasets || [];
+    },
+    cancel() {
+      this.$emit("input", false);
+      this.fields = {};
+    },
+    ok() {
+      this.form.validateFields((err, values) => {
+        if(typeof values.targetid == "string"){
+          values.targetid = this.getTargetid(values.targetid)
+        }
+        if (!err) {
+          let obj = {
+            id: this.record.id,
+            targetid: values.targetid,
+            code: this.fields.code || this.record.field.code,
+            enable: values.enable,
+            index: values.index,
+            expression: values.expression,
+            datasets: this.datasets
+          };
+          saveExpression(obj).then(res=>{
+              this.fields = {};
+              if(this.record.id){
+                this.$message.success("编辑成功");
+                this.$emit("finish", obj);
+              }else{
+                this.$message.success("新增成功");
+                this.$emit("finish", obj);
+              }
+          }).catch(err => {
+              showError(err);
+          });
+        }
+      });
+    },
+    openbox() {
+      let targetid = this.form.getFieldValue('targetid');
+      if(!targetid){
+        this.$message.info("请先选择统计对象");
+        return
+      }
+      if(typeof targetid == "string"){
+        var t = this.targetlist.find(item => item.title == targetid);
+        targetid = t.id;
+      }else{
+        var t = this.targetlist.find(item => item.id == targetid);
+      }
+      this.expr.params = {target: t.namespace};
+      this.expr.data = this.record.expression;
+      this.expr.show = true;
+    },
+    finish(type, expr) {
+      if (type == "ok") {
+        this.form.setFieldsValue({
+          expression: expr
+        });
+        this.expr.show = false;
+      } else {
+        this.expr.show = false;
+      }
+    }
+  }
+};
+</script>

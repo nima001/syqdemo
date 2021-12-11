@@ -1,0 +1,588 @@
+<template>
+  <div>
+    <div class="upload" v-if="active.id === 1" @click="showorgModal">
+      <a-icon type="upload" />
+      <span>上传文件</span>
+    </div>
+    <a-modal
+      title="上传文件"
+      :width="800"
+      :bodyStyle="{ minheight: !record.id ? '550px' : '480px' }"
+      :destroyOnClose="true"
+      v-model="Modalvisible"
+      @ok="handleOk"
+      @cancel="handleCancel"
+    >
+      <a-form :form="form" :label-col="{ span: 4 }" :wrapper-col="{ span: 19 }">
+        <a-form-item label="批准文号">
+          <a-input-group :class="['pzwh', { disablepzwh: record.id }]" compact>
+            <a-input
+              type="text"
+              :disabled="record.id ? true : false"
+              v-decorator="[ 'zihao', { initialValue: zihao, rules: [{ required: true, message: '请输入正确批准文号' }], }, ]"
+              style="width: 30%"
+            />
+            <a-input
+              addonBefore="〔"
+              addonAfter="〕"
+              :disabled="record.id ? true : false"
+              v-decorator="[ 'year', { initialValue: year, rules: [{ required: true, message: '请输入正确批准文号' }], }, ]"
+              type="text"
+              style="width: 40%; top: 0"
+            />
+            <a-input
+              addonAfter="号"
+              type="text"
+              :disabled="record.id ? true : false"
+              v-decorator="[ 'ordinal', { initialValue: ordinal, rules: [{ required: true, message: '请输入正确批准文号' }], }, ]"
+              style="width: 30%; top: 0"
+            />
+          </a-input-group>
+        </a-form-item>
+        <a-form-item label="文件标题">
+          <a-input
+            allow-clear
+            v-decorator="[ 'title', { initialValue: record.title, rules: [{ required: true, message: '请输入文件标题!' }], }, ]"
+            placeholder="请输入文件标题"
+          />
+        </a-form-item>
+        <a-form-item label="发文时间">
+          <a-date-picker
+            allow-clear
+            style="width: 100%"
+            v-decorator="[ 'dispatchdate', { initialValue: record.id ? moment(record.dispatchdate) : undefined, rules: [{ required: true, message: '请选择发文时间!' }], }, ]"
+            placeholder="请选择发文时间"
+          />
+        </a-form-item>
+        <a-form-item label="文件上传" v-if="!this.record.id">
+          <a-upload
+            name="file"
+            :before-upload="beforeUpload"
+            :file-list="this.fileList"
+            v-decorator="[ 'uploadModal' ]"
+            @change="handleChange"
+          >
+            <a-button icon="upload" type="primary">文件上传</a-button>
+          </a-upload>
+          <span v-if="!this.fileList.length" style="margin-left: 8px;transition:all 1s;">未选择任何文件</span>
+        </a-form-item>
+        <a-form-item label="发文单位" :wrapper-col="{ span: 10 }">
+          <a-input
+            @click="showModal(1)"
+            read-only
+            v-decorator="['orgid']"
+            placeholder="请选择相关单位"
+          >
+            <a-icon
+              style="color: #666; font-size: 12px"
+              @click.stop="deleteorgid"
+              slot="suffix"
+              v-if="orgid.orgid"
+              type="close-circle"
+              theme="filled"
+            />
+          </a-input>
+        </a-form-item>
+        <a-form-item label="文件归类" :wrapper-col="{ span: 10 }">
+          <a-select
+            allow-clear
+            label-in-value
+            @change="handledoctypeChange"
+            placeholder="请选择文件归类"
+            v-decorator="[ 'type', { initialValue: record.id && record.type ? { key: record.type } : undefined, rules: [{ required: true, message: '请选择文件归类!' }]} ]"
+          >
+            <a-select-option v-for="item in doctype" :key="item.value">
+              {{ item.text }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item
+          label="文件类型"
+          v-if=" form.getFieldValue('type') ? ![10].includes(form.getFieldValue('type').key) : true "
+          :wrapper-col="{ span: 10 }"
+        >
+          <!-- <a-select
+            allow-clear
+            v-decorator="[ 'subtype', { initialValue: docsubtype.length ? record.subtype : undefined, rules: [{ required: true, message: '请选择文件类型!' }], }, ]"
+            placeholder="请选择文件类型"
+          >
+            <a-select-option v-for="item in docsubtype" :key="item.value">
+              {{ item.text }}
+            </a-select-option>
+          </a-select> -->
+          <a-tree-select
+            tree-default-expand-all
+            :getPopupContainer="triggerNode => triggerNode.parentNode"
+            :allowClear="true"
+            v-decorator="[ 'subtype', { initialValue: record.subtype , rules: [{ required: true, message: '请选择文件类型!' }] } ]"
+            :tree-data="docsubtype"
+            placeholder="请选择文件类型"
+          />
+        </a-form-item>
+        <a-form-item
+          v-if=" form.getFieldValue('type') ? [1, 3].includes(form.getFieldValue('type').key) : true "
+          label="文件归属单位"
+          :wrapper-col="{ span: 10 }"
+          style="display: flex; align-items: center"
+        >
+          <div class="mechanism" @click="showModal(100)">
+            <ul>
+              <li class="placehold" v-if="!orgs.length">请选择单位</li>
+              <li v-for="(item, index) in orgs" :key="item._id">
+                {{ item.name }}
+                <span @click.stop="deleteItem(index)" class="delete">
+                  <a-icon type="close" />
+                </span>
+              </li>
+            </ul>
+            <span class="clear" v-if="orgs.length" @click.stop="resetRange">
+              <a-icon
+                type="close-circle"
+                theme="filled"
+                :style="{ fontSize: '12px', color: '#666' }"
+              />
+            </span>
+          </div>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+    <a-modal
+      v-model="orgVisible"
+      :destroyOnClose="true"
+      title="选择单位"
+      :width="800"
+      :bodyStyle="{ height: '600px', padding: '0' }"
+      :footer="null"
+    >
+      <org-user-select
+        :mode="'org'"
+        :max-select="this.maxSelect"
+        :root-selectable="true"
+        :selected.sync="selected"
+        @finish="selectOrg"
+      />
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import { Form, Input, DatePicker, Button, Select, Icon, Modal, Upload, TreeSelect } from "ant-design-vue";
+import moment from "moment";
+import DictSelect from "@/framework/components/DictSelect";
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+import { includes, assign, trim } from "lodash";
+import { document, documentupdate } from "@/person-shaoxing/api/information";
+import { uploadV2 } from "@/framework/api/file";
+import { showError } from "@/framework/utils";
+export default {
+  props: {
+    visible: {//编辑框显示或隐藏
+      type: Boolean,
+    },
+    record: {//当前编辑对象
+      type: Object,
+    },
+    active: {//选中 为归档文件/已删除文件
+      type: Object,
+    },
+    documentsubtype: {//文件类型
+      type: Array,
+    },
+    doctype: {//文件归档
+      type: Array,
+    },
+    orgidselected: {//选中的单位
+      type: Object,
+      default: undefined,
+    }
+  },
+  components: {
+    DictSelect,
+    AForm: Form,
+    AIcon: Icon,
+    AModal: Modal,
+    AInput: Input,
+    OrgUserSelect,
+    AButton: Button,
+    ASelect: Select,
+    AUpload: Upload,
+    AFormItem: Form.Item,
+    ADatePicker: DatePicker,
+    ATreeSelect: TreeSelect,
+    AInputGroup: Input.Group,
+    ASelectOption: Select.Option,
+    ARangePicker: DatePicker.RangePicker,
+  },
+  data() {
+    return {
+      moment,
+      orgs: [],
+      maxSelect: 1,
+      selected: [],
+      fileList: [],
+      docsubtype: [],
+      orgVisible: false,
+      fileuri: undefined,
+      Modalvisible: this.visible,
+      orgid: { orgid: "", id: "", orgname: "" },
+      form: this.$form.createForm(this, { name: "uploadform" }),
+    };
+  },
+  computed: {
+    zihao() {
+      return (this.record.num || "").split("〔")[0];
+    },
+    year() {
+      let year = this.record.num || "";
+      if (year) {
+        let start = year.indexOf("〔");
+        let end = year.indexOf("〕");
+        let yearstring = year.substring(start + 1, end);
+        return yearstring;
+      }
+    },
+    ordinal() {
+      let ordinal = this.record.num || "";
+      if (ordinal) {
+        let start = ordinal.indexOf("〕");
+        let end = ordinal.indexOf("号");
+        let ordinalstring = ordinal.substring(start + 1, end);
+        return ordinalstring;
+      }
+    },
+  },
+  watch: {
+    visible(val) {
+      this.Modalvisible = val;
+    },
+    record(val) {
+      //点击归档后，如果record有值，自动加载文件类型下拉数据
+      if (val.id) {
+        (val.orgs||[]).forEach((item,index)=>{
+          this.orgs[index] = {_id: item.orgid, name: item.orgname};
+        });
+        if(val.type) {
+          this.loaddocsubtype(val);
+        }
+      }
+    },
+    orgs(val) {
+      if(!val.length) {
+        this.selected = [];
+      }
+    },
+    orgidselected(val) {
+      if(val) {
+        this.orgid = val;
+        this.$nextTick(()=>{
+          this.form.setFieldsValue({ orgid: this.orgid.orgname });
+        })
+      }
+    }
+  },
+  mounted() {
+    if(this.record&&this.visible){
+      this.loaddocsubtype(this.record);
+    }
+  },
+  methods: {
+     //点击归档后，如果record有值，自动加载文件类型下拉数据
+    loaddocsubtype(val){
+      if(this.doctype){
+        let type = this.doctype.filter((item) => item.value === val.type);
+        this.docsubtype = this.documentsubtype.filter((item) =>
+          includes(item.group, trim(type[0].text))
+        );
+        this.loadtreeData();
+      }
+    },
+    loadtreeData() {
+      this.docsubtype.forEach((item,index)=>{
+        if(item.group.split('/')[1]){
+          this.docsubtype[index] = { 
+              selectable: false, 
+              key: `${item.value}${index}`, 
+              title: item.group.split('/')[1], 
+              value: `${item.value}${index}`, 
+              children: [{ title: item.text , value: item.value,  key: item.value }]
+            };
+        }else{
+          this.docsubtype[index]={title: item.text, value: item.value, key: index};
+        }
+      });
+    },
+    showorgModal() {
+      this.docsubtype = [];
+      this.$emit("update:record", {});
+      this.Modalvisible = true;
+      this.$emit("update:visible", true);
+    },
+    handleCancel() {
+      this.Modalvisible = false;
+      this.orgid = {};
+      this.orgs = [];
+      this.fileuri = undefined;
+      this.fileList = [];
+      this.$emit("update:visible", false);
+      this.$emit("update:record", {});
+    },
+    dateformate(s) {
+      return s < 10 ? "0" + s : s;
+    },
+    handleOk(e) {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let date = new Date(this.form.getFieldValue("dispatchdate")._d);
+          this.orgs.forEach((item)=>{
+            item.orgid = item._id;
+            item.orgname = item.name;
+            delete item._id;
+            delete item.name;
+          });
+          let dispatchdate = date.getFullYear() +  "-" + this.dateformate(date.getMonth() + 1) + "-" + this.dateformate(date.getDate());
+          let params = {
+            id: undefined,
+            readContent: true,
+            title: values.title,
+            fileuri: this.fileuri,
+            type: values.type.key,
+            orgid: this.orgid.orgid,
+            subtype: values.subtype,
+            dispatchdate: dispatchdate,
+            orgs: this.orgs.length?this.orgs:undefined,
+            num: `${values.zihao}〔${values.year}〕${values.ordinal}号`,
+          };
+          if (this.record.id) {
+            params.id = this.record.id;
+            this.updatedocument(params);
+          } else {
+            this.addDocument(params);
+          }
+          this.handleCancel();
+          this.$emit("update:visible", false);
+        }
+      });
+    },
+    beforeUpload(file) {
+      return false;
+    },
+    handleChange(info) {
+      this.fileList = info.fileList.slice(-1);
+      if(this.fileList.length){
+        uploadV2(info.file)
+        .then((res) => {
+          if (res.data.result) {
+            this.fileuri = "file://" + res.data.result["uploadid"] + `?filename=${res.data.result.name}`;
+          }
+          this.$notification.success({
+            message: "提示",
+            description: "文件上传成功!",
+            duration: 3,
+          });
+        })
+        .catch((error) => {
+          showError(error);
+        });
+      }else{
+        this.fileuri = undefined;
+      }
+    },
+    //文件归档change事件
+    handledoctypeChange(value) {
+      if (value) {
+        //选择新的选项
+        if (this.documentsubtype) {
+          this.docsubtype = this.documentsubtype.filter((item) =>
+            includes(item.group, trim(value.label))
+          );
+          this.loadtreeData();
+          this.$nextTick(() => {
+            if (this.docsubtype.length) {
+              if(this.docsubtype[0].children) {
+                this.form.setFieldsValue({ subtype: this.docsubtype[0].children[0].value });
+              }else{
+                this.form.setFieldsValue({ subtype: this.docsubtype[0].value });
+              }
+            } else {
+              this.form.setFieldsValue({ subtype: undefined });
+            }
+          });
+        }
+      } else {
+        //点击清空选择,需要将级联菜单也清空
+        this.record.subtype = undefined;
+        this.docsubtype = [];
+        this.form.resetFields(['subtype']);
+        this.form.validateFields(['subtype'], (errors, values) => {});
+      }
+    },
+    //发文单位清空
+    deleteorgid() {
+      this.orgid.orgid = undefined;
+      this.orgid.orgname = undefined;
+      this.form.setFieldsValue({ orgid: undefined });
+    },
+    //文件归属单位清空
+    resetRange() {
+      this.orgs = [];
+    },
+    showModal(maxselect) {
+      this.orgVisible = true;
+      this.maxSelect = maxselect;
+      if (maxselect === 1) {
+        this.selected = [{...this.orgid}];
+      } else {
+        this.selected = this.orgs;
+      }
+    },
+    //单个删除
+    deleteItem(index) {
+      this.orgs.splice(index, 1);
+    },
+    //确定选择的单位
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok" && list.length) {
+        if (this.maxSelect === 1) {
+          let org = list[0];console.log(org)
+          this.orgid.orgid = org._id;
+          // this.orgid.id = org.id;
+          this.form.setFieldsValue({ orgid: org.name });
+          this.orgid.orgname = org.name;
+        } else {
+          let orgarr = [];
+          list.forEach(function (item) {
+            orgarr.push({
+              _id: item._id || item.orgid,
+              name: item.name,
+            });
+          });
+          this.orgs = orgarr;
+        }
+      }
+    },
+    addDocument(data) {
+      document(data)
+        .then((res) => {
+          if (res.code === "success") {
+            this.$notification.success({
+              title: "提示",
+              message: "新增成功！",
+              duration: 3,
+            });
+            this.$emit("documentList");
+          } else {
+            that.$notification.warning({
+              message: "提示",
+              description: "新增失败！",
+              duration: 3,
+            });
+          }
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    updatedocument(id) {
+      documentupdate(id)
+        .then((res) => {
+          if (res.code === "success") {
+            this.$notification.success({
+              title: "提示",
+              message: "更新成功！",
+              duration: 3,
+            });
+            this.$emit("documentList");
+          } else {
+            that.$notification.warning({
+              message: "提示",
+              description: "更新失败！",
+              duration: 3,
+            });
+          }
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+.upload {
+  width: auto;
+  margin-bottom: 10px;
+  display: inline-block;
+  padding: 6px 8px;
+  color: @primary-color;
+  border-radius: @border-radius-base;
+  cursor: pointer;
+  border: 1px solid @primary-color;
+}
+/deep/.ant-upload-list {
+  display: inline-block;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 203px;
+  & .ant-upload-list-item {
+    margin-top: 0;
+  }
+}
+.ant-modal-body {
+  & .mechanism {
+    position: relative;
+    padding: 1px 30px 1px 11px;
+    border: 1px solid #d9d9d9;
+    border-radius: @border-radius-base;
+    line-height: 2;
+
+    & ul {
+      margin-bottom: 0;
+      display: flex;
+      overflow-y: hidden;
+      overflow-x: auto;
+      li.placehold {
+        color: rgba(176, 176, 176, 0.8);
+        background: transparent;
+      }
+      li:not(.placehold) {
+        background: #e8e8e8;
+        border-radius: 4px;
+        padding: 0 4px;
+        margin: 0 8px 0 0;
+        white-space: nowrap;
+        & span.delete {
+          cursor: pointer;
+        }
+      }
+    }
+    & .clear {
+      position: absolute;
+      top: 50%;
+      right: 12px;
+      -webkit-transform: translateY(-50%);
+      transform: translateY(-50%);
+      display: flex;
+      z-index: 2;
+      cursor: pointer;
+    }
+  }
+  & span.pzwh.ant-input-group {
+    border: 1px solid #d9d9d9;
+    border-radius: 4px;
+  }
+}
+.disablepzwh {
+  background: #f5f5f5;
+}
+/deep/ .pzwh .ant-input {
+  border: none;
+  height: 30px;
+}
+/deep/span.ant-input-group-addon {
+  border: none;
+  background: none;
+  padding: 0 4px;
+}
+</style>

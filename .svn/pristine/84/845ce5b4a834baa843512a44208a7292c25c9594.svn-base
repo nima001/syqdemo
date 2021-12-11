@@ -1,0 +1,52 @@
+import { connect, mapProps } from '@formily/vue'
+import DictSelect from '@framework/components/DictSelect'
+
+
+export const Meta = {
+  name: 'DictSelect',
+  type: 'widget',
+  title: '下拉选择',
+  icon: 'dict',
+  initProps: () => {
+    return {
+      type: 'string',
+      title: "下拉选择",
+      'x-decorator': 'FieldDecorator',
+      'x-component': 'DictSelect',
+    }
+  },
+  props: {
+    required: {
+      type: Boolean,
+      title: '是否必填',
+    },
+    multiple: {
+      type: Boolean,
+      title: '是否多选'
+    },
+    dict: {
+      type: Object,
+    },
+    defaultValue: {
+      type: String,
+      title: '默认值'
+    },
+    placeholder: {
+      type: String,
+      title: '提示信息'
+    }
+  }
+};
+
+export default connect(
+  DictSelect,
+  mapProps(
+    // { required: 'allowClear' },
+    (props, field) => {
+      // console.log(props, field);
+      return {
+        allowClear: !field.required,
+      }
+    }
+  ),
+)

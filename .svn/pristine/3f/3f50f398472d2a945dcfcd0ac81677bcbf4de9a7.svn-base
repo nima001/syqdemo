@@ -1,0 +1,15 @@
+//  颜色组
+export const colorGroup = ['#D15456', '#5488D1', '#EDBA55', '#D48265', '#91C7AE', '#749F83', '#BDA29A', '#6E7074', '#585470', '#706254'];
+
+//  axis配置类
+export class AxisOption {
+  constructor(axiosColor, showGrid, showTitle) {
+    let AxisOption = { label: { textStyle: { fill: axiosColor.labelColor } }, line: {} };
+    AxisOption['line']['stroke'] = axiosColor.lineColor;
+    AxisOption['title'] = showTitle ? {} : null;
+    if(showGrid === false) {
+      AxisOption['grid'] = null;
+    }
+    return AxisOption
+  }
+}

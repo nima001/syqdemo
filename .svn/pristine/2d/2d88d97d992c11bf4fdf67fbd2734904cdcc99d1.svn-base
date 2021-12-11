@@ -1,0 +1,564 @@
+<template>
+  <a-layout class="form-design">
+		<a-layout-sider theme="light" :width="300">
+			<div class="components">
+				<div class="title">布局</div>
+				<ul>
+					<li v-for="w in layouts" :key="w.name">
+						<div draggable="true" :ref="'compnent_'+w.name"
+							@dragstart="onDragStart($event, w)"
+							@dragend="onDragEnd"
+							@click="onClick(w)"
+						><CustomIcon :type="w.icon"/>{{w.title}}</div>
+					</li>
+				</ul>
+				<div class="title">组件</div>
+				<ul>
+					<li v-for="w in widgets" :key="w.name">
+						<div draggable="true" :ref="'compnent_'+w.name"
+							@dragstart="onDragStart($event, w)"
+							@dragend="onDragEnd"
+							@click="onClick(w)"
+						><CustomIcon :type="w.icon"/>{{w.title}}</div>
+					</li>
+				</ul>
+			</div>
+		</a-layout-sider>
+		<a-layout-content class="from-display">
+			<div class="drag-area" :class="{empty: empty}"
+				@dragover.prevent="onDragOver" 
+				@dragenter.prevent="onDragEnter"
+				@dragleave="onDragLeave"
+				@drop="onDrop"
+				@click="onFormClick"
+				@mouseover="onMouseOver"
+				@mouseleave="onMouseLeave"
+			>
+				<Form v-if="!reload" :config="schema" ref="form"/>
+				<div class="aux-box" ref="auxBox">
+					<ComponentTools v-if="selected"
+						:style="{
+							width: `${selectedRect.width}px`, height: `${selectedRect.height}px`, 
+							top: `${selectedRect.top}px`, left: `${selectedRect.left}px`
+						}"
+						:component="selected" 
+						@change="onParentSelect"
+						@hover="(item) => hover = item && item.instance"
+						@dragstart="onDragStart($event, selected)"
+						@dragend="onDragEnd"
+						@move="onMove"
+						@delete="onDelete"
+					/>
+					<div v-if="drag && drag.guides" class="guides" :style="{
+						width: `${drag.guides.width}px`, height: `${drag.guides.height}px`,
+						top: `${drag.guides.top}px`, left: `${drag.guides.left}px`
+					}"></div>
+				</div>
+			</div>
+		</a-layout-content>
+		<a-layout-sider theme="light" :width="300">
+			<div class="settings">
+				<template v-if="selected">
+					<div class="nav">
+						<a-breadcrumb >
+						<a-breadcrumb-item v-for="(item, index) in [...selected.parents].reverse()" :key="index">
+							<a @click="onParentSelect(item)"
+								@mouseenter="hover = item.instance"
+								@mouseleave="hover = undefined"
+							>{{item.title}}</a>
+						</a-breadcrumb-item> 
+						<a-breadcrumb-item >{{selected.title}}</a-breadcrumb-item> 
+					</a-breadcrumb>
+					</div>
+					<div class="content">
+						<SchemaEditor :component="selected" :schema="selected.instance.schema" @change="onSchemaEdited" />
+					</div>
+				</template>
+			</div>
+		</a-layout-sider>
+	</a-layout>
+</template>
+<script>
+import { Layout, Icon, Breadcrumb } from "ant-design-vue";
+import CustomIcon from '@/framework/components/CustomIcon'
+import ComponentTools from './components/ComponentTools'
+import SchemaEditor from './components/SchemaEditor'
+import Form from './Form'
+
+import { cloneDeep } from 'lodash'
+import { ResizeObserver } from '@juggle/resize-observer';
+import { addProperty, removeSelf, updateSelf, indexOfParent, propsSize, removePrivateAttr } from "@/formdesign/utils/schema"
+import { findComponentByCode, generateCode, getOrderComptByType } from '@/formdesign/utils/index'
+import components from './compLib'
+
+/**
+ * 表单编辑器
+ */
+export default {
+	name: 'form-design',
+	components: {
+		ALayout: Layout,
+		ALayoutSider:Layout.Sider,
+		ALayoutContent:Layout.Content,
+		AIcon: Icon,
+		ABreadcrumb: Breadcrumb,
+		ABreadcrumbItem: Breadcrumb.Item,
+		CustomIcon, 
+		ComponentTools,
+		Form,
+		SchemaEditor,
+	},
+	model: {
+		event: 'change'
+	},
+	props: {
+		value: {
+			type: Object,
+			default: () => ({type: 'object', properties: {}})
+		},
+		extComponents: {//扩展组件
+			type: Object
+		}
+	},
+	data(){
+		return {
+			initValue: undefined,
+			schema: undefined,
+			reload: false,
+			formCompts: components,
+			drag: undefined, //{ from, to, guides }
+			hover: undefined,
+			selected: undefined,
+			selectedRect: undefined,
+			resizeObserver: undefined,
+		}
+	},
+	computed: {
+		layouts(){
+			return getOrderComptByType(this.formCompts, 'layout')
+		},
+		widgets(){
+			return getOrderComptByType(this.formCompts, 'widget')
+		},
+		decorators(){
+			return getOrderComptByType(this.formCompts, 'decorator')
+		},
+		empty(){
+      return !(this.schema.properties && Object.keys(this.schema.properties).length > 0);
+		},
+	},
+	watch: {
+		value: {
+			immediate: true,
+			handler(v, oldV){
+				if(v != this.initValue){
+					this.selected = undefined;
+					this.initValue = cloneDeep(v);
+					this.forceRefresh(this.initValue);
+				}
+			}
+		},
+		schema(v, oldV){
+			if(v != this.initValue){
+				this.initValue = removePrivateAttr(cloneDeep(v));
+				this.$emit('change', this.initValue);
+			}
+		},
+		hover(v, oldV){
+			if(oldV) oldV.$el.classList.remove('component-hover');
+			if(v) v.$el.classList.add('component-hover');
+		},
+		selected(c, oc){
+			if(oc) this.resizeObserver.unobserve(oc.instance.$el);
+			if(c) this.resizeObserver.observe(c.instance.$el);
+			this.setSelectedRect();
+		}
+	},
+	created(){
+		this.resizeObserver = new ResizeObserver(this.setSelectedRect);
+	},
+	mounted(){
+		// this.initCmptList();//TODO 扩展组件
+	},
+	beforeDestroy(){
+		this.resizeObserver.disconnect()
+  },
+	methods: {
+		async initCmptList(){
+			
+		},
+		setSelectedRect(){
+			if(this.selected){
+				let auxBox = this.$refs.auxBox.getBoundingClientRect();
+				const { width, height, top, left} = this.selected.instance.$el.getBoundingClientRect();
+				this.selectedRect = {
+					width, height, 
+					top: top - auxBox.top,
+					left: left - auxBox.left,
+				}
+			}else{
+				this.selectedRect = {};
+			}
+		},
+		onClick(w){//点击添加组件，如选中了选中组件添加到该组件后面否则添加到表单的最后
+			if(this.selected){
+				let {instance: { schema }} = this.selected;
+				let index = indexOfParent(schema);
+				if(index >= 0){
+					this.addComponent(schema.parent, w, index+1);
+				}
+			}else{
+				let form = this.$refs.form 
+				this.addComponent(form && form.schema, w);
+			}
+		},
+		onDragStart(e, w){//开始拖拽组件
+			if(w.instance){
+				let ghost = this.$refs['compnent_'+ w.name];
+				if(ghost && ghost[0]){
+					e.dataTransfer.setDragImage(ghost[0], 15, 15);
+				}
+			}
+			this.drag = { from: w, to: undefined, guides: undefined };
+		},
+		onDragOver(e){
+			if(!this.drag){
+				return
+			}
+			const form = this.$refs.form, instance = this.drag.from.instance;
+			const path = this.getComponentPath(this.getTargetCompnent(e));
+			if(path && !path.find(item => item === instance)){//非子组件
+				const component = path.find(item => item._formComponentType == 'layout.pane');
+				this.drag.guides = this.calcGuides(
+					instance && instance.$el, 
+					component ? component.$el : e.currentTarget,
+					e.clientX, e.clientY
+				);
+				this.drag.to = component || form;	
+			}else{
+				this.drag.guides = undefined;
+			}
+		},
+		onDragEnter(e){
+			if(this.drag){
+				this.drag.counter = (this.drag.counter || 0) + 1;
+			}
+		},
+		onDragLeave(e){
+			if(this.drag){
+				this.drag.counter--;
+				if(this.drag.counter == 0){
+				// if(!e.currentTarget.contains(e.relatedTarget)){//document-fragment不是子元素
+					this.drag.guides = undefined;
+				}
+			}
+		},
+		onDrop(e){
+			if(this.drag){
+				let { from, to, guides } = this.drag;
+				if(guides){
+					this.addComponent(to && to.schema, from, guides.index);
+				}
+			}
+		},
+		onDragEnd(e){
+			this.drag = undefined;
+		},
+		onMouseOver(e){
+			let path = this.getComponentPath(this.getTargetCompnent(e));
+			if(path){
+				this.hover = path.find(item => {
+					return !!this.formCompts[item.schema['x-component']];
+				});
+			}
+		},
+		onMouseLeave(e){
+			this.hover = undefined;
+		},
+		onFormClick(e){
+			this.selectComponent(this.getTargetCompnent(e));
+		},
+		onDelete(){
+			let { instance: { schema } } = this.selected;
+			removeSelf(schema);
+			this.forceRefresh(schema.root.toJSON()).then(() => {
+				this.selected = undefined;
+			});
+		},
+		onMove(index){
+			let { instance: { schema } } = this.selected;
+			this.addComponent(schema.parent, this.selected, index);
+		},
+		onParentSelect(parent){
+			const ps = this.selected.parents;
+			parent.parents = ps.slice(ps.indexOf(parent) + 1); 
+			this.selected = parent;
+			this.hover = undefined;
+		},
+		selectComponent(vCompnent){
+			let list = [];
+			this.getComponentPath(vCompnent).forEach(item => {
+				let key = item.schema['x-component'];
+				let c = this.formCompts[key];
+				if(c && c.type != 'decorator'){
+					list.push({ ...c, instance: item });
+				}
+			})
+			if(list.length){
+				let com = list.shift();
+				if(!this.selected || this.selected.instance !== com.instance){
+					com.parents = list;
+					this.selected = com;
+				}
+			}else{
+				this.selected = undefined;
+			}
+		},
+		addComponent(targetSchema, sourceComponent, index){
+			let { instance, initialSchema } = sourceComponent;
+			let prop;
+			if(!instance){
+				prop = initialSchema();
+			}else{
+				prop = removeSelf(instance.schema);
+			}
+			let rootSchema, code;
+			if(targetSchema){
+				let s = addProperty(targetSchema, prop, index);
+				code = s.name;
+				rootSchema = s.root.toJSON();
+			}else{//表单为空，新建schema
+				code = generateCode();
+				rootSchema = { type: 'object', properties: { [code]: prop } };
+			}
+			this.forceRefresh(rootSchema).then(() => {//选中当前操作的组件
+				let cs = findComponentByCode(this.$refs.form, code);
+				this.selectComponent(cs[0]);
+			})
+		},
+		onSchemaEdited(json){
+			if(this.selected){
+				let { instance: { schema } } = this.selected;
+				schema = updateSelf(schema, json);
+				const root = schema.root.toJSON();
+				// console.log(JSON.stringify(root))
+				this.forceRefresh(root).then(() => {//选中当前操作的组件
+					let cs = findComponentByCode(this.$refs.form, schema.name);
+					this.selectComponent(cs[0]);
+				})
+			}
+		},
+		forceRefresh(schema){
+			//FIXME sunwen formily 更新schema不完善 强制表单重新渲染
+			// console.log(schema)
+			this.schema = schema;
+			this.reload = true;
+			return this.$nextTick().then(() => {	
+				this.reload = false;
+				// this.$nextTick(() => {
+				// 	//TODO 强制刷新恢复数据
+				// })
+			})
+		},
+		getFormData(){
+			// this.form.submit((values) => {
+      //   console.log(values)
+      // }).catch(error => {
+      //   console.log(error)
+      // })
+		},
+		getTargetCompnent(e){
+			let path = e.path || (e.composedPath && e.composedPath());
+			let vue = path.find(item => !!item.__vue__);
+			if(!vue){
+				return;
+			}
+			return vue.__vue__;
+		},
+		getComponentPath(vCompnent){
+			let arr = [], index = -1, form = this.$refs.form;
+			while(vCompnent){
+				if(vCompnent._formComponentType){
+					if(index >= 0 && vCompnent._formComponentType == 'decorator'){
+						arr[index] = vCompnent;
+					}else{
+						arr.push(vCompnent);
+						index++;
+					}
+				}
+				vCompnent = vCompnent.$parent;
+				if(vCompnent == form){
+					break;
+				}
+			}
+			return arr;
+		},
+		calcGuides(fromEl, toEl, posX, posY){//计算放入位置的参考线
+			let rect = toEl.getBoundingClientRect(), 
+				style = window.getComputedStyle(toEl);
+			let paddingLeft = parseFloat(style.paddingLeft), 
+				paddingRight = parseFloat(style.paddingRight),
+				paddingTop = parseFloat(style.paddingTop),
+				borderLeft = parseFloat(style.borderLeftWidth), 
+				borderRight = parseFloat(style.borderRightWidth), 
+				borderTop = parseFloat(style.borderTopWidth);
+			let p = {
+				height: 4,
+				width: rect.width - paddingLeft - paddingRight - borderLeft - borderRight,
+				left: rect.left + paddingLeft + borderLeft,
+			}
+			let d = Number((rect.top + paddingTop + borderTop - posY).toFixed(1));//初始化在容器顶部
+			let children = [...toEl.children];
+			let index = 0;
+			for(let item of children){
+				let {top, bottom} = item.getBoundingClientRect();
+				let s = Number((top - posY).toFixed(1));//取一位小数，浮点数计算偏差
+				if(Math.abs(s) <= Math.abs(d)){
+					d = s;
+				}else{
+					break;
+				}
+				s = Number((bottom - posY).toFixed(1));
+				if(Math.abs(s) <= Math.abs(d)){
+					index++;
+					d = s;
+				}else{
+					break;
+				}
+			}
+			const fromIndex = children.indexOf(fromEl);
+			if(fromEl && fromIndex >= 0){//同层级调序
+				if(index == fromIndex || index == fromIndex + 1){//位置未发生变更
+					return;
+				}else if(index > fromIndex){//下移
+					index--;
+				}
+			}
+			p.top = d + posY - p.height/2;
+			p.index = index;
+			const { top, left } = this.$refs.auxBox.getBoundingClientRect();
+			p.top -= top;
+			p.left -= left;
+			return p;
+		},
+	}
+}
+</script>
+<style lang="less" scoped>
+.form-design{
+	height: 100%;
+	background-color: white;
+	border-radius: @border-radius-base;
+	overflow: hidden;
+	// 左侧组件库
+	.components{
+		height: 100%;
+		padding: @padding-sm;
+		overflow: auto;
+		border-right: 1px solid @border-color-split;
+		.title{
+			color: @text-color-secondary;
+		}
+		ul{
+			overflow: hidden;
+			margin: 10px 0;
+			li{
+				width: 50%;
+				float: left;
+				padding: 2px;
+
+				& > div{
+					height: 34px;
+					padding: 0 8px;
+					line-height: 32px;
+					border: 1px solid transparent;
+					background-color: rgba(0, 0, 0, 0.05);
+					white-space: nowrap;
+					overflow: hidden;
+					text-overflow: ellipsis;
+					cursor: move;
+					&:hover{
+						border: 1px dashed @primary-color;
+						color: @primary-color;
+					}
+					.anticon{
+						margin-right: 5px;
+					}
+				}
+			}
+		}
+	}
+	// 表单展示
+	.from-display{
+		& > .drag-area{
+			position: relative;
+			padding: 30px;
+			&::before{
+				padding: inherit !important;
+			}
+			min-height: 100% !important;
+		}
+		.aux-box{
+			// transform: perspective(1px) translate3d(0, 0, 0);
+			position: absolute;
+			width: 100%;
+			height: 100%;
+			top: 0;
+			left: 0;
+			pointer-events: none;
+			z-index: 2;
+			.component-selection{
+				position: absolute;
+			}
+			.guides{
+				position: absolute;
+				background-color: @primary-color;
+				transition: all .3s cubic-bezier(.06,.7,.23,1);
+				pointer-events: none;
+			}
+		}
+		/deep/ .component-hover{
+			outline: 1px dashed @accent-color;
+			outline-offset: 1px;
+			background-color: fade(@accent-color, 5%);
+		}
+		
+		/deep/ .drag-area{
+			min-height: 32px;
+			&.empty{
+				&::before{
+					content: ' ';
+					position: absolute;
+					top: 0;
+					left: 0;
+					width: 100%;
+					height: 100%;
+					padding: inherit;
+					padding-top: 1px;
+					padding-bottom: 1px;
+					background: rgba(0, 0, 0, 0.05) url('../assets/img/bg-component-empty.png') no-repeat center center;
+					background-clip: content-box;
+				}
+			}
+		}
+	}
+	//组件设置
+	.settings{
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		border-left: 1px solid @border-color-split;
+		& > .nav{
+			flex: none;
+			padding: 12px 6px;
+			border-bottom: 1px solid @border-color-split;
+		}
+		& > .content{
+			flex: auto;
+			padding: 6px;
+			padding-top: 0;
+			overflow: auto;
+		}
+	}
+}
+</style>

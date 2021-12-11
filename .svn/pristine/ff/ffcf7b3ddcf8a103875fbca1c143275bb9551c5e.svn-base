@@ -1,0 +1,158 @@
+<template>
+  <div class="annual-report">
+    <div class="mechanism-div">
+      <div class="small-div"></div>
+      <div class="small-p">三定一评</div>
+    </div>
+    <div class="sanding-table">
+      <a-table
+        :loading="loading"
+        :pagination="false"
+        :data-source="data"
+        :columns="columns"
+        :rowKey="(row) => row.id"
+      >
+      </a-table>
+      <div class="footer">
+        <a-pagination
+          v-if="pagination.rows && pagination.rows.length"
+          showSizeChanger
+          @showSizeChange="onShowSizeChange"
+          :showTotal="total => `总共：${total}条`"
+          :total="pagination.total"
+          :pageSize="pagination.pagesize"
+          v-model="pagination.pagenum"
+          @change="onPageChange"
+          show-quick-jumper
+          :default-current="1"
+        />
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+const columns = [
+  {
+    title: "",
+    dataIndex: "index",
+    key: "index",
+    width: '10%',
+    customRender: (text, record, index) => `${index + 1}`,
+  },
+  {
+    title: "处室",
+    dataIndex: "deptname",
+    key: "deptname",
+    width: "15%",
+  },
+  {
+    title: "岗位",
+    dataIndex: "postname",
+    key: "postname",
+    width: "15%",
+  },
+  {
+    title: "职责",
+    dataIndex: "duty",
+    key: "duty",
+  },
+];
+import { Table, Pagination } from "ant-design-vue";
+import assign from "lodash/assign";
+import { sanding } from "@/person-shaoxing/api/monitor";
+export default {
+  props: {
+    orgid: {
+      type: String,
+    },
+  },
+  components: {
+    ATable: Table,
+    APagination: Pagination,
+  },
+  data() {
+    return {
+      columns,
+      data: [],
+      pagination: {
+        needtotal: true,
+        pagenum: 1,
+        pagesize: 10,
+        total: 0,
+      },
+    };
+  },
+  watch:{
+    orgid(val){
+      this.getsandingData({...this.pagination,orgid: val});
+    }
+  },
+  created() {
+    this.getsandingData({ ...this.pagination, orgid: this.orgid });
+  },
+  methods: {
+    //页数改变回调
+    onPageChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.getsandingData({ ...this.pagination, orgid: this.orgid });
+    },
+    //pagesize改变回调
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagesize, pagenum: 1 });
+      this.getsandingData({ ...this.pagination, orgid: this.orgid });
+    },
+    //数据接口调用
+    getsandingData(data) {
+      this.loading = true;
+      let that = this;
+      sanding(data)
+        .then((res) => {
+          that.data = res.result.rows;
+          assign(that.pagination, res.result);
+          that.loading = false;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+.annual-report {
+  padding: 10px 24px;
+  height: 100%;
+  .mechanism-div {
+    display: flex;
+    align-items: center;
+    .small-div {
+      width: 5px;
+      height: 20px;
+      background: @primary-color;
+    }
+    .small-p {
+      font-size: 20px;
+      margin-left: 5px;
+    }
+  }
+  .sanding-table {
+    margin-top: 10px;
+    /deep/ .ant-table-tbody>tr>td{
+      max-width: 900px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .footer {
+      float: right;
+      padding: @content-padding-v @content-padding-h;
+      padding-right: 0;
+      .ant-pagination {
+        float: right;
+      }
+    }
+  }
+}
+</style>

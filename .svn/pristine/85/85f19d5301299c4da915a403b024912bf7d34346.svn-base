@@ -1,0 +1,60 @@
+import FormItem from './FormItem'
+import { isVoidField } from '@formily/core'
+import { connect, mapProps } from '@formily/vue'
+
+const Decorator = connect(
+  FormItem,
+  mapProps(
+    { validateStatus: true, title: 'label', required: true, colon: true },
+    (props, field) => {
+      return {
+        help: !isVoidField(field) ? (field.errors.length ? field.errors[0] : undefined) : undefined,
+        extra: field.description,
+      }
+    }
+  )
+)
+
+export default Decorator;
+
+export const Meta = {
+  name: 'FieldDecorator',
+  type: 'decorator',
+  title: '输入框装饰器',
+  icon: 'dict',
+  component: Decorator,
+  props: {
+    lableAlign: {
+      title: '标签对齐方式',
+      type: 'enum',
+    },
+    labelLayout: {
+      title: '标签布局',
+      type: 'enum',//TODO 枚举
+      attrs: {
+        defaultValue: '',//默认值
+      }
+    },
+    showLabel: {
+      title: '显示标签',
+      type: 'boolean',
+      attrs: {
+        defaultValue: true,
+      }
+    },
+    colon: {
+      title: '是否有冒号',
+      type: 'boolean',
+      attrs: {
+        defaultValue: true
+      }
+    },
+    bordered: {
+      title: '是否有边框',
+      type: 'boolean',
+      attrs: {
+        defaultValue: true
+      }
+    }
+  }
+};

@@ -1,0 +1,140 @@
+<template>
+  <div class="wrapper">
+    <div id="map"></div>
+  </div>
+</template>
+
+<script>
+import { Scene } from '@antv/l7';
+import { CountryLayer } from '@antv/l7-district';
+import { Mapbox } from '@antv/l7-maps';
+import { colors } from "@/zfw/utils/index";
+import { Spin } from "ant-design-vue";
+
+export default {
+  props: {
+    data: {
+      type: Array,
+      default: () => {
+        return []
+      }
+    }
+  },
+  components: { ASpin: Spin },
+  data() {
+    return {
+    };
+  },
+  watch: {
+  },
+  computed: {
+    },
+  created() {
+    },
+  mounted() {
+    this.initMap();
+  },
+  methods: {
+    initMap() {
+      const scene = new Scene({
+        id: 'map',
+        logoVisible: false, 
+        map: new Mapbox({
+          center: [ 116.2825, 39.9 ], //  地图中心
+          pitch: 0,                   //  地图倾角
+          style: 'blank',   
+          zoom: 2,                          
+          minZoom: 2.8,                 //  地图最小缩放等级 {number}  default 0 Mapbox 0-22.8） 高德 （2.8-18）
+          maxZoom: 2.8
+        })
+      });
+      const attachMapContainer = document.createElement('div');
+      attachMapContainer.id = 'attach';
+      attachMapContainer.style.cssText = `position: absolute;
+        height: 125px;
+        width: 98px;
+        right: 50px;
+        bottom: 20px;
+        border: 1px solid #333;`;
+      document.getElementById('map').parentElement.append(attachMapContainer);
+
+      scene.on('loaded', () => {            //地图加载完成触发
+        new CountryLayer(scene, {
+          data: this.data,
+          joinBy: [ 'adcode', 'code' ],     //  数据关联，属性数据如何内部空间数据关联绑定
+          depth: 1,                         //  数据显示层级 0：国家级，1:省级，2: 市级，3：县级
+          provinceStroke: '#fff',           //  省界颜色 CountryLayer depth= 0，1，2时生效
+          cityStroke: '#EBCCB4',            //  CountryLayer depth =1，2时生效
+          cityStrokeWidth: 1,
+          label: {
+            enable: true
+          },
+          fill: {
+            color: {
+              field: 'NAME_CHN',
+              values: colors
+            }
+          },
+          popup: {
+            enable: true,
+            Html: props => {
+              return `<span>用户总数</span><br/>
+                      </span><span>${props.NAME_CHN}：</span><span>${props.value}</span>`;
+            }
+          }
+        });
+      });
+
+      // 添加附图，附图需要和主图保持一致
+
+      const scene2 = new Scene({
+        id: 'attach',
+        logoVisible: false,
+        map: new Mapbox({
+          center: [ 113.60540108435657, 12.833692637803168 ],
+          pitch: 0,
+          style: 'blank',
+          zoom: 1.93,
+          minZoom: 0,
+          maxZoom: 3,
+          interactive: false
+        })
+      });
+      scene2.on('loaded', () => {
+        new CountryLayer(scene2, {
+          data: [],
+          label: {
+            enable: false
+          },
+          popup: {
+            enable: false
+          },
+          autoFit: false,
+          depth: 1,
+          fill: {
+            color: {
+              field: 'NAME_CHN',
+              values: [
+                '#feedde',
+                '#fdd0a2',
+                '#fdae6b',
+                '#fd8d3c',
+                '#e6550d',
+                '#a63603'
+              ]
+            }
+          }
+        });
+      });
+
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.wrapper{
+  width: 100%;
+  height: 500px;
+  position: relative;
+}
+</style>

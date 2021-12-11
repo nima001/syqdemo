@@ -1,0 +1,84 @@
+<template>
+    <div class="colorPicker">
+        <a-popover
+            placement="left" 
+            trigger="click"
+            :destroyTooltipOnHide="true"
+            :getPopupContainer="(triggerNode) => {return triggerNode.parentNode}">
+            <div slot="content">
+                <sketch-picker v-model="pickColor" @input="updateValue"></sketch-picker>
+            </div>
+            <div class="color_con" :style="{background:pickColor}"><slot/></div>
+        </a-popover>
+    </div>
+</template>
+
+<script>
+import { Popover } from 'ant-design-vue';
+import { Sketch  } from 'vue-color';
+import { cloneDeep } from 'lodash';
+export default {
+  props: {
+    color: {
+        type: Array,
+        default: ()=>{
+            return ['#fff']
+        }
+    },
+    index: {
+        type: Number,
+        default: 0,
+    }
+ },
+ components: {
+    'sketch-picker': Sketch,
+    APopover: Popover,
+  },
+  data () {
+    return {
+    }
+  },
+  computed: {
+    pickColor: {
+        set(val) {
+            return val.hex8;
+        },
+        get() {
+            if(this.index>=0){
+                return this.color[this.index];
+            }
+            return '#000';
+        }
+    },
+  },
+  methods:{
+    updateValue (val) {
+        let array = cloneDeep(this.color);
+        array[this.index] = val.hex8;
+        this.$emit('update:color',array);
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.colorPicker {
+    .color_con {
+        height: 30px;
+        border-radius: @border-radius-base;
+        box-shadow: 0 0 2px 2px rgba(0,0,0,.2);
+        margin-top: 10px;
+        cursor: pointer;
+        // position: relative;
+    }
+}
+& /deep/.ant-popover {
+    .ant-popover-content{
+        .ant-popover-arrow {
+            opacity: 0;
+        }
+        .ant-popover-inner .ant-popover-inner-content {
+            padding: 0 !important;
+        }
+    }
+}
+</style>

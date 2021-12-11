@@ -1,0 +1,920 @@
+<template>
+  <a-layout class="processwrap">
+    <a-layout-content class="body">
+      <div class="btngroup">
+        <a-button @click="visible=true" type="primary">添加主项</a-button>
+        <a-input-search
+          placeholder="请输入要搜索的流程"
+          v-model="searchkey"
+          @search="searchList"
+          enterButton
+        />
+      </div>
+      <a-table
+        :columns="columns"
+        :dataSource="mainList"
+        :rowKey="(record)=>record.id"
+        :pagination="pagination"
+        @change="onShowChange"
+        :scroll="screenLevel<1115?{ y: 550}:{}"
+      >
+        <template slot="code" slot-scope="text, record" v-if="!record.children">{{record.code}}</template>
+        <template slot="status" slot-scope="text, record" v-if="!record.children">
+          <span
+            :style="record.status==1?'color:#35ac35cf':'color:gray'"
+          >{{record.status==1?'上架':'下架'}}</span>
+        </template>
+        <template slot="operation" slot-scope="text, record">
+          <a href="javascript:;" @click="openEdit(record,1)" style="color:blue;">编辑</a>
+          <a href="javascript:;" @click="sort(record)" style="color:blue;">排序</a>
+          <a
+            href="javascript:;"
+            @click="!record.children?openProcess(record.id):''"
+            style="color:blue"
+          >{{!record.children?'流程说明':''}}</a>
+          <a href="javascript:;" @click="openEdit(record,2)" style="color:blue;">添加子项</a>
+          <a
+            href="javascript:;"
+            @click="openAuthorize(record)"
+            style="color:blue;"
+          >{{record.pid === 0?'授权':''}}</a>
+          <a
+            href="javascript:;"
+            @click="!record.children?changeStatus(record.id):''"
+            :style="record.status==1?'color:gray':'color:#35ac35cf'"
+          >{{!record.children?record.status==1?'下架':'上架':''}}</a>
+          <a-popconfirm title="确定删除这条流程吗?" @confirm="del(record.id)" okText="确定" cancelText="取消">
+            <a href="#" style="color:red;">删除</a>
+          </a-popconfirm>
+        </template>
+      </a-table>
+    </a-layout-content>
+    <!-- 添加主项 -->
+    <a-modal :visible="visible" title="添加主项" @ok="handleOk" @cancel="cancel">
+      <a-form :form="addForm">
+        <a-form-item label="主项名称" :label-col="{ span: 5 }" :wrapper-col="{ span: 12 }">
+          <a-input
+            v-decorator="[
+           `name`,
+          {rules: [{ required: true, message:  `请填写要添加的主项名称!` }]}
+        ]"
+          ></a-input>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- 编辑、添加子项 -->
+    <a-modal :visible="edit" :title="type" @ok="editOk" @cancel="cancel">
+      <a-form :form="editForm">
+        <a-form-item
+          :label="(flag==1||flag==3)?'名称':'主项名称'"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 12 }"
+        >
+          <a-input
+            :read-only="(flag==1||flag==3)?false:true"
+            v-decorator="['mainname',{
+              rules: [{ required: (flag==1||flag==3)?true:false, message:  `请填写名称!` }],
+              initialValue: formData.mainname
+          }]"
+          ></a-input>
+        </a-form-item>
+        <a-form-item
+          v-if="flag==2 || flag==4 || flag==5"
+          :read-only="(flag==1||flag==3)?false:true"
+          label="父级名称"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 12 }"
+        >
+          <a-input
+            :read-only="flag==2?false:true"
+            v-decorator="['pname',{
+            initialValue: formData.pname
+          }]"
+            placeholder="请填写父级名称"
+          ></a-input>
+        </a-form-item>
+        <a-form-item
+          v-if="flag==2 || flag==4 || flag==5"
+          label="子项名称"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 12 }"
+        >
+          <a-input
+            v-decorator="['name',{
+               rules: [{ required:true, message:  `请填写子项名称!` }],
+            initialValue: formData.name
+          }]"
+            placeholder="请填写子项名称"
+          ></a-input>
+        </a-form-item>
+        <a-form-item
+          v-if="flag==1 || flag==4"
+          label="流程类型"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 12 }"
+        >
+          <a-select
+            @change="changeFlowType"
+            placeholder="请选择流程类型"
+            v-decorator="['flowtype',{
+              rules: [{ required:true, message:  `请选择流程类型!` }],
+            initialValue: formData.flowtype
+          }]"
+          >
+            <a-select-option
+              v-for="item in FlowTypeList"
+              :key="item.value"
+              :label="item.value"
+            >{{item.text}}</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item
+          label="发起类型"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 12 }"
+        >
+          <a-select
+            placeholder="请选择发起类型"
+            v-decorator="['starttype',{
+              rules: [{ required: flowTypeFlag == 1 || flowTypeFlag == 2 , message:  `请选择发起类型!` }],
+            initialValue: formData.starttype
+          }]"
+          >
+            <a-select-option
+              v-for="item in StartTypeList"
+              :key="item.value"
+              :label="item.value"
+            >{{item.text}}</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item
+          v-if="flowTypeFlag==1"
+          label="关联流程模板组"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 12 }"
+        >
+          <a-input
+            read-only
+            @click="openProcessTemplate(1)"
+            v-decorator="['relatedid',{
+              rules: [{ required:true, message:  `请选择关联流程模板组!` }],
+            initialValue: formData.relatedname
+          }]"
+            placeholder="请选择关联流程模板组"
+          ></a-input>
+        </a-form-item>
+        <a-form-item
+          v-if="flowTypeFlag==2 || flowTypeFlag==3 "
+          label="关联流程模板"
+          :label-col="{ span: 6 }"
+          :wrapper-col="{ span: 12 }"
+        >
+          <a-input
+            read-only
+            @click="openProcessTemplate(2)"
+            v-decorator="['relatedid',{
+               rules: [{ required:true, message:  `请选择关联流程模板!` }],
+            initialValue: formData.relatedname
+          }]"
+            placeholder="请选择关联流程模板"
+          ></a-input>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+    <!-- 流程说明 -->
+    <a-modal
+      :visible="process"
+      title="办事指南编辑"
+      @ok="saveMaterial"
+      @cancel="closeProcess"
+      width="70%"
+      style="top:20px"
+      :bodyStyle="{'max-height':'750px','overflow':'auto'}"
+    >
+      <edit-process-guide
+        :materialList="materialList"
+        :pictureurl="pictureurl"
+        @updateNodeInfo="updateNodeInfo"
+        @uploadMaterialImg="uploadMaterialImg"
+      ></edit-process-guide>
+    </a-modal>
+    <!-- 流程模板弹框 -->
+    <a-modal
+      :title="drawerTitle"
+      width="400px"
+      class="drawerModal"
+      @cancel="onClose"
+      @ok="onClose"
+      :visible="drawervisible"
+    >
+      <div class="search">
+        <a-input-search
+          v-model="searchtemplate"
+          placeholder="输入要查找的流程模板名称"
+          @search="onSearch"
+          enterButton
+        />
+      </div>
+      <div class="templist">
+        <ul class="mylist">
+          <li v-for="(item,index) in templists" :key="index" @click="select(item.id,item.name)">
+            <span>{{(drawerpagination.pageSize*(drawerpagination.current-1))+index+1}}.</span>
+            {{item.name}}
+          </li>
+        </ul>
+        <div class="mypagination">
+          <a-pagination
+            size="small"
+            :total="drawerpagination.total"
+            :pageSize="drawerpagination.pageSize"
+            :defaultCurrent="drawerpagination.current"
+            @change="onChange"
+          />
+        </div>
+      </div>
+    </a-modal>
+    <!-- 排序弹框 -->
+    <a-modal title="排序" :visible="sortvisible" @ok="sortOk" @cancel="sortCancle" width="400px">
+      <a-radio-group v-model="sorttype" @change="changeType">
+        <a-radio :style="radioStyle" :value="1">调到最前</a-radio>
+        <a-radio :style="radioStyle" :value="2">调到最后</a-radio>
+        <a-radio :style="radioStyle" :value="3">
+          调到
+          <a-select
+            :disabled="sorttype==3?false:true"
+            placeholder="需要排到的流程"
+            showSearch
+            style="width: 200px;margin:0 10px;"
+            optionFilterProp="children"
+            :filterOption="filterOption"
+            v-model="afterId"
+          >
+            <a-select-option
+              v-for="(item,index) in modelList"
+              :key="index"
+              :value="item.value"
+            >{{item.text}}</a-select-option>
+          </a-select>后
+        </a-radio>
+      </a-radio-group>
+    </a-modal>
+    <!-- 授权弹框 -->
+    <a-modal
+      title="授权"
+      :visible="authvisible"
+      @cancel="authvisible=false"
+      width="700px"
+      :footer="null"
+      :destroyOnClose="true"
+      :bodyStyle="{'height':'500px','overflow':'auto','padding-bottom':'0'}"
+    >
+      <authorize :id="nowid"></authorize>
+    </a-modal>
+  </a-layout>
+</template>
+
+<script>
+import { setTimeout } from "timers";
+import { getListconstantbydictkey, uploadImg } from "@/workflow/api/workflow";
+import { getModelinstanceList } from "@/workflow/api/modellist";
+import { getModelgroupList } from "@/workflow/api/modelgroup";
+import {
+  changeStatus,
+  deleteCatalog,
+  getListMaterial,
+  saveMaterial,
+  getListCatalogv2,
+  addCatalogV2,
+  getCatalogInfoV2,
+  getUiboxs,
+  order,
+  savepic
+} from "@/workflow/api/catalog";
+import { showError } from "@/framework/utils/index";
+import { parseQueryString } from "@/workflow/utils/index";
+import "@/workflow/style/process.css";
+import EditProcessGuide from "./components/EditProcessGuide";
+import Authorize from "./components/Authorize";
+const columns = [
+  {
+    title: "流程名称",
+    dataIndex: "name",
+    key: "name"
+  },
+  {
+    title: "唯一标识符",
+    dataIndex: "code",
+    key: "code",
+    scopedSlots: { customRender: "code" }
+  },
+  {
+    title: "状态",
+    dataIndex: "status",
+    key: "status",
+    width: "12%",
+    scopedSlots: { customRender: "status" }
+  },
+  {
+    title: "操作",
+    dataIndex: "operation",
+    width: "30%",
+    key: "operation",
+    scopedSlots: { customRender: "operation" }
+  }
+];
+import {
+  Layout,
+  Breadcrumb,
+  Table,
+  Input,
+  Button,
+  Pagination,
+  Icon,
+  Popconfirm,
+  Form,
+  Select,
+  Modal,
+  Radio
+} from "ant-design-vue";
+export default {
+  name: "ProcessDirectoryManagemenV2",
+  components: {
+    ALayout: Layout,
+    ALayoutHeader: Layout.Header,
+    ALayoutContent: Layout.Content,
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    ATable: Table,
+    AInput: Input,
+    AInputSearch: Input.Search,
+    AButton: Button,
+    APagination: Pagination,
+    AIcon: Icon,
+    APopconfirm: Popconfirm,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AModal: Modal,
+    ARadio: Radio,
+    ARadioGroup: Radio.Group,
+    EditProcessGuide,
+    Authorize
+  },
+  data() {
+    return {
+      columns,
+      editForm: this.$form.createForm(this),
+      addForm: this.$form.createForm(this),
+      //分页
+      pagination: {
+        current: 1,
+        pagesize: 10,
+        total: 0,
+        showTotal: function(total, range) {
+          return `共 ${total} 条记录`;
+        }
+      },
+      //打开模态框的条件
+      visible: false,
+      edit: false,
+      process: false,
+      //用来判断打开的是哪一个
+      type: "",
+      flag: null,
+      id: null,
+      topid: null,
+      mainList: [],
+      materialList: [],
+      formData: {
+        mainname: "",
+        name: "",
+        pname: "",
+        flowtype: undefined,
+        starttype: undefined,
+        relatedname: ""
+      },
+      relatedid: undefined,
+      newVal: null,
+      screenLevel: document.documentElement.clientWidth,
+      FlowTypeList: [],
+      StartTypeList: [],
+      searchkey: undefined,
+      flowTypeFlag: 0,
+      drawervisible: false,
+      drawerTitle: "",
+      templists: [],
+      obj: null,
+      drawerpagination: {
+        //流程模板列表分页
+        pageSize: 10, // 一页的数据限制
+        current: 1, // 当前页
+        total: 0, // 总数
+        showTotal: function(total, range) {
+          return `共 ${total} 条记录`;
+        }
+      },
+      searchtemplate: undefined,
+      curCode: undefined,
+      //排序
+      sortvisible: false,
+      sorttype: undefined,
+      afterId: undefined,
+      radioStyle: {
+        display: "block",
+        height: "40px",
+        lineHeight: "40px"
+      },
+      modelList: [],
+      pictureurl: "",
+      //授权
+      authvisible: false,
+      nowid: undefined
+    };
+  },
+  //实时监听屏幕大小
+  mounted() {
+    this.screenLevel = document.documentElement.clientWidth;
+    const that = this;
+    window.onresize = function temp() {
+      that.screenLevel = document.documentElement.clientWidth;
+    };
+  },
+  created() {
+    this.getListCatalog(this.searchkey);
+  },
+  methods: {
+    //获取初始数据
+    getListCatalog(searchkey) {
+      getListCatalogv2({ pagenum: this.pagination.current, searchkey })
+        .then(res => {
+          this.mainList = [];
+          if (res.code == "success") {
+            this.mainList = res.result.rows;
+            this.pagination.total = res.result.total;
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //搜索
+    searchList(val) {
+      this.getListCatalog(val);
+    },
+    //分页
+    onShowChange(pagination) {
+      const pager = { ...this.pagination };
+      pager.current = pagination.current;
+      this.pagination = pager;
+      this.getListCatalog(this.searchkey);
+    },
+    //获取字典常量
+    getListdicts(val) {
+      getListconstantbydictkey(val)
+        .then(res => {
+          if (res.code == "success") {
+            if (val == "workflow.flowtype") {
+              this.FlowTypeList = res.result;
+            } else if (val == "workflow.starttype") {
+              this.StartTypeList = res.result;
+            }
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //添加
+    add(info) {
+      addCatalogV2(info)
+        .then(res => {
+          if (res.code == "success") {
+            this.getListCatalog(this.searchkey);
+            this.visible = false;
+            this.addForm.resetFields();
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //添加主项
+    handleOk() {
+      this.addForm.validateFields((err, values) => {
+        if (!err) {
+          values.pid = 0;
+          this.add(values);
+        }
+      });
+    },
+    //排序
+    sort(record) {
+      this.id = record.id;
+      this.sorttype = undefined;
+      this.afterId = undefined;
+      getUiboxs(record.id)
+        .then(res => {
+          this.modelList = res.result;
+          this.sortvisible = true;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    sortOk() {
+      if (this.sorttype == 3 && !this.afterId) {
+        this.$message.error("必须选择排到的位置！");
+        return;
+      }
+      let query = {};
+      query.type = this.sorttype;
+      query.id = this.id;
+      if (this.sorttype == 3) {
+        query.afterId = this.afterId;
+      }
+      order(query)
+        .then(res => {
+          this.$message.success("流程排序成功！");
+          this.getListCatalog(this.searchkey);
+          this.sortvisible = false;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    sortCancle() {
+      this.sortvisible = false;
+    },
+    changeType() {
+      this.afterId = undefined;
+    },
+    filterOption(input, option) {
+      return (
+        option.componentOptions.children[0].text
+          .toLowerCase()
+          .indexOf(input.toLowerCase()) >= 0
+      );
+    },
+    //打开编辑子项、主项和添加子项
+    openEdit(record, type) {
+      this.curCode = record.code;
+      this.flowTypeFlag = 0;
+      this.edit = true;
+      this.id = record.id;
+      this.topid = record.topid;
+      if (type == 1) {
+        if (!record.children && record.pid == 0) {
+          //无子项的主项编辑
+          this.type = "主项编辑";
+          this.flag = 1;
+          this.getListdicts("workflow.flowtype");
+        } else if (record.children && record.pid !== 0) {
+          //有子项的子项编辑
+          this.type = "编辑";
+          this.flag = 2;
+        } else if (record.children && record.pid == 0) {
+          //有子项的主项编辑
+          this.type = "主项编辑";
+          this.flag = 3;
+        } else if (!record.children && record.pid !== 0) {
+          //子项编辑
+          this.flag = 4;
+          this.type = "子项编辑";
+          this.getListdicts("workflow.flowtype");
+        }
+      } else if (type == 2) {
+        this.type = "添加子项"; //添加子项
+        this.flag = 5;
+      }
+      getCatalogInfoV2(record.id)
+        .then(res => {
+          if (res.code == "success") {
+            if (this.flag == 1) {
+              this.formData.mainname = res.result.name;
+              this.formData.flowtype = res.result.flowtype;
+              if (res.result.flowtype == 1 || res.result.flowtype == 2) {
+                this.formData.starttype = res.result.starttype;
+                this.getListdicts("workflow.starttype");
+              }
+              this.flowTypeFlag = res.result.flowtype;
+              this.formData.relatedname = res.result.relatedname;
+              this.relatedid = res.result.relatedid;
+            } else if (this.flag == 2) {
+              this.formData.mainname = res.result.mainname;
+              this.formData.pname = res.result.pname;
+              this.formData.name = res.result.name;
+            } else if (this.flag == 3) {
+              this.formData.mainname = res.result.name;
+            } else if (this.flag == 4) {
+              this.formData.name = res.result.name;
+              this.formData.mainname = res.result.mainname;
+              this.formData.pname = res.result.pname;
+              this.formData.flowtype = res.result.flowtype;
+              if (res.result.flowtype == 1 || res.result.flowtype == 2) {
+                this.formData.starttype = res.result.starttype;
+                this.getListdicts("workflow.starttype");
+              }
+              this.flowTypeFlag = res.result.flowtype;
+              this.formData.relatedname = res.result.relatedname;
+              this.relatedid = res.result.relatedid;
+            } else if (this.flag == 5) {
+              this.formData.mainname = res.result.mainname;
+              this.formData.pname = res.result.name;
+              this.formData.name = "";
+            }
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //编辑主项、子项和添加子项
+    editOk() {
+      this.editForm.validateFields((err, values) => {
+        if (!err) {
+          values.topid = this.topid;
+          values.code = this.curCode;
+          if (this.flag == 1 || this.flag == 4) {
+            values.relatedid = this.relatedid;
+          }
+          if (this.flag == 5) {
+            values.pid = this.id;
+            this.add(values);
+          } else if (this.flag == 1 || this.flag == 3) {
+            this.newVal = JSON.parse(
+              JSON.stringify(values).replace(/mainname/g, "name")
+            );
+            this.newVal.id = this.id;
+            this.add(this.newVal);
+          } else if (this.flag == 2) {
+            this.newVal = JSON.parse(
+              JSON.stringify(values).replace(/pname/g, "name")
+            );
+            this.newVal.id = this.id;
+            this.add(this.newVal);
+          } else {
+            values.id = this.id;
+            this.add(values);
+          }
+          this.edit = false;
+          this.editForm.resetFields();
+        }
+      });
+    },
+    //切换流程类型
+    changeFlowType(val) {
+      if (val == 1 || val == 2) {
+        this.getListdicts("workflow.starttype");
+      }
+      this.flowTypeFlag = val;
+      this.editForm.resetFields(["starttype"]);
+      this.editForm.resetFields(["relatedid"]);
+      this.formData.relatedname = "";
+    },
+    //打开关联的模板组或者模板弹框
+    openProcessTemplate(type) {
+      if (type == 1) {
+        this.drawerTitle = "选择流程模板组";
+      } else if (type == 2) {
+        this.drawerTitle = "选择流程模板";
+      }
+      this.drawervisible = true;
+      this.getTempList();
+    },
+    onClose() {
+      this.drawervisible = false;
+      this.drawerpagination.current = 1;
+    },
+    //页数改变
+    onChange(current) {
+      this.drawerpagination.current = current;
+      this.getTempList();
+    },
+    //选择流程模板
+    select(id, name) {
+      this.formData.relatedname = name;
+      this.relatedid = id;
+      this.drawervisible = false;
+    },
+    //获取流程实例列表
+    getTempList() {
+      let query = {};
+      query.pagesize = this.drawerpagination.pageSize;
+      query.pagenum = this.drawerpagination.current;
+      query.needtotal = true;
+      query.searchkey = this.searchtemplate;
+      if (this.flowTypeFlag == 1) {
+        getModelgroupList(query)
+          .then(res => {
+            if (res.code == "success") {
+              this.drawerpagination.total = res.result.total;
+              this.drawerpagination.current = res.result.pagenum;
+              this.templists = res.result.rows;
+            }
+          })
+          .catch(err => {
+            showError(err);
+          });
+      } else if (this.flowTypeFlag == 2 || this.flowTypeFlag == 3) {
+        getModelinstanceList(query)
+          .then(res => {
+            if (res.code == "success") {
+              this.drawerpagination.total = res.result.total;
+              this.drawerpagination.current = res.result.pagenum;
+              this.templists = res.result.rows;
+            }
+          })
+          .catch(err => {
+            showError(err);
+          });
+      }
+    },
+    //搜索
+    onSearch() {
+      this.getTempList();
+    },
+    //删除流程
+    del(id) {
+      deleteCatalog(id)
+        .then(res => {
+          if (res.code == "success") {
+            this.getListCatalog(this.searchkey);
+            this.$message.success("流程删除成功！");
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //上下架状态改变
+    changeStatus(id) {
+      changeStatus(id)
+        .then(res => {
+          if (res.code == "success") {
+            this.getListCatalog(this.searchkey);
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //获取流程说明的信息
+    getMaterialInfo() {
+      getListMaterial(this.id)
+        .then(res => {
+          if (res.code == "success") {
+            this.materialList = res.result;
+            this.pictureurl = res.result.pictureurl;
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //打开流程说明
+    openProcess(id) {
+      this.id = id;
+      this.getMaterialInfo();
+      this.process = true;
+    },
+    //更新流程说明
+    updateNodeInfo() {
+      this.getMaterialInfo();
+    },
+    //获取流程图
+    uploadMaterialImg(val) {
+      this.pictureurl = val;
+    },
+    //保存流程
+    saveMaterial() {
+      let query = {};
+      query.catalogid = this.id;
+      query.pictureurl = this.pictureurl;
+      savepic(query)
+        .then(res => {
+          this.$message.success("流程图保存成功！");
+          this.process = false;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //关闭流程
+    closeProcess() {
+      this.process = false;
+      this.pictureurl = "";
+    },
+    //取消表单
+    cancel() {
+      this.edit = false;
+      this.visible = false;
+      this.editForm.resetFields();
+      this.addForm.resetFields();
+      this.formData = {
+        mainname: "",
+        name: "",
+        pname: "",
+        flowtype: undefined,
+        starttype: undefined,
+        relatedname: ""
+      };
+    },
+    //打开授权
+    openAuthorize(record) {
+      if (record.pid === 0) {
+        this.nowid = record.id;
+        this.authvisible = true;
+      }
+    }
+  }
+};
+</script>
+
+<style lang="less" scoped>
+.body {
+  padding: 24px;
+  /deep/ .ant-table-tbody > tr > td {
+    &:last-child {
+      display: flex;
+      flex-wrap: nowrap;
+      a {
+        text-decoration: none;
+        display: inline-block;
+        margin-right: 20px;
+        width: 56px;
+        &:first-child,
+        &:nth-child(2),
+        &:nth-child(5),
+        &:nth-child(6),
+        &:last-child {
+          width: 28px;
+        }
+      }
+    }
+  }
+  .btngroup {
+    display: flex;
+    margin-bottom: 20px;
+    max-width: 500px;
+    > button {
+      margin-right: 10px;
+    }
+  }
+}
+.process {
+  margin-top: 15px;
+  p {
+    font-size: 15px;
+    font-weight: bold;
+  }
+  li {
+    display: flex;
+    span {
+      width: 14.3%;
+      margin: 5px 10px;
+      cursor: pointer;
+      &:last-child {
+        line-height: 32px;
+      }
+      i {
+        font-size: 18px;
+        &:last-child {
+          color: red;
+          margin-left: 10px;
+        }
+      }
+    }
+  }
+}
+.uploadBtn {
+  text-align: center;
+  img {
+    max-width: 100%;
+  }
+}
+.fileBtn {
+  width: 0px;
+  height: 0px;
+  opacity: 0;
+}
+
+.drawerModal {
+  .templist {
+    margin: 10px 0;
+    .mylist {
+      li {
+        padding: 5px 0;
+        cursor: pointer;
+        span {
+          padding-left: 10px;
+        }
+      }
+    }
+  }
+  .mypagination {
+    text-align: right;
+  }
+}
+</style>

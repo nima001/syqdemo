@@ -1,0 +1,544 @@
+<template>
+  <div>
+    <div class="select">
+      <a-button type="primary" @click="addorg">新增</a-button>
+      <!-- <a-button @click="deleteorg">删除</a-button> -->
+      <!-- <a-input-search style="width: 30%;" placeholder="请输入组织名称" @search="searchKeyworlds" /> -->
+    </div>
+
+    <a-table
+      :rowSelection="rowSelection"
+      :columns="columns"
+      :dataSource="data"
+      :pagination="false"
+      :customRow="addTemplate"
+      :loading="loading"
+    >
+      <div slot="index" slot-scope="text">
+        <a style="margin-right: 15px" @click="redact(text)">编辑</a>
+        <a @click="detailaffirm(text)">删除</a>
+      </div>
+    </a-table>
+
+    <div class="bottom">
+      <a-pagination
+        v-if="data.length > 0"
+        :total="total"
+        :showSizeChanger="true"
+        @showSizeChange="onShowSizeChange"
+        :page-size-options="pageSizeOptions"
+        :page-size="pagesize"
+        v-model="pagenum"
+        @change="onPageChange"
+        :showTotal="(total) => `总共：${total}条`"
+      ></a-pagination>
+    </div>
+
+    <a-modal v-model="visible" title="新增组织" @ok="handleOk">
+      <a-form :form="form" v-if="visible">
+        <a-row :gutter="24">
+          <a-col :span="24">
+            <a-form-item label="组织名称">
+              <a-input
+                allowClear
+                v-decorator="[
+                  'name',
+                  {
+                    rules: [
+                      {
+                        required: true,
+                        max: 50,
+                        whitespace: true,
+                        message: '请输入正确的组织名称',
+                      },
+                    ],
+                  },
+                ]"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-row :gutter="24">
+          <a-col :span="24">
+            <a-form-item label="组织类型" :required="true">
+              <dict-select
+                :dict="'usermanage.org.orgtype'"
+                v-decorator="[
+                  'orgtype',
+                  {
+                    rules: [{ required: true, message: '请选择组织类型' }],
+                  },
+                ]"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-row :gutter="24">
+          <a-col :span="24">
+            <a-form-item label="父组织：">
+              <a-input
+                allowClear
+                placeholder="请输入父组织名称"
+                v-model="nodeData.name"
+                disabled
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-row :gutter="24">
+          <a-col :span="24">
+            <a-form-item label="电话">
+              <a-input
+                allowClear
+                v-decorator="[
+                  'orgphone',
+                  {
+                    rules: [
+                      {
+                        pattern: /^[1][3,4,5,6,7,8,9][0-9]{9}$/,
+                        message: '请输入正确的手机号码',
+                      },
+                    ],
+                  },
+                ]"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
+    </a-modal>
+
+    <a-modal v-model="update" title="组织编辑" @ok="updateOk">
+      <a-form :form="form" v-if="update">
+        <a-row :gutter="24">
+          <a-col :span="24">
+            <a-form-item label="组织名称">
+              <a-input
+                allowClear
+                disabled
+                v-decorator="[
+                  'name',
+                  {
+                    initialValue: item.name,
+                    rules: [
+                      {
+                        required: true,
+                        max: 50,
+                        whitespace: true,
+                        message: '请输入正确的组织名称',
+                      },
+                    ],
+                  },
+                ]"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-row :gutter="24">
+          <a-col :span="24">
+            <a-form-item label="组织类型" :required="true">
+              <dict-select
+                disabled
+                :dict="'usermanage.org.orgtype'"
+                v-decorator="[
+                  'orgtype',
+                  {
+                    initialValue: item.orgtype,
+                    rules: [{ required: true, message: '请选择组织类型' }],
+                  },
+                ]"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-row :gutter="24">
+          <a-col :span="24">
+            <a-form-item label="父组织：">
+              <a-input
+                allowClear
+                placeholder="请输入父组织名称"
+                v-model="nodeData.name"
+                disabled
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+
+        <a-row :gutter="24">
+          <a-col :span="24">
+            <a-form-item label="电话">
+              <a-input
+                allowClear
+                v-decorator="[
+                  'orgphone',
+                  {
+                    initialValue: item.orgphone,
+                    rules: [
+                      {
+                        pattern: /^[1][3,4,5,6,7,8,9][0-9]{9}$/,
+                        message: '请输入正确的手机号码',
+                      },
+                    ],
+                  },
+                ]"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
+    </a-modal>
+
+    <a-modal v-model="detailBoo" title="组织删除" @ok="detail">
+      <p>该操作不可恢复，请确认是否继续？</p>
+    </a-modal>
+  </div>
+</template>
+<script>
+import {
+  neworgquery,
+  orgcreate,
+  catalognodequery,
+  orgdelete,
+  deletebatch,
+  orgupdate,
+} from "@/hall/api/usermanage";
+import {
+  Row,
+  Col,
+  Table,
+  Input,
+  Button,
+  Modal,
+  Select,
+  Pagination,
+  Form,
+} from "ant-design-vue";
+import DictSelect from "@/framework/components/DictSelect";
+import { mixins } from "@/hall/mixin/index";
+import { showError, validatePhoneNumber } from "@framework/utils";
+export default {
+  data() {
+    return {
+      form: this.$form.createForm(this, { name: "dynamic_rule" }),
+      total: 0,
+      pageSizeOptions: ["10", "20", "30", "40", "50"],
+      pagesize: 10,
+      pagenum: 1,
+      loading: true,
+      visible: false,
+      update: false,
+      detailBoo:false,
+      index: null,
+      columns: [
+        {
+          width: "23%",
+          title: "组织名称",
+          dataIndex: "name",
+        },
+        {
+          title: "组织类型",
+          dataIndex: "orgtype",
+          customRender: this.dictRender("usermanage.org.orgtype"),
+          align: "center",
+        },
+        {
+          title: "父组织",
+          dataIndex: "fname",
+          align: "center"
+        },
+        {
+          title: "操作",
+          dataIndex: "index",
+          key: "index",
+          scopedSlots: { customRender: "index" },
+          align: "center",
+        },
+      ],
+      data: [],
+      selectedRowKeys: [],
+      searchkey: "",
+      org: {
+        name: "",
+        orgphone: "",
+        orgtype: 1,
+      },
+      item: {
+        name: "",
+        orgphone: "",
+        orgtype: "",
+      },
+    };
+  },
+  mixins: [mixins],
+  components: {
+    ARow: Row,
+    ACol: Col,
+    ATable: Table,
+    AInput: Input,
+    AInputSearch: Input.Search,
+    AButton: Button,
+    AModal: Modal,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    DictSelect,
+    APagination: Pagination,
+    AForm: Form,
+    AFormItem: Form.Item,
+  },
+  mounted() {
+    this.getData(this.nodeData);
+  },
+  watch: {
+    visible: function () {
+      this.org = {
+        name: "",
+        orgphone: "",
+        orgtype: 1,
+      };
+    },
+  },
+  computed: {
+    rowSelection() {
+      const { selectedRowKeys } = this;
+      return {
+        onChange: (selectedRowKeys, selectedRows) => {
+          this.selectedRowKeys = selectedRowKeys;
+        },
+        selectedRowKeys: selectedRowKeys,
+      };
+    },
+  },
+  methods: {
+    dictRender(key, attr) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    //pagenum切换
+    onPageChange(page, pageSize) {
+      this.getData(this.nodeData);
+    },
+    //pagesize切换
+    onShowSizeChange(current, size) {
+      (this.pagesize = size), (this.pagenum = 1);
+      this.getData(this.nodeData);
+    },
+    updateOk() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let data = this.item;
+          data.orgtype = values.orgtype;
+          data.orgphone = values.orgphone;
+          orgupdate(data.data._id, data)
+            .then((res) => {
+              if (res.code == "success") {
+                this.update = false;
+                this.getData(this.nodeData);
+                this.$message.success("组织更新成功！");
+              }
+            })
+            .catch((error) => {
+              showError(error);
+            });
+        }
+      });
+    },
+    deleteorg() {
+      let url = "?";
+      this.selectedRowKeys.forEach((item) => {
+        this.data.forEach((index) => {
+          if (item == index.id) {
+            url = url + "ids=" + index.data._id + "&";
+          }
+        });
+      });
+
+      orgdelete(url)
+        .then((res) => {
+          if (res.code == "success") {
+            let urls = "?";
+            this.selectedRowKeys.forEach((item) => {
+              urls = urls + "ids=" + item + "&";
+            });
+            deletebatch(urls)
+              .then((res) => {
+                if (res.code == "success") {
+                  this.getData(this.nodeData);
+                  this.$message.success("组织删除成功！");
+                }
+              })
+              .catch((error) => {
+                showError(error);
+              });
+          }
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    handleOk() {
+      //     if (validatePhoneNumber(data.orgphone)) {}
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let obj = values;
+          obj.pid = this.nodeData.id;
+          orgcreate(obj)
+            .then((res) => {
+              if (res.code == "success") {
+                obj.type = 1;
+                obj.dataid = res.result._id;
+                catalognodequery(obj)
+                  .then((res) => {
+                    if (res.code == "success") {
+                      this.visible = false;
+                      this.getData(this.nodeData);
+                      this.$message.success("组织新增成功！");
+                    }
+                  })
+                  .catch((error) => {
+                    showError(error);
+                  });
+              }
+            })
+            .catch((error) => {
+              showError(error);
+            });
+        }
+      });
+    },
+    addorg() {
+      console.log(this.nodeData);
+      this.visible = true;
+    },
+    addTemplate(record, index) {
+      return {
+        on: {
+          click: () => {
+            // this.detail(record.id);
+          },
+        },
+      };
+    },
+    searchKeyworlds(searchkey) {
+      this.searchkey = searchkey;
+      this.getData(this.nodeData);
+    },
+    getData(nodeData) {
+      this.selectedRowKeys = [];
+      this.loading = true;
+      const data = {
+        needtotal: true,
+        pagenum: this.pagenum,
+        pagesize: this.pagesize,
+        searchkey: this.searchkey,
+        // nodeid: this.loadData.id,
+        pid: nodeData.id,
+      };
+      neworgquery(data)
+        .then((res) => {
+          this.loading = false;
+          if (res.code == "success") {
+            this.pagesize = res.result.pagesize;
+            this.total = res.result.total;
+            this.pagenum = res.result.pagenum;
+            let data = res.result.rows;
+            // let serial = (res.result.pagenum - 1) * 10;
+            // if (res.result.total < 11) {
+            //   serial = 0;
+            // }
+            data.forEach(function (x, y) {
+              x.key = x.id;
+              x.index = y;
+              x.orgtype = x.data ? x.data.orgtype : "";
+              x.orgphone = x.data.orgphone;
+              x.fname=nodeData.name
+            });
+            this.data = data;
+          }
+        })
+        .catch((error) => {
+          this.loading = false;
+          showError(error);
+        });
+    },
+    redact(index) {
+      this.item = this.data[index];
+      this.update = true;
+      // this.$router.push({ path: "/business/libraryDetail", query: { id: id } });
+    },
+    detailaffirm(index){
+      this.detailBoo=true
+      this.index=index
+    },
+    detail() {
+      let item = this.data[this.index];
+
+      let url = "?ids=" + item.data._id;
+
+      orgdelete(url)
+        .then((res) => {
+          this.detailBoo=false
+          if (res.code == "success") {
+            let urls = "?ids=" + item.id;
+            deletebatch(urls)
+              .then((res) => {
+                if (res.code == "success") {
+                  this.getData(this.nodeData);
+                  this.$message.success("组织删除成功！");
+                  // this.$notification.warning({
+                  //   message: "提示",
+                  //   description: "组织删除成功！",
+                  //   duration: 3,
+                  // });
+                }
+              })
+              .catch((error) => {
+                showError(error);
+              });
+          }
+        })
+        .catch((error) => {
+          this.detailBoo=false
+          showError(error);
+        });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.select {
+  // float: right;
+  display: flex;
+  // flex-direction: row-reverse;
+  margin-bottom: 12px;
+  > button {
+    margin-right: 8px;
+  }
+}
+.modal {
+  width: 340px;
+  margin: 0 auto;
+  > p {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    input {
+      width: 250px;
+    }
+  }
+}
+.bottom {
+  padding: @content-padding-v @content-padding-h;
+  .ant-pagination {
+    margin-top: 10px;
+    text-align: right;
+  }
+}
+</style>

@@ -1,0 +1,62 @@
+<template>
+  <ul>
+    <li v-for="item in treelist" :key="item.id">
+      <p v-if="!item.sheet">
+        <a-icon type="table" />
+        {{item.name}}
+      </p>
+      <p @click="toSheet(item)" v-else>
+        <a-icon type="table" class="iconcolor" />
+        {{item.name}}
+      </p>
+      <tree-list v-if="item.children" :treelist="item.children"></tree-list>
+    </li>
+  </ul>
+</template>
+<script>
+/**
+ * sheet == 0  不能点击   对应目录
+ * sheet !=0   能点击     对应表格
+ */
+import { Icon } from "ant-design-vue";
+export default {
+  name: "TreeList",
+  props: {
+    treelist: {
+      type: Array,
+      required: true
+    }
+  },
+  components: {
+    AIcon: Icon
+  },
+  methods: {
+    toSheet(item) {
+      sessionStorage.setItem("catalogId", item.id);
+      let Id = this.$route.query.id;
+      this.$router.push({
+        name: "SheetDetail",
+        query: {
+          id: Id,
+          date: this.$route.query.date
+        }
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+li ul {
+  padding-left: 25px;
+}
+p {
+  font-size: 20px;
+  &:hover {
+    color: @primary-color;
+    cursor: pointer;
+  }
+  .iconcolor{
+    color: @primary-color;
+  }
+}
+</style>

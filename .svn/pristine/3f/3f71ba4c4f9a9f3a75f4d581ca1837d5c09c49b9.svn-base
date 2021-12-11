@@ -1,0 +1,41 @@
+<template>
+  <div class="data-table">
+    <div class="main">
+      <div class="top">
+        <div class="title">注册用户</div>
+        <div class="btn">
+          <span>返回</span>
+          <span>导出</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  props: {},
+  components: {},
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    console.log(this.$router.params);
+  },
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.data-table{
+  height: 100%;
+  .main{
+    .top{
+      
+    }
+  }
+}
+</style>

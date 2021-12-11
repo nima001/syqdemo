@@ -1,0 +1,314 @@
+<template>
+  <div class="container">
+    <div class="body">
+      <div class="title">省属事业单位机构编制质效评估</div>
+      <div class="opaction">
+        <div class="left">
+          <a-input placeholder="请输入：单位名称">
+            <a-icon slot="suffix" type="search" />
+          </a-input>
+        </div>
+        <div class="right">
+          <hexagon :total="[45, 41, 1]" />
+        </div>
+      </div>
+      <div class="display">
+        <span class="main">主管部门</span>
+        <div>
+          <cloud-carousel
+            class="inner"
+            :bringToFront="true"
+            :farScale="0.5"
+            :yOrigin="180"
+            :yRadius="180"
+            :xRadius="480"
+            :autoPlay="-1"
+            :autoPlayDelay="1500"
+            frontItemClass="front"
+          >
+            <div v-for="item in innerData" :key="item" class="item" @click="()=>$router.push('/person/screen/assessment/list')">
+              <a-tooltip placement="top" :mouseEnterDelay="0.5">
+                <template slot="title">
+                  <span>{{item}}</span>
+                </template>
+                <span>{{item}}</span>
+              </a-tooltip>
+            </div>
+          </cloud-carousel>
+        </div>
+        <cloud-carousel
+          class="out"
+          :autoPlay="1"
+          :bringToFront="true"
+          :farScale="0.5"
+          :yOrigin="200"
+          :yRadius="280"
+          :xRadius="720"
+          :speed="1"
+          @changed="changed"
+          :autoPlayDelay="1000"
+          frontItemClass="front"
+        >
+          <div v-for="item in outerData" :key="item" class="item" @click="()=>$router.push('/person/screen/assessment/list')">
+            <a-tooltip placement="top" :mouseEnterDelay="0.5">
+              <template slot="title">
+                <span>{{item}}</span>
+              </template>
+              <span>{{item}}</span>
+            </a-tooltip>
+          </div>
+        </cloud-carousel>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Input, Icon } from "ant-design-vue";
+import CloudCarousel from "@framework/components/CloudCarousel";
+import { Tooltip } from 'ant-design-vue';
+import hexagon from "./hexagon";
+export default {
+  components: {
+    hexagon,
+    CloudCarousel,
+    AIcon: Icon,
+    AInput: Input,
+    ATooltip: Tooltip,
+  },
+  data() {
+    return {
+      innerData: [
+        "省委办公厅",
+        "省委组织部",
+        "省委宣传部",
+        "省委统战部",
+        "省委政法委",
+        "省委政研室",
+        "省委改革办",
+        "省委网信办",
+        "省委编办",
+        "省委军民融合办",
+        "省台办",
+        "省直机关工委",
+        "省信访局",
+        "省委老干部局",
+        "省委机要局",
+        "省委保密办",
+        "省委党校",
+        "浙报集团",
+        "省社会主义学院",
+        "省委党史和文献研究室",
+        "省档案馆",
+        "省人大办公厅",
+        "省政府办公厅",
+        "省发展和改革委",
+        "省经信厅",
+        "省教育厅",
+        "省民宗委",
+        "省公安厅",
+        "省民政厅",
+        "省司法厅",
+        "浙江警官职业学院",
+        "省财政厅",
+        "省人力社保厅",
+        "省自然资源厅",
+        "省地勘局",
+        "省生态环境厅",
+        "省建设厅",
+        "省交通运输厅",
+        "省水利厅",
+        "省商务厅",
+        "省卫健委",
+        "省农业农村厅",
+        "省旅游投资集团",
+        "中国新闻社浙江分社",
+      ],
+      outerData: [
+        "省纪委省监委",
+        "省科学厅",
+        "省文化和旅游厅",
+        "省退役军厅",
+        "省应急管理厅",
+        "省审计厅",
+        "省外事办",
+        "省国资委",
+        "省市场监管局",
+        "省地方金融监管局",
+        "省广电局",
+        "省体育局",
+        "省统计局",
+        "省粮食和物资局",
+        "省医保局",
+        "省机关事务局",
+        "省人防办",
+        "省大数据局",
+        "省能源局",
+        "省林业局",
+        "省文物局",
+        "省药品监管局",
+        "省政府驻沪办",
+        "浙江海洋大学",
+        "省广电集团",
+        "省社会科学院",
+        "省农业科学院",
+        "浙江清华长三角研究院",
+        "省政协办公厅",
+        "省总工会",
+        "团省委",
+        "省妇联",
+        "省科协",
+        "省文联",
+        "省工商联",
+        "省社科联",
+        "省作协",
+        "省残联",
+        "省红十字会",
+        "省贸促会",
+        "宁波海事法院",
+        "省高院",
+        "省检察院",
+        "省机电集团",
+        "省能源集团",
+        "省通信管理局",
+        "省气象局",
+        "省邮政管理局",
+      ],
+    };
+  },
+  methods: {
+    changed(e) {
+      
+      console.log(e,'sd',new Date().getTime())
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  .body {
+    flex: 1;
+    width: 90%;
+    display: flex;
+    flex-direction: column;
+    .title {
+      height: 10%;
+      font-size: 40px;
+      font-weight: bold;
+      font-family: cursive;
+      color: #fff;
+      text-shadow: 0 0 8px #1169a2;
+      text-align: center;
+      background: url('../../../assets/img/screen/assess-title-bg.png') no-repeat;
+      background-position: 50% 65%;
+    }
+    .opaction {
+      display: flex;
+      align-items: center;
+      /deep/.left {
+        width: 30%;
+        .ant-input-affix-wrapper {
+          width: 100%;
+          & input.ant-input {
+            width: 100%;
+            height: 40px;
+            display: inline-block;
+            border-color: #0079fe;
+            color: fade(#fff, 80%);
+            background: transparent;
+          }
+          & .ant-input-suffix .anticon.anticon-search {
+            font-size: 20px;
+            color: #1cedf1;
+          }
+        }
+      }
+      .right {
+        padding: 0 80px;
+        flex: 1;
+      }
+    }
+    .display {
+      flex: 1;
+      position: relative;
+      .main {
+        font-size: 33px;
+        font-weight: 400;
+        color: #fff;
+        letter-spacing: 11px;
+        position: absolute;
+        left: 50%;
+        top: 33%;
+        transform: translate(-50%, -50%);
+        z-index: 999;
+      }
+      .out {
+        color: #fff;
+        width: 100%;
+        height: 100%;
+        max-height: 589px;
+        background: url('../../../assets/img/screen/jg-list-bg.png') no-repeat;
+        background-size: 100% 100%;
+        .item {
+          width: 80px;
+          height: 30px;
+          line-height: 30px;
+          border-radius: 5px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          text-align: center;
+          padding: 2px 3px;
+          color: #0FC0CD;
+          background: url('../../../assets/img/screen/depart-outerlist-bg.png') no-repeat;
+          background-size: 100% 100%;
+          cursor: pointer;
+          user-select: none;
+          z-index: 999;
+        }
+        /deep/.front {
+          color: #fff;
+          // background: @accent-color;
+          // transition: background 1s linear, color 1s linear;
+        }
+      }
+      .inner {
+        width: 0;
+        height: 0;
+        z-index: 999;
+        position: absolute;
+        top: -20px;
+        left: 653px;
+        color: #fff;
+        overflow: visible;
+        transform: translateX(-50%);
+        .item {
+          width: 80px;
+          height: 30px;
+          line-height: 30px;
+          border-radius: 5px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          text-align: center;
+          padding: 2px 3px;
+          color: #A8B47A;
+          background: url('../../../assets/img/screen/depart-innerlist-bg.png') no-repeat;
+          background-size: 100% 100%;
+          cursor: pointer;
+          user-select: none;
+        }
+        /deep/.front {
+          color: #fff;
+          // background: @accent-color;
+          // transition: background 1s linear, color 1s linear;
+        }
+      }
+    }
+  }
+}
+</style>

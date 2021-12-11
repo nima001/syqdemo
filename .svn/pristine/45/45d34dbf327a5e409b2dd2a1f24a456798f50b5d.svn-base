@@ -1,0 +1,321 @@
+<template>
+  <div class="view">
+    <div class="tip">
+      <span class="title">{{ title }}</span>
+      <div class="all">
+        <span class="icon"></span>
+        <span class="text">全部</span>
+      </div>
+    </div>
+    <div class="swiperWrap">
+      <div class="swiperView">
+        <div class="sectionTop">
+          <span class="special"></span>
+          <span v-for="(item, index) in items" :key="index">{{item.name}}</span>
+          <span class="num"></span>
+        </div>
+        <swiper-ant :size="list['length']" :nextBtn="nextBtn" :pretBtn="pretBtn" :pageStyle="pageStyle" class="publicWelfare">
+          <div style="{ height: '200px'}" v-for="(item, index) in list" :key="index" :slot="'swiper' + `${index}`">
+            <ul class="sectionList" v-for="(item2, index) in item" :key="index"
+              @click="detail = {show: true,id: item2._id,name: item2.name,type: type}"
+            >
+              <li class="name">{{ item2.name }}</li>
+              <li class="percent" v-for="(item3, index) in item2.list" :key="index">
+                <a-progress :showInfo="false" :percent="percent(item3)" status="active" :strokeColor="color[index]"></a-progress>
+              </li>
+              <li class="num">{{ item2.total | formate}}</li>
+            </ul>
+          </div>
+        </swiper-ant >
+      </div>
+    </div>
+    <dialog-box v-model="detail.show" :title="detail.name" :destroyOnClose="true">
+      <gti-detail :id="detail.id" :type="type" />
+    </dialog-box>
+  </div>
+</template>
+<script>
+import { Progress } from "ant-design-vue";
+import DialogBox from "../components/DialogBox";
+import GtiDetail from "./GtiDetail";
+import { getKpiConfig, calcKpi } from "./kpiUtils";
+import { query } from "@/person/api/integratedquery";
+import { showError } from "../../../../framework/utils";
+import SwiperAnt from "../components/SwiperAnt";
+import { sliceArr } from "@/person-shaoxing/utils/index";
+export default {
+  props: {
+    title: {
+      type: String,
+      required: true,
+    },
+    // 进度条颜色
+    defaultTheme: {
+      type: Boolean,
+      default: true,
+    },
+    type: String,
+  },
+  components: {
+    AProgress: Progress,
+    DialogBox,
+    GtiDetail,
+    SwiperAnt,
+  },
+  mounted() {
+    // 公益指数(学校和医疗)只查市本级
+    this.getData()
+  },
+  data() {
+    return {
+      list: [],
+      detail: {
+        show: false,
+        id: undefined,
+        name: undefined,
+      },
+      fieldList: [],
+      pretBtn: {
+        left: "-58px",
+      },
+      nextBtn: {
+        right: "-58px",
+      },
+      pageStyle: {
+        bottom: "-52px",
+      },
+    };
+  },
+  computed: {
+    items() {
+      return getKpiConfig(this.type);
+    },
+    color() {
+      if (this.defaultTheme) {
+        return ["#5E97EC", "#8FC7FF", "#82EBFC"];
+      } else {
+        return ["#D95F41", "#D47D31", "#FFC680"];
+      }
+    },
+  },
+  // 公益指数过滤
+  filters:{
+    formate(v){
+      if(v) {
+        return Number(v.toFixed(2));
+      }else{
+        return 0;
+      }
+    }
+  },
+  methods: {
+    getData(){
+      let list = this.fieldArr(getKpiConfig(this.type));
+      this.request(list)
+        .then((res) => {
+          let { rows, header } = res.result;
+          this.list = sliceArr(this.removeSuffix(header, rows), 4);
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    percent(item) {
+      let p = item.kpi / item.weight;
+      return Math.round(p * 100);
+    },
+    removeSuffix(header, list) {
+      let array = [];
+      let totalItem = header.find((item) => {
+        let key = this.type == "school"? "_id@organization.statistic.xxgyzszf": "_id@organization.statistic.yygyzszf";
+        return item.key == key;
+      });
+      for (let i = 0; i < list.length; i++) {
+        let item = list[i];
+        let obj = {};
+        let map = new Map(Object.entries(item));
+        for (let item of map.entries()) {
+          if (item[0].includes(".")) {
+            let key = item[0].split(".")[1];
+            obj[key] = item[1] || 0;
+          } else {
+            obj[item[0]] = item[1] || 0;
+          }
+        }
+        array.push({
+          name: item.name,
+          total: totalItem ? item[totalItem["column"]] : undefined,
+          _id: obj["_id"],
+          list: calcKpi(this.type, obj),
+        });
+      }
+      return array;
+    },
+    //  拼接查询字段
+    fieldArr(config) {
+      let list = [];
+      (function loop(config) {
+        (config || []).forEach((c) => {
+          if (!c.children) {
+            list.push({ key: "_id@organization.statistic." + c.a });
+            list.push({ key: "_id@organization.statistic." + c.b });
+          } else {
+            loop(c.children);
+          }
+        });
+      })(config);
+      return list;
+    },
+    request(list) {
+      let field =
+        this.type == "school"? {key: "_id@organization.statistic.xxgyzszf",showname: "学校公益指数总分",}: {key: "_id@organization.statistic.yygyzszf",name: "医院公益指数总分",};
+      return query({
+        target: { id: 1 },
+        filter: {
+          op: "and",
+          criteria: [
+            {field: { key: "unitsort" },op: "eq",value: this.type == "school" ? "20" : "30",}, // 单位分类  等于 (学校(不含社改) 20)  / (医院(不含社改) 30)
+            { field: { key: "district" }, op: "eq", value: "330600" }, // 所在地区 等于 市本级
+          ],
+        },
+        fields: [{ key: "name", showname: "机构名称" }, field, ...list],
+        order: [{orderby:this.type == "school"? "_id@organization.statistic.xxgyzszf": "_id@organization.statistic.yygyzszf",ordertype: "DESC"}],
+        pagenum: 1,
+        pagesize: 20,
+      });
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+.view {
+  .tip {
+    width: 624px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-left: 12px;
+    .title {
+      height: 26px;
+      font-size: 20px;
+      font-family: Microsoft YaHei;
+      font-weight: bold;
+      line-height: 26px;
+      color: #ffffff;
+      opacity: 0.8;
+    }
+    .all {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      .icon {
+        width: 16px;
+        height: 16px;
+        background: url("../img/all.png");
+        cursor: pointer;
+      }
+      .text {
+        height: 22px;
+        font-size: 16px;
+        font-family: Alibaba PuHuiTi;
+        font-weight: bold;
+        line-height: 22px;
+        color: #fff;
+        letter-spacing: 2px;
+        opacity: 0.6;
+        margin-left: 8px;
+      }
+    }
+  }
+  .swiperWrap {
+    display: flex;
+    align-items: center;
+    margin-top: 24px;
+    .swiperView {
+      width: 624px;
+      height: 200px;
+      border-radius: 4px;
+      display: flex;
+      flex-direction: column;
+      padding: 22px;
+      padding-bottom: 0px;
+      justify-content: space-between;
+      background: url("../img/repeat.png") repeat;
+      background-position: 10px 10px;
+      .sectionTop {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        span {
+          width: 125px;
+          height: 22px;
+          font-size: 16px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 22px;
+          color: #fff;
+          opacity: 0.8;
+          text-align: left;
+          &.special {
+            width: 100px;
+          }
+          &.num {
+            width: 45px;
+          }
+        }
+      }
+      .sectionList {
+        margin: 0px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 7px 0px;
+        cursor: pointer;
+        li {
+          &.name {
+            width: 100px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            width: 96px;
+            height: 22px;
+            font-size: 16px;
+            font-family: Microsoft YaHei;
+            font-weight: 400;
+            line-height: 22px;
+            color: #ffffff;
+            opacity: 0.8;
+          }
+          &.percent {
+            width: 125px;
+            /deep/ .ant-progress {
+              line-height: 6px;
+              .ant-progress-inner {
+                background-color: #343434 !important;
+                /deep/ .ant-progress-bg {
+                  width: 68px;
+                  height: 6px !important;
+                  border: 1px solid rgba(0, 0, 0, 0);
+                }
+              }
+            }
+          }
+          &.num {
+            width: 45px;
+            height: 22px;
+            font-size: 16px;
+            font-family: Microsoft YaHei;
+            font-weight: 400;
+            line-height: 22px;
+            color: #fff;
+            opacity: 0.6;
+            text-align: center;
+          }
+        }
+      }
+      
+    }
+  }
+}
+</style>

@@ -1,0 +1,52 @@
+<template>
+  <div class="container">
+    <dict-select :dict="key" @change="onchange" placeholder="请选择" v-model="defaultData.value"></dict-select>
+  </div>
+</template>
+<script>
+import { Select } from "ant-design-vue";
+import DictSelect from "@/framework/components/DictSelect";
+export default {
+  name: "TypeEleven",
+  data() {
+    return {
+      size: "default"
+    };
+  },
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  components: {
+    DictSelect
+  },
+  computed: {
+    key() {
+      return this.defaultData.field.datasource;
+    }
+  },
+  methods: {
+    onchange(value) {
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container{
+  width: 320px;
+  .ant-select{
+    width: 100%;
+  }
+}
+</style>

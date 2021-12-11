@@ -1,0 +1,116 @@
+<template>
+  <div class="group">
+    <span class="name">{{target[0]['k0']}}</span>
+    <ul class="chart">
+      <li class="capsule">
+        <div class="cell">
+          <a-progress :percent="target[0]['v0']/maxNum*100" :show-info="false"></a-progress>
+        </div>
+        <div class="num">{{target[0]['v0']}}</div>
+      </li>
+      <li class="capsule">
+        <div class="cell accent">
+          <a-progress :percent="target[1]['v0']/maxNum*100" :show-info="false" ></a-progress>
+        </div>
+        <div class="num">{{target[1]['v0']}}</div>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+import { Progress } from "ant-design-vue";
+export default {
+  components: {
+    AProgress: Progress
+  },
+  props: {
+    //展示值
+    target: {
+      type: Array,
+      required: true
+    },
+    maxNum: {
+      required: true
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.group {
+  display: flex;
+  align-items: center;
+  .name {
+    width: 50px;
+    height: 22px;
+    font-size: 16px;
+    font-family: Microsoft YaHei;
+    font-weight: 400;
+    line-height: 23px;
+    color: #FFF;
+    opacity: 0.6;
+    text-align: left;
+    overflow: hidden;
+    text-overflow:ellipsis;
+    white-space: nowrap;
+  }
+  .chart {
+    margin-left: 25px;
+    margin-bottom: 0px;
+    flex: 1;
+    .capsule {
+      display: flex;
+      margin-top: 2px;
+      &:first-child {
+        margin-top: 0px;
+      }
+      .cell {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        /deep/.ant-progress-inner {
+          height: 6px;
+          background-color: #343434!important;
+        }
+        /deep/.ant-progress-outer{
+          display: flex;
+        }
+        /deep/.ant-progress-bg {
+          height: 6px !important;
+          border: 1px solid rgba(0, 0, 0, 0);
+          background: linear-gradient(
+            270deg,
+            #8fd2ff 0%,
+            rgba(87, 140, 246, 0.66) 49%,
+            #5d4ef4 100%
+          );
+          opacity: 1;
+        }
+        &.accent {
+          /deep/.ant-progress-bg {
+            border: 1px solid rgba(0, 0, 0, 0);
+            background: linear-gradient(
+              270deg,
+              #fcb75b 0%,
+              rgba(240, 150, 81, 0.66) 49%,
+              #f26e52 100%
+            );
+            opacity: 1;
+          }
+        }
+      }
+      .num {
+        width: 58px;
+        height: 18px;
+        font-size: 16px;
+        font-family: Arial;
+        font-weight: 400;
+        line-height: 18px;
+        color: #ffffff;
+        opacity: 0.6;
+        text-align: right;
+      }
+    }
+  }
+}
+</style>

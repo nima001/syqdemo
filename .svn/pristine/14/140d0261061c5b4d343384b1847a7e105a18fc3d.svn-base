@@ -1,0 +1,243 @@
+<!-- 服务接入申请表单 -->
+<template>
+  <a-layout class="open-layout">
+    <div class="body">
+      <h2>基本信息</h2>
+      <a-form :form="step2form" layout="inline" labelAlign="left">
+        <a-row>
+          <a-col v-for="i in 4" :key="i" :span="12">
+            <a-form-item
+              :label="`参数 ${i}:`"
+              :labelCol="{span: 5}"
+              :wrapperCol="{span: 14}"
+              style="width:96%"
+            >
+              <a-input
+                :readOnly="!allow"
+                v-decorator="[
+                `info${i}`,
+                {
+                  rules: [
+                    {
+                      required: true,
+                      message: '请输入相关信息',
+                    },
+                    
+                  ],
+                  initialValue: formdata.info,
+                },
+              ]"
+                placeholder="请输入"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
+      <a-form :form="otherinfoform" layout="inline" labelAlign="left">
+        <h2 style="margin-top:10px">其他信息</h2>
+        <a-row>
+          <a-col :span="24">
+            <a-form-item
+              label="ip限制"
+              :labelCol="{span: 5}"
+              :wrapperCol="{span: 14}"
+              style="width:48%"
+            >
+              <a-input
+                  :readOnly="!allow"
+                v-decorator="[
+                `ip`,
+                {
+                  rules: [
+                    {
+                      required: true,
+                      message: '请输入ip地址',
+                    },
+                  ],
+                  initialValue: formdata.ip,
+                },
+              ]"
+                placeholder="请输入ip地址"
+              />
+            </a-form-item>
+          </a-col>
+          <span style="margin-left:10%">多个IP用小写的“;”分隔，如： 192.168.1.1；192.168.1.2</span>
+          <a-col :span="24">
+            <a-form-item
+              label="附件"
+              :labelCol="{span: 5}"
+              :wrapperCol="{span: 14}"
+              style="width:50%"
+            >
+              <a-upload
+                action="https://www.mocky.io/v2/5cc8019d300000980a055e76"
+                :multiple="true"
+                :file-list="fileList"
+                :disabled="!allow"
+                @change="fileuploadChange"
+              >
+                <a-button v-if="allow" style="margin-top:10px">
+                  <a-icon type="upload" />上传附件
+                </a-button>
+              </a-upload>
+            </a-form-item>
+          </a-col>
+        </a-row>
+      </a-form>
+      <div v-show="allow" class="formstepdiv">
+        <a-button type="primary" class="nextstep" @click="laststep">上一步</a-button>
+        <a-button type="primary" class="nextstep" @click="submitstep">提交申请</a-button>
+      </div>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import {
+  Layout,
+  Button,
+  Input,
+  Form,
+  Icon,
+  Table,
+  Row,
+  Col,
+  Upload
+} from "ant-design-vue";
+import {
+  apiModify,
+  serviceData
+} from "../../api/service";
+import { showError } from "../../../framework/utils";
+export default {
+  components: {
+    ALayout: Layout,
+    AButton: Button,
+    AInput: Input,
+    AIcon: Icon,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ATable: Table,
+    ARow: Row,
+    ACol: Col,
+    AUpload: Upload
+  },
+  props: {
+    allow:Boolean,
+  },
+  data() {
+    return {
+      //智能表单
+      step2form: this.$form.createForm(this),
+      otherinfoform: this.$form.createForm(this),
+      formdata: {},
+      fileList: [
+        {
+          uid: "-1",
+          name: "xxx.png",
+          status: "done",
+          url:
+            "https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png"
+        }
+      ],
+      ip: "",
+      formdataJson: ""
+    };
+  },
+  created(){
+    this.getActionData();
+  },
+  // activated() {
+  //   this.formdata = {};
+  //   this.formdataJson = "";
+  //   this.step2form.resetFields();
+  //   this.otherinfoform.resetFields();
+  //   this.getActionData();
+  // },
+
+  methods: {
+    //文件上傳改变
+    fileuploadChange(info) {
+      let fileList = [...info.fileList];
+
+      // 1. Limit the number of uploaded files
+      //    Only to show two recent uploaded files, and old ones will be replaced by the new
+      fileList = fileList.slice(-2);
+
+      // 2. read from response and show file link
+      fileList = fileList.map(file => {
+        if (file.response) {
+          // Component will show file.url as link
+          file.url = file.response.url;
+        }
+        return file;
+      });
+
+      this.fileList = fileList;
+    },
+    //上一步
+    laststep() {
+      this.$emit("changeCurrent", -1);
+    },
+    //提交
+    submitstep() {
+      let step2formflag = false;
+      let otherinfoformflag = false;
+      //提交操作
+      this.step2form.validateFields((err, values) => {
+        if (!err) {
+          step2formflag = true;
+          this.formdataJson = JSON.stringify(values);
+        }
+      });
+      this.otherinfoform.validateFields((err, values) => {
+        if (!err) {
+          otherinfoformflag = true;
+          this.ip = values.ip;
+        }
+      });
+      if (step2formflag && otherinfoformflag) {
+        this.$emit("changeCurrent", 1);
+      }
+    },
+    //获取智能表单数据及ip数据
+    getActionData() {
+      let data = {
+        appid: this.$store.getters.appInfo.id,
+        serviceid: this.$route.query.serviceId
+      };
+      serviceData(data)
+        .then(res => {
+          this.formdata = res.result;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.open-layout {
+  padding: 0 !important;
+  // width: 98%;
+  height: 100%;
+  .body {
+    width: 100%;
+    height: 100%;
+    // padding: 8px 10%;
+    margin: 0 auto;
+    overflow-y: auto;
+    background: #fff;
+    .formstepdiv {
+      width: 70%;
+      margin: 25px auto;
+      .nextstep {
+        margin-top: 5px;
+        width: 45%;
+        margin-right: 5%;
+      }
+    }
+  }
+}
+</style>

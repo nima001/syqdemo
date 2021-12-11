@@ -1,0 +1,166 @@
+<template>
+  <div class="container">
+    <div class="cell">
+      <a-input-group compact>
+        <a-select :value="input[0].type" :showArrow="false" @change="onInputTypeChange(0, $event)">
+          <a-select-option value="">值</a-select-option>
+          <a-select-option value="$"><custom-icon type="fx"/></a-select-option>
+          <a-select-option value="#"><custom-icon color="#f39c2b" type="fx"/></a-select-option>
+        </a-select>
+        <template v-if="input[0].type">
+          <a-input :value="value[0]"
+            read-only
+            @click="showExpr(0)"
+          />
+        </template>
+        <a-input-number v-else class="input-value"
+          v-model="input[0].value"
+          placeholder="起始值(包含)"
+        />
+      </a-input-group>
+    </div>
+    <span class="sign">~</span>
+    <div class="cell">
+      <a-input-group compact>
+        <a-select :value="input[1].type" :showArrow="false" @change="onInputTypeChange(1, $event)">
+          <a-select-option value="">值</a-select-option>
+          <a-select-option value="$"><custom-icon type="fx"/></a-select-option>
+          <a-select-option value="#"><custom-icon color="#f39c2b" type="fx"/></a-select-option>
+        </a-select>
+        <template v-if="input[1].type">
+          <a-input :value="value[1]"
+            read-only
+            @click="showExpr(1)"
+          />
+        </template>
+        <a-input-number v-else class="input-value"
+          v-model="input[1].value"
+          placeholder="结束值(不包含)"
+        />
+      </a-input-group>
+    </div>
+    <equation-editor v-if="showExprEditor" :selfFields='contextFields' :fnData="optInput && optInput.value" namespace="query" @finish="onFinish"/>    
+  </div>
+</template>
+<script>
+import {InputNumber,Modal, Icon, Input, Select } from "ant-design-vue";
+import CustomIcon from "@/framework/components/CustomIcon";
+export default {
+  name:"NumberBetween",
+  components:{
+    AInputNumber: InputNumber,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    CustomIcon,
+    AModal: Modal,
+    AIcon: Icon,
+    EquationEditor:() => import('@person/components/EquationEditor/index')
+  },  
+  props: {
+    cond: {
+      type: Object,
+      required: true
+    }
+  },
+  inject:['contextFields'],
+  data() {
+    return {
+      input: this.initInput(this.cond.value),
+      oldValue: [],
+      showExprEditor: false,
+      optInput: undefined,
+    };
+  },
+  computed:{
+    value(){
+      return this.input.map(item => {
+        let { type, value } = item;
+        if(type && value){
+          return type + '{' + value + '}';;
+        }else{
+          return value ;
+        }
+      });
+    }
+  },
+  watch: {
+    value(value){
+      this.cond.value = value;
+    },
+  },
+  created(){
+    if(Array.isArray(this.cond.value)){
+      this.data1 = this.cond.value[0];
+      this.data2 = this.cond.value[1];
+    }else{
+      this.date1 = this.cond.value;
+    }
+  },
+  methods: {
+    handleChange() {
+      this.cond.value = [this.data1, this.data2];
+    },
+    handleChangeTwo(e) {
+      this.cond.value = [this.data1, this.data2];
+    },
+    initInput(v){
+      if(Array.isArray(v)){
+        return [this.getInput(v[0]), this.getInput(v[1])];
+      }else{
+        return [this.getInput(v), this.getInput()];
+      }
+    },
+    onInputTypeChange(index, type){
+      let input = this.input[index];
+      if(!input.type != !type){
+        let v = this.oldValue[index];
+        this.oldValue[index] = input.value;
+        input.value = v;
+      }
+      input.type = type;
+    },
+    showExpr(index){
+      this.showExprEditor = true;
+      this.optInput = this.input[index];
+    },
+    onFinish(type, data) {
+      this.showExprEditor = false;
+      if (type == "ok") {
+        this.optInput.value = data;
+      }
+    },
+    getInput(v){
+      if(typeof(v) == 'string'){
+        if(v.startsWith('${') && v.endsWith('}')){
+          return { type: '$', value: v.substring(2, v.length-1) };
+        }else if(v.startsWith('#{') && v.endsWith('}')){
+          return { type: '#', value: v.substring(2, v.length-1) };
+        }
+      }
+      return { type: '', value: v };
+    }    
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  width: 480px;
+  display: flex;
+  .sign{
+    line-height: 32px;
+    padding: 0px 5px;
+  }
+  .cell{
+    flex:1;
+    .ant-input-group-compact{
+      display: flex;
+      .input-value{
+        flex: auto;
+        min-width: 1px;
+      }
+    }
+  }
+}
+</style>

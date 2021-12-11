@@ -1,0 +1,47 @@
+export default {
+  created(){
+    this.$nextTick(() => {
+      const dom = this.$refs.map;
+      if(dom){
+        for(let area of dom.getElementsByTagName('g')){
+          const adcode = area.getAttribute('adcode'), 
+            title = area.getAttribute('title'),
+            offset = area.getAttribute('title-offset');
+          area.addEventListener('click', this.createClickEvent({adcode, title, elem: area}));
+          if('infinity' != offset){
+            this.addText(dom, area.getBBox(), title, offset);
+          }
+        }
+      }
+    })
+  },
+  methods: {
+    createClickEvent(area){
+      return (e) => {
+        this.$emit('click', {...area, event: e});
+      }
+    },
+    addText(svg, rect, text, offset){
+      if(!text){
+        return;
+      }
+      const fontSize = 18, spacing = 1;
+      let offsetX = 0, offsetY = 0;
+      if(offset){
+        let offsetArr = offset.split(' ');
+        offsetX = Number(offsetArr[0]) || 0;
+        offsetY = Number(offsetArr[1]) || 0;
+      }
+      let t = svg.ownerDocument.createElementNS('http://www.w3.org/2000/svg', 'text');
+      t.setAttribute("x", rect.x + rect.width/2 - (fontSize + spacing) * text.length / 2 + offsetX);
+      t.setAttribute("y", rect.y + rect.height/2 + fontSize / 2 + offsetY);
+      t.setAttribute("font-size", fontSize);
+      t.setAttribute("letter-spacing", spacing);
+      t.setAttribute("font-weight", "bold");
+      t.setAttribute('fill', '#FFF');
+      t.setAttribute('pointer-events', 'none');
+      t.innerHTML = text;
+      svg.appendChild(t);
+    }
+  }
+}

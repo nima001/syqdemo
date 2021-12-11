@@ -1,0 +1,267 @@
+<template>
+  <div class="content">
+    <div class="addAndSearch">
+      <div>
+        <a-button type="primary" @click="add()">新增</a-button>
+      </div>
+      <div>
+        <a-input-search placeholder="输入模板名称搜索" enter-button="搜索" @search="onSearch" />
+      </div>
+    </div>
+    <div class="table">
+      <table width="100%" class="dataTabble">
+        <thead>
+          <tr>
+            <th width="10%">序号</th>
+            <th width="20%">模板名称</th>
+            <th width="20%">分类</th>
+            <th width="20%">主题</th>
+            <th width="30%">操作</th>
+          </tr>
+        </thead>
+        <draggable
+          :force-fallback="true"
+          :scrollSensitivity="10"
+          :disabled="this.disabled"
+          v-model="data"
+          :animation="200"
+          element="tbody"
+          :move="getdata"
+          @update="datadragEnd"
+        >
+          <tr v-for="(item,id) in data" :key="item.id">
+            <td>{{item.id}}</td>
+            <td>{{item.name}}</td>
+            <td v-if="item.type==1">区域</td>
+            <td v-else-if="item.type==2">个体</td>
+            <td v-else-if="item.type==3">专题</td>
+            <td v-if="item.subject==1">教育</td>
+            <td v-else-if="item.subject==2">卫生</td>
+            <td v-else-if="item.subject==3">开发区</td>
+            <td v-else-if="item.subject==4">行政</td>
+            <td v-else-if="item.subject==5">事业</td>
+            <td v-else-if="item.subject==99">其他</td>
+            <td class="action">
+              <span>
+                <a href="javascript:;" @click="edit(item.id)">编辑</a>
+              </span>
+              <span>
+                <a href="javascript:;" @click="push(scopepath,item.id)">分析范围管理</a>
+              </span>
+              <span>
+                <a @click="push(contentpath,item.id)">分析内容管理</a>
+              </span>
+              <a-popconfirm title="确定删除吗?" @confirm="() => onDelete(item.id)">
+                <a href="javascript:;">删除</a>
+              </a-popconfirm>
+            </td>
+          </tr>
+        </draggable>
+      </table>
+      <a-modal v-model="visible" title="新增/编辑" @ok="handleOk">
+        <a-form :form="form" :label-col="{ span: 5 }" :wrapper-col="{ span: 12 }">
+          <a-form-item label="模板名称">
+            <a-input v-decorator="['name', { rules: [{ required: true, message: '请输入模板名称!' }] }]" />
+          </a-form-item>
+          <a-form-item label="分类">
+            <dictselect
+              @change="changeAnslyzetype"
+              placeholder="请选择分类"
+              :dict="'analyze.report.analyzetype'"
+            />
+          </a-form-item>
+          <a-form-item label="主题">
+            <dictselect
+              @change="changeSubject"
+              placeholder="请选择主题"
+              :dict="'analyze.report.analyzesubject'"
+            />
+          </a-form-item>
+          <a-form-item label="分析范围类型">
+            <dictselect
+              @change="changeScope"
+              placeholder="请选择分析范围类型"
+              :dict="'analyze.report.analyzescopetype'"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </div>
+  </div>
+</template>
+<script>
+import {
+  Button,
+  InputSearch,
+  Table,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Popconfirm,
+} from "ant-design-vue";
+import dictselect from "@/framework/components/DictSelect";
+import draggable from "vuedraggable";
+export default {
+  components: {
+    AButton: Button,
+    ATable: Table,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    AInputSearch: Input.Search,
+    ASelect: Select,
+    APopconfirm: Popconfirm,
+    dictselect,
+    draggable,
+  },
+  props: {
+    data: {
+      type: Array,
+    },
+  },
+  data() {
+    return {
+      visible: false,
+      id: 0,
+      beforeid: 0,
+      scopetype: 0,
+      subject: 0,
+      anslyzetype: 0,
+      scopepath: "scope",
+      contentpath: "content",
+      disabled: false,
+      form: this.$form.createForm(this, { name: "analysisForm" }),
+    };
+  },
+  methods: {
+    //拖动中
+    getdata(event) {
+      this.beforeid = event.draggedContext.element.id; //获取源变更元素id
+    },
+    //排序拖动结束
+    datadragEnd(event) {
+      let where = 0;
+      let afterid = 0;
+      if (event.oldIndex < event.newIndex) {
+        //更新后索引增大，往下,newxIndex和oldIndex从0开始
+        where = -1; //代表移动到目标元素的下方
+        afterid = this.getidbyIndex(Number(event.newIndex - 1)); //寻找目标id
+        this.sort({ from: this.beforeid, to: afterid, where: where }); //调用排序方法
+      } else if (event.oldIndex > event.newIndex) {
+        //更新后索引变小，往上
+        where = 1; //代表移动到目标元素的上方
+        afterid = this.getidbyIndex(Number(event.newIndex + 1)); //寻找目标id
+        this.sort({ from: this.beforeid, to: afterid, where: where }); //调用排序方法
+      } else {
+        where = 0; //位置不变
+      }
+    },
+    getidbyIndex(index) {
+      return this.data[index].id;
+    },
+    sort(data) {
+      this.$emit("sort", data);
+    },
+    //新增按钮点击事件
+    add() {
+      this.id = 0;
+      this.showModal();
+    },
+    //删除,实际应该调用接口
+    onDelete(id) {
+      this.$emit("delete", id);
+    },
+    //查询
+    onSearch(value) {
+      if (value != "") {
+        this.disabled = true;
+      } else {
+        this.disabled = false;
+      }
+      this.$emit("search", value);
+    },
+    //编辑按钮点击事件
+    edit(id, type) {
+      this.id = id;
+      this.showModal();
+    },
+    push(path, id) {
+      this.$router.push({ path: path, query: { id: id } });
+    },
+    showModal() {
+      this.visible = true;
+    },
+    changeScope(value) {
+      this.scopetype = value;
+    },
+    changeSubject(value) {
+      this.subject = value;
+    },
+    changeAnslyzetype(value) {
+      this.anslyzetype = value;
+    },
+    //确定
+    handleOk(e) {
+      e.preventDefault();
+      //验证输入
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          //输入正确
+          this.$emit("save", {
+            name: values.name,
+            scopetype: this.scopetype,
+            subject: this.subject,
+            anslyzetype: this.anslyzetype,
+            id: this.id,
+          });
+        }
+        //重置所有组件
+        this.form.resetFields();
+        this.visible = false;
+      });
+    },
+  },
+};
+</script>
+
+<style lang="less" scoped>
+.content {
+  height: 100%;
+  padding: @layout-space-base;
+  background-color: @white;
+  .addAndSearch {
+    display: flex;
+    justify-content: space-between;
+    margin: 12px;
+  }
+  .action {
+    & a:not(:nth-child(4)) {
+      margin-right: 15px;
+      color: @primary-color;
+    }
+  }
+  thead {
+    background-color: rgb(250, 250, 250);
+    border-bottom: 1px solid #e8e8e8;
+  }
+  tbody {
+    tr:hover {
+      background-color: rgb(251, 229, 229);
+    }
+  }
+  tbody:hover {
+    cursor: pointer;
+  }
+  tr {
+    border-bottom: 1px solid #e8e8e8;
+    transition: background-color 0.4s ease;
+  }
+  th:not(:last-child),
+  td:not(:last-child) {
+    padding: 6px 6px;
+    text-align: center;
+  }
+}
+</style>

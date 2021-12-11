@@ -1,0 +1,943 @@
+<template>
+  <div class="org-user-select">
+    <div class="choose-panel">
+      <div class="header">
+        <div class="search-bar">
+          <a-input placeholder="输入关键词搜索" v-model="searchkey" @change="onSearch" @pressEnter="onSearch">
+            <a-icon slot="suffix" :type="searchkey ? 'close-circle' : 'search'" @click="clearSearch" />
+          </a-input>
+        </div>
+      </div>
+      <div class="body">
+        <div class="choose-data">
+          <a-breadcrumb v-if="!searchkey" class="org-path" separator=">">
+            <a-breadcrumb-item v-for="(item, index) in orgPath" :key="item.id">
+              <a @click="showNode(item, index)">
+                <template v-if="item.id==0">
+                  <!-- <a-icon type="home" /> -->
+                  组织架构
+                </template>
+                <template v-else>{{item.name}}</template>
+              </a>
+            </a-breadcrumb-item>
+          </a-breadcrumb>
+          <div class="data-list">
+            <a-spin :spinning="loading">
+              <empty-data v-if="!loading && dataList.length == 0"/>
+              <ul v-else @scroll="onScroll" >
+                <li v-for="(item, index) in dataList" :key="item.id">
+                  <div class="item-meta" @click="onSelect(item)"
+                    :class="{checked: item.checked, single: !isMulti, uncheck: _disable(item) == -1}">
+                    <div class="content">
+                      <a-checkbox v-if="isMulti" :checked="item.checked" :disabled="!!_disable(item)"/>
+                      <custom-icon :type="item.type" :object="item.data" class="icon"/>
+                      <span class="text" :title="item.name">{{ item.name }}</span>
+                    </div>
+                    <a v-if="!searchkey && item.type != 'user'" @click.stop="showNode(item, -1)" class="enter">下级</a>
+                  </div>
+                  <a-spin v-if="dataList.length-1 == index && query.total > query.count" class="loading-more" tip="加载中...">
+                    <a-icon slot="indicator" type="loading"/>
+                  </a-spin>
+                </li>
+              </ul>
+            </a-spin>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div v-if="isMulti" class="selected-panel">
+      <div class="header">
+        <div class="select-desc">
+          <span class="tag">已选{{this.mode == 'user' ? '用户' : (this.mode == 'orgtree' ? '节点' : '单位')}}</span>
+          <span class="desc">{{`${this.selectList.length}/${this.maxSelect}`}}</span>
+        </div>
+        <a class="select-clear" @click="resetSelect()"><a-icon type="delete"/>清空</a>
+      </div>
+      <div class="body">
+        <div class="selected-data">
+          <tags class="list" v-if="selectList.length"
+            v-model="selectList" 
+            :text="(item) => mode == 'user' ? item.username : item.name"
+            @remove="removeSelect"
+          />
+          <empty-data v-else :tips="`请选择${this.mode == 'user' ? '用户' : (this.mode == 'orgtree' ? '节点' : '单位')}`"/>
+        </div>
+      </div>
+    </div>
+    <div class="footer">
+      <div class="left" v-if="maxSelect > 1">
+        <a-checkbox :checked="checkAll" @change="onCheckAll">全选</a-checkbox>
+      </div>
+      <div class="right">
+        <a-button @click="onFinish('cancel')">取消</a-button>
+        <a-button type="primary" @click="onFinish('ok')">确认</a-button>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Breadcrumb, Button, Checkbox, Icon, Spin, Input} from "ant-design-vue"
+import { treeroot, treepath, listnode, treequery, organization, orgquery} from '@/person/api/org'
+import { userquery, deptuserquery } from '@/person/api/user'
+import EmptyData from "@framework/components/EmptyData";
+import CustomIcon from "@framework/components/CustomIcon";
+import Tags from '@framework/components/Tags';
+
+/**
+ * 选择组织树/组织/用户控件
+ * 外部事件 finish(type, selectList) 
+ * 参数见props
+ * notes: 部分配置参数还未实现
+ * @author sunwen
+ */
+let canceltoken = 0;
+let searchDelayTimer = 0;
+
+export default {
+  props: {
+    mode: { //模式： orgtree(组织树)/org(组织)/dept(内设)/user(用户)
+      type: String,
+      default: 'orgtree'
+    },
+    maxSelect: { //最大选择数，当设置为1时 会改成单选模式，可以设置alwaysMulti为true禁止该行为
+      type: Number,
+      default: 1,
+    },
+    alwaysMulti: { //是否始终为多选模式
+      type: Boolean,
+      default: false,
+    },
+    selected: { //已选列表(watch sync)
+      type: Array,
+      default: () => [],
+    },
+    disabledKeys: { //禁选的id(watch)
+      type: Array,
+      default: () => [],
+    },
+    defaultTree: { //默认组织树
+      type: Number,
+      default: undefined,
+    },
+    defaultRoot: {//默认显示的顶级节点(watch)
+      type: [String, Number],//String 组织ID Number节点ID
+      default: 0
+    },
+    // defaultNode: { //默认显示节点
+    //   type: Number,
+    //   default: undefined
+    // },
+    usePermit: { //是否按照用户权限来限制组织树节点
+      type: Boolean,
+      default: true,
+    },
+    showDept: { //显示内设机构（只在user模式下有效）
+      type: Boolean,
+      default: false
+    },
+    rootSelectable: { //顶级节点是否可选
+      type: Boolean,
+      default: false,
+    },
+    selectUserWithOrg: { //选择用户时是否可按组织选择(暂未实现)
+      type: Boolean,
+      default: false
+    },
+    orgFilter: {//单位过滤（目前只支持等于比较）
+      type: Object,
+      default: () => {},
+    }, 
+    userFilter: {//用户过滤（user模式下有效，目前只支持等于比较）
+      type: Object,
+      default: () => {},
+    }, 
+  },
+  components: {
+    EmptyData, CustomIcon,
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    AInput: Input,
+    ACheckbox: Checkbox ,
+    AButton: Button,
+    ASpin: Spin,
+    AIcon: Icon,
+    Tags
+	},
+  data() {
+    return {
+      orgPath: [],
+      dataList: undefined,
+      loading: true,
+      searchkey: undefined,
+      query: {
+        count: 0,
+        total: 0,
+      },
+      selectList: [...this.selected],
+      checkAll: false,
+    };
+  },
+  created() {
+    this.initData();
+  },
+  watch:{
+    //TODO 部分数据同步修改处理
+    defaultRoot(){
+      this.clearSearch();
+      this.resetSelect();
+      this.initData();
+    },
+    selected(selected){
+      this.clearSearch();
+      this.resetSelect(selected);
+    },
+    disabledKeys(keys){
+      this.dataList = [...this.dataList];
+    }
+  },
+  computed:{
+    isMulti(){//是否多选
+      return this.alwaysMulti || this.maxSelect > 1;
+    },
+    unittypes(){
+      let str = this.$store.getters.getConfig('unittype.unit');
+      return str ? JSON.parse(str) : [1, 2, 3, 4, 5]
+    },
+    depttypes(){
+      let str = this.$store.getters.getConfig('unittype.dept');
+      return str ? JSON.parse(str) : [9]
+    }
+  },
+  methods: {
+    /************** utils *************/
+    _findSelectIndex(item){
+      if(this.mode == 'orgtree'){
+        return this.selectList.findIndex(i => i.id == item.id)
+      }else if(item.data){
+        return this.selectList.findIndex(i => i._id == item.data._id)
+      }else{
+        return -1;
+      }
+    },
+    _resoreChecked(list){
+      return (list || []).map(item => {
+        if(!this._disable(item)){
+          item.checked = this._findSelectIndex(item) >= 0;
+        }
+        return item;
+      });
+    },
+    _disable(item){//判断数据是否禁选 0 可选 1 禁选(主动) -1 禁选(被动)
+			if(this.mode == 'orgtree'){
+				return this.disabledKeys.indexOf(item.id) >= 0 ? 1 : 0; 
+      }
+			// if(this.mode == 'user'  ){
+			// 	if(this.selectUserWithOrg && item.type == 'org'){
+			// 		return true;
+			// 	}
+      // }
+      if(item.type != this.mode || !item.data || item.disabled === true){
+        return -1
+      }
+      return this.disabledKeys.indexOf(item.data._id) >= 0 ? 1 : 0; 
+    },
+    /************** event/operate *************/
+    onFinish(type){
+      if(type == 'ok' && this.selectList.length == 0){
+        return;
+      }
+      let list = [...this.selectList];
+      if(type == 'ok'){
+        this.$emit('update:selected', list);
+      }
+      this.$emit('finish', type, list);
+    },
+    onCheckAll(){
+      if(this.checkAll){//取消全选
+        this.checkAll = false;
+        this.dataList.forEach(item => {
+          if(item.checked){
+            item.checked = false;
+            this.selectList.splice(this._findSelectIndex(item), 1);
+          }
+        })
+        this.dataList = [...this.dataList];
+      }else{
+        let list = this.dataList.filter(item => !item.checked && !this._disable(item));
+        let residual = (this.query.total || 0) - (this.query.count || 0), selectCount = list.length + residual;
+        if(this.maxSelect - this.selectList.length - selectCount <= 0){
+           this.$message.info(`您最多只能选${this.maxSelect}个`);
+           return;
+        }
+        if(residual > 0){
+          this.query.loading = true;
+          this.query.nextPage(++canceltoken, true).then((rows) => {
+            this.query.loading = false;
+            let addChecks = list.map(item => {
+              item.checked = true;
+              return this.mode == 'orgtree' ? item : item.data;
+            });
+            rows = this._resoreChecked(rows);
+            rows.forEach(item => {
+              if(item.checked === false){//可选的且未选
+                item.checked = true;
+                addChecks.push(this.mode == 'orgtree' ? item : item.data);
+              }
+            });
+            this.checkAll = true;
+            this.selectList = [...this.selectList, ...addChecks];
+            this.dataList = [...this.dataList, ...rows];
+          }).catch(err => {
+          });
+        }else{
+          let addChecks = list.map(item => {
+            item.checked = true;
+            return this.mode == 'orgtree' ? item : item.data;
+          });
+          this.selectList = [...this.selectList, ...addChecks];
+          this.dataList = [...this.dataList];
+          this.checkAll = true;
+        }
+      }
+    },
+    onSelect(item){
+			if(this._disable(item)){
+				return;
+			}
+      let list = this.dataList;
+      if(item.checked){//取消选中
+        item.checked = false;
+        this.checkAll = false;
+        let index = this._findSelectIndex(item);
+        if(index >= 0){
+          this.selectList.splice(index, 1);
+        }
+      }else{
+        let data = this.mode == 'orgtree' ? item : item.data;
+        if(!data){
+          return;
+        }
+        if(this.isMulti){//多选有复选框
+          if(this.selectList.length >= this.maxSelect){
+            this.$message.info(`您最多只能选${this.maxSelect}个`);
+            return;
+          }
+          this.selectList.push(data);
+        }else{
+          list.forEach(e => {
+            if(e.checked){
+              e.checked = false;
+            }
+          });
+          this.selectList = [data];
+        }
+        item.checked = true;
+      }
+      this.dataList = [...list];
+    },
+    removeSelect(item){
+      let listItem = this.dataList.find(i => this.mode == 'orgtree' ? i.id == item.id : (i.data && i.data._id) == item._id);
+      if(listItem){
+        listItem.checked = false;
+        this.dataList = [...this.dataList];
+        this.checkAll = false;
+      }
+    },
+    resetSelect(selected){
+      selected = selected || [];
+      let add = false, removed = false;
+      this.dataList.forEach(item => {
+        let checked = selected.findIndex(i => this.mode == 'orgtree' ? item.id == i.id : item.data._id == i._id) >= 0;
+        if(checked != item.checked){
+          if(checked){
+            add = true;
+          }else{
+            removed = true;
+          }
+          item.checked = checked;
+        }
+      });
+      this.selectList = [...selected];
+      if(removed){
+        this.checkAll = false;
+      }
+      if(add || removed){
+        this.dataList = [...this.dataList];
+      }
+		},
+    onScroll(e){
+      if(!this.query.loading && this.query.total > this.query.count){
+        if(e.target.scrollHeight - e.target.clientHeight - e.target.scrollTop <= 34){//剩余可滚动区域小于底部加载中高度
+          this.query.loading = true;
+          this.query.nextPage(++canceltoken).then(list => {
+            this.query.loading = false;
+            this.dataList = [...this.dataList, ...this._resoreChecked(list)];
+          }).catch(err => {
+          })
+        }
+      }
+    },
+    onSearch(e){
+      let searchkey = e.target.value.trim();
+      if(searchkey){
+        let token = ++canceltoken;
+        this.dataList = [];
+        this.loading = true;
+        if(searchDelayTimer){
+          clearTimeout(searchDelayTimer);
+        }
+        //延时500毫秒发起请求，减少连续输入时请求数
+        searchDelayTimer = setTimeout(() => {
+          this.doSearch(token, searchkey).then(data => {
+            this.loading = false;
+            this.query = data.query;
+            this.dataList = data.list;
+          }).catch(err => {
+          });
+        }, 500);
+      }else{
+        this.clearSearch();
+      }
+    },
+    clearSearch(){
+      if(searchDelayTimer){
+        clearTimeout(searchDelayTimer);
+        searchDelayTimer = 0
+        this.searchkey = undefined;
+        this.dataList = [];
+        this.query = {};
+        let index = this.orgPath.length - 1;
+        if(index >= 0){
+          this.showNode(this.orgPath[index], index);
+        }
+      }
+    },
+    /************** data request *************/
+    initData(){
+      if(this.defaultRoot){//
+        if(typeof(this.defaultRoot) == 'number'){
+          //TOOD 加载指定节点（服务端接口不支持根据ID获取）
+        }else{ //根据组织id获取节点加载目录节点
+          treequery({
+            allsub: true,
+            pagesize: 1,
+            dataid: this.defaultRoot
+          }).then(({result}) => {
+            if(result.rows.length){
+              let node = result.rows[0];
+              this.orgPath = [{id: node.id, name: node.data.name, type: 'org', data: node.data}];
+              this.showNode(this.orgPath[0], 0);
+            }else{
+              this.$message.error('指定的组织不在目录中');
+            }
+          }).catch(err => {
+          })
+        }
+        return
+      }
+      if(this.usePermit){//不使用权限，直接加载顶级节点
+        this.loadRoot().then(root => {
+          if(root.children.length == 1 && !this.rootSelectable){
+            let path = [];
+            // if(this.rootSelectable){//顶级节点可选
+            //   path.push(root);
+            // }
+            let s = root.children[0];
+            path.push({
+              id: s.id, 
+              name: s.data ? s.data.name : s.name, 
+              type: s.data ? 'org' : undefined, 
+              data: s.data
+            });
+            this.orgPath = path;
+            let index = path.length - 1;
+            this.showNode(this.orgPath[index], index);
+          }else{
+            this.loading = false;
+            this.orgPath = [root];
+            this.dataList = this._resoreChecked(root.children);
+          }
+        }).catch(err => {
+        });
+      }else{
+        this.orgPath = [{id: 0}];
+        this.showNode(this.orgPath[0], 0);
+      }
+    },
+    showNode(node, pathIndex){
+      if(pathIndex == 0 && node.id == 0 && this.usePermit){//请求root数据
+        this.loading = true;
+        this.loadRoot().then(({children}) => {
+          this.loading = false;
+          this.query = {};
+          this.orgPath.splice(pathIndex + 1, this.orgPath.length - pathIndex + 1);
+          this.dataList = this._resoreChecked(children);
+          this.checkAll = false;
+        }).catch((error) => {
+        });
+      }else{
+        this.loading = true;
+        this.loadChildren(node).then(data => {
+          this.loading = false;
+          if(pathIndex >= 0){
+            this.orgPath.splice(pathIndex + 1, this.orgPath.length - pathIndex + 1);
+          }else{
+            this.orgPath.push(node);
+          }
+          this.query = data.query || {};
+          this.dataList = data.list;
+          this.checkAll = false;
+        }).catch(err => {
+        });
+      }
+    },
+    loadRoot(){
+      let token = ++canceltoken;
+      return treeroot(this.defaultTree).then(({result: root}) => {
+        if(canceltoken == token){
+          let children = root.children;
+          root.children = children && children.map(ele => {
+            if(ele.data){
+              ele.type = 'org';
+              if(ele.data.name){
+                ele.name = ele.data.name;
+              }
+            }
+            return ele;
+          })
+          return root;
+        }else{
+          return Promise.reject('cancel');
+        }
+      });
+    },
+    loadChildren(node){
+      let token = ++canceltoken;
+      let requestList = [];
+       //判断是否加载内设节点
+      if((node.type == 'dept' || node.type == 'org') 
+        && (this.mode == 'dept' || this.mode == 'user' && this.showDept)){
+        requestList.push(orgquery({
+          treeid: this.defaultTree,
+          // nodeid: this.usePermit ? 0 : undefined,//内设不在目录上不加权限
+          suporgid: node.data._id,
+          unittypes: this.depttypes,//查询内设等指定单位
+          pagesize: 50,//FIXME 内设科室暂定最多50条
+        }).then(({result}) => {
+          if(canceltoken == token){
+            return result.rows.map(ele => ({id: ele._id, name: ele.name, type: 'dept', data: ele}))
+          }else{
+            return Promise.reject('cancel');
+          }
+        }))
+      }else{
+        requestList.push(Promise.resolve([]));
+      }
+      //判断是否加载下级节点
+      if(node.id >= 0){
+        requestList.push(listnode(node.id, this.defaultTree).then(({result}) => {
+          if(canceltoken == token){
+            let children = this.treeNodeFilter(result, true).map(ele => {
+              if(ele.data){
+                ele.type = 'org';
+                if(ele.data.name){
+                  ele.name = ele.data.name;
+                }
+              }
+              return ele;
+            });
+            return children;
+          }else{
+            return Promise.reject('cancel');
+          }
+        }))
+      }else{
+        requestList.push(Promise.resolve([]));
+      }
+      //判断是否加载用户
+      if((node.type == 'org' || node.type == 'dept') && this.mode == 'user'){
+        let query, params = {
+          scope: 'ORG',
+          treeid: this.defaultTree,
+          nodeid: this.usePermit ? 0 : undefined,
+          orgid: node.data._id,
+          properties: this.userFilter,
+        };
+        if(node.type == 'dept'){
+          query = this.createQuery('deptuser', params);
+        }else{
+          params.treeid = this.defaultTree;
+          query = this.createQuery('user', params);
+        }
+        requestList.push(query.nextPage(token).then((list) => ({list, query})));
+      }
+      return Promise.all(requestList).then(([depts, nodes, users]) =>{
+        if(users){
+          users.list = this._resoreChecked([...depts, ...nodes, ...users.list]);
+          return users;
+        }else{
+          return {
+            list: this._resoreChecked([...depts, ...nodes])
+          }
+        }
+      })
+    },
+    doSearch(canceltoken, searchkey){
+      if(this.mode == 'user'){
+        let nodeid, orgid;
+        if(this.defaultRoot){
+          if(typeof(this.defaultRoot) == 'number'){
+            nodeid = this.defaultRoot;
+          }else{
+            orgid = this.defaultRoot;
+          }
+        }else if(this.usePermit){
+          nodeid = 0;
+        }
+        let query = this.createQuery('user', {
+          treeid: this.defaultTree,
+          orgid, 
+          nodeid,
+          scope: 'ORG',
+          searchkey,
+          properties: this.userFilter,
+        })
+        return query.nextPage(canceltoken).then((list) => ({query, list: this._resoreChecked(list)}));
+      }else if(this.mode == 'org'){
+        let nodeid, suporgid;
+        if(this.defaultRoot){
+          if(typeof(this.defaultRoot) == 'number'){
+            nodeid = this.defaultRoot;
+          }else{
+            suporgid = this.defaultRoot;
+          }
+        }else if(this.usePermit){
+          nodeid = 0;
+        }
+        let query = this.createQuery('org', {
+          treeid: this.defaultTree,
+          nodeid,
+          suporgid,
+          searchkey,
+          unittypes: this.unittypes,
+          properties: this.orgFilter,
+        });
+        return query.nextPage(canceltoken).then((list) => ({ query, list: this._resoreChecked(list) }))
+      }else if(this.mode == 'orgtree'){
+        let pid;
+        if(this.defaultRoot && typeof(this.defaultRoot) == 'number'){
+          pid = this.defaultTree;
+        }
+        let query = this.createQuery('orgtree', {
+          treeid: this.defaultTree,
+          allsub: true,
+          pid,
+          searchkey,
+        })
+        return query.nextPage(canceltoken).then((list) => ({
+          query, 
+          list: this._resoreChecked(this.treeNodeFilter(list)) 
+        }))
+      }else{
+        //TODO 选择内设时搜索暂不处理
+        return Promise.resolve({list: []});
+      }
+    },
+    treeNodeFilter(list, mark){//组织树节点过滤，mark是否标记 列子节点时存在下级节点，数据不过滤，只做禁选
+      if(this.orgFilter){
+        let arr = [];
+        (list || []).forEach((item) => {
+          console.log(item.name);
+          if(item.data && !this.matchFilter(item.data, this.orgFilter)){
+            if(mark){//只是标记，设置为禁用
+              item.disabled = true;
+            }else{
+              return;
+            }
+          }
+          arr.push(item);
+        });
+        return arr;
+      }
+      return list || [];
+    },
+    matchFilter(data, filter){//手写过滤条件匹配
+      let matched = true;
+      for(let name in filter){
+        let v = filter[name];
+        if(v){
+          let _v = data[name];
+          if(Array.isArray(_v)){
+            if(Array.isArray(v)){//都是数组，值数组中有一个在条件数组中即可
+              return _v.some(item => {
+                return v.findIndex(e => e === item) >= 0;
+              })
+            }else{//值为数组时，只要有其中一项等于条件
+              matched = _v.findIndex(e => e === v) >= 0;
+            }
+          }else if(Array.isArray(v)){//in查询
+            matched = v.findIndex(e => e === _v) >= 0;
+          }else{
+            matched = v === _v;
+          }
+          if(!matched){
+            return matched;
+          }
+        }
+      }
+      return matched;
+    },
+    createQuery(type, params){
+      params.pagesize = 50;
+      let query = { count: 0, total: 0 };
+      query.nextPage = function(token, all){
+        let slice = 0;
+        if(params.pagenum){
+          params.needtotal = false;
+          if(all){//加载剩余所有
+            let residual = query.total - query.count;
+            if(residual <= params.pagesize){//剩余条数小于一页
+              params.pagenum ++;
+            }else if(query.count >= residual){//剩余条数小于以加载的数据
+              params.pagesize = query.count;
+              params.pagenum = 2;
+            }else{
+              slice = query.count;
+              params.pagesize = query.total;
+              params.pagenum = 1;
+            }
+          }else{
+            params.pagenum ++;
+          }
+        }else{
+          params.pagenum = 1;
+          params.needtotal = true;
+        }
+        let request;
+        if(type == 'deptuser'){
+          request = deptuserquery(params);
+        }else if(type == 'user'){
+          request = userquery(params);
+        }else if(type == 'orgtree'){
+          request = treequery(params);
+        }else if(type == 'org'){
+          request = orgquery(params);
+        }else{
+          request = Promise.resolve({});
+        }
+        return request.then(({result}) => {
+          if(canceltoken == token){
+            let rows = result.rows;
+            if(slice > 0){
+              rows = rows.length > slice ? rows.slice(slice, rows.length) : [];
+            }
+            if(type == 'user' || type == 'deptuser'){
+              rows = rows.map(ele => ({id: ele._id, name: ele.username, type: 'user', data: ele}));
+            }else if(type == 'org'){
+              rows = rows.map(ele => ({id: ele._id, name: ele.name, type: 'org', data: ele}));
+            }else{
+              rows = rows.map(ele => {
+                if(ele.data){
+                  ele.type = 'org';
+                  if(ele.data.name){
+                    ele.name = ele.data.name;
+                  }
+                }
+                return ele;
+              })
+            }
+            query.count += rows.length;
+            if(rows.length == 0){//服务器数据容错，防止死循环加载
+              query.total = query.count
+            }else if(result.total > 0){
+              query.total = result.total;
+            }
+            return rows;
+          }else{
+            return Promise.reject('cancel');
+          }
+        })
+      }
+      return query;
+    },
+  }
+};
+</script>
+<style lang="less">
+@header-height: 58px;
+@footer-height: 60px;
+@base-padding: 34px;
+
+.org-user-select {
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  .header{
+    height: @header-height;
+    padding: 20px @base-padding 8px @base-padding;
+  }
+  .body{
+    height: 100%;
+    box-sizing: border-box;
+    margin-top: -@header-height;
+    padding-top: @header-height;
+    padding-bottom: @footer-height;
+  }
+  //左侧待选数据
+  & > .choose-panel{
+    flex: 1 1 50%;
+    min-width: 0;
+    .choose-data{
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      .org-path{
+        line-height: 1.4em;
+        padding: 6px @base-padding 0 @base-padding;
+        a{
+          color: @text-color;
+        }
+        a:hover{
+          color: @primary-color;
+        }
+      }
+      .data-list{
+        flex: 1 1 100%;
+        overflow: hidden;
+        padding: 6px 4px 0 6px;
+        .ant-spin-nested-loading, .ant-spin-container{
+          height: 100%;
+        }
+        ul{
+          height: 100%;
+          margin: 0;
+          overflow-y: auto;
+				}
+        li{
+          margin-bottom: 2px;
+          .item-meta{
+            position: relative;
+            line-height: 1.4em;
+            padding: 6px @base-padding - 4;
+            cursor: pointer;
+
+            .content{
+              margin-right: 50px;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              .ant-checkbox{
+                margin-right: 8px;
+              }
+              .icon{
+                width: 18px;
+                height: 18px;
+                margin-right: 4px;
+                padding: 1px;
+              }
+            }
+            &:hover{
+              background: @primary-1;
+            }
+            &.single.checked{
+              background: @primary-2;
+            }
+            &.uncheck{
+              .ant-checkbox{
+                visibility: hidden;
+              }
+            }
+            .enter{
+              position: absolute;
+              right: @base-padding;
+              top: 50%;
+              margin-top: -0.7em;
+              color: @text-color-secondary;
+              border-left: 1px solid fade(@text-color-secondary, 30%);
+              text-indent: 6px;
+              &:hover{
+                color: @primary-color;
+                border-color: @primary-color;
+              }
+            }
+          }
+          .loading-more{
+            display: block;
+            text-align: center;
+            .anticon-loading{
+              vertical-align: middle
+            }
+            .ant-spin-text{
+              display: inline-block;
+              vertical-align: middle;
+              margin-left: 6px;
+              line-height: 34px;
+              color: fade(@black, 25%);
+            }
+          }
+        }
+      }
+    }
+  }
+  //右侧已选列表
+  & > .selected-panel{
+    flex: 1 1 50%;
+    min-width: 0;
+    border-left: 1px solid @border-color-split;
+
+    .select-desc{
+      float: left;
+      line-height: 32px;
+      .tag{
+        line-height: 1.4em;
+        border-left: 4px solid @primary-color;
+        padding: 0 4px 0 6px;
+      }
+      .desc{
+        color: @primary-color;
+      }
+    }
+    .select-clear{
+      float: right;
+      line-height: 32px;
+      i{
+        margin-right: 6px;
+      }
+      &:hover{
+        color: lighten(@primary-color, 20%);
+      }
+    }
+    .selected-data{
+      height: 100%;
+      overflow-y: auto;
+      .list{
+        padding: 0 @base-padding - 4;
+      }
+    }
+  }
+  //底部功能按钮
+  & > .footer{
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    height: @footer-height;
+    display: flex;
+    & > .left{
+      width: 50%;
+      line-height: @footer-height - 20;
+      padding: 10px @base-padding;
+    }
+    & > .right{
+      flex: 1 0 50%;
+      line-height: @footer-height - 20;
+      padding: 10px 20px;
+      text-align: right;
+      border-top: 1px solid @border-color-split;
+      .ant-btn{
+        margin-left: 12px;
+      }
+    }
+  }
+}
+</style>

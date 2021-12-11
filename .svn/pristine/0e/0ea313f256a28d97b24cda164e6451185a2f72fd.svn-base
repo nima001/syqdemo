@@ -1,0 +1,143 @@
+<template>
+  <a-modal :visible="true" :footer="null" width="998px" @cancel="cancel">
+    <p class="title">{{user.username}}的考勤记录</p>
+    <div class="content">
+      <div class="table">
+        <a-table
+          rowKey="id"
+          :loading="loading"
+          :columns="columns"
+          :data-source="dataSource"
+          :pagination="false"
+        ></a-table>
+      </div>
+      <div class="pagination">
+        <a-pagination
+          show-size-changer
+          :total="pagination.total"
+          :page-size="pagination.pagesize"
+          v-model="pagination.pagenum"
+          :show-total="(total) => `共 ${total} 条`"
+          @change="onChange"
+          @showSizeChange="onShowSizeChange"
+        ></a-pagination>
+      </div>
+    </div>
+  </a-modal>
+</template>
+<script>
+import { Modal, Table, Pagination } from "ant-design-vue";
+import { assign, cloneDeep } from "lodash";
+import { showError } from "@/framework/utils/index";
+import {attendanceList} from "@/hall/api/attendance";
+export default {
+  components: {
+    AModal: Modal,
+    ATable: Table,
+    APagination: Pagination
+  },
+  props:{
+    user:{
+      type:Object,
+      required:true
+    },
+    formatDate:{
+      required:false
+    }
+  },
+  data() {
+    return {
+      loading: true,
+      dataSource: [],
+      columns: [
+        {
+          title: "姓名",
+          dataIndex: "name"
+        },
+        {
+          title: "日期",
+          dataIndex: "date"
+        },
+        {
+          title: "上班打卡",
+          dataIndex: "onwork"
+        },
+        {
+          title: "状态",
+          dataIndex: "onworkstate"
+        },
+        {
+          title: "下班打卡",
+          dataIndex: "offwork"
+        },
+        {
+          title: "状态",
+          dataIndex: "offworktime"
+        }
+      ],
+      pagination: {
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+        needtotal: true
+      }
+    };
+  },
+  mounted(){
+    this.getData();
+  },
+  methods: {
+    getData(){
+      this.loading = true;
+      let query ={
+        userid:this.user.userid,
+        starttime:this.formatDate,
+        endtime:this.formatDate,
+        ...this.pagination
+      }
+      attendanceList(query).then(res=>{
+        let {pagesize,pagenum,total,rows} = res.result;
+        assign(this.pagination,{pagesize,pagenum,total})
+        this.dataSource = rows;
+      }).catch(err=>{
+        showError(err)
+      }).finally(()=>{
+        this.loading = false;
+      })
+    },
+    cancel() {
+      this.$emit("input", false);
+    },
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagenum: 1, pagesize });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.title {
+  font-size: 18px;
+  color: @black;
+  font-weight: bold;
+  text-align: center;
+  margin: 0px;
+  padding: @content-padding-v 0px;
+}
+.content {
+  max-height: 600px;
+  display: flex;
+  flex-direction: column;
+  .table {
+    flex-shrink: 1;
+    overflow-y: auto;
+    padding: @content-padding-v 0px;
+  }
+  .pagination {
+    text-align: right;
+    padding: @content-padding-v 0px;
+  }
+}
+</style>

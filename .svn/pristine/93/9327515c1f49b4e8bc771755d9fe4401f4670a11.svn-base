@@ -1,0 +1,78 @@
+<template>
+  <div class="org-main-panel">
+    <a-spin :spinning='loading'>
+      <form-display :formConfig="formConfig" :formData="formData" :editor="editor" ref="formDisplay"></form-display>
+    </a-spin>
+  </div>
+</template>
+<script>
+import FormDisplay from "@/formdesign/views/FormDisplay";
+import { modelForm, getUser } from "@person/api/user";
+import { showError } from '@framework/utils';
+// import data from "./components/data";
+import {Spin} from 'ant-design-vue';
+export default {
+  name: "UserInfo",
+  components: {
+    ASpin:Spin,
+    FormDisplay
+  },
+  data() {
+    return {
+      loading:true,
+      // 表单配置
+      formConfig: [],
+      // 表单初始化数据
+      formData: {},
+      // 表单可编辑
+      editor: false
+    };
+  },
+  props: ["loadData"],
+  computed: {
+    userId() {
+      return this.$route.query.userid;
+    }
+  },
+  created() {
+    // this.formConfig = data.list;
+    this.getUserDetail()
+    this.getFormConfig()
+  },
+  methods: {
+    getFormConfig(){
+      modelForm("user", this.userId)
+        .then(res => {
+          let result = JSON.parse(res.result);
+          this.formConfig = result.list;
+        })
+        .catch(err => {
+          this.formConfig = [];
+          showError(err);
+        }).finally(()=>{
+          this.loading = false;
+        });
+    },
+    getUserDetail() {
+      getUser(this.userId)
+        .then(({ result: user }) => {
+          this.formData = user;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.org-main-panel {
+  height: 100%;
+  border-radius: @border-radius-base;
+  background: @white;
+  padding: @padding-xs 0;
+  .ant-spin-nested-loading{
+    height: 100%;
+  }
+}
+</style>

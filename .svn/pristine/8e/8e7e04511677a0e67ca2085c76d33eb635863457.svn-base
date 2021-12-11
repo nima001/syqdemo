@@ -1,0 +1,253 @@
+<template>
+  <!--编制-->
+  <div class="report">
+    <div class="title">
+      <span class="icon bianzhi"></span>
+      <span class="text">编制</span>
+    </div>
+    <div class="cell">
+      <div class="cellItem">
+        <p>行政编制待分配数</p>
+        <div class="num">
+          <lcd-font :length="4" :realNumber="(staffInfo.zgbzzl - staffInfo.hdxzbzqygq) | thanZero"></lcd-font>
+        </div>
+        <div class="type">
+          <span class="name">省定</span>
+          <span class="number">{{staffInfo.zgbzzl || 0}}</span>
+        </div>
+        <div class="type">
+          <span class="name">核定</span>
+          <span class="number">{{staffInfo.hdxzbzqygq || 0}}</span>
+        </div>
+      </div>
+      <div class="cellItem">
+        <p>行政机构空编数</p>
+        <div
+          class="num clickable"
+          @click="showDetail({
+            title: '行政机构空编数',
+            total: 'hdxzbzqy',
+            used: 'hdxzbzqy_sy',
+            unittypes: [1, 5, 7],
+            field: { code: 'dzqjgbzcks', name: '空编'}
+          })"
+        >
+          <lcd-font :length="4" :realNumber="(staffInfo.hdxzbzqy - staffInfo.hdxzbzqy_sy) | thanZero"></lcd-font>
+        </div>
+        <div class="type">
+          <span class="name">核定</span>
+          <span class="number">{{staffInfo.hdxzbzqy || 0}}</span>
+        </div>
+        <div class="type">
+          <span class="name">实有</span>
+          <span class="number">{{staffInfo.hdxzbzqy_sy || 0}}</span>
+        </div>
+      </div>
+    </div>
+    <div class="cell last">
+      <div class="cellItem">
+        <p>事业编制待分配数</p>
+        <div class="num accent">
+          <lcd-font :length="4" :realNumber="(staffInfo.sybzzl - staffInfo.hesybzqy) | thanZero" :realStyle="realStyle"></lcd-font>
+        </div>
+        <div class="type">
+          <span class="name">省定</span>
+          <span class="number">{{staffInfo.sybzzl || 0}}</span>
+        </div>
+        <div class="type">
+          <span class="name">核定</span>
+          <span class="number">{{staffInfo.hesybzqy || 0}}</span>
+        </div>
+      </div>
+      <div class="cellItem">
+        <p>事业单位空编数</p>
+        <div
+          class="num accent clickable"
+          @click="showDetail({
+            title: '事业编制空编数',
+            total: 'hdsybzbbqy',
+            used: 'hdsybzqy_sy',
+            unittypes: [2, 3, 11],
+            field: {code: 'sybzcks', name: '空编'}
+          })"
+        >
+          <lcd-font :length="4" :realNumber="(staffInfo.hdsybzbbqy - staffInfo.hdsybzqy_sy) | thanZero" :realStyle="realStyle"></lcd-font>
+        </div>
+        <div class="type">
+          <span class="name">核定</span>
+          <span class="number">{{staffInfo.hdsybzbbqy || 0}}</span>
+        </div>
+        <div class="type">
+          <span class="name">实有</span>
+          <span class="number">{{staffInfo.hdsybzqy_sy || 0}}</span>
+        </div>
+      </div>
+    </div>
+    <kong-bian-detail v-model="showDialog" v-bind="detail" />
+  </div>
+</template>
+<script>
+import LcdFont from "../components/LcdFont";
+import { mixins } from "../components/minxin";
+import KongBianDetail from "./KongBianDetail";
+import { areaStatistics } from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  components: { LcdFont, KongBianDetail },
+  data() {
+    return {
+      realStyle: {
+        color: "#ffd3a3"
+      },
+      staffInfo: {},
+      showDialog: false,
+      detail: {
+        num: 0,
+        total: 0,
+        used: 0,
+        unittypes: undefined,
+        field: undefined,
+      }
+    };
+  },
+  mixins: [mixins],
+  mounted() {
+    this.staffCount(this.dictId);
+  },
+  watch: {
+    dictId(v) {
+      this.staffCount(v);
+    }
+  },
+  filters: {
+    thanZero(num){
+      return num > 0 ? num : 0;
+    }
+  },
+  methods: {
+    staffCount(district) {
+      /** 
+       * zgbzzl     //行政编制省定
+       * hdxzbzqygq 
+       * hdxzbzqy    //行政编制核定数 
+       * hdxzbzqy_sy //行政编制实有数 
+       * sybzzl      //事业编省定
+       * hdsybzbbqy    //事业核定编制数 
+       * hesybzqy
+       * hdsybzqy_sy  //事业实有人数
+      */
+      areaStatistics(district, [
+        'zgbzzl', "hdxzbzqygq",
+        'hdxzbzqy', 'hdxzbzqy_sy',
+        'sybzzl', 'hdsybzbbqy', 
+        'hesybzqy', 'hdsybzqy_sy',
+      ]).then(res => {
+        this.staffInfo = res.result;
+      }).catch(err => {
+        showError(err);
+      });
+    },
+    showDetail({ title, total, used, unittypes, field }) {
+      this.detail.title = title;
+      this.detail.total = this.staffInfo[total];
+      this.detail.used = this.staffInfo[used];
+      this.detail.unittypes = unittypes;
+      this.detail.field = field;
+      this.showDialog = true;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.report {
+  .title {
+    display: flex;
+    align-items: center;
+    .icon {
+      width: 24px;
+      height: 24px;
+      &.jigou {
+        background: url("../img/jigou.png");
+      }
+      &.bianzhi {
+        background: url("../img/bainzhi.png");
+      }
+      &.zhishu {
+        background: url("../img/zhishu.png");
+      }
+    }
+    .text {
+      width: 80px;
+      height: 80px;
+      line-height: 80px;
+      text-align: center;
+      background: url("../img/text_bj.png");
+      font-size: 20px;
+      font-family: Microsoft YaHei;
+      font-weight: bold;
+      color: #ffffff;
+      -webkit-text-stroke: 1 #66d9ec;
+      opacity: 0.9;
+      margin-left: -8px;
+    }
+  }
+  .cell {
+    display: flex;
+    width: 270px;
+    justify-content: space-between;
+    &.last {
+      margin-top: 20px;
+    }
+    .cellItem {
+      p {
+        margin: 0px;
+        height: 22px;
+        line-height: 22px;
+        font-size: 16px;
+        font-family: Microsoft YaHei;
+        font-weight: 400;
+        color: #fff;
+        opacity: 0.8;
+      }
+      .num {
+        width: 110px;
+        height: 48px;
+        margin: 4px auto;
+        text-align: center;
+        &.clickable {
+          cursor: pointer;
+        }
+      }
+      .type {
+        width: 110px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 4px auto;
+        padding: 0px 5px;
+        .name {
+          height: 21px;
+          font-size: 16px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 21px;
+          color: #ffffff;
+          opacity: 0.6;
+        }
+        .number {
+          height: 18px;
+          font-size: 16px;
+          font-family: Arial;
+          font-weight: 400;
+          line-height: 18px;
+          color: #ffffff;
+          opacity: 0.6;
+          flex: 1;
+          text-align: right;
+        }
+      }
+    }
+  }
+}
+</style>

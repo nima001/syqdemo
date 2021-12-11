@@ -1,0 +1,179 @@
+const path = require('path')
+const glob = require("glob")
+const theme = require('./theme/theme')
+const resolve = dir => path.join(__dirname, dir)
+
+// // const argv = process.argv; //读取vue-cli-service命名参数
+const argv = JSON.parse(process.env.npm_config_argv); // 读取npm命名参数
+//解析命令行参数，将按照规则添加到process.env配置中
+(function(args){
+  for(let i = 0; i < args.length; i++){
+    let key = args[i];
+    if(key.startsWith('--')){
+      let value = args[++i];
+      key = key.substr(2).replace(/([A-Z])/g,"_$1").toUpperCase();
+      console.log(key, value);
+      process.env['VUE_APP_' + key] = value;
+    }
+  }
+})(argv.cooked)
+// 打包的模块
+let installModules = [];
+let allModules = glob.sync('./src/*/main.js')
+  .map(path => path.split('/')[2]).filter(name => name != 'framework');
+let modules = process.env.VUE_APP_MODULES;
+let plugin = process.env.VUE_APP_PROJECT_PLUGIN;
+if (modules) {
+  modules.split(',').forEach(name => {
+    if(allModules.indexOf(name) < 0){
+      throw new Error(`模块 ${name} 不存在`);
+    }
+    let m = {};
+    let i = name.indexOf('-');
+    if(i > 0){
+      m.module = name.substring(0, i);
+      m.plugin = name.substr(i + 1);
+    }else{
+      m.module = name;
+      if(plugin && allModules.indexOf(name + '-' + plugin) >= 0){
+        m.plugin = plugin;
+      }
+    }
+    if(installModules.find(item => item.module == m.module)){
+      throw new Error(`模块 ${m.module} 重复指定`);
+    }
+    installModules.push(m);
+  });
+}else{
+  allModules.forEach(name => {
+    if(name.indexOf('-') <= 0){
+      let m = { module: name };
+      if(plugin && allModules.indexOf(name + '-' + plugin) >= 0){
+        m.plugin = plugin;
+      }
+      installModules.push(m);
+    }
+  });
+}
+console.log('打包模块：', installModules);
+//前端部署项目地址
+let publicPath = '/';
+if(process.env.NODE_ENV != 'development'){
+  let projectPath = process.env.VUE_APP_PROJECT_PATH;
+  if(projectPath === undefined){
+    publicPath += process.env.VUE_APP_PROJECT_NAME + '/';
+  }else if(projectPath){
+    if(projectPath.startsWith('/')){
+      publicPath = projectPath;
+    }else{
+      publicPath += projectPath;
+    }
+    if(!publicPath.endsWith('/')){
+      publicPath += '/';
+    }
+  }
+}
+process.env.VUE_APP_PROJECT_PATH = publicPath;
+
+module.exports = {
+  publicPath: publicPath,
+  lintOnSave: process.env.NODE_ENV == 'development' ? true : false,
+  productionSourceMap: true,
+  css: {
+    loaderOptions: {
+      less: {
+        javascriptEnabled: true,
+        modifyVars: theme[process.env.VUE_APP_THEME] || theme.red
+      }
+    }
+  },
+  pluginOptions: {
+    'style-resources-loader': {
+      preProcessor: 'less',
+      patterns: [path.resolve(__dirname, './theme/index.less')]
+    }
+  },
+  pages: {
+    index: {
+      entry: 'src/framework/main.js',
+      template: 'public/index.html',
+      filename: 'index.html',
+      chunks: ['chunk-vendors', 'chunk-common', 'index']
+    },
+    ...Object.fromEntries(installModules.map(m => {
+      return [m.module, {
+        entry: `src/${m.plugin ? m.module + '-' + m.plugin : m.module}/main.js`,
+        template: 'public/index.html',
+        filename: `${m.module}.html`,
+        chunks: ['chunk-vendors', 'chunk-common', m.module]
+      }]
+    }))
+  },
+  configureWebpack: {
+    devServer: { 
+      proxy: {
+        '/api': {
+          // target: 'http://192.168.1.111:8080/',
+          // target: 'http://192.168.1.226:8080/',
+          // target: 'http://192.168.1.121:8080/',
+          target: 'http://192.168.1.135:8080/',
+          changeOrigin: true,
+          ws: true,
+          pathRewrite: {
+            '^/api' : ''
+          }
+        },
+      },
+      historyApiFallback: { 
+        verbose: true, 
+        rewrites: [ 
+          ...installModules.map(m => {
+            return { from: new RegExp(`^\/${m.module}(\/.*)*$`), to: `/${m.module}.html`, accept: '*'}
+          }),
+          { from: /.*/, to: '/index.html', accept: '*'} 
+        ] 
+      } 
+    } 
+  },
+  chainWebpack: config => {
+    //二次开发重写vue
+    let srcPath = path.resolve(__dirname, 'src');
+    config.module.rule('plugin-cover')
+      .test((p) => {
+        return p.startsWith(srcPath) && (p.endsWith('.vue'))
+      })
+      .use('plugin-cover-loader')
+        .loader('./plugin-cover-loader.js')
+        .options({
+          srcPath,
+          modules: installModules
+        }).end();
+    //添加控件loader
+    config.module.rule('widgets')
+      .test(path.resolve(__dirname, 'src/framework/widgets/index.js'))
+      .use('widget-loader')
+        .loader('./widget-loader.js')
+        .options({
+          modules: installModules
+        }).end();
+    //自定义svg图标加载
+    config.module.rule('svg').exclude.add(resolve('src/framework/assets/icons'))
+    .end();
+    config.module.rule('icons')
+      .test(/\.svg$/).include.add(resolve('src/framework/assets/icons'))
+      .end()
+      .use('svg-sprite-loader')
+        .loader('svg-sprite-loader')
+        .options({
+          symbolId: '[name]'
+        }).end()
+    //添加路径别名
+    config.resolve.alias
+      .set('@', resolve('src'))
+      .set('@framework', resolve('src/framework'))
+      .set('@person', resolve('src/person'))
+      .set('@salary', resolve('src/salary'))
+      .set('@formdesign', resolve('src/formdesign'))
+      .set('@workflow', resolve('src/workflow'))
+  }
+}

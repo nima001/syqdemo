@@ -1,0 +1,448 @@
+<template>
+  <div class="form-panel">
+    <div class="top">
+      <div class="card" v-for="(item, index) in list" :key="item.id">
+        <card
+          :src="src[index]"
+          :title="item['title']"
+          :num="item['num']"
+          @click.native="showModal(item['title'])"
+        ></card>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="title">
+        <span>问题清单</span>
+        <a class="icon" @click="showModal('未处理')">
+          <img src="../../../assets/img/icon_more.png" alt=""/>
+        </a>
+      </div>
+      <div class="bottom_table">
+        <a-table
+          class="antd-table-con"
+          rowKey="id"
+          :columns="columns"
+          :dataSource="dataSource"
+          :pagination="false"
+          :loading="loading"
+        >
+          <span class="operation" slot="operation" slot-scope="text, record">
+            <a
+              @click="record.blackliststatus == 0 && onAddBlacklist(record.id)"
+              :style="record.blackliststatus == 0 ? '' : 'color:gray'"
+            >
+              加入黑名单
+            </a>
+            <a @click="record.defer == 0 && onAddDefer(record.id)">
+              加入暂缓
+            </a>
+            <a @click="onShowDetail(record.description)">
+              <a-icon type="ellipsis" />
+            </a>
+          </span>
+          <span
+            class="noticestatus"
+            slot="noticestatus"
+            slot-scope="text, record"
+          >
+            <img
+              v-if="record.noticestatus == 0"
+              src="../../../assets/img/icon_warn.png"
+              alt=""
+            />
+            <img v-else src="../../../assets/img/icon_suc.png" alt="" />
+          </span>
+        </a-table>
+      </div>
+    </div>
+    <a-modal
+      :footer="null"
+      v-model="visible"
+      :width="1200"
+      :title="title"
+      :afterClose="onClosed"
+      :bodyStyle="{ height: '520px', padding: '0' }"
+    >
+      <table-list :district="district" :title="title" :cityId="cityId" :orgid="orgid" @updateOrgid="updateOrgid" :dataSearchVal="dataSearchVal" @updatedataSearchVal="updatedataSearchVal" />
+    </a-modal>
+    <a-modal centered v-model="detailVisible" title="详情" :footer="null">
+      <p>{{ detailContent }}</p>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Table, Modal, Icon } from "ant-design-vue";
+import Card from "@/person-shaoxing/views/orgStaffReport/components/Card";
+import TableList from "@/person-shaoxing/views/orgStaffReport/components/TableList";
+import {
+  problemPageList,
+  orgBlacklist,
+  addblackList,
+  addDefer
+} from "@/person-shaoxing/api/monitor";
+import { showError } from "@/framework/utils/index";
+
+/**
+ * 周转编制数监测
+ */
+export default {
+  props: {
+    district: {
+      type: Object,
+      default: () => ({})
+    },
+  },
+  components: {
+    ATable: Table,
+    AModal: Modal,
+    AIcon: Icon,
+    Card,
+    TableList,
+  },
+  watch: {
+    district: {
+      handler() {
+        this.getBlack(this.page, 0);
+        this.getNotResolve(this.page, 0);
+        this.getResolved(this.page, 1);
+        this.getWait(this.page, 0);
+        this.getOrgQuestion(this.page, 0);
+      },
+      immediate: true,
+    },
+  },
+
+  data() {
+    return {
+      orgid: undefined,
+      cityId:undefined,
+      dataSearchVal: undefined,
+      handlestatus: 0,
+      detailContent: null,
+      detailVisible: null,
+      visible: false,
+      loading: false,
+      title: "",
+      pagination: {
+        total: 0,
+        pagenum: 1,
+        pagesize: 10,
+      },
+      list: [
+        {id:0, title: "现存问题", num: 0 },
+        {id:1, title: "暂缓解决问题", num: 0 },
+        {id:2, title: "已处理", num: 0 },
+        {id:3, title: "未处理", num: 0 },
+        {id:4, title: "黑名单机构", num: 0 },
+      ],
+      src: [
+        "icon_report_blue",
+        "icon_report_hourgalass",
+        "icon_report_smile",
+        "icon_report_info",
+        "icon_report_page",
+      ],
+      columns: [
+        {
+          title: "类别",
+          dataIndex: "businesstype",
+          customRender: this.dictRender("person.shaoxing.monitor.businesstype"),
+          width: "10%",
+        },
+        { title: "相关部门", dataIndex: "orgname",  customRender: text => <span title={text}>{text}</span>,width: "15%" },
+        { title: "问题或异动情况描述", dataIndex: "description",customRender: text => <span title={text}>{text}</span>, width: "40%" },
+        {
+          title: "发现时间",
+          dataIndex: "discovertime",
+          customRender: (text) => text && text.substr(0, 10),
+          width: "7.5%",
+        },
+        {
+          title: "状态",
+          scopedSlots: { customRender: "noticestatus" },
+          width: "7.5%",
+        },
+        {
+          title: "操作",
+          scopedSlots: { customRender: "operation" },
+          width: "20%",
+        },
+      ],
+      dataSource: [],
+    };
+  },
+  methods: {
+    updateOrgid(orgid) {
+      this.orgid = orgid;
+    },
+    updatedataSearchVal(dataSearchVal) {
+      this.dataSearchVal = dataSearchVal;
+    },
+    getNotResolve(page, handlestatus) {//未处理
+      this.loading = true;
+      let params = {
+        ...page,
+        needtotal: true,
+        district: this.district.district,
+        handlestatus: handlestatus,
+        defer: 0,
+      };
+      problemPageList(params)
+        .then(({ result }) => {
+          this.loading = false;
+          this.list[3].num = result.total;
+          this.dataSource = result.rows;
+          this.pagination = result;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    getResolved(page, handlestatus) {//已处理
+      this.loading = true;
+      let params = {
+        ...page,
+        needtotal: true,
+        district: this.district.district,
+        handlestatus: handlestatus,
+        defer: 0,
+      };
+      problemPageList(params)
+        .then(({ result }) => {
+          this.loading = false;
+          this.list[2].num = result.total;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    getWait(page, handlestatus) {//暂缓
+      this.loading = true;
+      let params = {
+        ...page,
+        needtotal: true,
+        district: this.district.district,
+        handlestatus: handlestatus,
+        defer: 1,
+      };
+      problemPageList(params)
+        .then(({ result }) => {
+          this.loading = false;
+          this.list[1].num = result.total;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    getOrgQuestion(page, handlestatus) {//现存问题
+      this.loading = true;
+      let params = {
+        ...page,
+        needtotal: true,
+        district: this.district.district,
+        handlestatus: handlestatus
+      };
+      problemPageList(params)
+        .then(({ result }) => {
+          this.loading = false;
+          this.list[0].num = result.total;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    getBlack(page, handlestatus) {//黑名单机构
+      this.loading = true;
+      let params = {
+        ...page,
+        needtotal: true,
+        district: this.district.district,
+        handlestatus: handlestatus,
+      };
+      orgBlacklist(params)
+        .then(({ result }) => {
+          this.loading = false;
+          this.list[4].num = result.total;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    dictRender(key, attr) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    showModal(title) {
+      console.log(title);
+      this.title = title;
+      this.visible = true;  
+      this.cityId = this.district._id;
+    },
+    onAddBlacklist(id) {
+      if (id) {
+        let that = this;
+        that.$confirm({
+          title: "确认加入黑名单?",
+          onOk() {
+            addblackList(id)
+              .then((res) => {
+                that.$notification.warning({
+                  message: "提示",
+                  description: "加入黑名单成功!",
+                  duration: 3,
+                });
+                that.getNotResolve(
+                  {
+                    pagenum: that.pagination.pagenum,
+                    pagesize: that.pagination.pagesize,
+                  },
+                  0
+                );
+              })
+              .catch((error) => {
+                showError(error);
+              });
+          },
+          onCancel() {},
+        });
+      }
+    },
+    onAddDefer(id) {
+      if (id) {
+        let that = this;
+        that.$confirm({
+          title: "确认加入暂缓?",
+          onOk() {
+            addDefer(id)
+              .then((res) => {
+                that.$notification.warning({
+                  message: "提示",
+                  description: "加入暂缓成功!",
+                  duration: 3,
+                });
+                that.getNotResolve(
+                  {
+                    pagenum: that.pagination.pagenum,
+                    pagesize: that.pagination.pagesize,
+                  },
+                  0
+                );
+              })
+              .catch((error) => {
+                showError(error);
+              });
+          },
+          onCancel() {},
+        });
+      }
+    },
+    onShowDetail(content) {
+      this.detailVisible = true;
+      this.detailContent = content;
+    },
+    onClosed() {
+      this.dataSearchVal = "";
+      this.orgid = undefined;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+/deep/ .ant-spin-nested-loading {
+  overflow: scroll;
+  height: 41vh;
+}
+.form-panel {
+  padding: @content-padding-v @content-padding-h;
+  & > .top {
+    display: flex;
+    padding: 15px 0 24px 0;
+    justify-content: space-between;
+    /deep/ .card{
+      cursor: pointer;
+     .compile{
+        &:hover{
+        border-color:@primary-3
+      }
+     }
+    }
+  }
+  & > .bottom {
+    padding: 24px 0 10px 0;
+    & > .title {
+      font-weight: bold;
+      line-height: 30px;
+      margin-bottom: 30px;
+      .icon {
+        float: right;
+      }
+    }
+    /deep/ .antd-table-con {
+      .ant-spin-nested-loading {
+      overflow: auto;
+      height: auto;
+      min-height: 28vh;
+      }
+    }
+     /deep/table {
+        table-layout: fixed;
+        thead {
+          tr {
+            th {
+              color: @text-color-secondary;
+            }
+          }
+        }
+        td,
+        th {
+          white-space: nowrap;
+          overflow: hidden !important;
+          text-overflow: ellipsis;
+          a {
+            color: @text-color;
+          }
+        }
+      }
+     
+      .operation {
+       & > a {
+          margin-right: 15px;
+          // img {
+          //   width: 22px;
+          //   height: 22px;
+          // }
+          /deep/ .anticon {
+            color: @white;
+            font-size: 20px;
+            width: 20px;
+            background: #5098ed;
+            border-radius: 6px;
+            vertical-align: text-bottom;
+            &:hover {
+              background: #5178ed;
+            }
+          }
+          &:hover {
+            text-decoration: underline;
+          }
+        }
+      }
+      .noticestatus {
+       & > img {
+          margin-left: 5px;
+          width: 22px;
+          height: 22px;
+        }
+      
+    }
+  }
+}
+</style>

@@ -1,0 +1,469 @@
+<!-- 业务管理详情 -->
+<template>
+  <a-layout class="dev-layout">
+    <div>
+      <div class="head">
+        <div>
+          <h3>
+            <b>{{ $route.query.name }}</b>
+          </h3>
+          <p>厂商</p>
+        </div>
+        <div style="text-align: right;">
+          <h3 class="auditstatus">
+            <b>审核通过</b>
+          </h3>
+          <p>状态</p>
+        </div>
+      </div>
+      <div class="message">
+        <ul>
+          <li>
+            <p class="p-left">业务名称 ：</p>
+            <a-input
+              :readOnly="boole"
+              v-model="data.mainBusinessVo.name"
+            ></a-input>
+          </li>
+          <li>
+            <p class="p-left">分类 ：</p>
+            <a-select
+              class="business-select"
+              :disabled="boole"
+              v-model="data.mainBusinessVo.businesstype"
+            >
+              <a-select-option
+                v-for="(i, index) in arrs"
+                :value="i"
+                :key="index"
+                >{{ i }}</a-select-option
+              >
+            </a-select>
+          </li>
+          <li>
+            <p class="p-left">主题 ：</p>
+            <!-- <p v-if="boole" v-html="shuzu.join(',')"></p> -->
+            <a-select
+              class="business-select"
+              :disabled="boole"
+              v-model="data.mainBusinessVo.subject"
+              mode="tags"
+            >
+              <a-select-option v-for="i in 3" :key="(i + 9).toString(36) + i">{{
+                (i + 9).toString(36) + i
+              }}</a-select-option>
+            </a-select>
+          </li>
+          <li>
+            <div class="texearea-input">
+              <p class="p-left" style="min-height: 100px;">业务说明 ：</p>
+              <a-textarea
+                :readOnly="boole"
+                :rows="4"
+                v-model="data.mainBusinessVo.introduce"
+              ></a-textarea>
+            </div>
+          </li>
+        </ul>
+        <template v-if="!data.chiBusinessVoList">
+          <div class="call">
+            <div class="call-pc">
+              <p class="p-left">PC端单点登录 ：</p>
+              <a-input
+                :readOnly="boole"
+                v-model="data.interfaceVo.pcUrl"
+                style="width: 60%"
+              ></a-input>
+            </div>
+
+            <a-button>单点登入测试</a-button>
+          </div>
+          <div class="call">
+            <div class="call-moble">
+              <p class="p-left">移动端单点登录 ：</p>
+              <a-input
+                :readOnly="boole"
+                v-model="data.interfaceVo.appUrl"
+                style="width: 60%"
+              ></a-input>
+            </div>
+            <a-button>单点登入测试</a-button>
+          </div>
+        </template>
+
+        <template v-else>
+          <a-button type="primary" @click="add">添加子项</a-button>
+          <a-table
+            :columns="columns"
+            :dataSource="chiBusinessVoList"
+            :pagination="false"
+            :locale="loca"
+          >
+            <template slot="name" slot-scope="text, record, index">
+              <div>
+                <template v-if="record.editable">
+                  <a-input
+                    style="width: 100%"
+                    v-model="chiBusinessVoList[index].name"
+                  />
+                </template>
+
+                <template v-else>{{ text }}</template>
+              </div>
+            </template>
+
+            <template slot="point" slot-scope="text, record, index">
+              <div>
+                <template v-if="record.editable">
+                  <p class="tab-p">
+                    <span>PC端：</span>
+                    <a-input
+                      style="width: 70%"
+                      v-model="chiBusinessVoList[index].interfaceVo.pcUrl"
+                    />
+                  </p>
+                  <p class="tab-p">
+                    <span>APP端：</span>
+                    <a-input
+                      style="width: 70%"
+                      v-model="chiBusinessVoList[index].interfaceVo.appUrl"
+                    />
+                  </p>
+                </template>
+
+                <template v-else>
+                  <p>PC端：{{ chiBusinessVoList[index].interfaceVo.pcUrl }}</p>
+                  <p>
+                    APP端：{{ chiBusinessVoList[index].interfaceVo.appUrl }}
+                  </p>
+                </template>
+              </div>
+            </template>
+
+            <template slot="operation" slot-scope="text, record">
+              <div>
+                <span v-if="record.editable">
+                  <a @click="save(record.key)" style="margin-right: 10px;"
+                    >确定</a
+                  >
+                  <a @click="cancel(record.key)">删除</a>
+                </span>
+                <span v-else>
+                  <a @click="edit(record.key)">修改</a>
+                </span>
+              </div>
+            </template>
+          </a-table>
+        </template>
+
+        <div class="logo">
+          <p class="p-left">系统图标 ：</p>
+          <img src="../../assets/img/shangchang .png" alt />
+        </div>
+        <a-button style="margin:60px 0 0 120px;" type="primary" @click="boo">{{
+          arr
+        }}</a-button>
+      </div>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import {
+  Button,
+  Input,
+  notification,
+  Table,
+  Select,
+  Layout,
+} from "ant-design-vue";
+import { bizdetail, bizupdate, business } from "@/dev/api/biz";
+export default {
+  data() {
+    return {
+      shuzu: [],
+      columns,
+      boole: true,
+      chiBusinessVoList: {},
+      data: {
+        mainBusinessVo: {
+          subject: ["11"],
+        },
+        interfaceVo: {},
+      },
+      arr: "变更申请",
+      arrs: [],
+      obj,
+      loca: {
+        emptyText: "暂无数据",
+      },
+    };
+  },
+  components: {
+    ALayout: Layout,
+    ATextarea: Input.TextArea,
+    AButton: Button,
+    AInput: Input,
+    notification,
+    ATable: Table,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    notification,
+  },
+  // created(){
+  //   business().then(res=>{
+  //     this.arrs=res.result
+  //   })
+  // },
+  // beforeRouteEnter (to, from, next) {
+  //   next(vm => {
+  //     if(vm.$route.params.id){
+  //     vm.$store.state.business={...vm.$route.params}
+  //   }
+  //     vm.refresh(vm.$store.state.business.id,vm.$store.state.business.state)
+  //   });
+  // },
+  methods: {
+    // str(arr){
+    //   let str = arr.join(',')
+    //   return str
+    // },
+    add() {
+      const newData = {
+        key: this.chiBusinessVoList.length + 1,
+        name: "子项",
+        interfaceVo: {
+          pcUrl: "http://www.fladjfd.com",
+          appUrl: "http://www.fladjfd.com",
+        },
+        editable: true,
+      };
+      this.chiBusinessVoList.push(newData);
+    },
+    edit(key) {
+      const newData = [...this.chiBusinessVoList];
+      const target = newData.filter((item) => key === item.key)[0];
+      if (target) {
+        target.editable = true;
+        this.chiBusinessVoList = newData;
+      }
+    },
+    save(key) {
+      const newData = [...this.chiBusinessVoList];
+      const target = newData.filter((item) => key === item.key)[0];
+      if (target) {
+        delete target.editable;
+        this.chiBusinessVoList = newData;
+      }
+    },
+    cancel(key) {
+      const newData = [...this.chiBusinessVoList];
+      this.chiBusinessVoList = newData.filter((item) => item.key !== key);
+      this.chiBusinessVoList.forEach((element, i) => {
+        element.key = i + 1;
+      });
+    },
+    boo() {
+      if (this.arr == "变更申请") {
+        this.arr = "保存";
+        this.boole = false;
+      } else {
+        this.arr = "变更申请";
+        this.boole = true;
+        let obj = this.data;
+        obj.chiBusinessVoList = this.chiBusinessVoList;
+        bizupdate(obj).then((res) => {
+          if (res.code == "success") {
+          } else {
+            if (res.code == "form_valid_failed") {
+              let a = eval("(" + res.desc + ")");
+              const value = Object.values(a);
+              notification.error({
+                message: "提示",
+                description: value,
+                duration: 1.5,
+              });
+            } else {
+              notification.error({
+                message: "提示",
+                description: res.desc,
+                duration: 1.5,
+              });
+            }
+          }
+          this.refresh(
+            this.$store.state.appinfo.appInfo.id,
+            this.$store.state.appinfo.appInfo.state
+          );
+        });
+      }
+    },
+    refresh(x, y) {
+      bizdetail(x, y).then((res) => {
+        if (res.code == "success") {
+          this.data = res.result;
+          this.chiBusinessVoList = res.result.chiBusinessVoList;
+          if (res.result.chiBusinessVoList) {
+            this.chiBusinessVoList.forEach((i, x) => {
+              i.key = x + 1;
+            });
+          }
+          this.shuzu = this.data.mainBusinessVo.subject;
+        } else {
+          notification.error({
+            message: "提示",
+            description: res.message,
+            duration: 1.5,
+          });
+        }
+      });
+    },
+  },
+};
+
+const obj = {
+  appId: 0,
+  categoryIds: [0],
+  chiBusinessVoList: [
+    {
+      id: 0,
+      interfaceVo: {
+        appUrl: "string",
+        id: 0,
+        isdevApp: 0,
+        isdevPc: 0,
+        pcUrl: "string",
+        spreadingParameterApp: "string",
+        spreadingParameterPc: "string",
+        type: 0,
+      },
+      name: "string",
+    },
+  ],
+  interfaceVo: {
+    appUrl: "string",
+    id: 0,
+    isdevApp: 0,
+    isdevPc: 0,
+    pcUrl: "string",
+    spreadingParameterApp: "string",
+    spreadingParameterPc: "string",
+    type: 0,
+  },
+  mainBusinessVo: {
+    category: ["string"],
+    icon: "string",
+    id: 0,
+    introduce: "string",
+    isHasChildren: 0,
+    name: "string",
+    devInterfaceId: 0,
+    state: 0,
+  },
+};
+
+const columns = [
+  {
+    title: "序号",
+    dataIndex: "key",
+    width: "10%",
+  },
+  {
+    title: "子项名称",
+    dataIndex: "name",
+    width: "30%",
+    scopedSlots: { customRender: "name" },
+  },
+  {
+    title: "单点登录",
+    dataIndex: "point",
+    width: "40%",
+    scopedSlots: { customRender: "point" },
+  },
+  {
+    title: "操作",
+    dataIndex: "operation",
+    scopedSlots: { customRender: "operation" },
+  },
+];
+</script>
+<style lang="less" scoped>
+.dev-layout {
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  & > div {
+    padding: 8px 24px;
+    height: 100%;
+    background: #fff;
+    .head {
+      display: flex;
+      justify-content: space-between;
+      margin: 20px 0 20px;
+    }
+    .auditstatus {
+      color: @primary-color;
+    }
+  }
+  .message {
+    position: relative;
+    width: 800px;
+    margin: 40px auto;
+    padding: 0;
+    li {
+      list-style: none;
+      display: flex;
+      margin-top: 20px;
+      .business-select {
+        width: 240px;
+      }
+      .texearea-input {
+        display: flex;
+        width: 70%;
+        textarea {
+          width: 60%;
+        }
+      }
+    }
+    p {
+      color: #595959;
+      width: 300px;
+    }
+    .p-left {
+      width: 120px;
+      text-align: right;
+      padding-top: 5px;
+      margin-right: 37px;
+      color: #171717;
+      font-weight: bolder;
+    }
+    .call {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      .call-pc {
+        width: 70%;
+        display: flex;
+      }
+      .call-moble {
+        width: 70%;
+        display: flex;
+      }
+    }
+    .logo {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 300px;
+      img {
+        margin-left: 145px;
+        padding: 34px 40px;
+        border: dashed 1px #e6e6e6;
+      }
+    }
+  }
+  .ant-input {
+    width: 30%;
+  }
+}
+</style>

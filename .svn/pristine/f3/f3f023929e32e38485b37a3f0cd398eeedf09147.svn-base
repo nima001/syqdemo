@@ -1,0 +1,25 @@
+<template>
+  <card title="机构绩效">
+    <div class="kpi-org">
+      
+    </div>
+  </card>
+</template>
+<script>
+import Card from './ScreenCard'
+
+/**
+ * 机构绩效
+ */
+export default {
+  components: {
+    Card,
+  }
+}
+</script>
+<style lang="less" scoped>
+.kpi-org{
+  background: fade(#000, 20%);
+  color: white;
+}
+</style>

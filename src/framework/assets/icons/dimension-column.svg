@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="64" height="64" viewBox="0 0 64 64">
+  <g id="蒙版组_205" data-name="蒙版组 205" transform="translate(5360 -2690)" >
+    <g id="组_2120" data-name="组 2120" transform="translate(0 1)">
+      <rect id="矩形_1626" data-name="矩形 1626" width="4" height="46" transform="translate(-5336 2698)" />
+      <rect id="矩形_1623" data-name="矩形 1623" width="4" height="49" transform="translate(-5304 2708) rotate(90)" />
+      <rect id="矩形_1624" data-name="矩形 1624" width="4" height="49" transform="translate(-5304 2719) rotate(90)" />
+      <rect id="矩形_1625" data-name="矩形 1625" width="4" height="49" transform="translate(-5304 2730) rotate(90)" />
+    </g>
+    <path id="减去_13" data-name="减去 13" d="M295,50H255a8.009,8.009,0,0,1-8-8V8a8.009,8.009,0,0,1,8-8h40a8.009,8.009,0,0,1,8,8V42A8.009,8.009,0,0,1,295,50ZM255,4a4,4,0,0,0-4,4V42a4,4,0,0,0,4,4h40a4,4,0,0,0,4-4V8a4,4,0,0,0-4-4Z" transform="translate(-5603 2697)"/>
+  </g>
+</svg>

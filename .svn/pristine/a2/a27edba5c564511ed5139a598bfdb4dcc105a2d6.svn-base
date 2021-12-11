@@ -1,0 +1,30 @@
+
+
+/**
+ * 打开菜单
+ * @param {Object} menu 
+ */
+export function openMenu(menu, router){
+  if (menu.children && menu.children.length > 0) {
+    router.push(`/main/menu/${menu.id}`).catch(err => {
+      //ignore
+    });
+  } else if(menu.componenturi){
+    if (menu.componenturi.startsWith('redirect:')) {
+      let path = menu.componenturi.slice(9);
+      let temp = path.toUpperCase();
+      if(temp.startsWith('http:') || temp.startsWith('https:')){
+        window.open(path, "_blank");
+      }else{
+        const { href } = router.resolve({path});
+        if(href){
+          window.open(href, "_blank");
+        }
+      }
+    } else {
+      router.push(menu.componenturi).catch(err => {
+        //ignore
+      });
+    }
+  }
+}

@@ -1,0 +1,50 @@
+
+/**
+ * 资源分析模块路由 
+ */
+import Layout from '../../views/Layout'
+
+export const analysisRoutes = {
+    path: '/person/statistics/analysis',
+    component: Layout,
+    redirect: '/person/statistics/analysis/index',
+    name: 'statisticsAnalysis',
+    children: [
+        {
+			path: 'index',
+			component: () => import('../../views/statistics/analysis/index'),
+			name: 'statisticsAnalysisIndex',
+			meta: {
+				auth: 'login',
+				path: [{ name: '统计分析', path: '/person/statistics/analysis/index' }]
+			}
+		},
+        {
+            path: 'manage',
+            component: () => import('../../views/statistics/analysis/AnalysisManagement'),
+            name: 'statisticsAnalysisManagement',
+            meta: {
+                auth: 'login',
+                path: [{ name: '资源分析模板管理', path: '/person/statistics/analysis/manage' }]
+            }
+        },
+        {
+            path: 'scope',
+            component: () => import('../../views/statistics/analysis/ScopeManagement'),
+            name: 'scopeManagement',
+            meta: {
+                auth: 'login',
+                path: [{ name: '资源分析模板管理', path: '/person/statistics/analysis/manage' }, { name: '资源分析范围管理', path: '/person/statistics/analysis/scope' }]
+            }
+        },
+        {
+            path: 'content',
+            component: () => import('../../views/statistics/analysis/ContentManagement'),
+            name: 'contentManagement',
+            meta: {
+                auth: 'login',
+                path: [{ name: '资源分析模板管理', path: '/person/statistics/analysis/manage' }, { name: '资源分析内容管理', path: '/person/statistics/analysis/content' }]
+            }
+        }
+    ]
+}

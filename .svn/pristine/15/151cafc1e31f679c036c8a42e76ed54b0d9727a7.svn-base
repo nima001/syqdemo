@@ -1,0 +1,166 @@
+<template>
+  <div class="lineChart" :id="id"></div>
+</template>
+
+<script>
+import DataSet from "@antv/data-set";
+import { Chart } from "@antv/g2";
+export default {
+  components: {},
+  data() {
+    return {
+      id: Math.random()
+        .toString(32)
+        .substr(2),
+      list: [
+        {
+          Year: 1978,
+          "Number of incidents": "1,526",
+          Deaths: "1,459",
+          Injuries: "1,600"
+        },
+        {
+          Year: 1977,
+          "Number of incidents": "1,319",
+          Deaths: 456,
+          Injuries: 518
+        },
+        {
+          Year: 1976,
+          "Number of incidents": 923,
+          Deaths: 672,
+          Injuries: 755
+        },
+        {
+          Year: 1975,
+          "Number of incidents": 740,
+          Deaths: 617,
+          Injuries: 617
+        },
+        {
+          Year: 1974,
+          "Number of incidents": 580,
+          Deaths: 542,
+          Injuries: 763
+        },
+        {
+          Year: 1973,
+          "Number of incidents": 473,
+          Deaths: 370,
+          Injuries: 495
+        },
+        {
+          Year: 1972,
+          "Number of incidents": 496,
+          Deaths: 566,
+          Injuries: 408
+        },
+        {
+          Year: 1971,
+          "Number of incidents": 470,
+          Deaths: 173,
+          Injuries: 82
+        },
+        {
+          Year: 1970,
+          "Number of incidents": 651,
+          Deaths: 171,
+          Injuries: 192
+        }
+      ]
+    };
+  },
+  mounted() {
+    this.draw();
+  },
+  methods: {
+    draw() {
+      const ds = new DataSet();
+
+      const chart = new Chart({
+        container: this.id,
+        autoFit: true,
+        syncViewPadding: true
+      });
+
+      chart.scale({
+        Deaths: {
+          sync: true,
+          nice: true
+        },
+        death: {
+          sync: true,
+          nice: true
+        }
+      });
+
+      const dv1 = ds.createView().source(this.list);
+      dv1.transform({
+        type: "map",
+        callback: row => {
+          if (typeof row.Deaths === "string") {
+            row.Deaths = row.Deaths.replace(",", "");
+          }
+          row.Deaths = parseInt(row.Deaths, 10);
+          row.death = row.Deaths;
+          row.year = row.Year;
+          return row;
+        }
+      });
+      const view1 = chart.createView();
+      view1.data(dv1.rows);
+      view1.axis("Year", {
+        subTickLine: null,
+        tickLine: {
+          length: 6
+        }
+      });
+
+      view1.axis("Deaths",false)
+      view1
+        .line()
+        .position("Year*Deaths")
+        .shape("smooth")
+        .color("#8fc7ff");
+
+      const dv2 = ds.createView().source(dv1.rows);
+      dv2.transform({
+        type: "regression",
+        method: "polynomial",
+        fields: ["year", "death"],
+        bandwidth: 0.1,
+        as: ["year", "death"]
+      });
+
+      const view2 = chart.createView();
+      view2.axis(false);
+      view2.data(dv2.rows);
+      view2
+        .line()
+        .position("year*death")
+        .style({
+          stroke: "#00F7FAFF",
+          lineDash: [1, 1]
+        })
+        .tooltip(false);
+      view1.annotation().text({
+        content: "趋势线",
+        position: ["1978", 1459],
+        style: {
+          fill: "#8c8c8c",
+          fontSize: 14,
+          fontWeight: 300
+        },
+        offsetY: -70
+      });
+      chart.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.lineChart {
+  width: 100%;
+  height: 180px;
+}
+</style>

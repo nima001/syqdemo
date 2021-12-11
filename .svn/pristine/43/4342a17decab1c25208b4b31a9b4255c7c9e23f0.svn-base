@@ -1,0 +1,76 @@
+<template>
+  <card title="一票否优">
+    <div class="kpi-veto">
+      <div id="mainbot" style="width: 100%; height: 80px"></div>
+    </div>
+  </card>
+</template>
+<script>
+import Card from './ScreenCard'
+import echarts from 'echarts'
+/**
+ * 一票否优
+ */
+export default {
+  components: {
+    Card,
+  },
+  mounted: function() {
+      this.$nextTick(function() {
+        this.showChart()
+      })
+    },
+  methods: {
+    showChart() {
+      var myChart = echarts.init(document.getElementById('mainbot'));
+      this.option = {
+       
+        tooltip: {
+            trigger: 'item',
+            formatter: '{b}:{c}'
+        },
+        xAxis: [
+            {
+                show: false,
+            }
+        ],
+        yAxis:[
+            {
+                type: 'category',
+                data: [' 机构数'],
+                axisLine: {show: false},     
+                axisTick: [{    
+                    show: false
+                }],
+               
+            }
+        ],
+        series: [
+            {
+                name: '机构数',
+                type: 'bar',
+                data: [                  
+                    {name: '机构数', value: 21}
+                ],
+                itemStyle: {
+                    normal: {
+                        color: '#30555B',
+                        label: {
+                            show: true,
+                            fontSize: '14',
+                            position: 'right'
+                        }
+                    },
+ 
+                },
+            },
+        ]
+    };
+    myChart.setOption(this.option);
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+
+</style>

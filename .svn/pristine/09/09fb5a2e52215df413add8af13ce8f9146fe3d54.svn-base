@@ -1,0 +1,157 @@
+<template>
+  <div class="view">
+    <p class="title">业务通知</p>
+    <ul class="list">
+      <li class="list-item" v-for="(item,index) in list" :key="index">
+        <div class="left">
+          <span class="title">{{item.name}}</span>
+          <div class="num">
+            <lcd-font :length="5" :realNumber="item.total"></lcd-font>
+          </div>
+        </div>
+        <div class="right">
+          <ul>
+            <li>
+              <span class="text">进行中</span>
+              <span class="num">{{item.ing}}</span>
+            </li>
+            <li>
+              <span class="text">已完成</span>
+              <span class="num">{{item.done}}</span>
+            </li>
+          </ul>
+        </div>
+      </li>
+    </ul>
+  </div>
+</template>
+
+<script>
+import { mixins } from "../components/minxin";
+import { notice } from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@/framework/utils/index";
+import LcdFont from "../components/LcdFont";
+export default {
+  components: { LcdFont },
+  data() {
+    return {
+      list: [],
+      noticeResult: {}
+    };
+  },
+  mixins: [mixins],
+  watch: {
+    dictId(v) {
+      this.getNotice(v);
+    }
+  },
+  mounted() {
+    this.getNotice(this.dictId);
+  },
+  methods: {
+    getNotice(dictId) {
+      notice(dictId)
+        .then(res => {
+          let { keyCols, rows, valueCols } = res.result.data;
+          this.list = rows.map((item, index) => {
+            return {
+              name: item[keyCols[index]["column"]],
+              total: item[valueCols[0]["column"]],
+              ing: item[valueCols[1]["column"]],
+              done: item[valueCols[2]["column"]]
+            };
+          });
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.view {
+  height: 483px;
+  background: url("../img/short-line.png") center bottom no-repeat;
+  .title {
+    height: 26px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.8;
+    margin: 0px;
+  }
+  .list {
+    margin: 24px 0px 0px;
+    width: 100%;
+    .list-item {
+      width: 100%;
+      height: 100px;
+      background: url("../img/question.png") repeat;
+      border-radius: 4px;
+      display: flex;
+      justify-content: space-between;
+      padding: 0px 24px;
+      margin-top: 24px;
+      &:first-child {
+        margin-top: 0px;
+      }
+      .left {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        .title {
+          height: 21px;
+          font-size: 16px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 21px;
+          color: #ffffff;
+        }
+        .num {
+          position: relative;
+          height: 58px;
+          display: flex;
+          align-items: center;
+        }
+      }
+      .right {
+        display: flex;
+        align-items: center;
+        ul {
+          margin: 0px;
+          li {
+            display: flex;
+            height: 22px;
+            &:last-child {
+              margin-top: 16px;
+            }
+            .text {
+              height: 22px;
+              font-size: 16px;
+              font-family: Microsoft YaHei;
+              font-weight: 400;
+              line-height: 22px;
+              color: #ffffff;
+              opacity: 0.6;
+            }
+            .num {
+              margin-left: 30px;
+              height: 22px;
+              font-size: 16px;
+              font-family: Arial;
+              font-weight: 400;
+              line-height: 22px;
+              color: #ffffff;
+              opacity: 0.6;
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</style>

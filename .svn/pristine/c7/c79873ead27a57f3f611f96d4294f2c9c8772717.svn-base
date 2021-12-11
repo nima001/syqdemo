@@ -1,0 +1,91 @@
+import request from '@/framework/utils/request'
+
+/**
+ * 获取考核概况
+ * @param {int} nodeid 组织节点id
+ */
+export function exam (nodeid) {
+  return request({
+    url: '/hall2/v2/userreport/getisneedassessmap',
+    method: 'post',
+    data: { nodeid }
+  })
+}
+
+/**
+ * 获取窗口职位概况
+ * @param {int} nodeid 组织节点id
+ */
+export function staffposition (nodeid) {
+  return request({
+    url: '/hall2/v2/userreport/getwindowpositionmap',
+    method: 'post',
+    data: { nodeid }
+  })
+}
+
+/**
+ * 获取教育概况
+ * @param {int} nodeid 组织节点id
+ */
+export function education (nodeid) {
+  return request({
+    url: '/hall2/v2/userreport/geteducationmap',
+    method: 'post',
+    data: { nodeid }
+  })
+}
+
+/**
+ * 获取政治面貌概况
+ * @param {int} nodeid 组织节点id
+ */
+export function politics (nodeid) {
+  return request({
+    url: '/hall2/v2/userreport/getpoliticefacemap',
+    method: 'post',
+    data: { nodeid }
+  })
+}
+
+/**
+ * 获取性别概况
+ * @param {int} nodeid 组织节点id
+ */
+export function sex (nodeid) {
+  return request({
+    url: '/hall2/v2/userreport/getusersexmap',
+    method: 'post',
+    data: { nodeid }
+  })
+}
+
+/**
+ * 获取人员身份概况
+ * @param {int} nodeid 组织节点id
+ */
+export function identity (nodeid) {
+  return request({
+    url: '/hall2/v2/userreport/getpersonnelmap',
+    method: 'post',
+    data: { nodeid }
+  })
+}
+
+/**
+ * 人员调动列表查询 
+ * data对象属性
+ * @param {int} nodeid 组织节点id
+ * @param {enum} type  1: 调入   2:调出
+ * @param {String} searchkey 查询字符串
+ * @param {int} nodeid 组织节点id
+ * @param {String} starttime 开始时间
+ * @param {String} endtime 结束时间
+ */
+export function transferList (data) {
+  return request({
+    url: '/hall2/personneltransfer/query',
+    method: 'post',
+    data: data
+  })
+}

@@ -1,0 +1,21 @@
+<template>
+  <div>
+    <Title title="执行状态分析"/>
+    <div style="height:200px"></div>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+
+
+export default {
+  components: {
+    Title
+  }
+}
+</script>
+
+<style>
+
+</style>

@@ -1,0 +1,51 @@
+<template>
+  <div class="staff-violate">
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span>现核定事业编制{{data.bzzj}}名，实有人员{{data.bzzj_sy}}人，本次申请核增事业编制{{data.adjust}}名。</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**机构编制调整事项基本情况
+*/
+import { Row, Col } from "ant-design-vue";
+import { createReportItem, pStyle } from "@/person-shaoxing/utils/index";
+export default {
+  props: {
+    data: Object
+  },
+  components: {
+    ARow: Row,
+    ACol: Col
+  },
+  data() {
+    return {
+
+    };
+  },
+  watch: {},
+  computed: {
+  },
+  created() {},
+  mounted() {
+
+  },
+  methods: {
+    getHtml() {
+      let text = `<p style="${pStyle}">现核定事业编制${this.data.bzzj}名，实有人员${this.data.bzzj_sy}人，本次申请核增事业编制${this.data.adjust}名。</p>`
+      return createReportItem(text, '机构编制调整事项基本情况')
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.staff-violate{  
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

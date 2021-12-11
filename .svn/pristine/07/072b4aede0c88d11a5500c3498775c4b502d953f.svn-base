@@ -1,0 +1,45 @@
+<template>
+  <div class="power-list">
+    <div class="mechanism-div">
+      <div class="small-div"></div>
+      <div class="small-p">权力清单</div>
+    </div>
+  </div>
+</template>
+<script>
+import { Button, Select, Input, Table, Pagination } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+export default {
+  data() {
+    return {};
+  },
+  components: {
+    AButton: Button,
+    ASelect: Select,
+    AInput: Input,
+    ATable: Table,
+    APagination: Pagination,
+  },
+  created() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.power-list {
+  padding: 10px 24px;
+  height: 100%;
+  .mechanism-div {
+    display: flex;
+    align-items: center;
+    .small-div {
+      width: 5px;
+      height: 20px;
+      background: @primary-color;
+    }
+    .small-p {
+      font-size: 20px;
+      margin-left: 5px;
+    }
+  }
+}
+</style>

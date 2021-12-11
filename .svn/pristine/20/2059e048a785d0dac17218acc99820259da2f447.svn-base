@@ -1,0 +1,108 @@
+<template>
+  <a-table :columns="columns" :dataSource="dataSource" rowKey="id" :pagination="false" v-if="category == 'staff'">
+  </a-table>
+  <a-table :columns="columns" :dataSource="dataSource" rowKey ="id" :pagination="false" v-else-if="category == 'post'">
+    <span slot="name" slot-scope="text,record">
+      <a-icon type="team" :style="{color:'#d60002'}" v-if="record.level == 1" />
+      <a-icon type="team" :style="{color:'#1b5293'}" v-if="record.level == 2" />
+      {{record.name}}
+    </span>
+  </a-table>
+</template>
+<script>
+import { listOrgDistrItem } from "@person/api/org";
+import { showError } from "@framework/utils/index";
+import { Table, Icon } from "ant-design-vue";
+export default {
+  components: {
+    AIcon: Icon,
+    ATable: Table
+  },
+  props: {
+    category: String,
+  },
+  inject: ["formData"],
+  data() {
+    return {
+      columns: [
+        {
+          title: "类别",
+          dataIndex: "name",
+          align: "center",
+          scopedSlots: { customRender: "name" },
+          width:"33.33%"
+        },
+        {
+          title: "核定数",
+          dataIndex: "usernum",
+          align: "center",
+          width:"33.33%"
+        },
+        {
+          title: "实有",
+          dataIndex: "realnum",
+          align: "center",
+          width:"33.33%"
+        }
+      ],
+      dataSource:[]
+    };
+  },
+  computed: {
+    params() {
+      return {
+        id: this.formData.data._id,
+        category: this.category
+      };
+    },
+  },
+  watch: {
+    params(params) {
+      this.loadDistr(params);
+    }
+  },
+  created() {
+    this.loadDistr(this.params);
+  },
+  methods: {
+    formatData(arr,list=[]){
+      // realnum ： 实有数   usernum : 核定数
+      for(let i = 0;i<arr.length;i++){
+        let cur = arr[i];
+        if(!cur.children){
+          if(!cur.usernum){
+            cur.usernum = 0;
+          }
+          cur.realnum = cur.count + cur.change;
+          // 如果核定数和实有数都为零时，那么对应的字段则不显示
+          if(cur.realnum != 0 || cur.usernum != 0 ){
+            list.push(cur)
+          }
+        }else{
+          this.formatData(cur.children,list)
+        }
+      }
+      return list;
+    },
+    loadDistr(params) {
+      listOrgDistrItem(params.id, params.category)
+        .then(res => {
+          this.dataSource  = this.formatData(res.result);
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.title-bar {
+  margin: 10px 0;
+  line-height: 1em;
+  border-left: 5px solid @primary-color;
+  font-size: 18px;
+  text-indent: 5px;
+  color: @primary-color;
+}
+</style>

@@ -1,0 +1,18 @@
+const assessment = {
+  state: {
+    //  新增时的评估数据
+    assessData: {},
+    //  页面处理过的数据
+    processedData: {},
+  },
+  mutations: {
+    setAssessData: (state, payload) => {
+      state.assessData = payload;
+    },
+    setProcessedData: (state, payload) => {
+      state.processedData[payload.key] = payload.data;
+    },
+  }
+}
+
+export default assessment

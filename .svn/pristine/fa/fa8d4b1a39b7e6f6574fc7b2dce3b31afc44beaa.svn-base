@@ -1,0 +1,64 @@
+<template>
+  <div>
+    <a-form-item 
+      :label="field.desc"
+      :required="!!field.require" 
+    >
+      <a-switch
+        v-model="propValue"
+        checked-children="true" 
+        un-checked-children="false" 
+      />
+    </a-form-item>
+  </div>
+</template>
+<script>
+import { Form, Switch } from "ant-design-vue";
+import get from 'lodash/get';
+import set from 'lodash/set';
+export default {
+  props: {
+    field: {
+      type: Object,
+    },
+    data: {
+      type: Object,
+    }
+  },
+  components: {
+    AFormItem: Form.Item,
+    ASwitch: Switch
+  },
+  computed: {
+    propValue:{
+      get(){
+        return get(this.data, this.code);
+      },
+      set(value){
+        set(this.data, this.code, value)
+      }
+    }
+  },
+  data() {
+    return {
+      code: this.field['name'],
+      propValue: false
+    };
+  },
+  methods: {
+    validateField(obj){
+      if(this.field.require){
+        set(obj, this.code, this.propValue)
+        return Promise.resolve();
+      }else{
+        return Promise.resolve();
+      }
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-form-item {
+  margin-bottom: 0;
+}
+</style>

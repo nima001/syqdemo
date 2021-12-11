@@ -1,0 +1,52 @@
+<template>
+  <div class="business-orgreport">
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">事业单位运行评估情况：{{result}}</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**事业单位运行评估结果
+*/
+import { Row, Col } from "ant-design-vue";
+export default {
+  props: {
+    data: Number
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+    result() {
+      if(this.data == 1) {
+        return '事业单位运行评估通过'
+      }else if(this.data == 2){
+        return '事业单位运行评估未通过'
+      }else{
+        return '事业单位运行评估进行中'
+      }
+    }
+  },
+  created() {
+  },
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.business-orgreport{  
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

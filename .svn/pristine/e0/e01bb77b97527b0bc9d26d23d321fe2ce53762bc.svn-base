@@ -1,0 +1,113 @@
+<template>
+  <div class="form-panel">
+    <div :class="{'form-body': true, 'anchor': tables && tables.length > 1}" ref="formBody">
+      <div v-for="item in tables" :key="item.key" :id="item.key">
+        <component v-if="item.component" :is="item.component" 
+          :value="data" 
+          :name="item.name" 
+          :chartCols="item.chartCols" 
+          :tableCols="item.tableCols"
+          :warnCols="item.warnCols"
+          :unittype="unittype" 
+          :district="district"
+        />
+        <chart-table v-else
+          :value="data" 
+          :name="item.name" 
+          :chartCols="item.chartCols" 
+          :tableCols="item.tableCols"
+          :warnCols="item.warnCols"
+          :unittype="unittype" 
+          :district="district"
+        />
+      </div>
+    </div>
+    <a-anchor v-if="tables && tables.length > 1" wrapperClass="form-anchor" :getContainer="() => $refs.formBody">
+      <a-anchor-link v-for="item in tables" :href="`#${item.key}`" :title="item.name" :key="item.key"/>
+    </a-anchor>
+  </div>
+</template>
+<script>
+import { Anchor, Table } from "ant-design-vue";
+import ChartTable from './ChartTable'
+import ChartTablePost from './ChartTablePost'
+import { orgPostReport } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '@framework/utils'
+
+/**
+ * 职数监测
+ */
+export default {
+  components: {
+    AAnchor: Anchor,
+    AAnchorLink: Anchor.Link,
+    ATable: Table,
+    ChartTable, ChartTablePost
+  },
+  props: {
+    unittype: {
+      type: Number,
+      required: true,
+    },
+    district: {
+      type: String,
+    }
+  },
+  data(){
+    return {
+      data: undefined,
+      tables: undefined
+    }
+  },
+  computed: {
+    params(){
+      return { unittype: this.unittype, district: this.district}
+    }
+  },
+  watch: {
+    params(v){
+      this.tables = null;
+      this.loadData(this.params);
+    }
+  },
+  created(){
+    this.loadData(this.params);
+  },
+  methods: {
+    loadData({unittype, district}){
+      orgPostReport(unittype, district).then(({result}) => {
+        this.tables = [{ 
+          key: 'all', 
+          name: '领导超编数',
+          tableCols: result.valueCols.slice(0, -4).map(item => item.key),
+          component: 'ChartTablePost',
+        }];
+        this.data = result;
+      }).catch(error => {
+        showError(error);
+      });
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  position: relative;
+  height: 100%;
+  .form-body {
+    height: 100%;
+    padding: 0 @content-padding-h;
+    overflow-y: scroll;
+    &.anchor{
+      padding-right: 200px + @content-padding-h;
+    }
+  }
+  /deep/.form-anchor {
+    position: absolute;
+    top: 50px;
+    right: @content-padding-h;
+    width: 180px;
+    padding-left: 5px;
+  }
+}
+</style>

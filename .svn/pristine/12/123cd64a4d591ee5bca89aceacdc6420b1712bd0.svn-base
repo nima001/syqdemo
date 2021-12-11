@@ -1,0 +1,97 @@
+<template>
+  <div>
+    <a-form-item :label="name" :required="required" :validateStatus="validateStatus" :class="{editor:!editor}">
+      <a-tooltip placement="topLeft" :title="title">
+        <a-input
+          :value="propValue && propValue.username"
+          :read-only="true"
+          :allowClear="true"
+          @click="showSelect"
+          @change="changeHandle($event)"
+        >
+          <a-icon slot="addonAfter" type="select" @click="showSelect" />
+        </a-input>
+      </a-tooltip>
+    </a-form-item>
+    <a-modal
+      :footer="null"
+      v-model="visible"
+      :width="500"
+      :title="`选择${name}`"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select mode="user" :show-dept="true" @finish="finishSelect" />
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Form, Input, Modal, Icon } from "ant-design-vue";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import { mixins } from "@formdesign/views/mixin/index";
+export default {
+  title: "用户选择",
+  components: {
+    AFormItem: Form.Item,
+    AInput: Input,
+    AModal: Modal,
+    AIcon: Icon,
+    OrgUserSelect
+  },
+  mixins: [mixins],
+  data() {
+    return {
+      visible: false
+    };
+  },
+  computed: {
+    title() {
+      return this.validateStatus == "error" ? `请选择${this.name}` : "";
+    }
+  },
+  methods: {
+    validate(callback) {
+       if(this.propValue._id){
+          this.validateStatus = "success";
+       }else{
+          this.validateStatus = "error";
+       }
+      if(callback){
+        callback(this.validateStatus)
+      }
+    },
+    changeHandle(e) {
+      this.propValue = e.target.value;
+    },
+    showSelect() {
+      if (!this.disable) {
+        this.visible = true;
+      }
+    },
+    finishSelect(type, list) {
+      this.visible = false;
+      if (type == "ok" && list.length > 0) {
+        this.propValue = list[0];
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-form-item {
+  margin-bottom: 0;
+  &.editor{
+    position: relative;
+    &::before{
+      position: absolute;
+      left: 0px;
+      top: 0px;
+      content: '';
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 3;
+      cursor:not-allowed;
+    }
+  }
+}
+</style>

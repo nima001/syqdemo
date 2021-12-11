@@ -1,0 +1,374 @@
+<template>
+  <div>
+    <dialog-box 
+      v-model="show"
+      :title="(districtName || '') + title"
+    >
+      <div class="detail-info">
+        <div class="header">
+          <ul>
+            <li>
+              <div class="name">{{title}}</div>
+              <lcd-font :length="5" :smooth="false" :realNumber="num" :realStyle="{color: '#7dc8a3'}"/>
+              <div class="tooltip show-icon" v-if="numDesc" style="margin-left: 80px">
+                <div class="arrow"></div>
+                <div class="content">{{numDesc}}</div>
+              </div>
+            </li>
+            <li class="operater">=</li>
+            <li>
+              <div class="name">核定数</div>
+              <lcd-font :length="6" :smooth="false" :realNumber="total"/>
+              <div v-if="totalgq >= 0||totalbbye.length>0" class="tooltip" style="margin-left: 270px">
+                <div class="arrow" style="margin-left: 40px;"></div>
+                <div v-if="unittypes.indexOf(3) >= 0" class="content">
+                  事业核定编制数不含报备员额{{totalbbye[0]}}名，实有报备员额{{totalbbye[1]}}名，空额{{totalbbye[0]-totalbbye[1]}}名
+                  <!-- 核定公办报备员额{{totalgq}}名 -->
+                  </div>
+                <div v-else class="content">行政核定编制数其中不含工勤编制{{totalgq}}名</div>
+              </div>
+            </li>
+            <li class="operater">-</li>
+            <li>
+              <div class="name">实有数</div>
+              <lcd-font v-if="totalbbye[1]&&used>totalbbye[1]" :length="6" :smooth="false" :realNumber="used-totalbbye[1]"/>
+              <lcd-font v-else :length="6" :smooth="false" :realNumber="used"/>
+            </li>
+          </ul>
+        </div>
+        <div class="body">
+          <ul class="bar-chart">
+            <li v-for="item in dataTable.rows" :key="item.k0">
+              <div class="num">{{Math.max(item.v0 || 0, 0)}}</div>
+              <div class="bar" @click="showOrgList(item)">
+                <div :style="{
+                  height: getBarPercent(item.v0)
+                }"></div>
+              </div>
+              <div class="label">{{item.k0}}</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </dialog-box>
+    <org-list v-model="orgList.show" 
+      :title="(districtName || '') + orgList.title" 
+      :systype="orgList.systype"
+      :group="orgList.group"
+      :infoTabIndex="orgList.infoTabIndex"
+      :loadPage="orgList.loader"
+    >
+      <div slot="item" slot-scope="org" class="org-item">
+        <div class="name">{{org.name}}</div>
+        <div class="num">{{org.num}}</div>
+      </div>
+    </org-list>
+  </div>
+</template>
+<script>
+import DialogBox from '../components/DialogBox'
+import LcdFont from "../components/LcdFont";
+import OrgList from '../components/OrgList'
+import { mixins } from "../components/minxin";
+import { orgQuery } from "@/person-shaoxing/api/orgStaffReport";
+import { aggregateQuery } from '@/person/api/chart'
+import { showError } from "@/framework/utils/index";
+
+export default {
+  components: {
+    DialogBox, LcdFont, OrgList
+  },
+  mixins: [mixins],
+  props: {
+    value: Boolean,
+    title: String,
+    total: {
+      type: Number,
+      default: 0
+    },
+    used: {
+      type: Number,
+      default: 0
+    },
+    totalgq: Number,//总数中包含工勤人数 为空或小于0不显示
+    unittypes: Array,
+    field: Object,
+    totalbbye: {
+      type: Array,
+      default: ()=>{
+        return []
+      }
+    }
+  },
+  data(){
+    return {
+      show: this.value,
+      dataTable: {},
+      orgList: {
+        show: false,
+        title: '',
+        systype: undefined,
+        group: false,
+        infoTabIndex: undefined,
+        params: {}
+      }
+    }
+  },
+  computed: {
+    num(){
+      if(this.total >= 0 && this.used >= 0){
+        return this.total - this.used;
+      }
+      return 0;
+    },
+    maxNum(){
+      let num = 0;
+      if(this.dataTable.rows){
+        this.dataTable.rows.forEach((item) => {
+          if(item.v0 > 0 && num < item.v0){
+            num = item.v0;
+          }
+        });
+      }
+      return num
+    },
+    params(){
+      return {
+        district: this.dictId,
+        unittypes: this.unittypes,
+        field: this.field,
+      }
+    },
+    systypes(){
+      return this.$store.getters.dict('usermanage.org.systype') || [];
+    },
+    numDesc(){
+      if(this.dataTable.rows){
+        let total = {}, valueCols = this.dataTable.valueCols;
+        this.dataTable.rows.forEach(item => {
+          valueCols.forEach(col => {
+            let key = col.column;
+            total[key] = (total[key] || 0) + (item[key] || 0);
+          })
+        });
+        let name = this.field && this.field.name;
+        return `实有${name}单位${total.v0}家，${name}${total.v1}名`
+      }
+    }
+  },
+  watch: {
+    value(value){
+      this.show = value;
+    },
+    show(show){
+      this.$emit('input', show);
+    },
+    params:{
+      immediate: true,
+      handler(p){
+        if(p.field && this.show){
+          this.loadDetail(p);
+        }
+      }
+    }
+  },
+  methods: {
+    showOrgList(item){
+      let systype = this.systypes.find(t => t.text == item.k0);
+      if(!systype){
+        return;
+      }
+      let { name } = this.field;
+      this.orgList = {
+        show: true,
+        title: `${name}机构列表（${item.k0}）`,
+        systype: systype.value,
+        infoTabIndex: name=='空职' ? 2 : 1,
+        group: this.unittypes.includes(5),//包含行政下设需要按主管单位分组显示
+        loader: (page) => {
+          let { district, unittypes, field } = this.params;
+          let filters = [
+            { field: "_id@organization.statistic." + field.code, op: "gt", value: 0 }
+          ];
+          if(page.searchkey){
+            filters.push({ field: "name", op: "regex", value: page.searchkey })
+          }
+          if(page.systype){
+            filters.push({ field: "systype", op: "eq", value: page.systype })
+          }
+          return orgQuery({ 
+            district, unittypes, filters, 
+            fields: [
+              { key: 'suporg', showname: '主管单位'},
+              { key: "_id@organization.statistic." + field.code, showname: '超空数' }
+            ],
+            ...page 
+          }).then(({result: {total, pagenum, pagesize, rows}}) => {
+            return {
+              result: {
+                total, pagenum, pagesize,
+                rows: rows.map(item => {
+                  return {
+                    _id: item._id,
+                    name: item.name,
+                    suporg: item.suporg,
+                    num: item['_join0.' + field.code]
+                  }
+                })
+              }
+            }
+          })
+        }
+      }
+    },
+    getBarPercent(num){
+      if(this.maxNum > 0){
+        num = Math.max(num || 0, 0);
+        return `${100 - (num * 100/this.maxNum).toFixed(2)}%`
+      }
+      return "100%"
+    },
+    loadDetail({district, unittypes, field}){
+      let criteria = [
+        { field: { key: "unittype" }, op: "in", value: unittypes },
+        { field: { key: "_id@organization.statistic." + field.code }, op: "gt", value: 0 },
+      ];
+      if(district){
+        criteria.push({ field: { key: "district" }, op: "eq", value: district });
+      }
+      //查询空编/空职数（指定字段值大于0的机构）
+      this.queryCount(district, unittypes, field);
+    },
+    queryCount(district, unittypes, field){
+      let criteria = [
+        { field: { key: "unittype" }, op: "in", value: unittypes },
+        { field: { key: "_id@organization.statistic." + field.code }, op: "gt", value: 0 }
+      ];
+      if(district){
+        criteria.push({ field: { "key": "district" }, op: "eq", value: district })
+      }
+      return aggregateQuery({
+        query: {
+          target: { id: 1 },
+          fields: [
+            { key: "name" },
+            { key: "systype" },
+            { key: "_id@organization.statistic." + field.code, showname: field.name }
+          ],
+          filter: { op: "and", criteria },
+        },
+        groupby: {
+          with: [
+            { type: "value", key: "systype", showname: "序列" }
+          ],
+          fields: [
+            { type: "count", showname: '条数' },
+            { type: "sum", key: "_id@organization.statistic." + field.code, showname: field.name }
+          ]
+        },
+      }).then(({result: {data = {}}}) => {
+        this.dataTable = data;
+      })
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.detail-info{
+  height: 600px;
+  overflow: hidden;
+  & > .header{
+    text-align: center;
+    margin-top: 90px;
+    height: 170px;
+    ul{
+      overflow: hidden;
+      .operater{
+        padding: 0 20px;
+        color: #8fc7ff;
+        line-height: 56px;
+        vertical-align: bottom;
+        font-size: 30px;
+        font-weight: bold;
+      }
+      li{
+        display: inline-block;
+        .name{
+          color: white;
+          text-align: center;
+          line-height: 1.6em;
+          font-size: 16px;
+        }
+      }
+      .tooltip{
+        position: absolute;
+        transform: translateX(-50%);
+        & > .arrow{
+          width: 0;
+          border-left: 8px solid;
+          border-right: 8px solid;
+          border-bottom: 5px solid #1f252c;
+          margin: auto;
+        }
+        & > .content{
+          padding: 15px 20px;
+          color: white;
+          background-color: #1f252c;
+          border-radius: 5px;
+          font-size: 16px;
+        }
+      }
+      .tooltip.show-icon > .content{
+        padding: 15px 20px 15px 50px;
+        background-image: url("../img/jigou.png");
+        background-repeat: no-repeat;
+        background-position: 15px 15px;
+      }
+    }
+  }
+  & > .body{
+    .bar-chart{
+      display: flex;
+      justify-content: center;
+      li{
+        width: 74px;
+        padding: 4px;
+        text-align: center;
+        .num{
+          color: #7dc8a3;
+          font-size: 18px;
+          font-weight: bold;
+        }
+        .bar{
+          width: 18px;
+          height: 160px;
+          background: linear-gradient(to top, #96f44e, #57f5e6 66%, #7dc8a3);
+          margin: auto;
+          position: relative;
+          cursor: pointer;
+          & > div{
+            background-color: #343434;
+          }
+        }
+        .label{
+          color: white;
+          font-size: 16px;
+        }
+      }
+    }
+  }
+}
+.org-item{
+  display: flex;
+  .name{
+    flex: auto;
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
+  .num{
+    flex: none;
+    color: #8fc7ff;
+    margin-left: 10px;
+  }
+}
+</style>

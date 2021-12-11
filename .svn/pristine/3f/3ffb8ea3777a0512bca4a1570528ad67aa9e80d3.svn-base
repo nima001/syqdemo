@@ -1,0 +1,395 @@
+<template>
+  <div class="chartlist">
+    <div class="header">
+      <qlsxselect :codes.sync="codes" :qlsxOptions.sync="qlsxOptions" :type="'skip'" style="width: 25%"/>
+    </div>
+    <div class="content">
+      <a-row>
+        <a-col :span="8">
+          <div class="chartcontent">
+            <div class="left-chart left-chart1">
+              <div class="chart1">
+                <chartconsole
+                  :loading="loading_one"
+                  :chartType="'bar-chart'"
+                  :queryData.sync="queryData.qlsxdistribution"
+                  @qlsxdiStrict="qlsxdiStrict"
+                >
+                  <template slot="detail" v-if="queryData.qlsxdistribution">
+                    <div class="header">
+                      <span class="detail" @click="toDetail(1)">
+                        <a-icon type="file-text" /> <span class="text">查看详情</span>
+                      </span>
+                      <h2 class="title">绍兴市权力事项区划分布情况</h2>
+                    </div>
+                  </template>
+                </chartconsole>
+              </div>
+            </div>
+            <div class="left-chart left-chart2">
+              <div class="chart3">
+                <chartconsole
+                  :loading="loading_three"
+                  :chartType="'line-chart'"
+                  :queryData.sync="queryData.qlsxtransform"
+                  @qlsxdateLine="qlsxdateLine"
+                >
+                  <template slot="detail" v-if="queryData.qlsxtransform">
+                    <div class="header">
+                      <span class="detail" @click="toDetail(3)">
+                        <a-icon type="file-text" /> <span class="text">查看详情</span>
+                      </span>
+                      <h2 class="title">绍兴市权力事项变化趋势</h2>
+                      <ul class="screen">
+                        <li v-for="item in screen" :key="item.value" @click="Active(item)" :class="{active: checkActive(item)}">{{item.text}}</li>
+                      </ul>
+                    </div>
+                  </template>
+                </chartconsole>
+              </div>
+            </div>
+          </div>
+        </a-col>
+        <a-col :span="16">
+          <div class="chartcontent">
+            <div class="right-chart right-chart1">
+              <div class="chart2">
+                <chartconsole
+                  :loading="loading_one"
+                  :chartType="'bar-chart'"
+                  :queryData.sync="queryData.qlsxtype"
+                >
+                  <template slot="detail" v-if="queryData.qlsxtype">
+                    <div class="header">
+                      <span class="detail" @click="toDetail(2)">
+                        <a-icon type="file-text" /> <span class="text">查看详情</span>
+                      </span>
+                      <h2 class="title">绍兴市权力事项分类情况</h2>
+                    </div>
+                  </template>
+                </chartconsole>
+              </div>
+            </div>
+            <div class="right-chart right-chart2">
+              <div class="chart4">
+                <chartconsole
+                  :loading="loading_four"
+                  :chartType="'bar-chart'"
+                  :queryData.sync="queryData.qlsxdistrictsame"
+                >
+                 <template slot="detail" v-if="queryData.qlsxdistrictsame">
+                    <div class="header">
+                      <span class="detail" @click="toDetail(4)">
+                        <a-icon type="file-text" /> <span class="text">查看详情</span>
+                      </span>
+                      <h2 class="title">绍兴市共性权力事项分布情况</h2>
+                      <ul class="desc">
+                        <li>
+                          共性事项数 {{this.generalitynum}}
+                        </li>
+                        <li>
+                          个性事项数 {{this.personalitynum}}
+                        </li>
+                      </ul>
+                    </div>
+                  </template>
+                </chartconsole>
+              </div>
+            </div>
+          </div>
+        </a-col>
+      </a-row>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Icon, Row, Col } from "ant-design-vue";
+import chartconsole from "./components/chartconsole";
+import qlsxselect from "./components/qlsxselect";
+import { assign, cloneDeep, orderBy } from "lodash";
+import { showError } from "@/framework/utils";
+import {
+  qlsxdistrict,
+  qlsxline,
+  qlsxlinetable,
+  qlsxdateline,
+  qlsxsearchorg,
+  qlsxsearchcode,
+  districtsame,
+} from "@/person-shaoxing/api/assessment";
+import dict from "@/framework/store/modules/dict";
+export default {
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AIcon: Icon,
+    chartconsole,
+    qlsxselect,
+  },
+  data() {
+    return {
+      check: 3,
+      codes: [],
+      qlsxOptions: [],
+      loading_one: true,
+      loading_three: true,
+      loading_four: true,
+      generalitynum: 0,//共性事项数： 7
+      personalitynum: 0,//个性事项数： 1，2，3，4，5，6
+      setting: { title: undefined },
+      screen: [
+        { text: "年度", value: 1 },
+        { text: "季度", value: 3 },
+        { text: "月度", value: 4 },
+      ],
+      queryData: {
+        qlsxdistribution: undefined, //绍兴市权力事项区划分布情况
+        qlsxtype: undefined, //绍兴市权力事项分类情况
+        qlsxtransform: undefined, //绍兴市权力事项变化趋势
+        qlsxdistrictsame: undefined, //绍兴市共性权力事项分布情况
+      },
+    };
+  },
+  computed: {
+    dict() {
+      return this.$store.getters.dict("person.business.businesstype");
+    },
+  },
+  watch: {
+    check(val) {
+      this.queryData.qlsxtransform = undefined;
+      this.qlsxdateLine();
+      return val;
+    },
+    dict(val) {
+      return val;
+    },
+  },
+  beforeRouteEnter (to, from, next) {
+    next(vm => {
+      if(!vm.hasPermit("/person/qlsx/chart")) {
+        vm.$router.replace({ name: "details", params: { active:'history' } });
+      }
+    })
+  },
+  mounted() {
+    console.log(this.hasPermit("/person/qlsx/chart"));
+    this.qlsxdiStrict(1);
+    this.qlsxdateLine();
+    this.districtSame()
+  },
+  methods: {
+    Active(item) {
+      this.check=item.value;
+    },
+    checkActive(item) {
+      return this.check === item.value;
+    },
+    toDetail(val) {
+      let active = undefined;
+      if(val===1||val===2) {
+        active = { active:'history' };
+      }else if(val===3) {
+        active = { active:'transformation', checked: this.check };
+      }else if(val===4) {
+        active = { active:'issue',codes: this.codes };
+      }
+      this.$router.push({ name: "details", params: {...active} });
+    },
+    initData(showname) {
+      let initquerydata = {
+        data: {
+          keyCols: [{ column: "k0", key: "strict", showname: showname }],
+          valueCols: [{ column: "v0", showname: "事项数" }],
+          rows: [],
+        },
+      };
+      return initquerydata;
+    },
+    loadData(data) {
+      this.queryData.qlsxdistribution = cloneDeep(this.initData("区划"));
+      this.queryData.qlsxtype = cloneDeep(this.initData("事项分类"));
+      data.forEach((item) => {
+        if (item.name !== "总计") {
+          //绍兴市权力事项区划分布情况
+          this.queryData.qlsxdistribution.data.rows.push({
+            k0: item.name,
+            v0: item.total,
+          });
+        } else {
+          if(this.dict) {
+            this.queryData.qlsxtype.data.rows.push({
+              k0: '全部权利',
+              v0: item.total,
+            })
+            this.dict.forEach((dictItem, index) => {
+              this.queryData.qlsxtype.data.rows.push({
+                k0: dictItem.text,
+                v0: item.data[dictItem.key],
+              });
+            });
+          }
+        }
+      });
+    },
+    qlsxdiStrict(type) {
+      this.loading_one = true;
+      qlsxdistrict(type)
+        .then((res) => {
+          this.loading_one = false;
+          if (res.result) {
+            this.loadData(res.result);
+          } else {
+            this.queryData.qlsxdistribution = undefined;
+          }
+        })
+        .catch((err) => {
+          this.loading_one = false;
+          showError(err);
+        });
+    },
+    getDate() {
+      let myDate = new Date();
+      var tYear = myDate.getFullYear();
+      var tMonth = myDate.getMonth();
+      return `${tYear}-${tMonth + 1}-1`;
+    },
+    laodQuarter(date) {
+      let result = undefined;
+      if (this.check === 1) {
+        //年度
+        let year = date.split("-")[0];
+        result = `${year}年度`;
+      } else if (this.check === 3) {
+        //季度
+        let month = date.split("-")[1];
+        if (month < 4) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第1季度`;
+        }
+        if (3 < month && month < 7) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第2季度`;
+        }
+        if (6 < month && month < 10) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第3季度`;
+        }
+        if (month > 9) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第4季度`;
+        }
+      } else {
+        //月度
+        let month = date.split("-")[1];
+        result = `${date.split("-")[0].substr(-2, 2)}年${month}月`;
+      }
+      return result;
+    },
+    qlsxdateLine() {
+      let data = {
+        type: 1,
+        dateStep: this.check,
+        startDate: this.getDate(),
+        orgid: "41e21453acc24719bd3f9faaadfb5e68",
+      };
+      this.loading_three = true;
+      qlsxdateline(data)
+        .then((res) => {
+          this.loading_three = false;
+          if (res.result) {
+            this.queryData.qlsxtransform = cloneDeep(this.initData("时间"));
+            orderBy(res.result.rows[0].data, ["date"], ["asc"]).forEach((item) => {
+              this.queryData.qlsxtransform.data.rows.push({
+                k0: this.laodQuarter(item.date),
+                v0: item.total,
+              });
+            });
+          } else {
+            this.queryData.qlsxtransform = undefined;
+          }
+        })
+        .catch((err) => {
+          this.loading_three = false;
+          showError(err);
+        });
+    },
+    districtSame() {
+      this.loading_four = true;
+      this.generalitynum = 0;
+      this.personalitynum = 0;
+      districtsame().then((res)=>{
+        this.loading_four = false;
+        if(res.result) {
+          this.queryData.qlsxdistrictsame = cloneDeep(this.initData("事项分类"));
+          for(let item in res.result) {
+            if(item === '7') {
+              this.generalitynum = res.result[item];
+            }else{
+              this.personalitynum += parseInt(res.result[item]);
+            }
+            this.queryData.qlsxdistrictsame.data.rows.push({
+              k0: item,
+              v0: res.result[item],
+            });
+          }
+        }else{
+          this.queryData.qlsxdistrictsame = undefined;
+        }
+      }).catch((err)=>{
+        this.loading_four = false;
+        showError(err);
+      });
+    }
+  },
+};
+</script>
+<style scoped lang="less">
+.chartlist {
+  height: 100%;
+  padding: @layout-space-base;
+  display: flex;
+  flex-direction: column;
+  .header {
+    height: 70px;
+    padding: @padding-xs @padding-lg;
+    background-color: #ffffff;
+  }
+  & > .content {
+    flex: 1;
+    .ant-row {
+      height: 100%;
+      .ant-col-8, .ant-col-16 {
+        height: 100%;
+        & .chartcontent {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+        }
+      }
+    }
+    .left-chart,
+    .right-chart {
+      height: 50%;
+      display: flex;
+    }
+    .left-chart1 {
+      padding: @layout-space-base @layout-space-base / 2 @layout-space-base / 2 0;
+    }
+    .left-chart2 {
+      padding: @layout-space-base / 2 @layout-space-base / 2 0 0;
+    }
+    .right-chart1 {
+      padding: @layout-space-base 0 @layout-space-base / 2 @layout-space-base / 2;
+    }
+    .right-chart2 {
+      padding: @layout-space-base / 2 0 0 @layout-space-base / 2;
+    }
+    .chart1, .chart2, .chart3, .chart4 {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #ffffff;
+      padding: @layout-space-base;
+      border-radius: @border-radius-base;
+    }
+  }
+}
+</style>

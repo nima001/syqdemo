@@ -1,0 +1,18 @@
+<template>
+  <div class>绩效考核</div>
+</template>
+
+<script>
+export default {
+  name: "",
+  components: {},
+  data() {
+    return {};
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+//@import url(); 引入公共css类
+</style>

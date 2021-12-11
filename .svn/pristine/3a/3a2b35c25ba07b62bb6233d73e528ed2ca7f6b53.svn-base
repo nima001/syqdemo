@@ -1,0 +1,199 @@
+<!-- 转让信息页面 -->
+<template>
+  <a-layout class="open-layout">
+    <div class="body">
+      <a-modal
+        title="应用转让信息"
+        :visible="transferinfovisible"
+        width="600px"
+        :footer="null"
+        @cancel="transferInfoClose"
+      >
+        <!-- :confirm-loading="transferConfirmLoading" -->
+        <!-- @ok="transferConfirm"
+        @cancel="transferCancel"-->
+        <!-- okText="转让应用" -->
+        <a-button
+          type="primary"
+          @click="changeCode"
+          style="float:right;z-index:1;right:5%;top:5px"
+        >变更转让码</a-button>
+        <a-form class="transfer-form" :form="form" labelAlign="left">
+          <a-form-item :label-col="{ span: 3 }" :wrapper-col="{ span: 10 }" label="转让码">
+            <a-input
+              class="input"
+              :readOnly="true"
+              v-decorator="[
+                  'accessCode',
+                  {
+                    initialValue: data.code,
+                  },
+                ]"
+            ></a-input>
+          </a-form-item>
+          <a-form-item label="剩余有效时间(小时)" :label-col="{ span: 6 }" :wrapper-col="{ span: 10 }">
+            <a-input
+              class="input"
+              :readOnly="true"
+              v-decorator="[
+                  'accessCode',
+                  {
+                    initialValue: data.validtime,
+                  },
+                ]"
+            ></a-input>
+          </a-form-item>
+          <div v-if="data.data">
+            <p>接收人信息</p>
+            <a-form-item label="姓名" :label-col="{ span: 3 }" :wrapper-col="{ span: 10 }">
+              <a-input
+                class="input"
+                :readOnly="true"
+                v-decorator="[
+                  'accessCode',
+                  {
+                    initialValue: data.data.username,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+            <a-form-item label="联系方式" :label-col="{ span: 3 }" :wrapper-col="{ span: 10 }">
+              <a-input
+                class="input"
+                :readOnly="true"
+                v-decorator="[
+                  'accessCode',
+                  {
+                    initialValue: data.data.mobilephone,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+            <div class="buttontool">
+              <a-button type="primary" class="confirmbutton" @click="transferConfirm(0)">拒绝转让</a-button>
+              <a-button type="primary" class="confirmbutton" @click="transferConfirm(1)">确认转让</a-button>
+            </div>
+          </div>
+        </a-form>
+      </a-modal>
+    </div>
+    <!-- 转让弹窗 -->
+    <transferview :transfervisible="transfervisible" :appid="appid" @closeTransfer="closeTransfer"></transferview>
+  </a-layout>
+</template>
+
+<script>
+import {
+  Input,
+  Form,
+  Layout,
+  notification,
+  Button
+} from "ant-design-vue";
+import { transferinfo, transferconfirm } from "@/dev/api/app";
+import AppTransfer from "./AppTransfer";
+import { showError } from "@/framework/utils";
+export default {
+  components: {
+    ALayout: Layout,
+    AInput: Input,
+    AForm: Form,
+    transferview: AppTransfer,
+    AButton: Button,
+    AFormItem: Form.Item
+  },
+  props: {
+    transferinfovisible: Boolean,
+    appid: {
+      required: true
+    }
+  },
+
+  data() {
+    return {
+      boo: true,
+      transferConfirmLoading: false,
+      form: this.$form.createForm(this),
+      data: {},
+      transfervisible: false
+    };
+  },
+
+  computed: {},
+
+  watch: {
+    transferinfovisible(val, oldval) {
+      if (val) {
+        this.getTransferInfo();
+      }
+    }
+  },
+
+  mounted() {},
+
+  methods: {
+    //关闭当前弹窗
+    transferInfoClose() {
+      this.form.resetFields();
+      this.$emit("closeTransferInfo", false);
+    },
+    //获取转让信息
+    getTransferInfo() {
+      transferinfo(this.appid)
+        .then(res => {
+          let data = res.result;
+          this.data = data;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    // 确认转让
+    transferConfirm(state) {
+      let data = {
+        state: state,
+        appid: this.appid
+      };
+      transferconfirm(data)
+        .then(res => {
+          let message = state === 0 ? "拒绝转让" : "确认转让";
+          this.$notification.success({
+            message: "提示",
+            description: message + "成功!",
+            duration: 3
+          });
+          this.transferInfoClose();
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    // 变更转让码
+    changeCode() {
+      this.transfervisible = true;
+    },
+    closeTransfer(flag) {
+      this.transfervisible = flag;
+      this.getTransferInfo();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.open-layout {
+  .body {
+    
+  }
+}
+.input {
+  border: none;
+}
+.buttontool{
+      width: 360px;
+      margin: 0 auto;
+      .confirmbutton{
+        width: 150px;
+        margin: 15px;
+      }
+    }
+</style>

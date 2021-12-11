@@ -1,0 +1,284 @@
+import { max } from "lodash";
+
+const kpiconfig = {
+  hospital: [
+    { 
+      name: '医疗资源配置',
+      children: [
+        {
+          name: '人员配置',
+          children: [
+            { name: '卫生技术人员占比', a: 'wsjsryzb', b: 'wsjsryzbbgz', weight: 3, unit: '%'},
+            { name: '卫生技术人员硕、博士人才比例', a: 'wsjsrysbrcbl', b: 'wsjsrysbrcblbgz', weight: 6, unit: '%'},
+            { name: '床位与卫技人员比', a: 'cwywjryb', b: 'cwywjrybbgz', weight: 4, unit: '1:'},
+            { name: '医护比', a: 'yhb', b: 'yhbbgz', weight: 2, unit: '1:', calculate: (data) => {
+              let {yhb = 0, yhbbgz = 1/1.2} = data;
+              if(yhb > 0 && yhbbgz > 0){
+                let a = 1/yhb, b = 1/yhbbgz;
+                if(a < 1){
+                  return Math.max(0, a) * 2;
+                }else if(a <= b){
+                  return 2
+                }else{
+                  return Math.min((1 - (a - b)), 0) * 2
+                }
+              }
+              return 0
+            }},
+          ]
+        },
+        {
+          name: '资金投入',
+          children: [
+            { name: '政府支出占单位总经费比重', a: 'zfzczdwzjfbz', b: 'zfzczdwzjfbzbgz', weight: 5, unit: '%'},
+            { name: '药占比（不含中药饮片）', a: 'yzbbhzyyp', b: 'yzbbhzyypbgz', weight: 3, unit: '%'},
+            { name: '医保基金支付率', a: 'ybjjzfl', b: 'ybjjzflbgz', weight: 3, unit: '%'},
+            { name: '财政支出增长弹性系数', a: 'czzczzdxxs', b: 'czzczzdxxsbgz', weight: 4, unit: '%'},
+          ]
+        },
+        {
+          name: '设施设备',
+          children: [
+            { name: '平均百万元以上医疗设备原值', a: 'pjbwyysylsbyz', b: 'pjbwyysylsbyzbgz', weight: 5, unit: '百万元'},
+            { name: '科学研究与试验发展（R＆D）经费投入占比', a: 'kxyjysyfzjftrzb', b: 'kxyjysyfzjftrzbbgz', weight: 6, unit: '%'},
+          ]
+        },
+        {
+          name: '组织保障',
+          children: [
+            { name: '人员培养经费占比', a: 'rypyjfzb', b: 'rypyjfzbbgz', weight: 3, unit: '%'},
+            { name: '主任医师、副主任医师的比例', a: 'zrysfzrysbl', b: 'zrysfzrysblbgz', weight: 3, unit: '%'},
+            { name: '机构编制使用效益', a: 'jgbzysxy', b: 'jgbzysxybgz', weight: 3, unit: '%'},
+          ]
+        }
+      ]
+    },
+    { 
+      name: '医疗服务产出',
+      children: [
+        {
+          name: '服务供给',
+          children: [
+            { name: '年出院人次', a: 'ncyrc', b: 'ncyrcbgz', weight: 4, unit: '万人次'},
+            { name: '年门急诊人次', a: 'nmjzrc', b: 'nmjzrcbgz', weight: 4, unit: '万人次'},
+            { name: '门诊次均费用增长率', a: 'mzcjfyzzl', b: 'mzcjfyzzlbgz', weight: 3, unit: '%'},
+            { name: '住院次均费用增长率', a: 'zycjfyzzl', b: 'zycjfyzzlbgz', weight: 3, unit: '%'},
+          ]
+        },
+        {
+          name: '管理水平',
+          children: [
+            { name: '门诊患者在线预约率', a: 'mzhzzxyyl', b: 'mzhzzxyylbgz', weight: 3, unit: '%'},
+            { name: '医疗事故发生率', a: 'ylsgfsl', b: 'ylsgfslbgz', weight: 3, unit: '‱'},
+            { name: '医疗机构不良执业行为记分', a: 'yljgblzyxwjf', b: 'yljgblzyxwjfbgz', weight: 4, unit: '分', calculate: (data) => {
+              let { yljgblzyxwjf = 0, yljgblzyxwjfbgz = 0 } = data || {};
+              return Math.max(yljgblzyxwjfbgz, 4 - yljgblzyxwjf);
+            }},
+          ]
+        },
+      ]
+    },
+    { 
+      name: '医疗效益评估',
+      children: [
+        {
+          name: '社会评价',
+          children: [
+            { name: '患者满意度', a: 'hzmyd', b: 'hzmydbgz', weight: 6, unit: '%'},
+            { name: '患者投诉反馈整改率', a: 'hztsfkzgl', b: 'hztsfkzglbgz', weight: 4, unit: '%'},
+            { name: '医院及院长（书记）重大失信数', a: 'yyjyzzdsxs', b: 'yyjyzzdsxsbgz', weight: 3, unit: '次', calculate: (data) => {
+              let { yyjyzzdsxs = 0, yyjyzzdsxsbgz = 0 } = data || {};
+              return Math.max(yyjyzzdsxsbgz, 3 - yyjyzzdsxs);
+            }},
+          ]
+        },
+        {
+          name: '政府考核',
+          children: [
+            { name: '法定传染病报告率', a: 'fdcrbbgl', b: 'fdcrbbglbgz', weight: 4, unit: '%'},
+            { name: '完成政府指令性/公益性任务比例', a: 'wczfzlx', b: 'wczfzlxbgz', weight: 4, unit: '%'},
+            { name: '财政支出绩效评价', a: 'czzzjxpj', b: 'czzzjxpjbgz', weight: 5, unit: '%' },
+          ]
+        },
+      ]
+    },
+  ],
+  school: [
+    { 
+      name: '教育资源配置',
+      children: [
+        {
+          name: '人员配置',
+          children: [
+            { name: '专任教师占单位总人数的比例', a: 'zrjszdwzrsbl', b: 'zrjszdwzrsblbgz', weight: 3, unit: '%'},
+            { name: '专任教师高一层次学历比例', a: 'zrjsgyccxlbl', b: 'zrjsgyccxlblbgz', weight: 4, unit: '%'},
+            { name: '生师比', a: 'ssb', b: 'ssbbgz', weight: 3, unit: ':1'},
+            { name: '中高级教师占比', a: 'zgjjszb', b: 'zgjjszbbgz', weight: 3, unit: '%'},
+          ]
+        },
+        {
+          name: '资金投入',
+          children: [
+            { name: '生均公共财政预算教育事业费支出', a: 'sjggczysjysyfzc', b: 'sjggczysjysyfzcbgz', weight: 8, unit: '万元'},
+            { name: '公共财政教育支出年增长率', a: 'ggczjyzcnzzl', b: 'ggczjyzcnzzlbgz', weight: 6, unit: '%'},
+          ]
+        },
+        {
+          name: '设施设备',
+          children: [
+            { name: '生均校舍建筑面积', a: 'sjxsjzmj', b: 'sjxsjzmjbgz', weight: 7, unit: '㎡'},
+            { name: '生均教学仪器设备值', a: 'sjjxyqsbz', b: 'sjjxyqsbzbgz', weight: 8, unit: '元'},
+          ]
+        },
+        {
+          name: '组织成长',
+          children: [
+            { name: '人员培养经费占比', a: 'rypyjfzb', b: 'rybyjfzbbgz', weight: 4, unit: '%'},
+            { name: '机构编制使用效益', a: 'jgbzsyxy', b: 'jgbzsyxybgz', weight: 4, unit: '%'},
+          ]
+        }
+      ]
+    },
+    { 
+      name: '教育服务产出',
+      children: [
+        {
+          name: '服务供给',
+          children: [
+            { name: '高考一本达线率/普通高中上线率/小学升学率', a: 'dxlsxlsxl', b: 'dxlsxlsxlbgz', weight: 9, unit: '%'},
+            { name: '《国家学生体质健康标准》优良率', a: 'gjxstzjkbzyll', b: 'gjxstzjkbzyllbgz', weight: 4, unit: '%'},
+            { name: '教学安全事故', a: 'jxaqsg', b: 'jxaqsgbgz', weight: 5, unit: '起', calculate: (data) => {
+              let { jxaqsg = 0, jxaqsgbgz = 0 } = data || {};
+              return Math.max(jxaqsgbgz, 5 - jxaqsg);
+            }},
+          ]
+        },
+        {
+          name: '管理水平',
+          children: [
+            { name: '师德合格率', a: 'sdwgwtcfsl', b: 'sdhglbgz', weight: 4, unit: '%'},
+            { name: '校长（书记）满意度测评优称率', a: 'xzsjmydcpycl', b: 'xzsjmydcpyclbgz', weight: 3, unit: '%'},
+          ]
+        },
+      ]
+    },
+    { 
+      name: '教育效益评估',
+      children: [
+        {
+          name: '社会评价',
+          children: [
+            { name: '办学满意度', a: 'bxmyd', b: 'bxmydbgz', weight: 9, unit: '%'},
+            { name: '服务对象意见投诉处理反馈率', a: 'fwdxyjtsclfkl', b: 'fwdxyjtsclfklbgz', weight: 3, unit: '%'},
+            { name: '学校及校长（书记）重大失信数', a: 'xxjxzsjzdsxs', b: 'xxjxzsjzdsxsbgz', weight: 3, unit: '次', calculate: (data) => {
+              let { xxjxzsjzdsxs = 0, xxjxzsjzdsxsbgz = 0 } = data || {};
+              return Math.max(xxjxzsjzdsxsbgz, 3 - xxjxzsjzdsxs);
+            }},
+          ]
+        },
+        {
+          name: '政府考核',
+          children: [
+            { name: '教育质量评估', a: 'jyzlpg', b: 'jyzlpgbgz', weight: 5, unit: '%'},
+            { name: '财政支出绩效评价', a: 'czzcjxpj', b: 'czzcjxpjbgz', weight: 5, unit: '%' },
+          ]
+        },
+      ]
+    },
+  ]
+}
+
+/**
+ * 获取kpi配置
+ * @param {String} type hospital school
+ */
+export function getKpiConfig(type){
+  if(type){
+    return kpiconfig[type];
+  }
+}
+
+/**
+ * 计算kpi
+ * @param {String} type hospital school
+ * @param {Object} data 数据
+ */
+export function calcKpi(type, data){
+  let arr = getKpiConfig(type);
+  if(!arr){
+    return;
+  }
+  let result = [];
+  arr.forEach(ele => {
+    result.push(sum(ele.children, data));
+  });
+  return result;
+}
+
+/**
+ * 计算指标项的值
+ * @param {Object} item 指标项
+ * @param {Object} data 数据
+ */
+export function calcItem(item, data){
+  let a = data[item.a] || 0, b = data[item.b] || 0;
+  if(item.calculate){
+    return item.calculate(data);
+  }else if(b > 0){
+   return (Math.max(Math.min(a / b, 1), 0)) * item.weight;
+  }else{
+    return 0
+  }
+}
+
+export function formatValue(value, unit){
+  if(value){
+    if(value.length){
+      return value.map(item => {
+        return formatNumber(item, unit);
+      }).join(' - ')
+    }else{
+      return formatNumber(value, unit);
+    }
+  }else{
+    return '0';
+  }
+}
+
+/**
+ * 递归计算子项和
+ */
+function sum(list, data){
+  let k = 0, w = 0;
+  list.forEach(item => {
+    if(item.children){
+      let { kpi, weight } = sum(item.children, data);
+      k += kpi;
+      w += weight;
+    }else{  
+      w += item.weight;
+      k += calcItem(item, data);
+    }
+  })
+  return {kpi: k, weight: w};
+}
+
+/**
+ * 根据单位格式化值
+ * @param {*} value 
+ * @param {*} unit 
+ */
+function formatNumber(value, unit){
+  if(unit == '1:'){
+    return unit + (Number((1/value).toFixed(1)));
+  }else if(unit == ':1'){
+    return (Number((value).toFixed(1))) + unit;
+  }
+  let carryBit = 1;
+  if(unit == '%'){
+    carryBit = 100;
+  }else if(unit == '‱'){
+    carryBit = 10000;
+  }
+  return Number((value * carryBit).toFixed(1)) + unit;
+}

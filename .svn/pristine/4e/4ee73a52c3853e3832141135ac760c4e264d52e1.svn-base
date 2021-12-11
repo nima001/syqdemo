@@ -1,0 +1,545 @@
+<!-- 应用基本信息 -->
+<template>
+  <div class="app-detail">
+    <a-form :form="form">
+      <ul class="message">
+        <li>
+          <a-divider type="vertical" />
+          <h4>接入信息</h4>
+        </li>
+        <li class="call">
+          <div>
+            <p class="p-left">应用名称 ：</p>
+            <a-form-item>
+              <a-input
+                :readOnly="boole"
+                :class="buer"
+                v-decorator="[
+                  'name',
+                  {
+                    rules: [{ required: true, message: '请输入应用名称' }],
+                    initialValue: data.name,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </div>
+          <div>
+            <p class="p-left">应用简称 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'shortname',
+                  {
+                    rules: [{ required: true, message: '请输入应用简称' }],
+                    initialValue: data.shortname,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </div>
+        </li>
+
+        <li class="call">
+          <div>
+            <p class="p-left">接入码 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                readonly="true"
+                v-decorator="[
+                  'accessCode',
+                  {
+                    rules: [{ required: true, message: '请输入接入码' }],
+                    initialValue: data.accessCode,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </div>
+          <div>
+            <p class="p-left">接入密钥 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'accessKey',
+                  {
+                    rules: [{ required: true, message: '请输入接入密钥' }],
+                    initialValue: data.accessKey,
+                  },
+                ]"
+              >
+                <a-icon
+                  v-if="!boole"
+                  slot="suffix"
+                  class="accesskey-icon"
+                  type="plus"
+                  title="生成密钥"
+                  @click="randomKey"
+                />
+              </a-input>
+            </a-form-item>
+          </div>
+        </li>
+        <li class="desc">
+          <p class="p-left">应用简介 ：</p>
+          <a-form-item>
+            <a-textarea
+              :class="buer"
+              :readOnly="boole"
+              v-decorator="[
+                'desc',
+                {
+                  rules: [{ required: true, message: '请输入应用简介' }],
+                  initialValue: data.desc,
+                },
+              ]"
+            ></a-textarea>
+          </a-form-item>
+        </li>
+      </ul>
+
+      <ul class="message">
+        <li>
+          <a-divider type="vertical" />
+          <h4>联系信息</h4>
+        </li>
+        <li class="call">
+          <div>
+            <p class="p-left">接入单位 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'unit',
+                  {
+                    rules: [{ required: true, message: '请输入接入单位' }],
+                    initialValue: data.unit,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </div>
+        </li>
+        <li class="call">
+          <div>
+            <p class="p-left">接入单位联系人 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'unitContact',
+                  {
+                    rules: [{ required: true, message: '请输入单位联系人' }],
+                    initialValue: data.unitContact,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </div>
+          <div>
+            <p class="p-left">联系方式 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'unitPhone',
+                  {
+                    rules: [
+                      { required: true, message: '请输入正确的联系方式' },
+                    ],
+                    initialValue: data.unitPhone,
+                  },
+                ]"
+                @blur="validatePhoneBlurs"
+              ></a-input>
+            </a-form-item>
+          </div>
+        </li>
+        <li class="call">
+          <div>
+            <p class="p-left">开发公司 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'devCompany',
+                  {
+                    rules: [{ required: true, message: '请输入开发公司' }],
+                    initialValue: data.devCompany,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </div>
+        </li>
+        <li class="call">
+          <div>
+            <p class="p-left">开发公司联系人 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'devCompanyContact',
+                  {
+                    rules: [
+                      { required: true, message: '请输入开发公司联系人' },
+                    ],
+                    initialValue: data.devCompanyContact,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </div>
+          <div>
+            <p class="p-left">联系方式 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'devCompanyPhone',
+                  {
+                    rules: [
+                      { required: true, message: '请输入正确的联系方式' },
+                    ],
+                    initialValue: data.devCompanyPhone,
+                  },
+                ]"
+                @blur="validatePhoneBlurs"
+              ></a-input>
+            </a-form-item>
+          </div>
+        </li>
+        <li class="call">
+          <div>
+            <p class="p-left">运维联系人 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'operationContact',
+                  {
+                    rules: [{ required: true, message: '请输入运维联系人' }],
+                    initialValue: data.operationContact,
+                  },
+                ]"
+              ></a-input>
+            </a-form-item>
+          </div>
+          <div>
+            <p class="p-left">联系方式 ：</p>
+            <a-form-item>
+              <a-input
+                :class="buer"
+                :readOnly="boole"
+                v-decorator="[
+                  'operationPhone',
+                  {
+                    rules: [
+                      { required: true, message: '请输入正确的联系方式' },
+                    ],
+                    initialValue: data.operationPhone,
+                  },
+                ]"
+                @blur="validatePhoneBlurs"
+              ></a-input>
+            </a-form-item>
+          </div>
+        </li>
+        <li>
+          <a-button
+            type="primary"
+            @click="boo"
+            :disabled="!hasPermit('EditApp')"
+            >{{ arr }}</a-button
+          >
+          <!-- <a-button
+            type="primary"
+            class="agree"
+            @click="serviceApply(1)"
+            v-if="hasPermit('AuditApp')"
+            ><a-icon type="check" />同意申请</a-button
+          >
+          <a-button
+            type="danger"
+            @click="serviceApply(0)"
+            v-if="hasPermit('AuditApp')"
+            ><a-icon type="close" />拒绝申请</a-button
+          > -->
+        </li>
+      </ul>
+    </a-form>
+  </div>
+</template>
+
+<script>
+import {
+  Form,
+  Button,
+  Icon,
+  Divider,
+  Input,
+  notification,
+} from "ant-design-vue";
+import { appdetail, appcodeIsExist, appupdate, generate } from "@/dev/api/app";
+import { serviceVerify } from "@/dev/api/service";
+import { showError } from "../../../framework/utils";
+export default {
+  data() {
+    return {
+      boos: 0,
+      form: this.$form.createForm(this),
+      boole: true,
+      arr: "修改",
+      data: {},
+    };
+  },
+  computed: {
+    buer() {
+      if (this.boole == true) {
+        return "input";
+      } else {
+        return;
+      }
+    },
+  },
+  created() {
+    this.refresh(this.$store.getters.appInfo.id);
+  },
+  methods: {
+    // 审核人员审核应用
+    // serviceApply(state) {
+    //   var data = {
+    //     id: this.$store.getters.appInfo.id,
+    //     state,
+    //   };
+    //   serviceVerify(data)
+    //     .then((res) => {
+    //       console.log(res);
+    //       notification.success({
+    //         message: "提示",
+    //         description: "审核成功",
+    //         duration: 1.5,
+    //       });
+    //     })
+    //     .catch((err) => {
+    //       showError(err);
+    //     });
+    // },
+    // 生成密钥
+    randomKey(e) {
+      generate()
+        .then((res) => {
+          this.$set(this.data, "accessKey", res.result);
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    // code规则
+    handleAccessCode(rule, value, callback) {
+      let reg = new RegExp("[\\u4E00-\\u9FFF]+", "g");
+      if (reg.test(value) == true) {
+        callback("不能包含中文字符，请重新输入");
+      } else if (value.length > 0) {
+        this.validExist(value, callback);
+      } else {
+        callback();
+      }
+    },
+    // 判断接入码是否唯一
+    validExist(e, callback) {
+      appcodeIsExist(e)
+        .then((res) => {
+          callback && callback();
+        })
+        .catch((err) => {
+          showError(err);
+          let a = eval("(" + err.desc + ")");
+          const value = Object.values(a);
+          callback(value[0]);
+        });
+    },
+    // 联系方式正则
+    validatePhoneBlurs(e) {
+      const validatePhoneReg = /^1[34578]\d{9}$/;
+      const validatePhone = /^(\d{3,4}-)?\d{6,8}$/;
+      if (
+        !validatePhone.test(e.target.value) &&
+        !validatePhoneReg.test(e.target.value)
+      ) {
+        if (this.boos < 3) {
+          this.boos += 1;
+        }
+        const arr = [
+          {
+            message: "您输入的手机格式不正确!",
+            field: e.target.id,
+          },
+        ];
+        this.form.setFields({
+          [e.target.id]: { value: e.target.value, errors: arr },
+        });
+      } else {
+        if (this.boos > 0) {
+          this.boos -= 1;
+        }
+      }
+    },
+    // 修改应用基本信息
+    boo() {
+      if (this.arr == "修改") {
+        this.arr = "保存";
+        this.boole = false;
+      } else {
+        if (this.boos == 0) {
+          this.arr = "修改";
+          this.boole = true;
+          let data = this.data;
+          this.form.validateFields((err, values) => {
+            if (err) {
+              notification.error({
+                message: "提示",
+                description: "请正确填写信息！",
+                duration: 2,
+              });
+            } else {
+              let obj = Object.assign(data, values);
+              appupdate(data)
+                .then((res) => {
+                  notification.success({
+                    message: "提示",
+                    description: "修改成功",
+                    duration: 1.5,
+                  });
+                  this.$router.push("/dev/managementcenter");
+                })
+                .catch((err) => {
+                  notification.error({
+                    message: "提示",
+                    description: err.desc,
+                    duration: 1.5,
+                  });
+                  this.refresh(this.$route.query.id);
+                });
+            }
+          });
+        }
+      }
+    },
+    // 查询应用基本信息
+    refresh(id) {
+      appdetail(id)
+        .then((res) => {
+          this.data = res.result;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+  },
+  components: {
+    AButton: Button,
+    ADivider: Divider,
+    AInput: Input,
+    AIcon: Icon,
+    AForm: Form,
+    AFormItem: Form.Item,
+    notification,
+    ATextarea: Input.TextArea,
+  },
+};
+</script>
+<style lang="less" scoped>
+.app-detail {
+  height: 65vh;
+  overflow-y: auto;
+  .message {
+    padding: 0 10%;
+    margin: 30px auto;
+    width: 100%;
+
+    /deep/.ant-form-item-control {
+      width: 100%;
+      .ant-form-item-children {
+        display: inline-block;
+        width: 100%;
+        input {
+          width: 100% !important;
+        }
+      }
+    }
+    li {
+      list-style: none;
+      display: flex;
+      .ant-row {
+        flex: 1 !important;
+        textarea {
+          width: 100%;
+        }
+      }
+      .agree {
+        color: #0dbc79;
+        background: #f5f5f5;
+        border: 1px solid #f5f5f5;
+        &:hover {
+          color: #fff;
+          background: #0dbc79;
+          border: 1px solid #0dbc79;
+        }
+      }
+    }
+
+    h4 {
+      color: @primary-color;
+      font-size: 18px;
+      margin-bottom: 30px;
+    }
+    .ant-divider {
+      width: 3px;
+      height: 20px;
+      background-color: @primary-color;
+      margin-top: 5px;
+    }
+    p {
+      color: #595959;
+      // margin: 0;
+    }
+    .p-left {
+      display: inline-block;
+      width: 120px;
+      height: 35px;
+      line-height: 35px;
+      text-align: right;
+      margin-right: 30px;
+      color: #171717;
+    }
+    .ant-btn {
+      margin: 30px 0 0 120px;
+    }
+    .call {
+      display: flex;
+      justify-content: space-between;
+      width: 100%;
+      > div {
+        display: flex;
+        width: 50%;
+      }
+    }
+    .input {
+      border: none;
+    }
+  }
+}
+</style>

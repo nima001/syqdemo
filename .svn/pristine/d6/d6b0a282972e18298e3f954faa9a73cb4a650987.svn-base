@@ -1,0 +1,29 @@
+
+/**
+ * 账号管理模块路由
+ */
+import Layout from '../../views/Layout'
+
+export const accountRoutes = {
+    path: '/idm/account',
+    component: Layout,
+    children: [
+        {
+            path: '',
+            component: () => import('../../views/account/index'),
+            name: 'accountIndex',
+            redirect: 'index',
+            children: [
+                {
+                    path: 'index',
+                    component: () => import('../../views/account/Main'),
+                    name: 'accountMain',
+                    meta: {
+                        auth: 'login',
+                        path: [ { name: '账号管理', path: '/idm/account' }]
+                    }
+                }
+            ]
+        }
+    ]
+}

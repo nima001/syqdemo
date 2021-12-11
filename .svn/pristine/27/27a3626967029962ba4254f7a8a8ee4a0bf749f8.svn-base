@@ -1,0 +1,21 @@
+import request from '@/framework/utils/request'
+
+//用户查询
+export function accountquery(data) {
+    return request({
+        url: '/idm/v2/am/account/query',
+        method: 'post',
+        dataType: 'json',
+        data
+    });
+}
+
+//内设下用户查询
+export function deptaccountquery(data) {
+    return request({
+        url: '/idm/v2/am/account/dept/list',
+        method: 'post',
+        dataType: 'json',
+        data
+    });
+}

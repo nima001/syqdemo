@@ -1,0 +1,113 @@
+<template>
+  <div>
+    <loading v-if="loading"/>
+    <div class="wrap">
+      <p class="title">近五年退休人数预测</p>
+      <div class="chart" :id="id"></div>
+  </div>
+  </div>
+</template>
+
+<script>
+import DataSet from "@antv/data-set";
+import { Chart } from "@antv/g2";
+import { mixins } from "../components/minxin";
+import { orgRetireReport, retireError } from "@/person-shaoxing/api/orgStaffReport";
+import { showError, dateFormat } from "@/framework/utils/index";
+import Loading from "../components/Loading";
+export default {
+  components:{
+    Loading
+  },
+  props: {
+    orgid: String,
+  },
+  data() {
+    return {
+      id: Math.random().toString(32).substr(2),
+      list: [],
+      plot: undefined,
+      loading:true
+    };
+  },
+  mixins: [mixins],
+  watch: {
+    dictId(v) {
+      this.getRetire(v);
+    },
+  },
+  mounted() {
+    this.getRetire(this.dictId);
+  },
+  methods: {
+    getRetire(dictId) {
+      orgRetireReport(dictId,this.orgid)
+        .then((res) => {
+          let { keyCols, rows, valueCols } = res.result;
+          this.list = rows.map((item) => {
+            return {
+              name: item[keyCols[0]["column"]],
+              value: item[valueCols[0]["column"]],
+            };
+          });
+          this.loading = false;
+          this.draw();
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    draw() {
+      const chart = new Chart({
+        container: this.id,
+        autoFit: true,
+        height: 220,
+      });
+      chart.data(this.list);
+      chart.scale("name", {
+        tickCount: 10,
+        type: "timeCat",
+        formatter: (time) => {
+          return dateFormat(time, 'yyyy-MM');
+        }
+      });
+      chart.scale("value", {
+        nice: true,
+      });
+      chart.tooltip({
+        showCrosshairs: true,
+      });
+      chart.option("slider", {});
+      chart.line().position("name*value");
+      chart.area().position("name*value");
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      chart.render();
+      this.plot = chart;
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  margin-top: 20px;
+  padding-bottom: 35px;
+  .title {
+    text-align: center;
+    height: 26px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.8;
+    margin: 0px;
+  }
+  .chart {
+    margin-top: 45px;
+    height: 290px;
+    line-height: 50px;
+  }
+}
+</style>

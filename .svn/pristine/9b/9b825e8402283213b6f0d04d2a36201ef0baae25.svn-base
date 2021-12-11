@@ -1,0 +1,23 @@
+import request from '@/framework/utils/request'
+/*
+**信息服务
+*/
+
+//智能搜索-文件查询
+export function sxdocument(data) {
+  return request({
+    url: '/person/document/search',
+    method: 'post',
+    data
+  })
+}
+//智能搜索-职能查询
+export function sxorgfuncdesc(data) {
+    return request({
+      url: '/person/sx/orgfuncdesc/search',
+      method: 'post',
+      data
+    })
+  }
+
+

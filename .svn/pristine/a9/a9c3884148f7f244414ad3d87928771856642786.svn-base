@@ -1,0 +1,38 @@
+<template>
+  <div class="org-main-panel">
+    <form-display :formConfig="formConfig" :formData="formData" :editor="editor" ref="formDisplay"></form-display>
+  </div>
+</template>
+
+<script>
+import FormDisplay from "@/formdesign/views/FormDisplay";
+import data from "./components/data";
+export default {
+  name: "UserInfo",
+  components: {
+    FormDisplay
+  },
+  data() {
+    return {
+      // 表单配置
+      formConfig: [],
+      // 表单初始化数据
+      formData: {},
+      // 表单可编辑
+      editor: true
+    };
+  },
+  created() {
+    this.formConfig = data.list;
+  },
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+.org-main-panel {
+  height: 100%;
+  border-radius: @border-radius-base;
+  background: @white;
+  padding: @padding-xs 0;  
+}
+</style>

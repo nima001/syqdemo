@@ -1,0 +1,120 @@
+import get from 'lodash/get'
+import set from 'lodash/set'
+import { Tooltip } from 'ant-design-vue'
+export const mixins = {
+  components: {
+    ATooltip: Tooltip
+  },
+  /**
+   * props : 组件的某个配置属性
+   */
+  props: {
+    name: {
+      type: String
+    },
+    code: {
+      type: String
+    },
+    required: {
+      type: Boolean,
+      default: false
+    },
+    disabled: {
+      type: Boolean
+    },
+    // 复杂组件的某个列表项数据(如FormGroup组件,避免复杂组件多个列表的相同字段同时v-modle)
+    data: {
+      type: Object
+    }
+  },
+  data () {
+    return {
+      // error/success
+      validateStatus: undefined,
+      help: undefined,
+    }
+  },
+  inject: ['formData'],
+  computed: {
+    propValue: {
+      get () {
+       return this.data ? get(this.data, this.code) : get(this.formData.data, this.code);
+      },
+      set (value) {
+        if (this.data) {
+          set(this.data, this.code, value)
+        } else {
+          set(this.formData.data, this.code, value)
+        }
+      }
+    },
+    editor:{
+      get(){
+        return this.formData.editor
+      }
+    },
+    formLayout:{
+      get(){
+        return this.formData.formLayout
+      }
+    },
+    formConfig:{
+      get(){
+        return this.formData.formConfig
+      }
+    }
+  },
+  watch: {
+    propValue () {
+      if (this.validate) {
+        this.validate(() => {});
+      }
+    }
+  },
+  mounted () {
+    this.formData.formItem.push(this)
+  },
+  destroyed(){
+    //FIXME sunwen 临时修复表单的formConfig表更后，formItem未重建，导致表单验证获取组件不准确
+    let items = this.formData.formItem;
+    let index = items.findIndex(item => item == this);
+    if(index >= 0){
+      items.splice(index, 1);
+    }
+  },
+  methods: {
+    /**
+     * 通用组件验证，如果组件需要特殊验证，可在组件内重写validate方法来覆盖当前方法
+     * callback:
+     * 验证失败：回调错误信息(可以是一个字符串或含message的对象，多个错误返回数组)
+     * 验证成功：回调空
+     * TODO
+     * 自定义表单验证 (默认不为空,不为undefined,不为null)
+     * 1.正则验证
+     * 2.异步请求验证 (收集验证数据)
+     * 3.关联组件验证
+     */
+    validate (callback) {
+      let reg = /\S/
+      // 默认验证
+      let type = this.propValue !== undefined && this.propValue !== null && reg.test(this.propValue);
+      if (!this.disabled && this.required && !type) {
+        this.validateStatus = 'error';
+        this.help = `请填写${this.name || this.code}`
+        callback({ code: this.code, message: this.help })
+      } else {
+        this.validateStatus = 'success'
+        this.help = undefined;
+        callback()
+      }
+    },
+    // 收集表单验证信息
+    validateField () {
+      return new Promise((resolve) => {
+        this.validate(result => {
+          resolve(result)
+        })
+      })
+    }
+  }
+}

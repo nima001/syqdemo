@@ -1,0 +1,264 @@
+<template>
+<a-collapse v-model="activeKey" :bordered="false" style="background-color: unset">
+  <a-collapse-panel
+    class="legend-setting"
+    key="6"
+    header="图例"
+    :disabled="!chartData.settings.legend.visible"
+  >
+    <template v-slot:extra>
+      <a-switch @click="
+          (check, e) => {
+            e.stopPropagation();
+            open('6');
+          }
+        "
+        v-model="chartData.settings.legend.visible"
+      />
+    </template>
+    <div class="position">
+      <span>方位</span>
+      <a-radio-group :value="directionValue" @change="legendChange">
+        <a-radio-button
+          v-for="item in legendPosition"
+          :value="item.value"
+          :key="item.value"
+          ><CustomIcon :type="item.label"
+        /></a-radio-button>
+      </a-radio-group>
+    </div>
+    <div class="horizontal">
+      <span>{{ label }}位置</span>
+      <a-radio-group :value="positionValue" @change="positionChange">
+        <a-radio-button
+          v-for="item in label === '水平' ? legendHorizontal : legendVertical"
+          :value="item.value"
+          :key="item.value"
+        >
+          <CustomIcon :type="item.label" />
+        </a-radio-button>
+      </a-radio-group>
+    </div>
+    <div class="flipPage">
+      <span>翻页</span>
+      <a-switch  @click="
+          (check, e) => {
+            e.stopPropagation();
+          }
+        "
+        v-model="chartData.settings.legend.flipPage"
+      />
+    </div>
+    <div class="marker">
+      <span>标记类型</span>
+      <ul>
+        <li
+          :class="{ active: MarkerActive(item.value) }"
+          v-for="item in markers"
+          @click="checkMarker(item.value)"
+          :key="item.value"
+        >
+          {{ item.label }}
+        </li>
+      </ul>
+    </div>
+  </a-collapse-panel>
+</a-collapse>
+</template>
+
+<script>
+import { Collapse, Switch, Radio } from "ant-design-vue";
+import CustomIcon from "@/framework/components/CustomIcon";
+export default {
+  props: {
+    value: {
+      type: Object,
+    },
+  },
+  components: {
+    CustomIcon,
+    ASwitch: Switch,
+    ARadioButton: Radio.Button,
+    ARadioGroup: Radio.Group,
+    ACollapse: Collapse,
+    ACollapsePanel: Collapse.Panel,
+  },
+  data() {
+    return {
+      activeKey: undefined,
+      markerCheck: 'square',
+      positionValue: undefined,
+      markers: [
+        { label: "方形", value: "square" },
+        { label: "圆形", value: "circle" },
+        { label: "叉号", value: "cross" },
+        { label: "加号", value: "plus" },
+        { label: "三角形", value: "triangle" },
+        { label: "线", value: "line" },
+        { label: "菱形", value: "diamond" },
+        { label: "勾", value: "tick" },
+        { label: "六角形", value: "hexagon" },
+        { label: "倒三角形", value: "triangle-down" },
+        { label: "蝴蝶结", value: "bowtie" },
+        { label: "连字符", value: "hyphen" },
+      ],
+      //方位
+      legendPosition: [
+        { label: "chart-iconlegend-above", value: "top" },
+        { label: "chart-iconlegend-right", value: "right" },
+        { label: "chart-iconlegend-below", value: "bottom" },
+        { label: "chart-iconlegend-left", value: "left" },
+      ],
+      //垂直位置
+      legendVertical: [
+        { label: "chart-iconvertical-top", value: "top" },
+        { label: "chart-iconvertical-center", value: "center" },
+        { label: "chart-iconvertical-bottom", value: "bottom" },
+      ],
+      //水平位置
+      legendHorizontal: [
+        { label: "chart-iconhorizontal-left", value: "left" },
+        { label: "chart-iconhorizontal-center", value: "center" },
+        { label: "chart-iconhorizontal-right", value: "right" },
+      ],
+      chartData: this.value,
+      directionValue: "top",
+    };
+  },
+  watch: {
+    chartData: {
+      deep: true,
+      handler(val) {
+        this.$emit("input", val);
+      },
+    },
+    markerCheck:{
+      immediate: true,
+      handler(val) {
+        this.legendEdit(val, 'marker');
+      }
+    },
+    directionValue(val) {
+      if (val === "top" || val === "bottom") {
+        this.positionValue = "left";
+      } else {
+        this.positionValue = "top";
+      }
+      this.legendEdit(`${val}-${this.positionValue}`, "position");
+    },
+    positionValue(val) {
+      if (val === "center") {
+        this.legendEdit(this.directionValue, "position");
+      } else {
+        this.legendEdit(`${this.directionValue}-${this.positionValue}`, "position");
+      }
+    },
+  },
+  computed: {
+    label() {
+      if (this.directionValue === "top" || this.directionValue === "bottom") {
+        this.positionValue = "left";
+        return "水平";
+      } else if (this.directionValue === "right" || this.directionValue === "left") {
+        this.positionValue = "top";
+        return "垂直";
+      }
+    },
+  },
+  methods: {
+    legendChange(e) {
+      this.directionValue = e.target.value;
+    },
+    positionChange(e) {
+      this.positionValue = e.target.value;
+    },
+    checkMarker(val) {
+      this.markerCheck = val;
+    },
+    MarkerActive(val) {
+      if(val===this.markerCheck) {
+        return true;
+      }
+      return false;
+    },
+    legendEdit(val, type) {
+      if (type === "position") {
+        this.$set(this.chartData.settings.legend, 'position', val);
+      } else if (type === "marker") {
+        this.$set(this.chartData.settings.legend, 'marker', val);
+      }
+      this.$emit('input', this.chartData);
+    },
+    open(key){
+        if(this.activeKey&&this.activeKey.length) {
+            let index = this.activeKey.indexOf(key);
+            if(index>=0) {
+                this.activeKey.splice(index,1);
+            }
+        }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.legend-setting {
+  /deep/.ant-collapse-content-box {
+    padding-left: 40px;
+    .position,
+    .horizontal {
+      display: flex;
+      flex-direction: column;
+      & > span {
+        white-space: nowrap;
+        margin-bottom: @padding-xs;
+      }
+    }
+  }
+  .position {
+    .ant-radio-group {
+      display: flex;
+    }
+  }
+  .horizontal {
+    & > span {
+      margin-top: @padding-xs;
+    }
+    .ant-radio-group {
+      display: flex;
+    }
+  }
+  .marker {
+    display: flex;
+    flex-direction: column;
+    span {
+      white-space: nowrap;
+    }
+    ul {
+      height: 145px;
+      margin-top: @padding-xs;
+      // overflow-y: scroll;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      li {
+        white-space: nowrap;
+        padding: 0 @padding-xs;
+        margin-bottom: @padding-xs;
+        border: 1px solid #e8e8e8;
+        border-radius: @border-radius-base;
+        cursor: pointer;
+      }
+      li.active {
+        color: @primary-color;
+        border-color: @primary-color;
+      }
+    }
+  }
+  .flipPage {
+    margin: @padding-md 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+</style>

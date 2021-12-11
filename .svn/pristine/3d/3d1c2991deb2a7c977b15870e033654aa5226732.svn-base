@@ -1,0 +1,243 @@
+<template>
+  <div class="resultTable">
+    <a-table
+      :loading="loading"
+      :pagination="false"
+      :columns="headers"
+      :dataSource="dataSource"
+      rowKey="_id"
+      @change="onChange"
+    >
+      <template slot="cell" slot-scope="text,row,index,column">
+        <div v-if="hasSubTable(row,column)" class="table-cell">
+          {{Array.isArray(text) ? text.join('、') : text}}
+          <a-icon type="table" title="查看列表" @click="showSubTable(row,column)"/>
+        </div>
+        <template v-else>{{Array.isArray(text) ? text.join('、') : text}}</template>
+      </template>
+    </a-table>
+    <a-modal v-model="subTable.show" :title="subTable.title" :footer="null"
+      :width="subTable.width" :bodyStyle="{height: '500px', padding:'8px 24px', overflowY: 'auto'}"
+    >
+      <a-table 
+        :columns="subTable.columns"
+        :dataSource="subTable.dataSource"
+        rowKey="rowKey"
+        :pagination="false"
+      >
+        <template slot="cell" slot-scope="text">{{Array.isArray(text) ? text.join('、') : text}}</template>
+      </a-table>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Icon, Table, Modal } from "ant-design-vue";
+import cloneDeep from "lodash/cloneDeep";
+
+export default {
+  components: {
+    AIcon: Icon,
+    ATable: Table,
+    AModal: Modal,
+  },
+  props: {
+    tableData: {
+      type: Object,
+      required: true
+    },
+    orders: {
+      type: Array,
+      required: true
+    },
+    loading: Boolean,
+  },
+  data() {
+    return {
+      subTable: {
+        show: false,
+        title: undefined,
+        columns: [],
+        dataSource: undefined,
+        width: 500
+      },
+      orderArr: cloneDeep(this.orders)
+    };
+  },
+  watch: {
+    orders(v) {
+      this.orderArr = v;
+    }
+  },
+  computed: {
+    headers() {
+      return this.convertColumns(this.tableData.header || []);
+    },
+    dataSource() {
+      let arr = [];
+      if (this.tableData.rows && this.tableData.rows.length > 0) {
+        arr = this.tableData.rows;
+        // for (let i = 0; i < arr.length; i++) {
+        //   let item = arr[i];
+        //   if (arr[i]["org@organization.suporg"] == null) {
+        //     arr[i]["org@organization.suporg"] = arr[i].org;
+        //   }
+        //   if (arr[i]["suporg"] == null) {
+        //     arr[i]["suporg"] = arr[i].name;
+        //   }
+        // }
+      }
+      return arr;
+    }
+  },
+  methods: {
+    convertColumns(columns, parentProps) {
+      return columns.map((item, index) => {
+        let path = parentProps ? [...parentProps, item.column] : [item.column];
+        let column = {
+          title: item.showname,
+          dataIndex: this.generateDataIndex(path),
+          key: item.key,
+          scopedSlots: { customRender: "cell" },
+          path,
+          sorter: item.sortable,
+          sortOrder:
+            this.orderArr.length > 0 && item.key == this.orderArr[0]["orderby"]
+              ? this.orderArr[0]["ordertype"] == "DESC"
+                ? "descend"
+                : this.orderArr[0]["ordertype"] == "ASC"
+                ? "ascend"
+                : false
+              : false,
+          lastColumn: columns.length - index == 1
+        };
+        if (item.columns && item.columns.length) {
+          column.children = this.convertColumns(item.columns, path);
+        }
+        return column;
+      });
+    },
+    generateDataIndex(propPath) {
+      let path = "";
+      propPath.forEach((item, index) => {
+        if (index > 0) {
+          path += "[0]";
+        }
+        path += `['${item}']`;
+      });
+      return path;
+    },
+    hasSubTable(row, column) {
+      let { path, lastColumn } = column;
+      if (path.length > 1 && lastColumn) {
+        let data = row[path[0]];
+        //TODO sunwen 二级以上的列表，判断是哪一级的子表
+        if (data && data.length) {
+          return true;
+        }
+      }
+    },
+    showSubTable(row, column) {
+      let { path, lastColumn } = column;
+      if (path.length > 1 && lastColumn) {
+        let data = row[path[0]];
+        if (data && data.length) {
+          let c = this.getColumnByPath([path[0]]); //TODO 二级以上子表处理
+          if (c && c.columns && c.columns.length) {
+            let arrList = data.map(item => {
+              return Object.assign({}, item, { rowKey: Math.random() });
+            });
+            this.subTable = {
+              show: true,
+              title: c.showname,
+              columns: this.convertColumns(c.columns),
+              width: Math.min(c.columns.length * 200, 1200),
+              dataSource: arrList
+            };
+          } else {
+            this.$message.error("找不子表表头");
+          }
+        }
+      }
+    },
+    getColumnByPath(path) {
+      if (path.length) {
+        let c = (this.tableData.header || []).find(
+          item => item.column == path[0]
+        );
+        for (let i = 1; i < path.length; i++) {
+          if (c && c.columns) {
+            let key = path[i];
+            c = c.columns.find(item => item.column == key);
+          } else {
+            return;
+          }
+        }
+        return c;
+      }
+    },
+    onChange(pagination, filters, sorter) {
+      this.$emit("tableChange", {
+        ordertype:
+          sorter.order == "descend"
+            ? "DESC"
+            : sorter.order == "ascend"
+            ? "ASC"
+            : false,
+        orderby: sorter.columnKey
+      });
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+
+.resultTable {
+  // /deep/.ant-spin-nested-loading{
+  //   height: 100%;
+  //   .ant-spin-container{
+  //     height: 100%;
+  //   }
+  // }
+  /deep/ .ant-table{
+    table{
+      border-top: 1px solid @border-color-base;
+    }
+    .ant-table-thead {
+      tr:not(:last-child) > th{
+        border-bottom: 1px solid @border-color-base;
+      }
+      th {
+        border-right: 1px solid @border-color-base;
+        position: relative;
+        .ant-table-header-column {
+          & > div{
+            min-width: 6em;
+            margin-right: 6px;
+          }
+          .ant-table-column-sorter{
+            position: absolute;
+            top: 50%;
+            right: 0;
+            margin-top: -6px;
+          }
+        }
+        &:last-child{
+          border-right: none;
+        }
+      }
+    }
+  }
+}
+.table-cell {
+  position: relative;
+  margin-right: 12px;
+  .anticon {
+    position: absolute;
+    right: -16px;
+    top: 50%;
+    margin-top: -7px;
+    color: @primary-color;
+    cursor: pointer;
+  }
+}
+</style>

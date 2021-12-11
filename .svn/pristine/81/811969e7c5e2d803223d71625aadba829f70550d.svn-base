@@ -1,0 +1,223 @@
+<template>
+  <div class="wrap" :depth="depth" v-bind:class="[ depth != 0 ? depth % 2 != 0 ? 'red' : 'yellow':'']">
+    <!-- <div class="listwrap" v-for="(item, index) in datas.criteria" :key="`${index+new Date().getTime()}`"> -->
+    <div class="listwrap" v-for="(item, index) in datas.criteria" :key="item.id">
+      <query-item
+        v-if="!item.criteria"
+        :length="datas.criteria.length"
+        :depth="depth"
+        :target="target"
+        :relationop="datas.op"
+        :position="`${keys}_${index}`"
+        :defaultData="item"
+      ></query-item>
+      <template v-else>
+        <!-- <query-list :datas="item" :depth="addDepth" :target="target" :keys="`${keys}_${index}`"></query-list> -->
+        <query-list :datas="item" :depth="addDepth" :target="target" :keys="`${keys}_${index}`" :key='item.id'></query-list>
+        <div class="relation" v-if="index < (datas.criteria.length-1)">
+          <select-component :keys="`${keys}_${index}`" :relationop="datas.op"></select-component>
+          <span class="split" v-if="depth != 0" :keys="`${keys}_${index}`" @click="split($event)">拆分</span>
+          <span class="union" v-if="datas.criteria.length > 2" @click="union($event)" :relationop="datas.op" :keys="`${keys}_${index}`">组合</span>
+          <icon-font class="opIcon" type="add" :keys="`${keys}_${index}`" @click.native="addByPosition($event)" ></icon-font>
+        </div>
+      </template>
+    </div>
+    <template v-if="depth != 0">
+      <icon-font type="topAdd" class="addIcon upAddIcon" @click.native="groupFirstPosition" :class="[ depth % 2 ==0 ? 'accent-icon' : 'primary-icon']"></icon-font>
+      <icon-font type="bottomAdd" class="addIcon downAddIcon" @click.native="groupLastPosition" :class="[depth % 2 ==0 ? 'accent-icon' : 'primary-icon']"></icon-font>
+    </template>
+  </div>
+</template>
+<script>
+import QueryItem from "./QueryItem";
+import SelectComponent from "./SelectComponent";
+import { Icon } from "ant-design-vue";
+import IconFont from "@/framework/components/IconFont";
+export default {
+  name: "QueryList",
+  props: {
+    datas: {
+      type: Object,
+      required: true
+    },
+    target: {
+      type: Object,
+      required: true,
+      default: () => ({})
+    },
+    depth: [Number],
+    keys: [String, Number]
+  },
+  computed: {
+    addDepth() {
+      return parseInt(this.depth) + 1;
+    }
+  },
+  components: {
+    AIcon: Icon,
+    QueryItem,
+    SelectComponent,
+    IconFont
+  },
+  methods: {
+    enter() {
+      this.active = true;
+    },
+    leave() {
+      this.active = false;
+    },
+    time() {
+      return new Date().getTime();
+    },
+    union(e) {
+      let position = e.currentTarget.getAttribute("keys");
+      let op = e.currentTarget.getAttribute("relationop");
+      this.$store.commit({
+        type: "UNION",
+        op,
+        position
+      });
+    },
+    split(e) {
+      let position = e.currentTarget.getAttribute("keys");
+      this.$store.commit({
+        type: "SPLIT",
+        position
+      });
+    },
+    addByPosition(e){
+      let position = e.currentTarget.getAttribute("keys");
+      this.$store.commit({
+        type: "ADD_BY_POSITION",
+        data: position
+      });
+    },
+    groupFirstPosition(){
+      this.$store.commit({
+        type:'ADD_IN_GROUP',
+        first:true,
+        data:this.keys
+      })
+    },
+    groupLastPosition(){
+      this.$store.commit({
+        type:'ADD_IN_GROUP',
+        first:false,
+        data:this.keys
+      })
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.wrap {
+  position: relative;
+  .upAddIcon {
+    position: absolute;
+    left: -11px;
+    top: -1px;
+    cursor: pointer;
+    background: @white;
+    visibility: hidden;
+  }
+  .downAddIcon {
+    position: absolute;
+    left: -11px;
+    bottom: -1px;
+    cursor: pointer;
+    background: @white;
+    visibility: hidden;
+  }
+  &:hover > .addIcon{
+    visibility: visible
+  }
+  &::before {
+    content: "";
+    width: 8px;
+    height: 2px;
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    z-index: 1;
+  }
+  &:hover::before{
+    visibility: hidden;
+  }
+  &::after {
+    content: "";
+    width: 8px;
+    height: 2px;
+    position: absolute;
+    left: 0px;
+    bottom: 0px;
+  }
+  &:hover::after{
+    visibility: hidden;
+  }
+  &.red {
+    border-left: 2px solid @primary-color;
+    padding-left: 20px;
+    &::before {
+      background: @primary-color;
+    }
+    &::after {
+      background: @primary-color;
+    }
+  }
+  &.yellow {
+    border-left: 2px solid @accent-color;
+    padding-left: 20px;
+    &::before {
+      background: @accent-color;
+    }
+    &::after {
+      background: @accent-color;
+    }
+  }
+  .relation {
+    display: flex;
+    align-items: center;
+    margin: 15px 0px;
+    .opIcon {
+      cursor: pointer;
+      color: @primary-color;
+      width: 22px;
+      height: 22px;
+      &:hover {
+        color: fade(@primary-color, 75%);
+      }
+      &:last-child {
+        margin-left: 14px;
+      }
+    }
+    span {
+      width: 72px;
+      height: 32px;
+      text-align: center;
+      line-height: 32px;
+      background: #9e9e9e3d;
+      border: 1px solid #9e9e9e3d;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #666;
+      margin-left: 15px;
+      transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+      &:hover {
+        border-color: @border-color-base;
+      }
+    }
+  }
+}
+.primary-icon {
+  color: @primary-color;
+  &:hover {
+    color: fade(@primary-color, 75%);
+  }
+}
+.accent-icon {
+  color: @accent-color;
+  &:hover {
+    color: fade(@accent-color, 75%);
+  }
+}
+</style>

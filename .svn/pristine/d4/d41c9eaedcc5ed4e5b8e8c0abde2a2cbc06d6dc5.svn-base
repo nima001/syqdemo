@@ -1,0 +1,82 @@
+<!--人员花名册-->
+<template>
+  <div class="roster">
+    <ul class="tabList">
+      <li class="tanItem" @click='changeTab(item)' v-for="(item,index) in tabList" :key="index" :class="{active:activeTab == item.cmpt}">{{item.name}}</li>
+    </ul>
+    <div class="content">
+      <component :is="activeTab" :loadData="orgData"></component>
+    </div>
+  </div>
+</template>
+<script>
+import UserList from "./components/UserList";
+import AdvancedQuery from "./components/AdvancedQuery";
+export default {
+  components: {
+    UserList,
+    AdvancedQuery
+  },
+  data() {
+    return {
+      activeTab: "UserList",
+      tabList: [
+        {
+          name: "人员列表",
+          cmpt: "UserList"
+        },
+        {
+          name: "高级查询",
+          cmpt: "AdvancedQuery"
+        }
+      ]
+    };
+  },
+  props:['orgData'],
+  created() {},
+  methods: {
+    changeTab(item){
+      this.activeTab = item.cmpt
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.roster {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .tabList{
+    background: @white;
+    padding: @content-padding-v @content-padding-h;
+    margin: 0px;
+    display: flex;
+    .tanItem{
+      cursor: pointer;
+      padding: 0px @padding-sm;
+      color: @primary-color;
+      transition: color .3s;
+      border-radius: @border-radius-base;
+      height: 26px;
+      line-height: 26px;
+      margin-left: @padding-xs;
+      &:first-child{
+        margin-left: 0px;
+      }
+      &:hover{
+        background: @primary-1;
+      }
+      &.active{
+        color: @white;
+        background: @primary-color;
+      }
+    }
+  }
+  .content{
+    flex: 1;
+    background: @white;
+    margin-top: @layout-space-base;
+  }
+}
+</style>

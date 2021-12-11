@@ -1,0 +1,315 @@
+<!-- 管理中心首页 -->
+<template>
+  <a-layout class="dev-layout">
+    <!-- 转让弹窗 -->
+    <transferview :transfervisible="transfervisible" :transferId="transferId" @closeTransfer="closeTransfer"></transferview>
+    <div class="body">
+      <a-row class="header">
+        <a-col :span="6">
+          <div v-if="hasPermit('/dev/appadd')">
+            <a-button icon="plus" @click="addapp" type="primary" style="margin-right:8px">创建应用</a-button>
+            <a-button @click="deletes" icon="delete" type="primary">删除</a-button>
+            <!-- <a-button icon="undo">刷新</a-button> -->
+          </div>
+        </a-col>
+        <a-col :span="18">
+          <div class="body_1">
+            <div class="inps">
+              <a-select defaultValue="应用名称" style="width:160px">
+                <a-select-option value="1">全部</a-select-option>
+                <a-select-option value="0">应用名称</a-select-option>
+              </a-select>
+              <a-input style="width: 160px;margin:0 8px" v-model="val" placeholder="请输入名称" />
+            </div>
+            <a-button @click="search" type="primary" style="margin-right:8px">搜索</a-button>
+            <a-button @click="reset">重置</a-button>
+          </div>
+        </a-col>
+      </a-row>
+
+      <div class="body_3">
+        <a-table
+          :rowSelection="rowSelection"
+          :columns="columns"
+          :dataSource="data"
+          :size="size"
+          :pagination="false"
+        >
+        <span slot="statevalue" slot-scope="value">
+            <span v-if="value === 0">待审核</span>
+            <span v-if="value === 1">在用</span>
+            <!-- <a-button type="link" v-if="hasPermit('ManageApp')" @click="createbusiness(record)"
+              >创建业务</a-button
+            >-->
+          </span>
+          <span slot="action" slot-scope="text, record">
+            <a v-if="hasPermit('ManageApp')" @click="appmanage(record)">管理</a>
+            <a v-if="hasPermit('AuditApp')" @click="appmanage(record)">审核</a>
+            <a v-if="hasPermit('/dev/apptransfer')" @click="showtransfermodal(record)">转让</a>
+            <!-- <a-button type="link" v-if="hasPermit('ManageApp')" @click="createbusiness(record)"
+              >创建业务</a-button
+            >-->
+          </span>
+        </a-table>
+        <a-pagination
+          v-if="data.length > 0"
+          :total="total"
+          :showSizeChanger="true"
+          @showSizeChange="onShowSizeChange"
+          :page-size-options="pageSizeOptions"
+          :pageSize="page.pagesize"
+          v-model="page.pagenum"
+          @change="onPageChange"
+          :showTotal="(total) => `总共：${total}条`"
+        />
+      </div>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import {
+  Layout,
+  Select,
+  Table,
+  Button,
+  Input,
+  notification,
+  Pagination,
+  Row,
+  Col,
+
+} from "ant-design-vue";
+import { applist, appdel, generateTransfercode } from "@/dev/api/app";
+import { showError } from "../../framework/utils";
+import AppTransfer from "./app/AppTransfer.vue";
+export default {
+  data() {
+    return {
+      size: "default",
+      columns: [
+        {
+          title: "序号",
+          customRender: (text, record, index) => index + 1,
+          width: "5%"
+        },
+        {
+          title: "应用名称",
+          dataIndex: "name",
+          key: "name",
+          width: "20%"
+        },
+        {
+          title: "厂商",
+          dataIndex: "devCompany",
+          key: "devCompany",
+          width: "30%"
+        },
+        {
+          title: "状态",
+          dataIndex: "state",
+          key: "state",
+          width: "10%",
+          scopedSlots: { customRender: "statevalue" }
+
+        },
+        {
+          title: "操作",
+          key: "action",
+          dataIndex: "action",
+          scopedSlots: { customRender: "action" }
+        }
+      ],
+      data: [],
+      selectedRows: [],
+      val: "",
+      selectedRowKeys: [],
+      pageSizeOptions: ["10", "20", "30", "40", "50"],
+      page: {
+        pagesize: 10, // 默认每页显示数量
+        pagenum: 1
+      },
+      total: 0,
+      transfervisible: false,
+      transferId: -1,
+    };
+  },
+  components: {
+    ALayout: Layout,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    AButton: Button,
+    AInput: Input,
+    AInputGroup: Input.Group,
+    notification,
+    APagination: Pagination,
+    ARow: Row,
+    ACol: Col,
+    transferview:AppTransfer,
+  },
+  created() {
+    this.refresh();
+  },
+  methods: {
+    // 创建应用
+    addapp() {
+      // console.log(this.$store.state.appHasPermit.permit);
+      // console.log(this.appHasPermit('/dev/appadd'));
+      this.$router.push("/dev/appadd");
+    },
+    // 管理应用
+    appmanage(record) {
+      this.$store.commit("appInfo_change", record);
+      this.$router.push({
+        path: "/dev/manageapp"
+      });
+    },
+    // 展示转让页面
+    showtransfermodal(record) {
+      this.transferId = record.id;
+      this.transfervisible = true;
+    },
+    //关闭转让页面
+    closeTransfer(flag){
+      this.transfervisible = flag;
+    },
+    //创建业务
+    createbusiness(record) {
+      this.$store.commit("appInfo_change", record);
+      this.$router.push({
+        path: "/dev/addbusiness"
+      });
+    },
+    onShowSizeChange(current, size) {
+      this.page.pagesize = size;
+      this.refresh(current);
+    },
+    // 分页数据
+    refresh(x = 1, y = "") {
+      let params = {
+        name: y,
+        needtotal: true,
+        orders: [
+          {
+            orderby: "updatetime",
+            ordertype: "DESC"
+          }
+        ],
+        pagenum: x,
+        pagesize: this.page.pagesize
+      };
+
+      applist(params)
+        .then(res => {
+          let result = res.result;
+          this.total = result ? result.total : 0;
+          this.page.pagenum = result ? result.pagenum : 1;
+          let data = result ? result.rows : [];
+          let serial = (x - 1) * 10;
+          if (result && result.total < 11) {
+            serial = 0;
+          }
+          data.forEach(function(i, n) {
+            i.key = n + 1 + serial;
+          });
+          this.data = data;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    // 分页
+    onPageChange(current) {
+      this.refresh(current);
+    },
+    // 搜索
+    search() {
+      this.refresh(1, this.val);
+    },
+    // 重置
+    reset() {
+      this.refresh();
+      this.val = "";
+    },
+    // 删除
+    deletes() {
+      if (this.selectedRowKeys.length <= 0) {
+        return false;
+      }
+      let selectedRows = this.selectedRows;
+      let arr = [];
+      selectedRows.forEach(function(i) {
+        arr.push(i.id);
+      });
+      this.selectedRowKeys = [];
+      appdel(arr)
+        .then(res => {
+          this.$notification.success({
+            message: "提示",
+            description: "删除成功",
+            duration: 3
+          });
+          this.refresh(this.page.pagenum);
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  },
+
+  computed: {
+    rowSelection() {
+      const { selectedRowKeys } = this;
+      return {
+        onChange: (selectedRowKeys, selectedRows) => {
+          this.selectedRows = selectedRows;
+          this.selectedRowKeys = selectedRowKeys;
+        },
+        selectedRowKeys: selectedRowKeys
+      };
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.dev-layout {
+  padding: 10px;
+  height: 100%;
+  .ant-pagination {
+    margin-top: 10px;
+    text-align: right;
+  }
+  .body {
+    overflow: hidden;
+    width: 100%;
+    height: 100%;
+    padding: 8px 24px;
+    margin: 0 auto;
+    background: #fff;
+    .header {
+      padding-top: 10px;
+      .body_1 {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        .inps {
+          display: flex;
+          justify-content: flex-end;
+          width: 100%;
+        }
+      }
+    }
+  }
+
+  .ant-table-wrapper {
+    margin-top: 10px;
+  }
+  .abq {
+    margin-right: 36px;
+  }
+  .body_3 span a {
+    margin-right: 15px;
+  }
+}
+</style>

@@ -1,0 +1,108 @@
+<template>
+  <div class="container">
+    <a-input-group compact>
+      <a-select v-model="input.type" style="width:42px;" :showArrow="false">
+        <a-select-option value="">值</a-select-option>
+        <a-select-option value="$"><icon-font type="fx"/></a-select-option>
+        <a-select-option value="#"><icon-font color="#f39c2b" type="fx"/></a-select-option>
+      </a-select>
+      <a-input :value="value" v-if="input.type" read-only @click="showExprEditor = true" style="width:calc(100% - 42px)"/>
+      <a-select @change="onChange" v-else v-model="input.value" placeholder="(空)" style="width:calc(100% - 42px)">
+        <a-select-option value="true">是</a-select-option>
+        <a-select-option value="false">否</a-select-option>
+      </a-select>
+    </a-input-group>
+    <equation-editor v-if="showExprEditor" :fnData="input.value" namespace="query"  @finish="onFinish"/>
+  </div>
+</template>
+<script>
+import { Input, Select } from "ant-design-vue";
+import IconFont from "@/framework/components/IconFont";
+//  Boolean选择(true/false)
+export default {
+  name:"BooleanValue",
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  data(){
+    return{
+      input: this.initInput(this.defaultData.value),
+      oldValue: undefined,
+      showExprEditor: false,
+    }
+  },
+  components: {
+    AInput: Input,
+    AInputGroup: Input.Group,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    IconFont,
+    EquationEditor:() => import('@person/components/EquationEditor')
+  },
+  computed:{
+    value(){
+      let {type, value} = this.input;
+      if(type && value){
+        return type + '{' + value + '}';;
+      }else{
+        return value;
+      }
+    }
+  },
+  watch: {
+    'input.type'(vt, ovt){
+      if(!ovt != !vt){
+        let v = this.oldValue;
+        this.oldValue = this.input.value;
+        this.input.value = v;
+      }
+    },
+    value(value){
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value
+      });
+    },
+  },
+  methods: {
+    onChange(value) {
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value: value
+      });
+    },
+    initInput(v){
+      if(typeof(v) == 'string'){
+        if(v.startsWith('${') && v.endsWith('}')){
+          return { type: '$', value: v.substring(2, v.length-1) };
+        }else if(v.startsWith('#{') && v.endsWith('}')){
+          return { type: '#', value: v.substring(2, v.length-1) };
+        }else{
+          return { type: '', value: v};
+        }
+      }
+      return { type: '', value: v};
+    },
+    onFinish(type, data) {
+      this.showExprEditor = false;
+      if (type == "ok") {
+        this.input.value = data;
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container{
+  width: 320px;
+}
+</style>

@@ -1,0 +1,97 @@
+<!--一般假-->
+<template>
+  <div class="leaveTab">
+    <ul class="tabList">
+      <li class="tanItem" @click='changeTab(item)' v-for="(item,index) in cmptList" :key="index" :class="{active:activeCmpt == item.cmpt}">{{item.name}}</li>
+    </ul>
+    <div class="content">
+      <component :is="activeCmpt"></component>
+    </div>
+  </div>
+</template>
+<script>
+import LeaveList from "./LeaveList";
+import LeaveCount from "./LeaveCount";
+export default {
+  components: {
+    LeaveList,
+    LeaveCount,
+  },
+  data() {
+    return {
+      activeCmpt: undefined
+    };
+  },
+  watch: {
+    cmptList: {
+      handler(v) {
+        if (v.length > 0) {
+          this.activeCmpt = v[0].cmpt;
+        }
+      },
+      deep: true,
+      immediate: true
+    }
+  },
+  computed:{
+    cmptList(){
+      let list = [{ name: "哺乳假统计", cmpt: "LeaveCount" ,index:2}];
+      if (!this.hasPermit("/access/leader")) {
+        list = [...list,{ name: "哺乳假记录", cmpt: "LeaveList",index:1 }]
+      }
+      list.sort((a,b)=>{
+        return a.index - b.index
+      })
+      return list
+    }
+  },
+  methods: {
+    changeTab(item){
+      this.activeCmpt = item.cmpt
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.leaveTab {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  .tabList {
+    height: 62px;
+    background: @white;
+    padding: 0px @content-padding-h;
+    margin: 0px;
+    display: flex;
+    align-items: center;
+    .tanItem {
+      cursor: pointer;
+      padding: 0px @padding-sm;
+      color: @primary-color;
+      transition: color 0.3s;
+      border-radius: @border-radius-base;
+      height: 26px;
+      line-height: 26px;
+      margin-left: @padding-xs;
+      &:first-child {
+        margin-left: 0px;
+      }
+      &:hover {
+        background: @primary-1;
+      }
+      &.active {
+        color: @white;
+        background: @primary-color;
+      }
+    }
+  }
+  .content {
+    flex: 1;
+    margin-top: @layout-space-base;
+    overflow-y: auto;
+    min-height: 0px;
+    border-radius: @border-radius-base;
+  }
+}
+</style>

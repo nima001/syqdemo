@@ -1,0 +1,124 @@
+<template>
+  <div class="home-body">
+    <div class="content">
+      <div class="left content-container">
+        <div class="item" v-for="(item, index) in leftMenu" :key="index">
+          <div class="item-header">
+            <div class="title">{{item.name}}</div>
+          </div>
+          <div class="item-main">
+            <component :is="item.componenturi" :rowcount="item.rowcount"></component>
+          </div>
+        </div>
+      </div>
+      <div class="right content-container">
+        <div class="item" v-for="(item, index) in rightMenu" :key="index">
+          <div class="item-header">
+            <div class="title">{{item.name}}</div>
+          </div>
+          <div class="item-main">
+            <component :is="item.componenturi" :rowcount="item.rowcount"></component>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+// import Message from '@/hall/views/home/components/Message';
+import MsgCenter from '@/framework/widgets/NewMsg';
+import StarMenu from '@/framework/widgets/StarMenu';
+import WorkTable from '@/hall/views/home/components/WorkChart';
+import serviceDeal from '@/hall/views/home/components/serviceDeal';
+import { getLayout } from "@/framework/api/menu";
+
+
+export default {
+  props: {},
+  components: { MsgCenter, WorkTable, StarMenu, serviceDeal },
+  data() {
+    return {
+      layout: {
+        weight: undefined,
+        widgets: undefined,
+      },
+      leftMenu: [],
+      rightMenu: [],
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    this.loadLayout();
+  },
+  mounted() {},
+  methods: {
+    loadLayout() {
+      getLayout()
+      .then(({result}) => {
+        this.layout = result;
+        this.layout.widgets.forEach(el => {
+          if (el.layout === 1) {//  左边
+            this.leftMenu.push(el);
+          } else {
+            this.rightMenu.push(el);
+          }
+        });
+      })
+      .catch(err => {
+
+      })
+    }
+
+  },
+};
+</script>
+<style lang="less" scoped>
+.home-body{
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+  overflow: hidden;
+  .content{
+    width: 100%;
+    height: 100%;
+    // background-color: @white;
+    display: flex;
+    .content-container{
+      width: 50%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      &:nth-child(1){
+        margin-right: 10px;
+      }
+      .item{
+        width: 100%;
+        // height: 50%;
+        background-color: @white;
+        &:nth-child(1){
+          margin-bottom: 10px;
+        }
+        &:nth-child(2){
+          flex: 1;
+        }
+        .item-header{
+          padding: 0 @padding-lg;
+          .title{
+            height: 41px;
+            min-height: 41px;
+            padding: @padding-xs 0;
+            border-bottom: 1px solid #e8e8e8;
+            font-size: 16px;
+          }
+        }
+        .item-main{
+          // padding: 0 @padding-lg;
+          height: calc(~'100% - 41px');
+        }
+      }
+    }
+  }
+}
+</style>

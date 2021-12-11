@@ -1,0 +1,332 @@
+<template>
+  <div class="org-main-panel">
+    <div class="header">
+      <div class="title" :title="title">{{title}}</div>
+      <div class="tabs">
+        <a v-for="item in tabList" :key="item.id" :class="{active: active && active.id == item.id}" @click="active = item">{{item.title}}</a>
+      </div>
+    </div>
+    <div class="body">
+      <component
+        v-if="active"
+        :is="active.component"
+        :org="org"
+        :formData="formData"
+        :formConfig="formConfig"
+        :lineid="lineid"
+        :businesst="businesst"
+        :nodeid="loadData && loadData.node.id"
+        :treeid="loadData && loadData.treeid"
+        :orgid="org && org._id"
+      />
+    </div>
+  </div>
+</template>
+<script>
+import { Button } from "ant-design-vue";
+import OrgInfo from "./components/OrgInfo";
+import MainDuty from "./components/MainDuty";
+import AuthorityList from "./components/AuthorityList";
+import UserList from "./components/UserList";
+import OrgyearReport from "./components/OrgyearReport";
+import SanDing from "./components/SanDing";
+import StaffInfo from "./components/StaffInfo";
+import PostInfo from "./components/PostInfo";
+import ContrastInfo from './components/ContrastInfo';
+import { shaoxingorgline } from "@/person-shaoxing/api/assessment";
+import { analysisquery } from '@/person/api/statistics';
+import { querydisplay, queryScope, queryContent } from "@person/api/statistics";
+import AnalysisReport from "@/person/views/statistics/analysis/components/AnalysisReport.vue";
+import { concat, remove, map } from 'lodash';
+import { showError } from '../../../framework/utils';
+import NewProcessTemplateVue from '../../../workflow/views/process/newProcessTemplate/NewProcessTemplate.vue';
+import IdmAccountSelectVue from '../../../idm/components/IdmAccountSelect.vue';
+export default {
+  name:'orgMain',
+  props: {
+    loadData: {
+      type: Object
+    }
+  },
+  components: {
+    AButton: Button,
+    OrgInfo,
+    MainDuty,
+    AuthorityList,
+    UserList,
+    OrgyearReport,
+    SanDing,
+    StaffInfo,
+    PostInfo,
+    ContrastInfo,
+    AnalysisReport
+  },
+  data() {
+    return {
+      tabs: [
+        { id: 1, title: "机构信息", component: "OrgInfo",unittype :[0,1,2,3,5,7,11] },
+        { id: 2, title: "编制信息", component: "StaffInfo",unittype :[1,2,3,5,7,11] },
+        { id: 3, title: "职数信息", component: "PostInfo",unittype :[1,2,3,5,7] },
+        { id: 4, title: "主要职责", component: "MainDuty",unittype:[1,2,3,5,6,7,8,9,10,11] },
+        { id: 5, title: "权力清单", component: "AuthorityList",unittype:[1,2,3,5,7,11] },
+        { id: 6, title: "三定一评", component: "SanDing",unittype:[1,2,3,5,7,11]},
+        { id: 7, title: "事业单位年报", component: "OrgyearReport",unittype:[2,3,11] },
+        { id: 8, title: "人员列表", component: "UserList",unittype:[1,2,3,5,6,7,8,9,10,11] },
+      ],
+      analysisList: [],
+      formData: {},
+      formConfig: undefined,
+      lineid: undefined,
+      tabList:[],
+      content: undefined, //分析内容
+      active: undefined,
+      ids: [],
+    }
+  },
+  computed: {
+    org() {
+      if (this.loadData) {
+        let { node, dept } = this.loadData;
+        return dept || node.data;
+      }
+    },
+    businesst() {
+      return this.$store.getters.dict("person.business.businesstype");
+    },
+    title(){
+      if(this.loadData){
+        let { node, dept } = this.loadData;
+        let title = node.name;
+        if(dept){
+          title += `【${dept.name}】`;
+        }
+        return title;
+      }
+    },
+  },
+  async created() {
+    await this.analysisQuery();
+    this.init();
+  },
+  watch: {
+    org() {
+      this.init();
+    },
+  },
+  methods: {
+    async shaoxingOrg() {
+      await shaoxingorgline({orgid: this.org['_id']}).then(({result}) => {
+        let tab = [{ id: 9, title: '对比信息', component: 'ContrastInfo',unittype:[1,2,3,5,6,7,8,9,10,11]}];
+        if(result){
+          this.addTabs(tab);
+          this.lineid = result;
+        }else{
+          this.removeTabs(tab);
+          this.lineid = undefined;
+        }
+      }).catch((error) => {
+        showError(error)
+      })
+    },
+    addTabs(tab) {
+      let array = this.tabs.filter((item)=>item.id==tab[0].id);
+      if(!array.length) {
+        this.tabs = concat(this.tabs, tab);
+      }
+    },
+    removeTabs(tab) {
+      let array = this.tabs.filter((item)=>item.id==tab[0].id);
+      if(array.length) {
+        remove(this.tabs, function(item) {
+          return item.id==tab[0].id;
+        });
+      }
+    },
+    //查询所有分析范围
+    async analysisQuery() {
+      analysisquery({searchkey: ''})
+      .then(({result})=> {
+        this.analysisList = result.filter(item=> item.name=='行政单位'||item.name=='事业单位');
+        this.ids = map(this.analysisList, 'id');
+      })
+    },
+    //查询行政/事业分析范围详情
+    async queryScope(id) {
+      await Promise.all([
+        queryScope({ analyzeid: id }),
+        // queryScope({ analyzeid: this.ids[1] })
+      ]).then((res)=>{
+        this.dealResult(res[0].result);
+      }).catch((err)=> {
+        showError(err);
+      });
+    },
+    valid(data) {//手写过滤条件匹配
+      if(data.datasource=='organization'&&data.datatype==3&&this.matchFilter(this.org, data.filter)) {
+        return true;
+      }
+      return false;
+    },
+    matchFilter(data, filter){//手写过滤条件匹配
+      let matched = true;
+      for(let name in filter){
+        let v = filter[name];
+        if(v){
+          let _v = data[name];
+          if(Array.isArray(_v)){
+            if(Array.isArray(v)){//都是数组，值数组中有一个在条件数组中即可
+              return _v.some(item => {
+                return v.findIndex(e => e === item) >= 0;
+              })
+            }else{//值为数组时，只要有其中一项等于条件
+              matched = _v.findIndex(e => e === v) >= 0;
+            }
+          }else if(Array.isArray(v)){//in查询
+            matched = v.findIndex(e => e === _v) >= 0;
+          }else{
+            matched = v === _v;
+          }
+          if(!matched){
+            return matched;
+          }
+        }
+      }
+      return matched;
+    },
+    //处理tabs
+    async dealResult(result) {
+      let tab = [{ id: 10, title: '资源配置', component: 'AnalysisReport',unittype:[1,2,3]}];
+      if(result.length===1) {
+        if(this.valid(result[0])) {
+          this.addTabs(tab);
+          if(this.org.unittype==1) {
+            await this.createContent(this.ids[0]);
+          }else if(this.org.unittype==3){
+            await this.createContent(this.ids[1]);
+          }
+        }else{
+          this.removeTabs(tab);
+        }
+      }
+    },
+    //查询分析内容
+    async createContent(id) {
+      await queryContent({ analyzeid: id })
+      .then(({result})=> {
+        this.content = result;
+        this.doReport();
+      }).catch((err)=>{
+        showError(err);
+      })
+    },
+    async doReport() {
+      let data = {},
+        form = [];
+      if(this.loadData) {
+        let {_id, name, hospitaltype} = this.org;
+        let org = {
+          _id, name, hospitaltype
+        }
+        Object.assign(data, { org });
+      }
+      this.content.forEach((item) => {
+        if (item.form) {
+          form = [...form, ...JSON.parse(item.form)];
+          if (item.data) {
+            data = Object.assign(data, JSON.parse(item.data));
+          }
+        }
+      });
+      this.formData = data;
+      this.formConfig = form;
+    },
+    async init(){
+      if(this.org){
+        await this.shaoxingOrg();
+        if(this.org.unittype==1) {
+          await this.queryScope(this.ids[0]);
+        }else{
+          await this.queryScope(this.ids[1]);
+        }
+        let list =  this.tabs.filter((item)=>{
+          return item.unittype.includes(this.org.unittype)
+        })
+        this.tabList = list;
+        if(this.active){
+         let type = this.activeInList(this.active,this.tabList)
+         if(!type){
+          this.active = this.tabList[0]
+         }
+        }else{
+          this.active = this.tabList[0]
+        }
+      }else{
+        this.tabList = undefined;
+        this.active = undefined;
+      }
+    },
+    // 判断当前 active的tab 是否在当前Tan列表
+    activeInList(active,list){
+      let type = false;
+      for(let i=0;i<list.length;i++){
+        let cur = list[i];
+        if(cur['component'] == active['component']){
+          type = true;
+          break;
+        }
+      }
+      return type;
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.org-main-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: @border-radius-base;
+  background: @white;
+  & > .header {
+    padding: @content-padding-v @content-padding-h;
+    box-shadow: 2px 10px 10px -12px #dad9d9;
+    .title {
+      flex: auto;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-weight: bold;
+      font-size: 18px;
+      line-height: 26px;
+    }
+    .tabs {
+      padding: @content-padding-v 0px;
+      a {
+        display: inline-block;
+        height: 26px;
+        line-height: 26px;
+        padding: 0 12px;
+        margin-left: 6px;
+        border-radius: @border-radius-base;
+        &:first-child{
+          margin: 0px;
+        }
+        &:hover {
+          background: @primary-1;
+        }
+      }
+      a.active {
+        background-color: @primary-color;
+        color: white;
+        &:hover {
+          background: lighten(@primary-color, 5%);
+        }
+      }
+    }
+  }
+  & > .body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+}
+</style>

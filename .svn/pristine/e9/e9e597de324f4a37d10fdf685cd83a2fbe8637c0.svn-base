@@ -1,0 +1,575 @@
+<template>
+  <div>
+    <Title title="编制资源分析"/>
+    <div class="container" style="height:545px">
+      <SwiperChart :size="200">
+        <div slot="content">
+          <div class="swiper-content">
+            <div class="detail xz">
+              <div class="title">党政群待分配数</div>
+              <div class="num" @click="showModal('党政群待分配数', data.dzqbzdfps,data.dzqbzsdjs,data.dzqbzsjfps,'xzzzbzs')">{{data.dzqbzdfps||0}}</div>
+              <div class="total">省核定基数<span>{{data.dzqbzsdjs||0}}</span></div>
+              <div class="total">实际分配数<span>{{data.dzqbzsjfps||0}}</span></div>
+            </div>
+            <div class="detail xz">
+              <div class="title">党政群空编数</div>
+              <div class="num" @click="showkbModal('党政群空编数', 1, 'dzqbzkbs', 'dzqbzsdjs', 'dzqbzsyrs','党政群机构核定编制数')">{{data.dzqbzkbs||0}}</div>
+              <div class="total">省核定基数<span>{{data.dzqbzsdjs||0}}</span></div>
+              <div class="total">实有人数<span>{{data.dzqbzsyrs||0}}</span></div>
+            </div>
+            <div class="detail xz">
+              <div class="title">政法待分配数</div>
+              <div class="num" @click="showModal('政法待分配数', data.zfzxbzdfps,data.zfzxbzsdjs,data.zfzxbzsjfps,'xzzzbzs')">{{data.zfzxbzdfps||0}}</div>
+              <div class="total">省核定基数<span>{{data.zfzxbzsdjs||0}}</span></div>
+              <div class="total">实际分配数<span>{{data.zfzxbzsjfps||0}}</span></div>
+            </div>
+            <div class="detail xz">
+              <div class="title">政法空编数</div>
+              <div class="num" @click="showkbModal('政法空编数', 2, 'zfzxbzkbs', 'zfzxbzsdjs', 'zfzxbzsyrs','政法机构核定编制数')">{{data.zfzxbzkbs||0}}</div>
+              <div class="total">省核定基数<span>{{data.zfzxbzsdjs||0}}</span></div>
+              <div class="total">实有人数<span>{{data.zfzxbzsyrs||0}}</span></div>
+            </div>
+          </div>
+          <div class="chart-detail">
+            <RingChart
+              v-if="dataXz"
+              :data="dataXz"
+              :settings="xzSettings"
+            />
+          </div>
+          <div class="bottom-total">
+            <div class="total-user xz">
+              <img src="../../../assets/img/screen/xz-icon-user.png">
+              <div>
+                <div>党政群编外人员数</div>
+                <div>政法编外人员数</div>
+              </div>
+            </div>
+            <div class="total-num">
+              <LcdFont :length="7" :realNumber="data.bwrssyxzdzq" :realStyle="xzRealStyle" :fakeStyle="fakeStyle"/>
+              <LcdFont :length="7" :realNumber="data.bwrssyzf" :realStyle="xzRealStyle" :fakeStyle="fakeStyle"/>
+            </div>
+          </div>
+        </div>
+        <div slot="content">
+          <div class="swiper-content">
+            <div class="detail sy">
+              <div class="title">事业待分配数</div>
+              <div class="num" @click="()=>showModal('事业待分配数', data.sybzdfps,data.sybzsdjs,data.sybzsjfps,'syzzbzs')">{{data.sybzdfps||0}}</div>
+              <div class="total">省核定基数<span>{{data.sybzsdjs||0}}</span></div>
+              <div class="total">实际分配数<span>{{data.sybzsjfps||0}}</span></div>
+            </div>
+            <div class="detail sy">
+              <div class="title">事业空编数</div>
+              <div class="num" @click="()=>showkbModal('事业空编数', 3, 'sybzkbs', 'sybzsdjs', 'sybzsyrs','事业单位核定编制数')">{{data.sybzkbs||0}}</div>
+              <div class="total">省核定基数<span>{{data.sybzsdjs||0}}</span></div>
+              <div class="total">实有人数<span>{{data.sybzsyrs||0}}</span></div>
+            </div>
+            <div class="detail sy">
+              <div class="title">报备员额空额数</div>
+              <div class="num" @click="()=>showkeModal('报备员额空额数', data.bbyekes,data.bbyehds,data.bbyesyrs,'报备员额实有数分布')">{{data.bbyekes||0}}</div>
+              <div class="total">核定员额数<span>{{data.bbyehds||0}}</span></div>
+              <div class="total">实有人数<span>{{data.bbyesyrs||0}}</span></div>
+            </div>
+          </div>
+          <div class="chart-detail">
+            <RingChart
+              v-if="dataSy"
+              :data="dataSy"
+              :settings="sySettings"
+            />
+          </div>
+          <div class="bottom-total">
+            <div class="total-user sy">
+              <img src="../../../assets/img/screen/sy-icon-user.png">
+              编外人员数
+            </div>
+            <div class="total-num">
+              <LcdFont :length="7" :realNumber="data.bwrysyssy" :realStyle="syRealStyle" :fakeStyle="fakeStyle"/>
+            </div>
+          </div>
+        </div>
+      </SwiperChart>
+    </div>
+    <dialog-box v-model="show" :title="title">
+      <AnalyzeDetail
+        :district="districtCode"
+        :unittype="unittype"
+        :displayField="numField"
+        :title="title"
+        :kbtitle="kbtitle" :iskb="iskb" 
+        :data="dataSource" :kbNum="kbNum" 
+        :numDesc="numDesc" :total="total" :used="used"
+      />
+    </dialog-box>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+import SwiperChart from './SwiperChart'
+import RingChart from "@person/components/chart/RingChart";
+import LcdFont from './LcdFont';
+import AnalyzeDetail from './AnalyzeDetail';
+import DialogBox from "../components/DialogBox";
+import { reduce, isNumber, concat } from 'lodash';
+import { areaStatistics } from '@/person-shaoxing/api/orgStaffReport'
+import { staffAnalyzeSy, staffAnalyzeXz } from '../../../api/analyze';
+import { showError } from '@/framework/utils';
+
+export default {
+  props: {
+    districtCode: {
+      type: String
+    }
+  },
+  components: {
+    Title,
+    SwiperChart,
+    RingChart,
+    LcdFont,
+    AnalyzeDetail,
+    DialogBox
+  },
+  data(){
+    return {
+      dataXz: undefined,
+      dataSy: undefined,
+      dataSource: {},
+      data: {},
+      title: '',
+      kbNum: 0,
+      numDesc: {
+        key: undefined,
+        value: 0,
+      },
+      total: {
+        key: undefined,
+        value: 0,
+      },
+      used: {
+        key: undefined,
+        value: 0,
+      },
+      show: false,
+      iskb: false,
+      unittype: undefined,
+      numField: undefined,
+      kbtitle: '',
+      xzRealStyle: {
+        height: '10px',
+        color: "#01E3FC",
+        textStroke: "1 #ECA066",
+        opacity: 0.95,
+        fontSize: '1.5em',
+      },
+      syRealStyle: {
+        color: "#FF7C28",
+        textStroke: "1 #ECA066",
+        opacity: 0.95,
+        fontSize: '1.5em',
+      },
+      fakeStyle: {
+        fontSize: '1.5em',
+      }
+    }
+  },
+  watch: {
+    districtCode(val) {
+      this.getStaffData(val);
+      this.loadData(val);
+      return val;
+    }
+  },
+  computed: {
+    xzSettings() {
+      return {
+        title: '党政群行政编制分布情况',
+        padding: [-10,0,0,-40],
+        canvas: { width: 400, height: 180 },
+        color: ['#F2A54D','#60B4F5','#F84848','#DF6EA3','#6EDF75','#A66DF5','#C3F1CE','#A0A4F5'],
+        legend: {
+          visible: true,
+          custom: true,
+          position: 'right',
+          flipPage: false,
+          offsetX: -80,
+          offsetY: 0,
+          marker: 'square',
+          style: {
+            fill: '#CFD4E0'
+          }
+        },
+        tooltip: {
+          visible: true
+        },
+        radius: 0.7,
+        innerRadius: 0.8,
+        infoText: {
+          title: this.dataXz.rows[0].k0,
+          offsetY: -10,
+          style: { fontSize: 13, fill: '#fff', textAlign: 'center' },
+        },
+        contentStyle: {
+          offsetY: 10,
+          fontSize: 20, fill: '#fff', textAlign: 'center'
+        }
+      }
+    },
+    sySettings() {
+      return {
+        title: '事业编制(报备员额)分布情况',
+        padding: [-10,0,0,-40],
+        canvas: { width: 400, height: 180 },
+        color: ['#F2A54D','#60B4F5','#F84848','#DF6EA3','#6EDF75','#A66DF5','#C3F1CE','#A0A4F5'],
+        legend: {
+          visible: true,
+          custom: true,
+          position: 'right',
+          flipPage: false,
+          offsetX: -80,
+          offsetY: 0,
+          marker: 'square',
+          style: {
+            fill: '#CFD4E0'
+          }
+        },
+        tooltip: {
+          visible: true
+        },
+        radius: 0.7,
+        innerRadius: 0.8,
+        infoText: {
+          title: this.dataSy.rows[0].k0,
+          offsetY: -10,
+          style: { fontSize: 13, fill: '#fff', textAlign: 'center' },
+        },
+        contentStyle: {
+          offsetY: 10,
+          fontSize: 20, fill: '#fff', textAlign: 'center'
+        }
+      }
+    }
+  },
+  mounted() {
+    this.show = false;
+    if(this.districtCode) {
+      this.getStaffData(this.districtCode);
+      this.loadData(this.districtCode);
+    }
+  },
+  methods: {
+    showModal(title, kbNum,total,used, code) {
+      this.title = title;
+      this.kbNum = kbNum||0;
+      this.total = {
+        key: '省核定基数',
+        value: total||0
+      };
+      this.used = {
+        key: '实际分配数',
+        value: used||0
+      };
+      this.iskb = false;
+      areaStatistics(this.districtCode,[
+        code
+      ]).then(({result}) => {
+        this.numDesc = {
+          key: code=='xzzzbzs'?(title=='政法待分配数'?'':'行政周转编制数'):'事业周转编制数',
+          value: result[code],
+        };
+        this.show = true;
+      }).catch(error => {
+        showError(error)
+      });
+    },
+    showkbModal(title, unittype, kbNum, total, used, kbtitle) {
+      this.title = title;
+      this.kbNum = this.data[kbNum]||0;
+      this.total = {
+        key: '省核定基数',
+        value: this.data[total]||0
+      };
+      this.used = {
+        key: '实有人数',
+        value: this.data[used]||0
+      };
+      this.iskb = true;
+      this.unittype = unittype;
+      this.numField = 'kbs';
+      this.kbtitle = kbtitle;
+      let kbcode = ['dwxlkbsyjgs', 'rdxlkbxzsys',
+                    'zfxlkbsyjgs', 'zxxlkbsyjgs',
+                    'mzdpkbxlsyjgs', 'qzttkbxlsyjgs',
+                    'fykbxlsyjgs', 'jcykbxlsyjgs',
+                    'qtkbxsyljgs'];
+      areaStatistics(this.districtCode,kbcode).then(({result}) => {
+        let num = reduce(result,(sum,n)=>{
+          if(!isNumber(sum)) {
+            sum = 0;
+          }
+          if(!isNumber(n)) {
+            n=0;
+          }
+          return parseInt(sum)+parseInt(n);
+        });
+        this.numDesc = {
+          key: '空编机构个数',
+          value: num,
+        };
+        this.show = true;
+      }).catch(error => {
+        showError(error)
+      });
+    },
+    showkeModal(title,kbNum,total,used,kbtitle) {
+      this.title = title;
+      this.kbNum = kbNum||0;
+      this.total = {
+        key: '核定员额数',
+        value: total||0
+      };
+      this.used = {
+        key: '实有人数',
+        value: used||0
+      };
+      this.iskb = undefined;
+      this.kbtitle = kbtitle;
+      areaStatistics(this.districtCode,['yybbyesyrs','xxbbyesyrs']).then(({result}) => {
+        this.numDesc = {
+          key: '',
+          value: 0,
+        };
+        this.dataSource = {
+          "keyCols": [
+            {
+              "column":"k0"
+            }
+          ],
+          "rows": [
+            {
+              "k0": '医院报备员额实有人数',
+              'v': result.yybbyesyrs
+            },
+            {
+              "k0": '学校报备员额实有人数',
+              'v': result.xxbbyesyrs
+            }
+          ], 
+          "valueCols": [
+            { 
+              "column":"v"
+            }
+          ] 
+        };
+        this.show = true;
+      }).catch(error => {
+        showError(error)
+      });
+    },
+    // showModal(title,kbNum,total,used, iskb, kbtitle) {
+    //   this.title = title;
+    //   this.kbNum = kbNum||0;
+    //   this.total = total||0;
+    //   this.used = used||0;
+    //   this.iskb = iskb;
+    //   this.kbtitle = kbtitle;
+    //   areaStatistics(this.districtCode,[
+    //     'dzqjgsdjsqsgdw', 'dzqjgsdjshsgdw',
+    //     'dwxlkbsyjgs', 'rdxlkbxzsys',
+    //     'zfxlkbsyjgs', 'zxxlkbsyjgs',
+    //     'mzdpkbxlsyjgs', 'qzttkbxlsyjgs',
+    //     'fykbxlsyjgs', 'jcykbxlsyjgs',
+    //     'qtkbxsyljgs',
+    //     'zfjghzbzsqh',  'zfjghzbzshs',
+    //   ]).then(({result}) => {
+    //     this.numDesc =  reduce(result,(sum,n)=>{
+    //       if(!isNumber(sum)) {
+    //         sum = 0;
+    //       }
+    //       if(!isNumber(n)) {
+    //         n=0;
+    //       }
+    //       return parseInt(sum)+parseInt(n);
+    //     });
+    //     this.dataSource = result;
+    //     this.show = true;
+    //   }).catch(error => {
+    //     showError(error)
+    //   });
+    // },
+    loadData(val) {
+      staffAnalyzeXz(val).then(({result})=>{
+        this.dataXz = result;
+      }).catch(error=>{
+        showError(error);
+      })
+      staffAnalyzeSy(val).then(({result})=>{
+        this.dataSy = result;
+      }).catch(error=>{
+        showError(error);
+      })
+    },
+    getStaffData(district){
+      areaStatistics(district, [
+        'dzqbzdfps', 'dzqbzkbs',
+        'zfzxbzdfps', 'zfzxbzkbs',
+        'dzqbzsdjs', 'dzqbzsjfps',
+        'zfzxbzsdjs', 'zfzxbzsjfps',
+        'dzqbzsyrs', 'zfzxbzsyrs',
+        'sybzdfps', 'sybzkbs',
+        'bbyekes', 'sybzsyrs',
+        'sybzsjfps', 'bbyehds',
+        'bbyesyrs', 'sybzsdjs',
+         'bwrysyssy',
+        'bwrssyxzdzq','bwrssyzf'
+      ]).then(({result}) => {
+        this.data = result;
+      }).catch(error => {
+        showError(error)
+      });
+    },
+  }
+}
+</script>
+
+<style scoped lang='less'>
+@font-face {
+  font-family: LESLIEB;
+  src: url("../../../assets/img/screen/LESLIEB_.TTF") format("truetype");
+}
+.container {
+  /deep/.ant-carousel {
+    display: flex;
+    justify-content: center;
+    .slick-slider {
+      width: 95%;
+      padding: 0 @layout-space-base;
+      .slick-slide {
+        padding: @layout-space-base 0;
+        background: fade(#000, 30%);
+      }
+    }
+  }
+  /deep/.swiper-content {
+    display: flex;
+    flex-wrap: wrap;
+    .detail {
+      width: 48%;
+      margin-bottom: @layout-space-base;
+      margin-left: 5px;
+      &.xz:nth-child(2n-1) .title {
+        background: url('../../../assets/img/screen/xz-head-top-left.png') no-repeat;
+        background-size: 100% 100%;
+      }
+      &.xz:nth-child(2n) .title {
+        background: url('../../../assets/img/screen/xz-head-top-right.png') no-repeat;
+        background-size: 100% 100%;
+      }
+      &.sy:nth-child(2n-1) .title {
+        background: url('../../../assets/img/screen/sy-head-top-left.png') no-repeat;
+        background-size: 100% 100%;
+      }
+      &.sy:nth-child(2n) .title {
+        background: url('../../../assets/img/screen/sy-head-top-right.png') no-repeat;
+        background-size: 100% 100%;
+      }
+      .title {
+        margin: 0;
+        padding: @padding-xs/2 36px;
+        font-size: 1em;
+        color: #fff;
+      }
+      .num {
+        font-family: LESLIEB;
+        padding: 0 @padding-lg;
+        text-align: center;
+        font-size: 17px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      &.xz .num {
+        color: #01E3FC;
+      }
+      &.sy .num {
+        color: #FF7C28;
+      }
+      .total {
+        padding: 0 @padding-lg 0 @padding-lg;
+        font-size: 0.8em;
+        color: fade(#fff, 80%);
+        span {
+          float: right;
+        }
+      }
+    }
+  }
+  .chart-detail {
+    padding-top: @padding-sm;
+    background: url('../../../assets/img/screen/icon-division.png') no-repeat;
+    .ring-chart {
+      height: auto;
+      // background: url('../../../assets/img/screen/pie-bg.png') no-repeat;
+      background-size: 39%;
+      background-position: 22.5% 98%;
+    }
+    /deep/.ring-chart {
+      h2 {
+        font-size: 1em;
+        color: #fff;
+      }
+      & .chart canvas {
+        position: relative;
+        ::before {
+          content: '';
+          position: absolute;
+          top: 0%;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: #000;
+        }
+      }
+    }
+  }
+  .bottom-total {
+    height: 92px;
+    background: url('../../../assets/img/screen/icon-division.png') no-repeat;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    .total-user {
+      width: 60%;
+      padding: @padding-xs;
+      color: #fff;
+      font-size: 1.1em;
+      &.xz {
+        padding: 10px 0;
+        display: flex;
+        align-items: center;
+        flex-wrap: wraps;
+        background: url('../../../assets/img/screen/xz-icon-user-background.png') no-repeat;
+        background-size: 100% 100%;
+      }
+      &.sy {
+        padding: 10px 0;
+        background: url('../../../assets/img/screen/sy-icon-user-background.png') no-repeat;
+        background-size: 100%;
+      }
+      img {
+        width: 30px;
+        height: 30px;
+        margin-right: @layout-space-base;
+        display: inline-block;
+      }
+    }
+    .total-num {
+      display: flex;
+      flex-direction: column;
+      justify-content: c;
+      margin-right: @layout-space-base;
+      text-align: right;
+    }
+  }
+}
+</style>

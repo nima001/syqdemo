@@ -1,0 +1,291 @@
+<template>
+  <div class="home-body">
+    <div class="top">
+      <draggable
+        :move="move"
+        @end="dragEnd"
+        :animation="200"
+        draggable=".item"
+        :list="topWidgets"
+        :group="{ name: 'menu' }"
+        :disabled="this.draggable"
+        :class="[{'dragTop':!this.topWidgets.length}]"
+      >
+        <div class="item" v-for="w in topWidgets" :key="w.id">
+          <dragCard :data="w" @changeRowcount="changeRow()" @onDel="onClick(arguments)"/>
+        </div>
+        <div slot="header" v-if="upTop[0]">
+          <dragCard :data="upTop[0]"/>
+        </div>
+      </draggable>
+    </div>
+    <div class="content" ref="content">
+      <div class="left" :style="{ width: `${weightWidth}%` }">
+        <draggable
+          :move="move"
+          @end="dragEnd"
+          :animation="200"
+          draggable=".item"
+          :list="leftWidgets"
+          filter=".resize-handle"
+          :disabled="this.draggable"
+          :group="{ name: 'menu', put: true }"
+          :class="[{'dragLeft':!this.leftWidgets.length}]"
+        >
+          <div class="item" v-for="w in leftWidgets" :key="w.id">
+            <dragCard :data="w" @changeRowcount="changeRow()" @onDel="onClick(arguments)"/>
+          </div>
+          <!-- <div slot="header" v-if="leftTop[0]">
+            <dragCard :data="leftTop[0]"/>
+          </div> -->
+          <div slot="header" v-for="left in leftTop" :key="left.id">
+            <dragCard :data="left"/>
+          </div>
+        </draggable>
+        <div class="move-handle" @mousedown.prevent="drag()"></div>
+      </div>
+      <div class="right" :style="{ width: `${100 - weightWidth}%` }">
+        <draggable
+          :move="move"
+          @end="dragEnd"
+          :animation="200"
+          draggable=".item"
+          :list="rightWidgets"
+          filter=".resize-handle"
+          :group="{ name: 'menu' }"
+          :disabled="this.draggable"
+          :class="[{'dragRight':!this.rightWidgets.length}]"
+        >
+          <div class="item" v-for="w in rightWidgets" :key="w.id">
+            <dragCard :data="w" @changeRowcount="changeRow()" @onDel="onClick(arguments)"/>
+          </div>
+          <!-- <div slot="header" v-if="rightTop[0]">
+            <dragCard :data="rightTop[0]"/>
+          </div> -->
+          <div slot="header" v-for="right in rightTop" :key="right.id">
+            <dragCard :data="right"/>
+          </div>
+        </draggable>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Card, Icon, Dropdown, Menu } from "ant-design-vue";
+import draggable from "vuedraggable";
+import { showError } from "../../utils/index";
+import { getLayout, getWidgets, updateLayout } from "../../api/menu";
+import widgets from "../../widgets";
+import dragCard from "./components/DragCard"
+
+export default {
+  components: {
+    ACard: Card,
+    AIcon: Icon,
+    ADropdown: Dropdown,
+    AMenu: Menu,
+    AMenuItem: Menu.Item,
+    ...widgets,
+    draggable,
+    dragCard,
+  },
+  data() {
+    return {
+      layout: {
+        weight: undefined,
+        widgets: undefined,
+      },
+      topWidgets: [],
+      leftWidgets: [],
+      rightWidgets: [],
+      leftTop: [], //左边单独置顶项
+      rightTop: [], //右边单独置顶项
+      upTop: [], //顶部置顶项
+      draggable: false,
+    };
+  },
+  computed: {
+    weightWidth() {
+      if (this.layout.weight) {
+        return Math.max(Math.min(this.layout.weight * 100, 70), 30);
+      } else {
+        return 50;
+      }
+    },
+  },
+  created() {
+    this.loadLayout();
+    // this.loadWidgets();
+  },
+  methods: {
+    //获取首页需要展示的组件
+    loadLayout() {
+      getLayout()
+        .then(({ result }) => {
+          this.layout = result;
+          //寻找非置顶项
+          this.rightWidgets = this.layout.widgets.filter(
+            (item) => item.layout === 0 && item.display !== 2 
+          );
+          this.leftWidgets = this.layout.widgets.filter(
+            (item) => item.layout === 1 && item.display !== 2
+          );
+          this.topWidgets = this.layout.widgets.filter(
+            (item) => item.layout === 2 && item.display !== 2
+          );
+          //寻找置顶项
+          this.rightTop = this.layout.widgets.filter(
+            (item) => item.layout === 0 && item.display === 2
+          );
+           this.leftTop = this.layout.widgets.filter(
+            (item) => item.layout === 1 && item.display === 2
+          );
+           this.upTop = this.layout.widgets.filter(
+            (item) => item.layout === 2 && item.display === 2
+          );
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    move(evt) {
+      if(evt.to.classList[0]==='dragTop') {//拖入顶部(此时顶部无元素)
+        evt.draggedContext.element.layout = 2;
+      }else if(evt.to.classList[0]==='dragLeft') {//拖入左边(此时左边无元素)
+        evt.draggedContext.element.layout = 1;
+      }else if(evt.to.classList[0]==='dragRight') {//拖入右边(此时右边无元素)
+        evt.draggedContext.element.layout = 0;
+      }else{
+        if(evt.relatedContext.element) {
+        //拖动的layout和目标layout不同，将目标layout赋值给拖动的layout
+          if(evt.draggedContext.element.layout !== evt.relatedContext.element.layout) {
+            evt.draggedContext.element.layout = evt.relatedContext.element.layout;
+          }
+        }
+      }
+      return true;
+    },
+    drag() {
+      let that = this;
+      let startX = event.x;
+      let sw = this.layout.weight; //获取左边区域占领比例
+      document.onmousemove = function () {
+        that.draggable = true; //禁用排序拖动
+        let moveX = event.x - startX;
+        //左边占比加上移动占比等于左边总占比
+        that.layout.weight = Math.max(Math.min( 0.7,sw + (moveX / that.$refs.content.offsetWidth)),0.3);
+      };
+      document.onmouseup = function () {
+        that.draggable = false; //启用排序拖动
+        document.onmousemove = null;
+        document.onmouseup = null;
+        let data = that.layout;
+        updateLayout(data)
+        .then((res) => {})
+        .catch((error) => {
+          showError(error);
+        });
+      };
+      return false;
+    },
+    dragEnd(evt) {
+      this.layout.widgets = [...this.topWidgets,...this.leftWidgets,...this.rightWidgets,];
+      this.layout.widgets.forEach((item, index) => {
+        item.orderby = index + 1;
+      });
+      this.update(this.layout);
+    },
+    //获取全部的组件
+    // loadWidgets(){
+    //   getWidgets().then(res=>{
+    //   })
+    // }
+    changeRow(){
+      this.update(this.layout);
+    },
+    update(layout){
+     let data = layout;
+     updateLayout(data)
+        .then((res) => {})
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    onClick(e) {
+      if (e[0].key == 1) {
+        this.layout.widgets.splice(e[1].orderby - 1, 1);
+        this.layout.widgets.forEach((item, index) => {
+          item.orderby = index + 1;
+        });
+        let data = this.layout;
+        updateLayout(data)
+          .then((res) => {
+            if (e[1].layout === 0) {
+              this.rightTop = [];
+            } else if (e[1].layout === 1) {
+              this.leftTop = [];
+            } else if (e[1].layout === 2) {
+              this.upTop = [];
+            }
+            this.$message.success("删除成功");
+            this.loadLayout();
+          })
+          .catch((error) => {
+            showError(error);
+          });
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.home-body {
+  padding: @layout-space-base;
+  .content {
+    display: flex;
+    .left {
+      position: relative;
+      width: 50%;
+      padding-right: @layout-space-base / 2;
+      // margin-right: @layout-space-base;
+      & .move-handle {
+        position: absolute;
+        width: @layout-space-base;
+        height: 100%;
+        top: 0;
+        right: -@layout-space-base / 2;
+        z-index: 999;
+      }
+      & .move-handle:hover{
+        cursor: w-resize;
+      }
+    }
+    .right {
+      position: relative;
+      padding-left: @layout-space-base / 2;
+      width: 50%;
+    }
+  }
+  .dragLeft,.dragRight{
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+  }
+  .retain {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+  }
+  /deep/.ant-card-head {
+    height: 41px;
+    min-height: 41px;
+  }
+  .addButton,.reduceButton{
+    opacity: 1;
+  }
+}
+</style>

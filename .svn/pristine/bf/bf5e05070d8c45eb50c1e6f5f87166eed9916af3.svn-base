@@ -1,0 +1,731 @@
+<template>
+  <div class="content">
+    <div class="addAndSearch">
+      <div>
+        <a-button type="primary" @click="add()">新增</a-button>
+      </div>
+      <div>
+        <a-input-search
+          placeholder="输入名称搜索"
+          enter-button="搜索"
+          @search="onSearch"
+        />
+      </div>
+    </div>
+    <div>
+      <div class="table">
+        <div class="tableHead">
+          <div class="header">
+            <span>名称</span>
+            <span>操作</span>
+          </div>
+        </div>
+        <div class="empty" v-show="showEmpty">
+          <div class="emptyContent">
+            <Empty-data />
+          </div>
+        </div>
+        <div class="tree" style="width=100%">
+          <a-tree
+            :expanded-keys="expandedKeys"
+            :draggable="draggable"
+            :tree-data="contentData"
+            @drop="onDrop"
+            @expand="onExpand"
+          >
+            <template slot="custom" slot-scope="record">
+              <div class="item">
+                <span class="node-title">{{ record.title }}</span>
+                <span class="option">
+                  <a href="javascript:;" class="edit" @click="edit(record)"
+                    >编辑</a
+                  >
+                  <a
+                    href="javascript:;"
+                    class="del"
+                    @click="onDelete(record.key)"
+                    >删除</a
+                  >
+                </span>
+              </div>
+            </template>
+          </a-tree>
+          <a-modal
+            :width="800"
+            :centered="true"
+            class="formModal"
+            v-model="visible"
+            title="新增/编辑"
+            @ok="handleOk"
+            :bodyStyle="{ height: '560px' }"
+          >
+            <a-form
+              layout="vertical"
+              :form="form"
+              :style="{ width: '752px', padding: '8px 24px' }"
+            >
+              <a-row type="flex" justify="center" :gutter="16">
+                <a-col :span="12">
+                  <a-form-item label="名称">
+                    <a-input
+                      v-decorator="[
+                        'name',
+                        { rules: [{ required: true, message: '请输入名称!' }] },
+                      ]"
+                    />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="12">
+                  <a-form-item label="上级节点" :label-col="{ span: 8 }">
+                    <a-tree-select
+                      :allowClear="true"
+                      v-decorator="[
+                        'pid',
+                        {
+                          rules: [
+                            { required: false, message: '请选择上级节点!' },
+                          ],
+                        },
+                      ]"
+                      :tree-data="pcontentData"
+                    />
+                  </a-form-item>
+                </a-col>
+                <!-- <a-col :span="24">
+                  <a-form-item label="描述">
+                    <a-textarea  v-decorator="['describe', { rules: [{ required: true, message: '描述不能为空!'}, ]}]" :tree-data="data" />
+                  </a-form-item>{ pattern: new RegExp('/[^,:{}\\[\\]0-9.\\-+Eaeflnr-u \n\r\t]/'), message: '请输入json字符串'}
+                </a-col>-->
+                <a-col :span="15">
+                  <a-form-item label="内容设置" :label-col="{ span: 8 }">
+                    <a-textarea
+                      :rows="18"
+                      @input="changeForm"
+                      v-decorator="[
+                        'form',
+                        {
+                          rules: [
+                            { required: true, message: '内容设置不能为空!' },
+                            { validator: isJson },
+                          ],
+                        },
+                      ]"
+                      :tree-data="contentData"
+                    />
+                  </a-form-item>
+                </a-col>
+                <a-col :span="9" class="chart">
+                  <a-form-item>
+                    <a-card
+                      :body-style="{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        padding: '7px 0',
+                      }"
+                      ><span>图表</span></a-card
+                    >
+                    <div class="chartList">
+                      <a-list
+                        item-layout="horizontal"
+                        :data-source="nameList"
+                        :split="true"
+                        rowKey="item =>item"
+                        :style="{
+                          'border-radius': 0,
+                          'border-top': 0,
+                        }"
+                      >
+                        <a-list-item
+                          slot="renderItem"
+                          slot-scope="item"
+                          size="small"
+                          class="describe"
+                        >
+                          <a-list-item-meta
+                            :description="item.name"
+                          ></a-list-item-meta>
+                          <a @click="tochart(item)">编辑{{item}}</a>
+                        </a-list-item>
+                      </a-list>
+                    </div>
+                  </a-form-item>
+                </a-col>
+              </a-row>
+            </a-form>
+          </a-modal>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import {
+  Button,
+  Input,
+  Tree,
+  Icon,
+  Modal,
+  Form,
+  Select,
+  TreeSelect,
+  List,
+  Card,
+  Row,
+  Col,
+} from "ant-design-vue";
+import EmptyData from "@/framework/components/EmptyData";
+import cloneDeep from "lodash/cloneDeep";
+import draggable from "vuedraggable";
+
+export default {
+  components: {
+    AButton: Button,
+    AInput: Input,
+    AInputSearch: Input.Search,
+    ATree: Tree,
+    ATreeNode: Tree.TreeNode,
+    AIcon: Icon,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATextarea: Input.TextArea,
+    ATreeSelect: TreeSelect,
+    AList: List,
+    AListItem: List.Item,
+    AListItemMeta: List.Item.Meta,
+    ACard: Card,
+    ARow: Row,
+    ACol: Col,
+    EmptyData,
+  },
+  props: {
+    data: {
+      type: Array,
+    },
+    expandedKeys: {
+      type: Array,
+    },
+    scopeData: {
+      type: Array,
+    },
+  },
+  data() {
+    return {
+      value: undefined,
+      visible: false,
+      inline: "inline",
+      nameList: [],
+      contentData: [],
+      pcontentData: [],
+      id: undefined,
+      beforeid: 0,
+      afterid: 0,
+      where: undefined,
+      draggable: true,
+      showEmpty: false,
+      scopeDatas: [],
+      code: {},//传入接口的data数据
+      currentItem: {},//当前点击编辑的行数据
+      form: this.$form.createForm(this, { name: "contentForm" }),
+    };
+  },
+  watch: {
+    data(newVal, oldVal) {
+      this.contentData = newVal;
+      this.contentData == ""
+        ? (this.showEmpty = true)
+        : (this.showEmpty = false);
+      this.pcontentData = JSON.parse(JSON.stringify(newVal));
+    },
+    expandedKeys(newVal, oldVal) {
+      this.expandedKeys = newVal;
+    },
+    scopeData(newVal, oldVal) {
+      //给name和desc属性赋值
+      newVal.forEach((item) => {
+        let a = {};
+        a.desc = item.name;
+        a.name = item.code;
+        this.scopeDatas.push(a);
+      });
+    },
+  },
+  methods: {
+    onExpand(expandedKeys) {
+      this.$emit("expand", expandedKeys);
+    },
+    onSearch(value) {
+      this.draggable = value === "" ? true : false;
+      this.$emit("search", value);
+    },
+    add() {
+      this.id = 0;
+      this.showModal();
+      this.$nextTick(() => {
+        this.nameList = [];
+        this.form.resetFields();
+        this.disableTree(undefined,this.pcontentData);
+      });
+    },
+    edit(item) {
+      this.id = item.key;
+      if (item.pid === 0) {
+        item.pid = undefined;
+      }
+      this.disableTree(item, this.pcontentData);
+      this.showModal();
+      this.$nextTick(() => {
+        this.form.setFieldsValue({
+          name: item.title,
+          pid: item.pid,
+          form: item.form !== "" ? item.form : "",
+        });
+        this.nameList = [];
+        this.getName(JSON.parse(item.form));
+        //获取完数据后，将code数据取出赋值给namelist数组每项的id中
+        this.nameList.forEach(items => {
+          items.id = JSON.parse(item.data)[items.code];
+          //初始化code,防止用户不设置图形，直接确定导致原有id丢失的问题
+          this.$set(this.code,items.code,items.id);
+        })
+        //将当前行数据存储起来，便于后面修改form数据后保持id
+        this.currentItem = JSON.parse(item.data);
+      });
+    },
+    onDelete(id) {
+      let that = this;
+      this.$confirm({
+        title: "删除该节点?",
+        okText: "确定",
+        cancelText: "取消",
+        onOk() {
+          that.$emit("delete", id); //通知父组件改变
+        },
+        onCancel() {
+          console.log("Cancel");
+        },
+      });
+    },
+    changeForm(val) {
+      //获取文本域输入错误
+      let error = this.form.getFieldError("form");
+      //输入无误再去获取name
+      if (error === undefined) {
+        let jsonObjs = JSON.parse(val.target.value);
+        let jsonObj = jsonObjs;
+        this.nameList = [];
+        this.getName(jsonObj);
+        //当修改form数据后,保持当前id,items.code改变后，丢失id
+        this.nameList.forEach(items => {
+          items.id =this.currentItem[items.code];
+        })
+      }
+    },
+    isJson(rule, value, callback) {
+      try {
+        if (value) {
+          JSON.parse(value);
+          callback();
+        }
+      } catch (error) {
+        callback("输入内容必须是Json字符串");
+        return false;
+      }
+      return true;
+    },
+    tochart(item) {
+      window.paramsBridge = {
+        type: "chart",
+        chart: item.id,
+        context: this.scopeDatas,
+        callback: (c) => {
+          this.nameList.forEach((items) => {
+            //将返回的id存入code中
+            if (items.name === item.name) {
+              let codekey = item.code;
+              this.$set(this.code,codekey,c.id);
+            }
+          });
+          return true;
+        },
+      };
+      const { href } = this.$router.resolve({
+        path: "/person/statistics/chart/index",
+        query: { feedback: true },
+      });
+      window.open(href, "_blank");
+    },
+    getName(jsonObj) {
+      (jsonObj || []).forEach((item) => {
+        if (item.type == "chart") {
+          let a = {};
+          a.name = item.name;
+          a.code = item.code;
+          this.nameList.push(a);
+        } else {
+          if (item.children != undefined) {
+            //是否有children
+            item.children.forEach((item) => {
+              if (item.components != undefined) {
+                this.getName(item.components);
+              }
+            });
+          }
+        }
+      });
+    },
+    showModal() {
+      this.visible = true;
+    },
+    /**
+     * 编辑的时候父节点选择中禁用编辑的选项
+     * item是当前点击的选项
+     * data是页面总数据
+     */
+    disableTree(item, data) {
+      if (item) {//item有值,代表编辑
+        (data || []).forEach((items) => {
+          //释放之前禁用的选项
+          items.disabled = false;
+          //选中的是根节点
+          if (items.key === item.key) {
+            if (item.pid !== items.key) {
+              //禁用当前节点
+              items.disabled = true;
+              //递归查询子节点并禁用
+              if (items.children) {
+                this.deepDisabled(item, items.children);
+              }
+            }
+          } else {
+            if (items.children) {
+              items.children.forEach((treeitem) => {
+                //释放所有之前被禁用的节点
+                treeitem.disabled = false;
+                //节点key相同且父节点不能是子节点
+                if (treeitem.key === item.key && treeitem.key !== item.pid) {
+                  treeitem.disabled = true;
+                }
+              });
+            }
+          }
+        });
+      } else {
+         (data || []).forEach((items) => {
+           items.disabled = false;
+           if(items.children){
+              this.deeprelease(items.children);
+           }
+         });
+      }
+    },
+    // 递归释放选项，添加时触发
+    deeprelease(treedata){
+      treedata.forEach((treeitem) => {
+          treeitem.disabled = false;
+          if (treeitem.children) {
+            this.deeprelease(treeitem.children);
+          }
+      });
+    },
+    //递归禁用选项，编辑时触发
+    deepDisabled(item, treedata) {
+      treedata.forEach((treeitem) => {
+        if (item.pid !== treeitem.key) {
+          treeitem.disabled = true;
+          if (treeitem.children) {
+            this.deepDisabled(item, treeitem.children);
+          }
+        }
+      });
+    },
+    onDrop(info) {
+      const dropKey = info.node.eventKey;
+      const dragKey = info.dragNode.eventKey;
+      const dropPos = info.node.pos.split("-");
+      const dropPosition =
+        info.dropPosition - Number(dropPos[dropPos.length - 1]);
+      const loop = (data, key, callback) => {
+        data.forEach((item, index, arr) => {
+          if (item.key === key) {
+            return callback(item, index, arr);
+          }
+          if (item.children) {
+            return loop(item.children, key, callback);
+          }
+        });
+      };
+      const gData = [...this.contentData];
+
+      let dragObj;
+      loop(gData, dragKey, (item, index, arr) => {
+        arr.splice(index, 1);
+        dragObj = item;
+      });
+      if (!info.dropToGap) {
+        //一条数据往其他数据的合并操作
+        loop(gData, dropKey, (item) => {
+          item.children = item.children || [];
+          // where to insert 示例添加到尾部，可以是随意位置
+          this.beforeid = info.dragNodesKeys;
+          this.afterid = item.key;
+          this.where = 0;
+          item.children.push(dragObj);
+        });
+        if (this.beforeid.length > 1) {
+          this.sort({
+            from: this.beforeid[this.beforeid.length - 1],
+            to: this.afterid,
+            where: this.where,
+          });
+        } else {
+          this.sort({
+            from: this.beforeid[0],
+            to: this.afterid,
+            where: this.where,
+          });
+        }
+      } else {
+        //各个节点之间移动
+        let ar;
+        let i;
+        loop(gData, dropKey, (item, index, arr) => {
+          this.beforeid = info.dragNodesKeys;
+          this.afterid = item.key;
+          ar = arr;
+          i = index;
+        });
+        if (dropPosition === -1) {
+          //向上移动
+          ar.splice(i, 0, dragObj);
+          this.where = 1;
+        } else {
+          // 向下移动
+          ar.splice(i + 1, 0, dragObj);
+          this.where = -1;
+        }
+        if (this.beforeid.length > 1) {
+          this.sort({
+            from: this.beforeid[this.beforeid.length - 1],
+            to: this.afterid,
+            where: this.where,
+          });
+        } else {
+          this.sort({
+            from: this.beforeid[0],
+            to: this.afterid,
+            where: this.where,
+          });
+        }
+      }
+      this.contentData = gData;
+    },
+    sort(data) {
+      this.$emit("sort", data);
+    },
+    handleOk(e) {
+      console.log(this.code)
+      e.preventDefault();
+      //验证输入
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          this.$emit("save", {
+            id: this.id,
+            name: values.name,
+            pid: values.pid ? values.pid : 0,
+            form: values.form,
+            data: JSON.stringify(this.code),
+          });
+          //重置所有组件
+          this.nameList = [];
+          this.form.resetFields();
+          this.visible = false;
+        }
+      });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.content {
+  height: 100%;
+  padding: @content-padding-v 0;
+  background-color: @white;
+  & .addAndSearch {
+    display: flex;
+    justify-content: space-between;
+    padding: @content-padding-v @content-padding-h;
+  }
+  .table {
+    padding: @content-padding-v 0;
+    & .empty {
+      padding: @content-padding-v @content-padding-h;
+      & .emptyContent {
+        padding: @padding-lg;
+        border-bottom: 1px solid #e8e8e8;
+      }
+    }
+    .tableHead {
+      .header {
+        margin: 0 @content-padding-h;
+        padding: 6px;
+        background-color: rgb(250, 250, 250);
+        border-bottom: 1px solid #e8e8e8;
+        font-weight: bold;
+        & span:nth-child(2) {
+          position: relative;
+          left: 61%;
+        }
+      }
+    }
+    .tree {
+      height: 500px;
+      overflow-y: auto;
+      padding: 0 @content-padding-h;
+      & :global(ul li) {
+        padding: 0;
+      }
+      & :global(.ant-tree li span) {
+        height: 30px;
+        line-height: 30px;
+        border-top: 0;
+        z-index: 2;
+      }
+      & :global(.ant-tree) {
+        position: relative;
+      }
+      //重置树节点自带的hover
+      & :global(.ant-tree li .ant-tree-node-content-wrapper:hover) {
+        background-color: transparent;
+      }
+      //自定义树节点hover
+      & :global(.ant-tree li span.ant-tree-node-content-wrapper::before) {
+        position: absolute;
+        right: 0;
+        left: 0;
+        height: 30px;
+        padding: 0;
+        z-index: 0;
+        transition: all 0.4s ease;
+        background-color: @primary-1;
+      }
+      //触发hover
+      & :global(.ant-tree li span.ant-tree-node-content-wrapper:hover::before) {
+        content: "";
+      }
+      //自定义树节点点击状态
+      &
+        :global(.ant-tree
+          li
+          .ant-tree-node-content-wrapper.ant-tree-node-selected::before) {
+        content: "";
+        position: absolute;
+        height: 30px;
+        padding: 0;
+        z-index: 0;
+        transition: all 0.4s ease;
+        background-color: @primary-3;
+      }
+      //重置树节点自带的选中样式
+      &
+        :global(.ant-tree
+          li
+          .ant-tree-node-content-wrapper.ant-tree-node-selected) {
+        background-color: transparent;
+      }
+      //树节点添加下划线
+      &
+        :global(.ant-tree
+          li
+          span.ant-tree-node-content-wrapper:not(:first-child):after) {
+        content: "";
+        position: absolute;
+        right: 0;
+        left: 0;
+        border-bottom: 1px solid #e8e8e8;
+      }
+      .ant-tree-title {
+        width: 500px;
+      }
+      .edit {
+        padding-right: @padding-sm;
+      }
+      .option {
+        position: absolute;
+        left: 61.5%;
+      }
+      & :global(.ant-tree li span.ant-tree-node-content-wrapper) {
+        width: 98% !important;
+      }
+    }
+    .item {
+      display: flex;
+      justify-content: space-between;
+    }
+  }
+}
+//图表头边框设置
+:global(.ant-card-bordered) {
+  border: 0;
+  border-bottom: 1px solid #e8e8e8;
+}
+//图表列表鼠标样式
+:global(.describe:hover) {
+  background-color: @primary-1;
+  transition: all 0.4s ease;
+}
+//图表列表左边距
+:global(.ant-list-item-meta) {
+  padding: 0 @padding-lg;
+}
+//图表列表右边距
+:global(.describe .ant-list-item-content) {
+  padding: 0 @padding-lg;
+}
+//图表列表位置设置
+:global(.chartList) {
+  position: absolute;
+  top: 37px;
+  left: 0;
+  right: -6px;
+  bottom: 0;
+  overflow: scroll;
+}
+:global(.chart.ant-col-9) {
+  position: relative;
+}
+:global(.chart .ant-form-item-control) {
+  position: static;
+}
+:global(.chart .ant-form-item-children) {
+  position: static;
+}
+//图表布局位置设置
+:global(.chart .ant-row) {
+  position: absolute;
+  bottom: 12px;
+  top: 29px;
+  left: 0;
+  right: 8px;
+  border: 1px solid #e8e8e8;
+  border-radius: @border-radius-base @border-radius-base 0 0;
+}
+:global(.ant-list-item) {
+  cursor: pointer;
+}
+//文本域高度限制
+:global(#contentForm_form) {
+  // min-height: 375px;
+  resize: none;
+}
+:global(.ant-list-item-meta) {
+  word-break: keep-all; /* 不换行 */
+  white-space: nowrap; /* 不换行 */
+  overflow: hidden; /* 内容超出宽度时隐藏超出部分的内容 */
+  text-overflow: ellipsis; /* 当对象内文本溢出时显示省略标记(...) ；需与overflow:hidden;一起使用。*/
+}
+</style>

@@ -1,0 +1,353 @@
+<template>
+  <div class="resultTable">
+    <div class="head">
+      <h3>查询结果</h3>
+      <div class="opIcon">
+        <span @click="openModel">导出</span>
+      </div>
+    </div>
+    <a-table
+      :pagination="false"
+      :columns="headers"
+      :dataSource="dataSource"
+      rowKey="_id"
+      @change="onChange"
+    >
+      <div slot="cell" slot-scope="text,row,index,column" class="table-cell">
+        <span>{{Array.isArray(text) ? text.join('、') : text}}</span>
+        <a-icon
+          v-if="hasSubTable(row,column)"
+          type="table"
+          @click="showSubTable(row,column)"
+          title="查看列表"
+        />
+      </div>
+    </a-table>
+    <a-modal
+      title="导出"
+      :bodyStyle="{padding:'24px'}"
+      :visible="visible"
+      @cancel="handleCancel"
+      @ok="exportHandler"
+      :destroyOnClose="true"
+    >
+      <div>
+        <a-input placeholder="请输入文件名" @change="changeHandler" />
+        <p class="errorMsg" v-if="!title && showError">请填写文件名</p>
+      </div>
+    </a-modal>
+    <a-modal
+      v-model="subTable.show"
+      :title="subTable.title"
+      :width="subTable.width"
+      :bodyStyle="{height: '500px', padding:'8px 24px', overflowY: 'auto'}"
+      :footer="null"
+    >
+      <a-table
+        rowKey="rowKey"
+        :columns="subTable.columns"
+        :dataSource="subTable.dataSource"
+        :pagination="false"
+      >
+        <div slot="cell" slot-scope="text" class="table-cell">
+          <span>{{Array.isArray(text) ? text.join('、') : text}}</span>
+        </div>
+      </a-table>
+    </a-modal>
+    <TaskProgress :taskid="taskId" defaultInfo="正在导出" @finish="onProgressFinish" />
+  </div>
+</template>
+<script>
+import { formExportExcel, exportExcel } from "@/person/api/integratedquery";
+import cloneDeep from "lodash/cloneDeep";
+import { download } from "@/framework/api/file";
+import { showError } from "@/framework/utils/index";
+import {Icon,Table,Modal,Input,Pagination,Spin,Button} from "ant-design-vue";
+import TaskProgress from "@/framework/components/TaskProgress";
+export default {
+  data() {
+    return {
+      taskId: undefined,
+      visible: false,
+      showError: false,
+      title: "",
+      subTable: {
+        show: false,
+        title: undefined,
+        columns: [],
+        dataSource: undefined,
+        width: 500
+      },
+      orderArr:cloneDeep(this.orders)
+    };
+  },
+  components: {
+    AIcon: Icon,
+    ATable: Table,
+    AModal: Modal,
+    AInput: Input,
+    APagination: Pagination,
+    ASpin: Spin,
+    AButton: Button,
+    TaskProgress
+  },
+  props: {
+    tableData: {
+      type: Object,
+      required: true
+    },
+    catalogid: {
+      required: true
+    },
+    selected: {
+      type: Array,
+      required: true
+    },
+    searchObj: {
+      type: String,
+      required: true
+    },
+    node: {
+      type: Object,
+      required: true
+    },
+    userType: {
+      type: Array,
+      required: true
+    },
+    orders:{
+      type:Array,
+      required:true
+    },
+    pagination: {
+      type: Object,
+      required: true
+    }
+  },
+  watch:{
+    orders(v){
+      this.orderArr = v;
+    }
+  },
+  computed: {
+    headers() {
+     return this.convertColumns(this.tableData.header || []);
+    },
+    dataSource() {
+      let arr = [];
+      if (this.tableData.rows && this.tableData.rows.length > 0) {
+        arr = this.tableData.rows;
+        for (let i = 0; i < arr.length; i++) {
+          let item = arr[i];
+          if (arr[i]["org@organization.suporg"] == null) {
+            arr[i]["org@organization.suporg"] = arr[i].org;
+          }
+          if (arr[i]["suporg"] == null) {
+            arr[i]["suporg"] = arr[i].name;
+          }
+        }
+      }
+      return arr;
+    }
+  },
+  methods: {
+    convertColumns(columns, parentProps) {
+      return columns.map((item, index) => {
+        let path = parentProps ? [...parentProps, item.column] : [item.column];
+        let column = {
+          title: item.showname,
+          dataIndex: this.generateDataIndex(path),
+          key:item.key,
+          scopedSlots: { customRender: "cell" },
+          path,
+          sorter: item.sortable,
+          sortOrder: this.orderArr.length > 0 && item.key == this.orderArr[0]['orderby'] ?  this.orderArr[0]['ordertype'] == "DESC" ? "descend" : this.orderArr[0]['ordertype'] == "ASC" ? "ascend" : false  : false,
+          lastColumn: columns.length - index == 1
+        };
+        if (item.columns && item.columns.length) {
+          column.children = this.convertColumns(item.columns, path);
+        }
+        return column;
+      });
+    },
+    generateDataIndex(propPath) {
+      let path = "";
+      propPath.forEach((item, index) => {
+        if (index > 0) {
+          path += "[0]";
+        }
+        path += `['${item}']`;
+      });
+      return path;
+    },
+    hasSubTable(row, column) {
+      let { path, lastColumn } = column;
+      if (path.length > 1 && lastColumn) {
+        let data = row[path[0]];
+        //TODO sunwen 二级以上的列表，判断是哪一级的子表
+        if (data && data.length) {
+          return true;
+        }
+      }
+    },
+    showSubTable(row, column) {
+      let { path, lastColumn } = column;
+      if (path.length > 1 && lastColumn) {
+        let data = row[path[0]];
+        if (data && data.length) {
+          let c = this.getColumnByPath([path[0]]); //TODO 二级以上子表处理
+          if (c && c.columns && c.columns.length) {
+            let arrList = data.map(item=>{
+              return Object.assign({},item,{rowKey:Math.random()})
+            })
+            this.subTable = {
+              show: true,
+              title: c.showname,
+              columns: this.convertColumns(c.columns),
+              width: Math.min(c.columns.length * 200, 1200),
+              dataSource: arrList
+            };
+          } else {
+            this.$message.error("找不子表表头");
+          }
+        }
+      }
+    },
+    getColumnByPath(path) {
+      if (path.length) {
+        let c = (this.tableData.header || []).find(
+          item => item.column == path[0]
+        );
+        for (let i = 1; i < path.length; i++) {
+          if (c && c.columns) {
+            let key = path[i];
+            c = c.columns.find(item => item.column == key);
+          } else {
+            return;
+          }
+        }
+        return c;
+      }
+    },
+    onChange(pagination, filters, sorter) {
+      this.$emit("tableChange", {
+        ordertype: sorter.order == "descend" ? "DESC" : sorter.order == "ascend" ? "ASC" : false,
+        orderby: sorter.columnKey
+      });
+    },
+    handleCancel() {
+      this.visible = false;
+      this.showError = false;
+    },
+    openModel() {
+      this.visible = true;
+    },
+    changeHandler(e) {
+      this.title = e.target.value;
+    },
+    exportHandler() {
+      this.showError = true;
+      if (!this.title) {
+        return false;
+      }
+      let result = cloneDeep(this.$store.getters.treeData);
+      let data = {
+        fields: this.selected,
+        catalogid: this.catalogid,
+        filter: result,
+        model: this.searchObj,
+        needtotal: true,
+        nodeid: this.node.nodeid,
+        nodename: this.node.nodename,
+        usertype: this.userType,
+        pagenum: this.pagination.pagenum,
+        pagesize: this.pagination.pagesize,
+        title: this.title
+      };
+      exportExcel(data)
+        .then(res => {
+          this.taskId = res.result;
+          this.visible = false;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    onProgressFinish(res) {
+      download(res);
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.resultTable {
+  .head {
+    display: flex;
+    height: 40px;
+    background: #fafafa;
+    align-items: center;
+    position: relative;
+    h3 {
+      width: 100%;
+      font-size: 15px;
+      font-weight: 500;
+      text-align: center;
+      margin: 0;
+      height: 40px;
+      line-height: 40px;
+    }
+    .opIcon {
+      width: 200px;
+      height: 40px;
+      position: absolute;
+      top: 0px;
+      right: 0px;
+      display: flex;
+      flex-direction: row-reverse;
+      span {
+        cursor: pointer;
+        padding: 0px @padding-md;
+        height: 40px;
+        line-height: 40px;
+        text-align: center;
+        transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+        &:hover {
+          color: @primary-color;
+          background: #9e9e9e2e;
+        }
+      }
+    }
+  }
+  /deep/.ant-table-thead {
+    th {
+      border: 1px solid #e8e8e8;
+      &:first-child {
+        border-left: none;
+      }
+      &:last-child {
+        border-right: none;
+      }
+    }
+  }
+}
+.table-cell {
+  position: relative;
+  padding-right: 24px;
+  .anticon {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    margin-top: -7px;
+    color: @primary-color;
+    cursor: pointer;
+  }
+}
+.ant-pagination {
+  margin-top: 20px;
+  text-align: right;
+}
+.errorMsg {
+  color: @primary-color;
+  margin: 10px 0px 0px;
+}
+</style>

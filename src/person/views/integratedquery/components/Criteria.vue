@@ -1,0 +1,270 @@
+<template>
+  <div class="cirteria" :class="{odd: depth % 2 != 0, root: !depth}">
+    <div class="item" v-for="(item, index) in criteria" :key="item.id">
+      <div class="relation" v-if="index > 0">
+        <a-select :value="op" @change="onOpChange(index, $event)">
+          <a-select-option value="and">并且</a-select-option>
+          <a-select-option value="or">或者</a-select-option>
+        </a-select>
+        <a class="split" v-if="depth != 0" @click="split(index)">拆分</a>
+        <a class="union" v-if="criteria.length > 2" @click="union(index, op)">组合</a>
+        <a-icon type="plus-circle" class="opIcon" @click="add(index)" />
+      </div>
+      <criteria v-if="item.criteria" :key='item.id'
+        v-model="criteria[index]" :depth="depth+1" :target="target"
+        @split="onSplit(index, $event)"
+      />
+      <criterion v-else :key='item.id'
+        v-model="criteria[index]" :depth="depth+1" :target="target" 
+        @remove="onRemove(index)"
+      />
+    </div>
+    <template v-if="depth">
+      <custom-icon type="add-up" class="addIcon upAddIcon" @click.native="add(0)" />
+      <custom-icon type="add-down" class="addIcon downAddIcon" @click.native="add()"/>
+    </template>
+  </div>
+</template>
+<script>
+import { Icon, Select } from "ant-design-vue";
+import CustomIcon from "@/framework/components/CustomIcon";
+import Criterion from './Criterion';
+import cloneDeep from 'lodash/cloneDeep'
+import { randomStr } from "@/framework/utils/index";
+
+/**
+ * 条件组
+ */
+export default {
+  name: "Criteria",
+  components: {
+    AIcon: Icon,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    CustomIcon,
+    Criterion,
+  },
+  props: {
+    value: {
+      type: Object,
+    },
+    target: {
+      type: Object,
+      required: true,
+      default: () => ({})
+    },
+    depth:{
+      type: Number,
+      default: 0
+    }
+  },
+  computed: {
+    criteria: {
+      get(){
+        return this.cond.criteria;
+      },
+      set(criteria){
+        this.cond.criteria = criteria;
+      }
+    },
+    op: {
+      get(){
+        return this.cond.op;
+      },
+      set(op){
+        this.cond.op = op;
+      }
+    }
+  },
+  data(){
+    return {
+      cond: { op: 'and', criteria: [] }
+    }
+  },
+  watch: {
+    value: {
+      immediate: true,
+      handler(value){
+        if(this.value !== this.cond){
+          this.initData(value);
+        }
+      }
+    },
+  },
+  methods: {
+    initData(value){
+      let cond = { op: 'and', criteria: [] };
+      Object.assign(cond, value);
+      cond.criteria.forEach(item => {
+        item.id = randomStr(5);//初始化条件数据时需重置ID，防止条件组件读取缓存
+      })
+      this.cond = cond;
+      this.$emit('input', cond);
+    },
+    add(index){//添加条件
+      if(!(index >= 0 && this.criteria.length > index)){
+        index = this.criteria.length;
+      }
+      this.criteria.splice(index, 0, {
+        id: randomStr(5),
+        field: undefined,
+        op: undefined,
+        field2: undefined,
+        op2: undefined,
+        value: undefined,
+      });
+    },
+    validate(){
+      //TODO sunwen 条件前端验证
+    },
+    union(index, op) {
+      index--;
+      let criteria = this.criteria.splice(index, 2);
+      this.criteria.splice(index, 0, {
+        id: randomStr(5),
+        op, criteria
+      });
+    },
+    split(index) {
+      this.$emit('split', this.splitCriteria(this.criteria, this.op, index))
+    },
+    splitCriteria(criteria, op, index){
+      let left = criteria.slice(0, index);
+      let right = criteria.slice(index);
+      return [left, right].map(item => {
+        return item.length > 1 ? { op, criteria: item} : item[0]
+      })
+    },
+    onOpChange(index, value){
+      if(this.criteria.length > 2){
+        if(value == 'and'){//切换成And 相邻2个添加合并
+          this.union(index, value);
+        }else{//切换成or 分隔条件
+          this.criteria = this.splitCriteria(this.criteria, this.op, index);
+          this.op = value;
+        }
+      }else{
+        this.op = value;
+      }
+    },
+    onSplit(index, parts){
+      this.criteria.splice.apply(this.criteria, [index, 1, ...parts]);
+    },
+    onRemove(index){
+      this.criteria.splice(index, 1);
+      if(this.criteria.length < 2){//条件组中只有一个条件时自动拆分
+        this.$emit('split', [this.criteria[0]]);
+      }
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.cirteria {
+  position: relative;
+  &:not(.root){
+    border-left: 2px solid @primary-color;
+    padding-left: 20px;
+    &::before {
+      background: @primary-color;
+    }
+    &::after {
+      background: @primary-color;
+    }
+  }
+  .addIcon{
+    position: absolute;
+    left: -11px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    color: @primary-color;
+    visibility: hidden;
+    &:hover {
+      color: fade(@primary-color, 75%);
+    }
+    &.upAddIcon {
+      top: -1px;
+    }
+    &.downAddIcon {
+      bottom: -1px;
+    }
+  }
+  &:hover > .addIcon{
+    visibility: visible;
+  }
+  &::before {
+    content: "";
+    width: 8px;
+    height: 2px;
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    z-index: 1;
+  }
+  &:hover::before{
+    visibility: hidden;
+  }
+  &::after {
+    content: "";
+    width: 8px;
+    height: 2px;
+    position: absolute;
+    left: 0px;
+    bottom: 0px;
+  }
+  &:hover::after{
+    visibility: hidden;
+  }
+  &.odd {
+    border-left: 2px solid @accent-color;
+    padding-left: 20px;
+    &::before {
+      background: @accent-color;
+    }
+    &::after {
+      background: @accent-color;
+    }
+    & > .addIcon {
+      color: @accent-color;
+      &:hover {
+        color: fade(@accent-color, 75%);
+      }
+    }
+  }
+  .relation {
+    display: flex;
+    align-items: center;
+    margin: 10px 0px;
+    .opIcon {
+      cursor: pointer;
+      color: @primary-color;
+      width: 20px;
+      height: 20px;
+      font-size: 18px;
+      &:hover {
+        color: fade(@primary-color, 75%);
+      }
+      &:last-child {
+        margin-left: 14px;
+      }
+    }
+    a {
+      width: 72px;
+      height: 32px;
+      text-align: center;
+      line-height: 32px;
+      background: #9e9e9e3d;
+      border: 1px solid #9e9e9e3d;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #666;
+      margin-left: 15px;
+      transition: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+      &:hover {
+        border-color: @border-color-base;
+      }
+    }
+  }
+}
+</style>

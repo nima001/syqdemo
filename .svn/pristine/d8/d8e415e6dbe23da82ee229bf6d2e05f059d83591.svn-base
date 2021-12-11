@@ -1,0 +1,194 @@
+<template>
+  <div class="form-panel">
+    <div class="form-body" ref="formBody">
+      <div v-for="item in tables" :key="item.key" :id="item.key">
+        <div class="title-bar">{{item.name}}</div>
+        <bar-chart :dataTable="item.chart"/> 
+        <a-table style="padding-bottom: 20px;"
+          :columns="item.table.columns"
+          :dataSource="item.table.rows"
+          :pagination="false"
+        />
+      </div>
+    </div>
+    <a-anchor v-if="tables && tables.length > 1" wrapperClass="form-anchor" :getContainer="() => $refs.formBody">
+      <a-anchor-link v-for="item in tables" :href="`#${item.key}`" :title="item.name" :key="item.key"/>
+    </a-anchor>
+  </div>
+</template>
+<script>
+import { Anchor, Table } from "ant-design-vue";
+import BarChart from '@person/views/statistics/chart/components/BarChart'
+
+import { orgStaffReport } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '@framework/utils'
+
+/**
+ * 机构数监测
+ */
+export default {
+  components: {
+    AAnchor: Anchor,
+    AAnchorLink: Anchor.Link,
+    ATable: Table,
+    BarChart,
+  },
+  props: {
+    unittype: {
+      type: Number,
+      required: true,
+    },
+    district: {
+      type: String,
+    }
+  },
+  data(){
+    return {
+      tables: undefined
+    }
+  },
+  computed: {
+    params(){
+      return { unittype: this.unittype, district: this.district}
+    }
+  },
+  watch: {
+    params(v){
+      this.tables = null;
+      this.loadData(this.params);
+    }
+  },
+  created(){
+    this.loadData(this.params);
+  },
+  methods: {
+    loadData({unittype, district}){
+      orgStaffReport(unittype, district).then(({result}) => {
+        if(unittype == 1){
+          this.tables = this.getXzTable(result);
+        }else{
+          this.tables = this.getSyTable(result);
+        }
+        console.log(this.tables);
+      }).catch(error => {
+        console.log(error);
+        showError(error);
+      });
+    },
+    getXzTable(data){
+      let tables = [];
+      let { keyCols, valueCols, rows } = data; 
+      valueCols.splice(1, 0, {column: 'dfpbzs', showname: '待分配编制数'})
+      valueCols.splice(4, 0, {column: 'cks', showname: '超(-)空(+)数'})
+
+      rows.forEach(item => {
+        item.dfpbzs = item.v1 - item.v0;
+        item.cks = item.v2 - item.v1;
+      })
+
+      let total = this.sum(rows, valueCols);
+      total[keyCols[0].column] = "全市";
+      tables.push({ 
+        key: 'all', 
+        name: '市级行政领导编制职数表',
+        chart: {
+          keyCols,
+          valueCols: [{column: 'cks', showname: '超(-)空(+)数'}],
+          rows
+        },
+        table: {
+          columns: [
+            ... keyCols.map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            })),
+            ... valueCols.map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            }))
+          ],
+          rows: [ total, ...rows ]
+        }
+      });
+      return tables;
+    },
+    getSyTable(data){
+      let tables = [];
+      let { keyCols, valueCols, rows } = data; 
+      valueCols.splice(1, 0, {column: 'dfpbzs', showname: '待分配编制数'})
+      valueCols.splice(4, 0, {column: 'cks', showname: '超(-)空(+)数'})
+
+      rows.forEach(item => {
+        item.dfpbzs = item.v1 - item.v0;
+        item.cks = item.v2 - item.v1;
+      })
+      let total = this.sum(rows, valueCols);
+      total[keyCols[0].column] = "全市";
+      tables.push({ 
+        key: 'all', 
+        name: '市级事业领导编制职数表',
+        chart: {
+          keyCols,
+          valueCols: [{column: 'cks', showname: '超(-)空(+)数'}],
+          rows
+        },
+        table: {
+          columns: [
+            ... keyCols.map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            })),
+            ... valueCols.map(item => ({
+              title: item.showname, 
+              align: 'center', 
+              dataIndex: item.column, 
+            }))
+          ],
+          rows: [ total, ...rows ]
+        }
+      });
+      return tables;
+    },
+    sum(list, valueCols){//求和
+      let sum = {};
+      (list || []).forEach(item => {
+        valueCols.forEach(col => {
+          let key = col.column;
+          sum[key] = (sum[key] || 0) + (item[key] || 0);
+        })
+      });
+      return sum;
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  position: relative;
+  height: 100%;
+  .form-body {
+    height: 100%;
+    padding: 0 @content-padding-h;
+    overflow-y: auto;
+    padding-right: 200px + @content-padding-h;
+
+    .title-bar{
+      margin: 10px 0;
+      line-height: 1em;
+      font-size: 18px;
+      text-align: center;
+      font-weight: bold;
+    }
+  }
+  /deep/.form-anchor {
+    position: absolute;
+    top: 50px;
+    right: @content-padding-h;
+    width: 180px;
+    padding-left: 5px;
+  }
+}
+</style>

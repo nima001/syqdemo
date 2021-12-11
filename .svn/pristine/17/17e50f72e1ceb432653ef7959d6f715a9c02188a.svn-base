@@ -1,0 +1,122 @@
+<template>
+  <div>
+    <ul>
+      <li>
+        <div class="icon"><a-icon type="mail"/></div>
+        <div class="text">
+          <v-clamp tag="span" :max-lines="2">
+            【绍兴市】截止2021年1月31日
+          </v-clamp>
+        </div>
+      </li>
+      <li>
+        <div class="icon"><a-icon type="mail"/></div>
+        <div class="text">
+          <v-clamp tag="span" :max-lines="2">
+            【绍兴市】截止2021年1月31日，共存在23项机构编制违规问题。
+          </v-clamp>
+        </div>
+      </li>
+      <li>
+        <div class="icon"><a-icon type="mail"/></div>
+        <div class="text">
+          <v-clamp tag="span" :max-lines="2">
+            【绍兴市】截止2021年1月31日，共存在23项机构编制违规问题。【绍兴市】截止2021年1月31日，共存在23项机构编制违规问题。
+          </v-clamp>
+        </div>
+      </li>
+    </ul>
+  </div>
+</template>
+<script>
+import { Icon } from 'ant-design-vue'
+import VClamp from 'vue-clamp';
+import { msglist, msgreadMark } from "@framework/api/message";
+import { showError, dateFormat } from "@/framework/utils/index";
+
+/**
+ * 我的新消息
+ */
+export default {
+  components: {
+    AIcon: Icon,
+    VClamp
+  },
+  watch: {
+    '$store.getters.notification'(n, old) {
+      if(n.count > 0){//有新的消息，刷新消息列表
+        // this.loadMessage();
+      }
+    },
+  },
+  methods: {
+     openMsg(item){
+      if(item){
+        window.open(item.pcurl);
+        this.read(item.messageid);
+      }
+    },
+    read(messageid) {
+      msgreadMark({ mark: 1, messageid }).then((res) => {
+        // this.loadMessage();
+      }).catch((err) => {
+        //ignore
+      });
+    },
+    loadMessage() {
+      msglist({
+        ishandle: 0,
+        isread: 0,
+        needtotal: true,
+        pagenum: 1,
+        pagesize: 10,//加载前10条未读消息
+      }).then(({ result }) => {
+        this.messageList = result.rows || [];
+        this.messageList.forEach((i) => {
+          i.sendtime = dateFormat(new Date(i.sendtime), "yyyy-MM-dd");
+        });
+      }).catch((err) => {
+        showError(err);
+        // this.messageList = [
+        //   {content: '1111', time: '11'},
+        //   {content: '1111', time: '11'},
+        //   {content: '1111', time: '11'},
+        //   {content: '1111', time: '11'},
+        // ]
+      });
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+ul{
+  padding: @content-padding-v @content-padding-h;
+  margin: 0;
+  li{
+    display: flex;
+    box-sizing: content-box;
+    height: 56px;
+    line-height: 56px;
+    padding: 0 5px 3px 5px;
+    border-bottom: 1px solid @border-color-split;
+    cursor: pointer;
+    &:hover{
+      background-color: @primary-1;
+    }
+    .icon{
+      flex: none;
+      margin-right: 5px;
+      color: @accent-color;
+    }
+    .text{
+      flex: auto;
+      & > span{
+        line-height: 1.4em;
+        display: inline-block;
+        vertical-align: middle;
+      }
+    }
+  }
+
+}
+</style>

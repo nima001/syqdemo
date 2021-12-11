@@ -1,0 +1,193 @@
+<template>
+  <div class="dict-tree">
+    <div class="body">
+      <a-tree
+        v-model="checkedKeys"
+        checkable
+        :selectable="false"
+        :expanded-keys="expandedKeys"
+        :tree-data="treeData"
+        @expand="onExpand"
+        @check="onCheck"
+      />
+    </div>
+    <div class="footer">
+      <a-checkbox 
+        :checked="checkAll" 
+        :indeterminate="indeterminate"
+        @change="onCheckAllChange"
+      >全选</a-checkbox>
+    </div>
+  </div>
+</template>
+<script>
+import { Tree, Checkbox } from 'ant-design-vue'
+
+export default {
+  components: {
+    ATree: Tree,
+    ACheckbox: Checkbox
+  },
+  props: {
+    value: {
+      type: Array,
+      default: () => []
+    },
+    dict: {
+      type: String
+    },
+    disableKeys: {
+      type: Array,
+      default: () => []
+    }
+  },
+  data(){
+    return {
+      expandedKeys: [],
+      checkedKeys: [],
+    }
+  },
+  computed: {
+    dictList(){
+      return this.$store.getters.dict(this.dict) || [];
+    },
+    treeData(){
+      let list = [], groupPath = [];
+      this.dictList.forEach((ele, index) => {
+        this.addToGroupTree(list, groupPath, ele);
+      });
+      return this.covertTreeData(list);
+    },
+    checkAll(){
+      let liveCheckdKeys = this.checkedKeys.filter(key => this.disableKeys.indexOf(key) < 0);
+      let liveDictList = this.dictList.filter(item => this.disableKeys.indexOf(item.key) < 0);
+      return liveDictList.length > 0 && liveCheckdKeys.length == liveDictList.length;
+    },
+    indeterminate(){
+      let arr = this.checkedKeys.filter(key => this.disableKeys.indexOf(key) < 0);
+      return arr.length > 0 && !this.checkAll
+    }
+  },
+  watch: {
+    dict(){
+      this.initData();
+    },
+    value(value){
+      this.checkedKeys = [...value];
+    }
+  },
+  created(){
+    this.initData();
+    this.checkedKeys = [...this.value];
+  },
+  methods: {
+    initData(){
+      //初始化时展开所有二级节点
+      let keys = []
+      this.treeData.forEach(item => {
+        if(item.children){
+         keys.push(item.key);
+        }
+      });
+      this.expandedKeys = keys;
+    },
+    onExpand(expandedKeys) {
+      this.expandedKeys = expandedKeys;
+    },
+    onCheck(checkedKeys) {
+      this.$emit('input', checkedKeys.filter(key => !key.startsWith('#')));
+    },
+    onCheckAllChange(e){
+      let arr = this.checkedKeys.filter(key => this.disableKeys.indexOf(key) >= 0);
+      if(e.target.checked){
+        //全选选中剩余未选择且非禁选的项
+        this.dictList.forEach(item => {
+          if(this.disableKeys.indexOf(item.key) < 0){
+            arr.push(item.key);
+          }
+        })
+      }else{
+        //取消全选过滤掉非禁选的项
+      }
+      this.checkedKeys = arr;
+      this.$emit('input', this.checkedKeys);
+    },
+    addToGroupTree(tops, path, item){
+      if(!item.group){//分组不存在直接添加到顶级节点
+        tops.push(item);
+        path.length = 0;
+        return;
+      }
+      let last;
+      if(path.length){
+        last = path.pop();
+      }
+      if(!last || item.group.startsWith(last.group + '/')){//第一个数据或父路径
+        let parent = '', subPath, children;
+        if(last){
+          path.push(last);
+          parent = last.group;
+          subPath = item.group.substr(last.group.length);
+          children = last.children;
+        }else{
+          subPath = item.group;
+          children = tops;
+        }
+        subPath.split('/').forEach(name => {
+          if(name){
+            if(parent){
+              parent += '/';
+            }
+            parent += name;
+            let temp = { group: parent, text: name, children: [] };
+            path.push(temp);
+            children.push(temp);
+            children = temp.children;
+          }
+        })
+        children.push(item);
+      }else if(last.group == item.group){//同路径
+        path.push(last);
+        last.children.push(item);
+      }else{
+        this.addToGroupTree(tops, path, item);
+      }
+    },
+    covertTreeData(list, topKey, deep){
+      return list.map((item, index) => {
+        if(item.children){
+          let d = deep || 0, key =  (topKey || '') + '-' + index;
+          return {
+            key: '#' + d + key,
+            title: item.text,
+            value: item.group,
+            children: this.covertTreeData(item.children, key, ++d),
+          };
+        }else{
+          return {
+            key: item.key,
+            title: item.text,
+            value: item.value,
+            disabled: this.disableKeys.indexOf(item.key) >= 0,
+          }
+        }
+      });
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.dict-tree{
+  height: 100%;
+  padding-bottom: 34px;
+  & > .body{
+    height: 100%;
+    overflow-y: auto;
+  }
+  & > .footer{
+    height: 34px;
+    line-height: 34px;
+    padding: 0 26px;
+  }
+}
+</style>

@@ -1,0 +1,73 @@
+<template>
+  <a-select @change="opChange"  :value="defaultData.op">
+    <a-select-option
+      :value="item.value"
+      v-for="item in opList"
+      :key="item.value"
+    >{{item.text}}</a-select-option>
+  </a-select>
+</template>
+<script>
+import { queryfields } from "@/person/api/integratedquery";
+import { sortArrByKey, eachArray } from "../../../utils/index";
+import { showError } from "@/framework/utils/index";
+import { Select } from "ant-design-vue";
+export default {
+  name: "OpSelect",
+  props: {
+    defaultData: {
+      type: Object,
+      required: true
+    },
+    position: {
+      type: String,
+      required: true
+    },
+    searchObj: {
+      type: String,
+      required: true
+    }
+  },
+  components: {
+    ASelect: Select,
+    ASelectOption: Select.Option
+  },
+  computed: {
+    opList() {
+      return this.defaultData.opList;
+    }
+  },
+  methods: {
+    opChange(value) {
+      this.$store.commit({
+        type: "SET_OP",
+        position: this.position,
+        op: value
+      });
+      if (this.defaultData.field.datatype == 4 &&this.defaultData.field.inputtype == 1) {
+        this.getQueryFields(value);
+      }
+    },
+    getQueryFields(value) {
+      let data = {
+        key: "",
+        modelNs: this.searchObj,
+        op: value,
+        filterKey: this.defaultData.field.key
+      };
+      queryfields(data)
+        .then(res => {
+          this.$store.commit({
+            type: "SET_FIELDS_TWO",
+            data:res.result
+          });
+        })
+        .catch(error => {
+          showError(error);
+        });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+</style>

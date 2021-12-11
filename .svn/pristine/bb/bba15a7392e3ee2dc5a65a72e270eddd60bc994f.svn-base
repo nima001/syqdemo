@@ -1,0 +1,96 @@
+<template>
+  <div class="wrap">
+    <div class="top">
+      <span class="title">权利事项合计</span>
+    </div>
+    <div class="barChart" :id="id"></div>
+  </div>
+</template>
+
+<script>
+import { Chart } from "@antv/g2";
+import { mixins } from "../components/minxin";
+import { powerAll } from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@/framework/utils/index";
+export default {
+  data() {
+    return {
+      id: Math.random()
+        .toString(32)
+        .substr(2),
+      list: []
+    };
+  },
+  mixins: [mixins],
+  mounted() {
+    this.getAll();
+  },
+  methods: {
+    getAll() {
+      powerAll()
+        .then(res => {
+          let { keyCols, rows, valueCols } = res.result.data;
+          this.list = rows.map(item => {
+            let v = this.$store.getters.dictKey(
+              keyCols[0]["key"],
+              item[keyCols[0]["column"]]
+            );
+            return {
+              district: v && v.text,
+              value: item[valueCols[0]["column"]]
+            };
+          });
+          this.draw();
+        })
+        .catch(err => {
+          this.$emit('input',false);
+          showError(err);
+        });
+    },
+    draw() {
+      const chart = new Chart({
+        container: this.id,
+        autoFit: true
+      });
+      chart.data(this.list);
+      chart.scale("value", {
+        nice: true,
+        alias:"合计"
+      });
+      chart.axis('value',{
+        grid:null
+      });
+      chart.tooltip({
+        showMarkers: false
+      });
+      chart.interaction("active-region");
+      chart.interval().position("district*value");
+      chart.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  padding-top: 5px;
+  .top {
+    display: flex;
+    align-items: center;
+    .title {
+      font-size: 20px;
+      font-family: Microsoft YaHei;
+      font-weight: bold;
+      line-height: 26px;
+      color: #ffffff;
+      opacity: 0.8;
+    }
+  }
+  .barChart {
+    width: 100%;
+    height: 195px;
+    margin-top: 20px;
+    border-radius: 4px;
+    background: url("../img/repeat.png") repeat;
+  }
+}
+</style>

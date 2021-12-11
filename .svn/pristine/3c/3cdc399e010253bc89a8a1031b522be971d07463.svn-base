@@ -1,0 +1,98 @@
+<template>
+  <div>
+    <dialog-box 
+      v-model="show"
+      :title="'政法专项编制待分配编制数'"
+    >
+      <ul class="list">
+        <li>中共浙江省纪律检查委员会机关</li>
+        <li>中共浙江省委办公厅</li>
+        <li>中共浙江省委组织部</li>
+        <li>中共浙江省委宣传部</li>
+        <li>中共浙江省委统一战线工作部</li>
+        <li>中共浙江省委政法委员会</li>
+        <li>中共浙江省委政政策 </li>
+        <li>中共浙江省委全面深化改革委员办公室 </li>
+        <li>中共浙江省委全面依法治省委员会办公室 </li>
+        <li>中共浙江省委网络安全和信息化委员办公室</li>
+      </ul>
+      <div class="pagination">
+        <div class="prev">
+            <img src="../../../assets/img/screen/page-prev.png">
+        </div>
+        <div>
+            <span class="current">1</span>
+            <span>/</span>
+            <span>1</span>
+        </div>
+        <div class="next">
+            <img src="../../../assets/img/screen/page-next.png">
+        </div>
+      </div>
+    </dialog-box>
+  </div>
+</template>
+<script>
+import DialogBox from '../components/DialogBox'
+
+export default {
+  components: {
+    DialogBox,
+  },
+  props: {
+    value: Boolean,
+  },
+  data(){
+    return {
+      show: false,
+    }
+  },
+  computed: {
+  },
+  watch: {
+    value(value){
+      this.show = value;
+    },
+    show(show){
+      this.$emit('input', show);
+    },  
+  },
+  methods: {
+  }
+}
+</script>
+<style lang="less" scoped>
+.list {
+    height: 75%;
+    padding: @padding-lg;
+    display: flex;
+    justify-content: space-around;
+    flex-wrap: wrap;
+    li {
+        width: 40%;
+        padding: @padding-md @padding-lg;
+        margin: @layout-space-base;
+        text-align: center;
+        background: url('../../../assets/img/screen/list-bg.png') no-repeat;
+        color: #fff;
+    }
+}
+.pagination {
+    width: 120px;
+    padding: @padding-xs @padding-lg;
+    margin: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: @border-radius-base;
+    color: fade(#fff, 80%);
+    background: fade(#000, 30%);
+    .current {
+        color: #fff;
+    }
+    .prev, .next {
+        margin: 0 16px;
+        cursor: pointer;
+    }
+}
+</style>

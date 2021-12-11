@@ -1,0 +1,57 @@
+import Layout from './Layout'
+import Grid from './Grid'
+import { generateCode } from "@/formdesign/utils/index";
+
+Layout.Grid = Grid;
+export default Layout;
+
+export const Meta = {
+  name: 'GridLayout',
+  type: 'layout',
+  title: '栅格布局',
+  icon: 'table',
+  component: Layout,
+  initProps: () => {
+    return {
+      type: 'void',
+      'x-component': 'GridLayout',
+      'x-component-props': {
+        gutter: 20
+      },
+      properties: {
+        [generateCode()]: {
+          type: 'void',
+          'x-component': 'GridLayout.Grid',
+          'x-component-props': {
+            span: 12,
+          },
+        }
+      }
+    }
+  },
+  props: {
+    gutter: {
+      type: Number,
+      title: '栅格间距',
+    },
+    properties: {
+      type: Object,
+      setter: null, //properties Setter   componentProps Setter
+      content: null,
+    },
+    // dict: {
+    //   //title 上提供一个插槽 如：赋值，显示主要信息、详细设置操作等
+    //   //详情（可以为空） 展开详细设置
+    //   //1.辅助设置 如是否系统常量
+    //   //2.字段结构
+    // }
+
+    //适配器
+    //支持完全自定义交互（数据结构）
+    
+  }
+
+};
+
+
+

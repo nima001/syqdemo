@@ -1,0 +1,150 @@
+<template>
+  <div>
+    <a-form-item :label="name" :required="required" :validateStatus="validateStatus" :class="{editor:!editor}">
+      <a-tooltip placement="topLeft" :title="title">
+        <a-input
+          :value="propValue && propValue.name"
+          :read-only="true"
+          :allowClear="true"
+          @click="showOrgSelect"
+          @change="changeHandle($event)"
+        >
+          <a-icon slot="addonAfter" type="select" @click="showOrgSelect" />
+        </a-input>
+      </a-tooltip>
+    </a-form-item>
+    <a-modal
+      :footer="null"
+      v-model="orgvisible"
+      :width="500"
+      :title="`选择${name}`"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select
+        :mode="mode"
+        :usePermit="usePermit"
+        :default-root="defaultRoot && defaultRoot._id"
+        @finish="orgOk"
+        :orgFilter="orgFilter"
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import get from "lodash/get";
+import set from "lodash/set";
+import { Form, Input, Modal, Icon } from "ant-design-vue";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import { mixins } from "@formdesign/views/mixin/index";
+export default {
+  title: "组织选择",
+  mixins: [mixins],
+  components: {
+    AFormItem: Form.Item,
+    AInput: Input,
+    AModal: Modal,
+    AIcon: Icon,
+    OrgUserSelect
+  },
+  props: {
+    mode: {
+      default: () => {
+        return "org";
+      }
+    },
+    location: {
+      type: Object
+    },
+    usePermit: {
+      type: Boolean,
+      default: () => {
+        return true;
+      }
+    }
+  },
+  data() {
+    return {
+      orgvisible: false
+    };
+  },
+  computed: {
+    defaultRoot() {
+      if (this.location) {
+        if (this.data) {
+          return get(this.data, this.location.code);
+        } else {
+          return get(this.formData.data, this.location.code);
+        }
+      }
+    },
+    //  9 代表过滤当前location 不是内设的选项
+    orgFilter() {
+      if (this.mode == "dept") {
+        return {
+          unittype: 9
+        };
+      }
+    },
+    title() {
+      return this.validateStatus == "error" ? `请选择${this.name}` : "";
+    }
+  },
+  watch: {
+    defaultRoot() {
+      this.propValue = undefined;
+    }
+  },
+  methods: {
+    validate(callback) {
+       if(this.propValue._id){
+          this.validateStatus = "success";
+       }else{
+          this.validateStatus = "error";
+       }
+      if(callback){
+        callback(this.validateStatus)
+      }
+    },
+    showOrgSelect() {
+      if (!this.disable) {
+        if (this.location && (!this.defaultRoot || !this.defaultRoot._id)) {
+          Modal.warning({
+            title: "提示",
+            content: `请先选择${this.location.label}`
+          });
+          return false;
+        }
+        this.orgvisible = true;
+      }
+    },
+    changeHandle(e) {
+      this.propValue = e.target.value;
+    },
+    orgOk(type, list) {
+      this.orgvisible = false;
+      if (type == "ok" && list.length > 0) {
+        this.propValue = list[0];
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-form-item {
+  margin-bottom: 0;
+  &.editor{
+    position: relative;
+    &::before{
+      position: absolute;
+      left: 0px;
+      top: 0px;
+      content: '';
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 3;
+      cursor: not-allowed
+    }
+  }
+}
+</style>

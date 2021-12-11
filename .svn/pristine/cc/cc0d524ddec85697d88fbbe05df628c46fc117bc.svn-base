@@ -1,0 +1,164 @@
+<template>
+  <li class="measure-item">
+    <a-dropdown :trigger="['click']" overlayClassName="chat-console-axis-menu" :overlayStyle="{'min-width': '180px'}">
+      <span class="title">
+        {{title}}<a-icon type="close" class="remove" @click="onMeasureMenuClick('remove')"/>
+      </span>
+      <a-menu slot="overlay" @click="onMeasureMenuClick($event.key)">
+        <template v-if="value.type != 'count'">
+          <a-menu-item key="sum" :class="{selected: value.type=='sum'}"><span class="icon">●</span>求和</a-menu-item>
+          <a-menu-item key="avg" :class="{selected: value.type=='avg'}"><span class="icon">●</span>求平均</a-menu-item>
+          <a-menu-divider/>
+        </template>
+        <template v-if="value.type == 'count' || field">
+          <a-menu-item key="alias" :class="{selected: !!alias}">
+            <span class="icon">●</span>别名{{alias && `(${alias})`}} 
+          </a-menu-item>
+          <a-menu-divider/>
+        </template>
+        <a-menu-item key="remove"><a-icon type="delete"/>删除</a-menu-item>
+      </a-menu>
+    </a-dropdown>
+    <a-modal v-model="aliasSetter.show" title="设置别名" @ok="onAliasEdited">
+      <a-input v-model="aliasSetter.value" allowClear :placeholder="measureName" ref="aliasInput" />
+    </a-modal>
+  </li>
+</template>
+<script>
+import { Modal, Icon, Dropdown, Menu, Input } from 'ant-design-vue'
+
+/**
+ * 指标
+ */
+export default {
+  components: {
+    AModal: Modal,
+    AIcon: Icon,
+    ADropdown: Dropdown,
+    AMenu: Menu,
+    AMenuItem: Menu.Item,
+    ASubMenu: Menu.SubMenu,
+    AMenuDivider: Menu.Divider,
+    AInput: Input,
+  },
+  props: {
+    value: {
+      type: Object,
+      required: true
+    },
+    field: Object,
+  },
+  data(){
+    return {
+      aliasSetter: {
+        show: false,
+        value: undefined,
+      }
+    }
+  },
+  computed: {
+    measureName(){
+      let {type, showname} = this.value;
+      if(type == 'count'){
+        return '记录数'
+      }else{
+        if(this.field){
+          showname = this.field.showname;
+        }
+        return showname
+      }
+    },
+    title(){
+      let name = this.measureName;;
+      if(this.value.type == 'sum'){
+        name += '(求和)'
+      }else if(this.value.type == 'avg'){
+        name += '(求平均)'
+      }
+      return name;
+    },
+    alias: {//showname 和字段名称不相同时，说明单独设置了别称
+      get(){
+        let {showname} = this.value;
+        if(showname != this.measureName){
+          return showname
+        }
+      },
+      set(v){
+        this.value.showname = v || this.measureName;
+      }
+    },
+  },
+  methods: {
+    setSort(sort){//FIXME sunwen 提供维度 按指标名称分组使用的外部方法
+      this.value.sort = sort;
+    },
+    onMeasureMenuClick(key){
+      if(key == 'remove'){
+        this.$emit('remove');
+      }else if(key == 'alias'){
+        this.aliasSetter = { show: true, value: this.alias || this.measureName }
+        this.$nextTick(() => this.$refs.aliasInput.focus());
+      }else if(this.value.type != 'count'){
+        this.value.type = key;
+      }
+    },
+    onAliasEdited(){
+      this.aliasSetter.show = false;
+      this.alias = this.aliasSetter.value;
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.measure-item{
+  display: inline-block;
+  position: relative;
+  line-height: 1.8em;
+  margin-left: 6px;
+  background: @primary-1;
+  border-radius: 10px 0 10px 0;
+  cursor: pointer;
+  &:hover{
+    background: @primary-2;
+    .remove{
+      display: block;
+    }
+  }
+  .title{
+    padding: 0 10px;
+  }
+  .remove{
+    display: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    font-size: 10px;
+    padding: 1px 1px 3px 3px;
+    border-top-right-radius: @border-radius-base;
+    border-bottom-left-radius: 10px;
+    // background-color: #cfcfcf;
+    &:hover{
+      color: red;
+    }
+  }
+}
+.chat-console-axis-menu{
+  .selected{
+    color: @primary-color;
+    & .icon{
+      visibility: visible;
+    }
+  }
+  .icon{
+    visibility: hidden;
+    display: inline-block;
+    width: 14px;
+    margin-right: 8px;
+    text-align: center;
+  }
+  .icon.show{
+    visibility: visible;
+  }
+}
+</style>

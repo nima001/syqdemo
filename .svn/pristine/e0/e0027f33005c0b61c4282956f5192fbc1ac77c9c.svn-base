@@ -1,0 +1,160 @@
+<template>
+  <div>
+    <div class="title-bar">{{title}}</div>
+    <bar-chart :dataTable="dataTable"/>
+    <div class="tool-bar" v-if="district">
+      <a-input-search style="width: 200px; float:right"/>
+    </div>
+    <a-table v-if="search.dataList"
+      style="padding-bottom: 20px;"
+      :columns="item.table.columns"
+      :dataSource="search.dataList"
+      :pagination="search.page"
+      @change="onChange"
+    />
+    <a-table
+      style="padding-bottom: 20px;"
+      :columns="columns"
+      :dataSource="dataSource"
+      :pagination="false"
+    />
+  </div>
+</template>
+<script>
+import { Table, Input} from "ant-design-vue";
+import BarChart from '@person/views/statistics/chart/components/BarChart'
+import { orgStaffQuery } from '@/person-shaoxing/api/orgStaffReport'
+
+/**
+ * 通用的图表控件
+ */
+export default {
+  components: {
+    ATable: Table,
+    AInputSearch: Input.Search,
+    BarChart,
+  },
+  props: {
+    value: {
+      type: Object,
+      default: () => ({})
+    },
+    name: String,
+    chartCols: {//图形 展示的列 （后续支持计算函数）
+      type: Array,
+    },
+    tableCols: {
+      type: Array,
+    },
+    unittype: Number,
+    district: String,
+  },
+  data(){
+    return {
+      search: {
+        key: undefined,//搜索关键词
+        headRow: undefined, //
+      },
+    }
+  },
+  computed: {
+    title(){
+      return this.name;
+    },
+    dataTable(){//图的数据表
+      if(this.chartCols){
+        let valueCols = this.value.valueCols.filter(item => {
+          return !this.chartCols || !!this.chartCols.find(key => key == item.key);
+        });
+        if(valueCols && valueCols.length){
+          return { ...this.value, valueCols}
+        }
+      }
+      return this.value;
+    },
+    columns(){
+      let {keyCols, valueCols} = this.value;
+      return [
+        ... keyCols.map(item => ({
+          title: item.showname, 
+          align: 'center', 
+          dataIndex: item.column, 
+        })),
+        ... valueCols.filter(item => {
+          return !this.tableCols || !!this.tableCols.find(key => key == item.key);
+        }).map(item => ({
+          title: item.showname, 
+          align: 'center', 
+          dataIndex: item.column, 
+        }))
+      ]
+    },
+    total(){
+      let {valueCols, keyCols, rows } = this.value;
+      let row = this.sum(rows, valueCols);
+      if(this.district){
+        let d = this.$store.getters.dictKey('usermanage.org.district', this.district);
+        row[keyCols[0].column] = (d ? d.text : '');
+      }else{
+        row[keyCols[0].column] = "全市";
+      }
+      return row;
+    },
+    dataSource(){
+      return [this.total, ...this.value.rows]
+    }
+  },
+  created(){
+
+  },
+  methods: {
+    onChange(pagination){
+      this.search.page = pagination;
+    },
+    customRow(row, index){
+      return {
+        on: {
+          dblclick: (event) => {
+            if(this.district && index > 0){//第一条是合计不需要查看单位
+              this.search = {
+                headRow: row,
+                dataList: [
+                  row,
+                  { k0: '测试单位1', v0: 111, v1: 22, v2: 23, v3: 11 },
+                  { k0: '测试单位2', v0: 111, v1: 22, v2: 23, v3: 11 },
+                ],
+                page: {
+                  current: 1,
+                  pageSize: 10,
+                  total: 122,
+                  showSizeChanger: true,
+                  showTotal: total => `总共：${total}条`,
+                }
+              }
+            }
+          },
+        }
+      };
+    },
+    sum(list, valueCols){//求和
+      let sum = {};
+      (list || []).forEach(item => {
+        valueCols.forEach(col => {
+          let key = col.column;
+          sum[key] = (sum[key] || 0) + (item[key] || 0);
+        })
+      });
+      return sum;
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.title-bar{
+  margin: 10px 0;
+  line-height: 1em;
+  font-size: 18px;
+  text-align: center;
+  font-weight: bold;
+}
+</style>

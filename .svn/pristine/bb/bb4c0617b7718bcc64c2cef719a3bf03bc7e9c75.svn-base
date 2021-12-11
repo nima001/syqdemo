@@ -1,0 +1,431 @@
+<template>
+  <a-layout class="processwrap tableSetting">
+    <a-layout-content class="body">
+      <div class="back">
+        <a-button type="primary" @click="save" style="margin-left:15px;">保存</a-button>
+      </div>
+      <div class="content">
+        <h2>汇总表名称：{{summaryname}}</h2>
+        <div class="middle">
+          <a-row :gutter="10">
+            <a-col :span="5">
+              <span class="title">上传/下载Excel模板：</span>
+            </a-col>
+            <a-col :span="5">
+              <a-input read-only v-model="filename"></a-input>
+            </a-col>
+            <a-col :span="14">
+              <a-button type="primary" @click="trigger">点击上传</a-button>
+              <a-button type="primary" style="margin-left:10px;" @click="download">点击下载</a-button>
+              <input
+                type="file"
+                ref="fileBtn"
+                class="fileBtn"
+                id="uploadFile"
+                accept=".xls, .xlsx"
+                @change="getFile($event)"
+              />
+            </a-col>
+          </a-row>
+          <a-row :gutter="10">
+            <a-col :span="5">
+              <span class="title">起始行：</span>
+            </a-col>
+            <a-col :span="5">
+              <a-input-number v-model="startcol" :min="1" />
+            </a-col>
+          </a-row>
+          <a-row :gutter="10">
+            <a-col :span="5">
+              <span class="title" style="line-height:23px;">是否需要序号：</span>
+            </a-col>
+            <a-col :span="2">
+              <a-switch v-model="needorder" checkedChildren="是" unCheckedChildren="否" />
+            </a-col>
+            <a-col :span="10">
+              <span class="notice">提示：默认以A列作为序号列</span>
+            </a-col>
+          </a-row>
+        </div>
+        <div class="bottom">
+          <a-button style="margin:10px 0;" @click="columnvisible=true;type=true;">增加列</a-button>
+          <a-table
+            :columns="columns"
+            :dataSource="data"
+            :rowKey="record=>record.id"
+            @change="handleTableChange"
+          >
+            <template slot="orderby" slot-scope="text,record,index">
+              {{ 
+              needorder?
+              (Math.floor(((current-1)*10+index+1)/26) == 0 ?'': letter[(Math.floor(((current-1)*10+index+1)/26)-1)])+(((current-1)*10+index) > 25?letter[((current-1)*10+index)%26+1]: letter[((current-1)*10+index+1)%26])
+              :
+              (Math.floor(((current-1)*10+index)/26) == 0 ?'': letter[(Math.floor(((current-1)*10+index)/26)-1)])+letter[((current-1)*10+index)%26] 
+              }}
+            </template>
+            <template class="operation" slot="operation" slot-scope="text,record">
+              <div style="display:flex;flex-wrap:nowrap">
+                <a href="javascript:;" @click="edit(record.id)" style="color:#1890ff;">编辑</a>
+                <a
+                  href="javascript:;"
+                  style="color:#1890ff;margin:0 30px;"
+                  @click="bindControl(record)"
+                >绑定控件</a>
+                <a-popconfirm
+                  title="确定删除这条消息模板吗?"
+                  @confirm="del(record)"
+                  okText="确定"
+                  cancelText="取消"
+                >
+                  <a href="javascript:;" style="color:red;">删除</a>
+                </a-popconfirm>
+              </div>
+            </template>
+          </a-table>
+        </div>
+      </div>
+    </a-layout-content>
+    <!-- 增加列 -->
+    <a-modal title="编辑基本信息" v-model="columnvisible" @ok="savename">
+      <a-form :form="form">
+        <a-form-item label="列名" :label-col="{ span: 7}" :wrapper-col="{ span: 14 }">
+          <a-input
+            :maxlength="30"
+            placeholder="最多填30个字符!"
+            v-decorator="[
+           `name`,
+          {rules: [{ required: true, message:  `列名!` }],
+          initialValue:name}
+        ]"
+          ></a-input>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+  </a-layout>
+</template>
+
+<script>
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { showError } from "@/framework/utils/index";
+import {
+  addColumn,
+  delColumn,
+  getSingleColumn,
+  getSummaryColumnsList,
+  updateColumn,
+  updateSummary,
+  getSingleSummary
+} from "@/workflow/api/summarytable";
+import { uploadImg } from "@/workflow/api/workflow";
+import { parseQueryString } from "@/workflow/utils/index";
+import "@/workflow/style/process.css";
+const columns = [
+  {
+    title: "列名",
+    dataIndex: "name",
+    width: "40%"
+  },
+  {
+    title: "绑定Excel",
+    dataIndex: "orderby",
+    scopedSlots: { customRender: "orderby" }
+  },
+  {
+    title: "操作",
+    dataIndex: "operation",
+    width: "40%",
+    scopedSlots: { customRender: "operation" }
+  }
+];
+import {
+  Layout,
+  Breadcrumb,
+  Button,
+  Icon,
+  Row,
+  Col,
+  Input,
+  Table,
+  Form,
+  Modal,
+  Popconfirm,
+  InputNumber,
+  Switch
+} from "ant-design-vue";
+export default {
+  components: {
+    ALayout: Layout,
+    ALayoutHeader: Layout.Header,
+    ALayoutContent: Layout.Content,
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    AButton: Button,
+    AIcon: Icon,
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    ATable: Table,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AModal: Modal,
+    APopconfirm: Popconfirm,
+    AInputNumber: InputNumber,
+    ASwitch: Switch
+  },
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      summaryname: this.$route.query.name,
+      collecttableid: this.$route.query.collecttableid,
+      columns,
+      data: [],
+      columnvisible: false,
+      form: this.$form.createForm(this),
+      type: true,
+      nowid: null,
+      name: "",
+      needorder: true,
+      startcol: null,
+      downurl: null,
+      modelurl: "",
+      filename: "",
+      letter: [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+        "H",
+        "I",
+        "J",
+        "K",
+        "L",
+        "M",
+        "N",
+        "O",
+        "P",
+        "Q",
+        "R",
+        "S",
+        "T",
+        "U",
+        "V",
+        "W",
+        "X",
+        "Y",
+        "Z"
+      ],
+      current: 1
+    };
+  },
+  created() {
+    this.getList();
+    this.getSummaryInfo();
+  },
+  methods: {
+    //获取所有汇总表列表信息
+    getList() {
+      getSummaryColumnsList(this.collecttableid)
+        .then(res => {
+          this.data = res.result;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    getSummaryInfo() {
+      getSingleSummary(this.collecttableid)
+        .then(res => {
+          this.modelurl = res.result.modelurl;
+          if (res.result.needorder) {
+            if (res.result.needorder == 1) {
+              this.needorder = true;
+            } else {
+              this.needorder = false;
+            }
+          }
+          this.startcol = res.result.startcol;
+          this.filename = parseQueryString(res.result.modelurl).filename;
+          this.downurl = res.result.modelurl;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //上传文件
+    getFile(event) {
+      let file = event.target.files[0];
+      uploadImg(file)
+        .then(res => {
+          this.filename = file.name;
+          this.modelurl = res.result;
+          this.$message.success("文件上传成功！");
+          document.getElementById("uploadFile").value = null;
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    trigger() {
+      this.$refs.fileBtn.dispatchEvent(new MouseEvent("click"));
+    },
+    //下载
+    download() {
+      if (this.downurl) {
+        this.downurl =
+          this.uiConfigs["api.url"] +
+          "/file/v1/download/" +
+          "?uri=" +
+          encodeURIComponent(this.downurl);
+        let a = document.createElement("a");
+        a.href = this.downurl;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        this.$message.error("没有可下载的模板！");
+      }
+    },
+    //编辑
+    edit(id) {
+      this.nowid = id;
+      getSingleColumn(id)
+        .then(res => {
+          this.name = res.result.name;
+          this.columnvisible = true;
+          this.type = false;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //删除
+    del(record) {
+      delColumn(record.id)
+        .then(res => {
+          this.$message.success(record.name + "已成功删除！");
+          this.getList();
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //绑定控件
+    bindControl(record) {
+      this.$router.push({
+        name: "bindcontrol",
+        query: {
+          name: this.summaryname,
+          collecttableid: this.collecttableid,
+          catalogid: this.$route.query.catalogid,
+          columnname: record.name,
+          rowid: record.id
+        }
+      });
+    },
+    //保存列名
+    savename() {
+      this.columnvisible = false;
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          values.collecttableid = this.collecttableid;
+          if (this.type) {
+            values.orderby =
+              this.data.length > 0
+                ? this.data[this.data.length - 1].orderby + 1
+                : 0;
+            addColumn(values)
+              .then(res => {
+                this.$message.success("列名新增成功！");
+                this.getList();
+              })
+              .catch(err => {
+                showError(err);
+              });
+          } else {
+            values.id = this.nowid;
+            updateColumn(values)
+              .then(res => {
+                this.$message.success("列名更新成功！");
+                this.getList();
+              })
+              .catch(err => {
+                showError(err);
+              });
+          }
+          this.reset();
+          this.columnvisible = false;
+        }
+      });
+    },
+    //重置表单
+    reset() {
+      this.form.resetFields();
+      this.name = null;
+    },
+    //更新整个汇总表管理
+    save() {
+      let query = {};
+      query.id = this.collecttableid;
+      query.needorder = this.needorder ? 1 : 2;
+      query.startcol = this.startcol;
+      query.modelurl = this.modelurl;
+      updateSummary(query)
+        .then(res => {
+          this.$message.success(this.summaryname + "设置成功！");
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //列表分页切换
+    handleTableChange(pagination) {
+      this.current = pagination.current;
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.tableSetting {
+  .body {
+    height: calc(100% - 68px);
+    overflow: auto;
+    margin: 12px;
+    padding: 10px;
+    background: #fff;
+    .content {
+      width: 60%;
+      margin: 0 auto;
+      h2 {
+        font-size: 18px;
+        font-weight: bold;
+        color: rgba(0, 0, 0, 0.65);
+      }
+      .middle {
+        .fileBtn {
+          width: 0px;
+          height: 0px;
+          opacity: 0;
+        }
+        .title {
+          line-height: 32px;
+          display: inline-block;
+        }
+        .notice {
+          font-size: 14px;
+          color: gray;
+          display: inline-block;
+          line-height: 23px;
+          margin-left: 10px;
+        }
+        .ant-row {
+          margin: 15px 0;
+        }
+      }
+    }
+  }
+}
+</style>

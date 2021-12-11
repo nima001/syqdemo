@@ -1,0 +1,191 @@
+<template>
+  <div>
+    <dialog-box 
+      v-model="show"
+      :title="title"
+    >
+        <div class="container">
+            <div class="ring">
+                <RingChart
+                    :data="data[0]?data[0].data:[]"
+                    :settings="{
+                    canvas: { width: 500, height: 400 },
+                    padding: [-90,0,0,-300],
+                    radius: 0.4,
+                    innerRadius: 0.8,
+                    customLegend: true,
+                    infoText: {
+                        title: data.length>0?data[0].data.rows[0].k0:undefined,
+                        offsetY: -20,
+                        style: { fontSize: 18, fill: '#fff', textAlign: 'center' },
+                    },
+                    contentStyle: {
+                        offsetY: 10,
+                        fontSize: 25, fill: '#fff', textAlign: 'center'
+                    }
+                    }"
+                >
+                <template v-slot:customLegend="props">
+                  <div class="legend">
+                    <div class="title">
+                        {{data[0].settings.name}}
+                    </div>
+                    <ul>
+                      <li v-for="(item, index) in data[0].data.rows" @click="showModal(item.code, 2)">
+                        <span :style="{background: props[index]}" class="spot"></span>
+                        <span>{{item.k0}}</span>
+                        <span>{{item.v}}</span>
+                      </li>
+                    </ul>
+                  </div>
+                </template>
+              </RingChart>
+            </div>
+           <div class="ring">
+                <RingChart
+                    :data="data[1]?data[1].data:[]"
+                    :settings="{
+                    canvas: { width: 500, height: 400 },
+                    padding: [-90,0,0,-300],
+                    radius: 0.4,
+                    innerRadius: 0.8,
+                    customLegend: true,
+                    infoText: {
+                        title: data.length>1?data[1].data.rows[0].k0:undefined,
+                        offsetY: -20,
+                        style: { fontSize: 18, fill: '#fff', textAlign: 'center' },
+                    },
+                    contentStyle: {
+                        offsetY: 10,
+                        fontSize: 25, fill: '#fff', textAlign: 'center'
+                    }
+                    }"
+                >
+                <template v-slot:customLegend="props">
+                  <div class="legend">
+                    <div class="title">
+                        {{data[1].settings.name}}
+                    </div>
+                    <ul>
+                      <li v-for="(item, index) in data[1].data.rows" @click="showModal(item.code, 2)">
+                        <span :style="{background: props[index]}" class="spot"></span>
+                        <span>{{item.k0}}</span>
+                        <span>{{item.v}}</span>
+                      </li>
+                    </ul>
+                  </div>
+                </template>
+              </RingChart>
+            </div>
+        </div>
+    </dialog-box>
+    <TableList v-model="showList"/>
+  </div>
+</template>
+<script>
+import DialogBox from '../components/DialogBox'
+import TableList from './TableList';
+import RingChart from "@person/components/chart/RingChart";
+
+export default {
+  components: {
+    DialogBox,RingChart,TableList
+  },
+  props: {
+    value: Boolean,
+    title: String,
+    dataList: {
+      type: Array,
+    }
+  },
+  data(){
+    return {
+      showList: false,
+      show: false,
+      data: [],
+    }
+  },
+  computed: {
+  },
+  watch: {
+    value(value){
+      this.show = value;
+    },
+    show(show){
+      this.$emit('input', show);
+    },
+    dataList(val) {
+      this.data = val;
+    }
+  },
+  methods: {
+  }
+}
+</script>
+<style lang="less" scoped>
+.container {
+    height: 90%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    .ring {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        .ring-chart {
+            height: 300px;
+        }
+        .title {
+            margin-bottom: 20px;
+            font-size: 1.4em;
+            font-weight: 600;
+        }
+        .legend {
+            width: 50%;
+            min-height: 300px;
+            padding: @padding-lg;
+            text-align: left;
+            position: absolute;
+            top: 50%;
+            left: 45%;
+            transform: translateY(-50%);
+            color: fade(#fff, 80%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            z-index: 999;
+            ul {
+                width: 100%;
+                margin: 0;
+                margin-left: auto;
+                padding: @padding-lg;
+                background: url('../../../assets/img/screen/age-education-bg.png') no-repeat;
+                background-size: cover;
+                li {
+                    width: 100%;
+                    margin-bottom: 20px;
+                    display: flex;
+                    align-items: center;
+                    font-size: 1.2em;
+                    cursor: pointer;
+                    user-select: none;
+                    .spot {
+                        width: 10px;
+                        height: 10px;
+                        margin-left: 50px;
+                        margin-right: 20px;
+                        border-radius: @border-radius-base;
+                        display: inline-block;
+                    }
+                    &:hover {
+                        color: fade(#fff, 80%);
+                    }
+                    span:last-child {
+                        margin-left: 10px;
+                    }
+                }
+            }
+        }
+    }
+}
+</style>

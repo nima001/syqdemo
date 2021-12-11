@@ -1,0 +1,401 @@
+<template>
+  <div class="container">
+    <div class="container-body">
+      <div class="header">
+        <div>
+          <a-button type="primary" @click="addorEdit(record)">新增</a-button>
+        </div>
+        <div class="header-search">
+          <a-input allowClear placeholder="输入事项名称搜索" v-model="searchkey"></a-input>
+          <a-button type="primary" @click="search">搜索</a-button>
+        </div>
+      </div>
+      <div class="content">
+        <a-table :loading="spinning" :columns="this.columns" :dataSource="data" rowKey="id" :pagination="false">
+          <template slot="mattersort" slot-scope="record">
+            <span>{{record.sort | capitalize(mattersort)}}</span>
+          </template>
+          <template slot="state" slot-scope="record">
+            <span v-if="record.state">启用</span>
+            <span v-else>禁用</span>
+          </template>
+          <template slot="operation" slot-scope="text,record">
+            <span class="edit" @click="addorEdit(record)">编辑</span>
+            <span class="del" @click="del(record.id)">删除</span>
+          </template>
+        </a-table>
+        <a-pagination
+          v-if="data.length"
+          show-size-changer
+          :total="pagination.total"
+          :page-size="pagination.pagesize"
+          :default-current="pagination.pagenum"
+          :show-total="(total) => `共 ${total} `"
+          @change="onChange"
+          @showSizeChange="onShowSizeChange"
+        ></a-pagination>
+      </div>
+    </div>
+    <a-modal
+      :width="600"
+      :destroyOnClose="true"
+      title="新增/编辑"
+      :visible="visible"
+      @cancel="handleCancel"
+    >
+      <a-form :form="this.form" :label-col="{ span: 5 }" :wrapper-col="{ span: 17 }">
+        <a-form-item label="分类">
+          <a-select placeholder="--请选择分类--" allowClear v-decorator="['sort', { initialValue: this.record.sort||mattersort[0].value }]" @change="changeSelect">
+            <a-select-option v-for="item in mattersort" :key="item.key" :value="item.value">{{item.text}}</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="事项名称">
+          <a-input v-decorator="['content', { initialValue: this.record.content }]"/>
+        </a-form-item>
+        <a-form-item label="单点登录地址">
+          <a-input v-decorator="['loginurl', { initialValue: this.record.loginurl, }]"/>
+        </a-form-item>
+         <a-form-item label="排序号">
+           <a-input-number :min="1" :max="this.maxIndex" v-decorator="['index', { initialValue: this.record.index, rules: [{ validator: isnumber }] }]" :loading="true" />
+        </a-form-item>
+        <a-form-item label="启用状态">
+          <a-switch v-decorator="['state', { initialValue: Object.keys(this.record).length?(this.record.state?true:false):false, valuePropName: 'checked' }]"/>
+        </a-form-item>
+      </a-form>
+      <template slot="footer">
+        <a-button key="submit" type="primary" @click="handleOk"> 确定 </a-button>
+      </template>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import {
+  Button,
+  Input,
+  Modal,
+  Form,
+  Table,
+  Select,
+  Switch,
+  Pagination,
+  InputNumber,
+} from "ant-design-vue";
+import { assign, cloneDeep } from 'lodash';
+import { mattersearch, matterinsert, matterdel, matterindex, matteredit } from '@/person-shaoxing/api/bussiness';
+import { showError } from '@/framework/utils';
+const columns = [
+  {
+    title: "序号",
+    dataIndex: "index",
+    key: "index",
+    width: "5%",
+    customRender: (text, record, index) => `${index + 1}`,
+  },
+  {
+    title: "事项名称",
+    dataIndex: "content",
+    key: "content",
+  },
+  {
+    title: "分类",
+    scopedSlots: { customRender: 'mattersort'}
+  },
+  {
+    title: "状态",
+    scopedSlots: { customRender: 'state' },
+  },
+  {
+    title: "操作",
+    dataIndex: "operation",
+    key: "operation",
+    scopedSlots: { customRender: "operation" },
+  },
+];
+export default {
+  components: {
+    AForm: Form,
+    ATable: Table,
+    AInput: Input,
+    AInputNumber: InputNumber,
+    AModal: Modal,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ASwitch: Switch,
+    AFormItem: Form.Item,
+    APagination: Pagination,
+  },
+  data() {
+    return {
+      data:[],
+      record: {},
+      maxIndex: 1,
+      pagination: {
+        total: 0,
+        pagenum: 1,
+        pagesize: 10,
+        needtotal: true,
+        mattersort: undefined,
+        mattercontent: undefined,
+        loginurl: undefined,
+        index: undefined,
+        state: undefined,
+      },
+      visible: false,
+      spinning: false,
+      columns: columns,
+      searchkey: undefined,
+      form: this.$form.createForm(this, { name: "businessform" }),
+    };
+  },
+  computed: {
+    mattersort() {
+      return this.$store.getters.dict('person.mattersort');
+    }
+  },
+  mounted() {
+    this.matterSearch(this.pagination);
+  },
+  filters: {
+    capitalize: function (value, mattersort) {
+      if (!value) return '';
+      let mattertext = mattersort.filter((item)=>parseInt(item.value)==parseInt(value));
+      return mattertext[0].text;
+    }
+  },
+  methods: {
+    showModal() {
+      this.visible = true;
+    },
+    handleCancel() {
+      this.visible = false;
+      this.record = {};
+    },
+    handleOk() {
+      this.form.validateFields((err, values) => {
+        if(!err) {
+          if(Object.keys(this.record).length) {
+            values.id = this.record.id;
+            this.matterEdit(values);
+          }else{
+            this.matterInsert(values);
+          }
+        }
+      });
+      this.handleCancel();
+    },
+    isnumber(rule,value,callback) {
+      if(value) {
+        if(value>this.maxIndex||value<1) {
+          callback(`请输入1-${this.maxIndex}之间的整数!`);
+          return;
+        }else if(typeof value !== 'number') {
+          callback('请输入数字!');
+          return;
+        }
+        callback();
+      }
+    },
+    // isurl(rule,value,callback) {
+    //   let reg = /(^(http|https):\/\/([\w\-]+\.)+[\w\-]+(\/[\w\u4e00-\u9fa5\-\.\/?\@\%\!\&=\+\~\:\#\;\,]*)?)/;
+    //   if (!reg.test(value)) {
+    //     callback(new Error('请输入正确的链接'))
+    //   } else {
+    //     callback()
+    //   }
+    // },
+    search() {
+      if(this.searchkey) {
+        this.pagination.mattercontent = this.searchkey;
+      }else{
+        this.pagination.mattercontent = undefined;
+      }
+      this.matterSearch(this.pagination);
+    },  
+    onChange(pagenum, pagesize) {
+      assign(this.pagination, { pagesize, pagenum });
+      this.matterSearch(this.pagination);
+    },
+    onShowSizeChange(current, pagesize) {
+      assign(this.pagination, { pagenum: 1, pagesize });
+      this.matterSearch(this.pagination);
+    },
+    changeSelect(value) {
+      if(value) {
+        let param = {'mattersort': value};
+        this.changeIndex(value,param);
+      }
+    },
+    addorEdit(record) {
+      if(record.id) {
+        this.record = record;
+        this.matterIndex({'mattersort': record.sort});
+      }else{
+        this.matterIndex({'mattersort': this.mattersort[0].value});
+      }
+    },
+    del(id) {
+      let that = this;
+      this.$confirm({
+        title: "删除该条数据?",
+        okText: "确定",
+        cancelText: "取消",
+        onOk() {
+          that.matterDel(id);
+        },
+      });
+    },
+    changeIndex(value,data) {
+       matterindex(data).then((res)=>{
+        this.maxIndex = res.result;
+        if(res.code==='success') {
+          if(value === this.record.sort) {
+            this.form.setFieldsValue({'index': this.record.index});
+          }else{
+            if(!Object.keys(this.record).length) {
+              this.maxIndex +=1;
+            }else{
+              if(this.maxIndex===0) {
+                this.maxIndex =1;
+              }
+            }
+            this.form.setFieldsValue({'index': this.maxIndex});
+          }
+        }else{
+          this.form.setFieldsValue({'index': 1});
+        }
+      }).catch((err)=>{
+        showError(err);
+      })
+    },
+    matterSearch(data) {
+      this.spinning = true;
+      mattersearch(data).then(({result})=>{
+        this.spinning = false;
+        if(result.rows.length) {
+          this.data = cloneDeep(result.rows);
+          delete result.rows;
+          assign(this.pagination, result);
+        }else{
+          this.data = [];
+          this.dataTitle = [];
+          this.Notification('暂无数据');
+        }
+      }).catch((err)=>{
+        this.data = [];
+        this.dataTitle = [];
+        this.Notification('暂无数据');
+        this.spinning = false;
+        showError(err);
+      });
+    },
+    matterInsert(data) {
+      matterinsert(data).then(({code})=>{
+         if(code!=='success') {
+          this.Notification('新增失败');
+        }
+        this.matterSearch(this.pagination);
+      }).catch((err)=>{
+        showError(err);
+      })
+    },
+    matterDel(id) {
+      matterdel(id).then(({code})=>{
+         if(code!=='success') {
+          this.Notification('删除失败');
+        }
+        this.matterSearch(this.pagination);
+      }).catch((err)=>{
+        showError(err);
+      })
+    },
+    matterIndex(data) {
+      this.spinning = true;
+      matterindex(data).then((res)=>{
+        this.spinning = false;
+        if(res.code==='success'&&res.result!==0) {
+          this.maxIndex = res.result;
+        }else{
+          if(res.code!=='success') {
+            this.Notification('查询排序号失败');
+          }
+          this.maxIndex = 1;
+        }
+        this.showModal();
+        if(!this.record.id) {
+          this.maxIndex += 1;
+          this.$nextTick(() => {
+            this.form.setFieldsValue({'index': this.maxIndex});
+          })
+        }
+      }).catch((err)=>{
+        this.Notification('查询排序号失败');
+        this.spinning = false;
+        showError(err);
+      })
+    },
+    matterEdit(data) {
+      matteredit(data).then((res)=>{
+        if(res.code!=='success') {
+          this.Notification('更新失败');
+        }
+        this.matterSearch(this.pagination);
+      }).catch((err)=>{
+        showError(err);
+      })
+    },
+    Notification(message) {
+      this.$notification.warning({
+        message: '提示',
+        description: `${message}！`,
+        duration: 3,
+      })
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.container {
+  height: 100%;
+  padding: @layout-space-base;
+  .container-body {
+    height: 100%;
+    padding: @padding-md @padding-lg;
+    background: white;
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      .header-search {
+        width: 35%;
+        display: flex;
+        align-items: center;
+        .ant-btn {
+          margin-left: 10px;
+        }
+      }
+    }
+    .content {
+      margin-top: 10px;
+      .edit {
+        margin-right: 10px;
+        color: @primary-color;
+      }
+      .del {
+        color: red;
+      }
+      span {
+        cursor: pointer;
+      }
+      .ant-pagination {
+        margin-top: 10px;
+        float: right;
+      }
+    }
+  }
+}
+/deep/.ant-modal-footer {
+  text-align: center;
+}
+</style>

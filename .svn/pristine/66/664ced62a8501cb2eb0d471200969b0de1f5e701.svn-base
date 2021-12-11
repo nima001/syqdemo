@@ -1,0 +1,225 @@
+<template>
+  <accordion-layout>
+    <div slot="navTitle" class="nav-title">
+      <a v-for="item in types" 
+        :key="item.key"
+        :class="{selected: filter.type == item.value}"
+        @click="onTypeChange(item.value)"
+      >{{item.text}}</a>
+    </div>
+    <div slot="nav" class="nav-panel">
+      <div class="header">
+        <DictSelect v-if="subjects.size > 1"
+          dict="analyze.report.analyzesubject" 
+          v-model="filter.subject"
+          placeholder="选择分析主题"
+          :filter="item => subjects.has(item.value)"
+        />
+        <DictSelect v-if="scopetypes.size > 1"
+          dict="analyze.report.analyzescopetype" 
+          v-model="filter.scopetype"
+          :filter="item => scopetypes.has(item.value)"
+          placeholder="选择分析类型"
+          style="margin-top: 10px"
+        />
+      </div>
+      <div class="body">
+        <empty-data v-if="analyzeList && analyzeList.length == 0"/>
+        <a-spin v-else-if="analyzeTarget && loading"/>
+        <template v-else-if="analyzeTarget">
+          <scopes-select v-if="scope && scope.length" :scopes="scope" class="scopes-select"/>
+          <content-select v-if="content && content.length" :content="content" class="content-select"/>
+          <empty-data v-else/>
+        </template>
+      </div>
+      <div class="footer">
+        <a-button type="primary" style="width:100%">确定</a-button>
+      </div>
+    </div>
+    <div slot="content">
+      1
+    </div>
+  </accordion-layout>
+</template>
+<script>
+import { Spin, Button } from 'ant-design-vue'
+import AccordionLayout from '@framework/components/AccordionLayout'
+import DictSelect from '@framework/components/DictSelect'
+import EmptyData from '@framework/components/EmptyData'
+import ScopesSelect from './components/ScopesSelect'
+import ContentSelect from './components/ContentSelect'
+
+import { showError } from '@framework/utils'
+import { analysisquery, analysisscopequery, analysiscontentquery} from '@person/api/statistics'
+
+export default {
+  components: {
+    AButton: Button,
+    ASpin: Spin,
+    AccordionLayout,
+    DictSelect,
+    EmptyData,
+    ScopesSelect,
+    ContentSelect
+  },
+  data(){
+    return {
+      list: [],
+      filter: {
+        type: undefined,
+        subject: undefined,
+        scopetype: undefined,
+      },
+      loading: false,
+      scope: undefined,//分析范围
+      content: undefined,//分析内容
+    }
+  },
+  created(){
+    this.initData();
+  },
+  computed: {
+    types(){
+      return this.$store.getters.dict('analyze.report.analyzetype');
+    },
+    analyzeList(){
+      let { type, subject, scopetype } = this.filter;
+      if(type){
+        return this.list.filter(item => {
+          return (item.type == type && (!subject || (item.subject == subject 
+            && (!scopetype || item.scopetype == scopetype))));
+        });
+      }
+    },
+    subjects(){
+      let { type } = this.filter; 
+      if(type){
+        return new Set(this.list.filter(item => item.type == type).map(item => item.subject));
+      }else{
+        return new Set();
+      }
+    },
+    scopetypes(){
+      let { type, subject } = this.filter; 
+      if(type){
+        let values = this.list.filter(item => item.type == type && (!subject || item.subject == subject))
+        .map(item => item.scopetype);
+        return new Set(values);
+      }else{
+        return new Set();
+      }
+    },
+    analyzeTarget(){
+      if(this.analyzeList){
+        if(this.analyzeList.length == 1){//列表只有一条数据时
+          return this.analyzeList[0];
+        }else{
+          let { type, subject, scopetype } = this.filter; 
+          if(type && subject && scopetype){//所有条件都选择了返回列表第一条
+            return this.analyzeList[0];
+          }
+        }
+      }
+    }
+  },
+  watch: {
+    analyzeTarget(analyze){
+      if(analyze){
+        this.loadScopeAndContent(analyze);
+      }
+    },
+    types(types){
+      if(!this.filter.type && types && types.length){
+        this.filter.type = types[0].value;
+      }
+    }
+  },
+  methods:{
+    initData(){
+      if(this.types && this.types.length){
+        this.filter.type = this.types[0].value;
+      }
+      analysisquery({}).then(({result}) => {
+        this.list = result || [];
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    loadScopeAndContent(analyze){
+      this.loading = true;
+      Promise.all([
+        analysisscopequery({analyzeid: analyze.id}),
+        analysiscontentquery({analyzeid: analyze.id})
+      ]).then(([scope, content]) => {
+        this.scope = scope.result;
+        this.content = content.result;
+      }).catch(error => {
+        showError(error);
+      }).finally(() => {
+        this.loading = false;
+      })
+    },
+    onTypeChange(type){
+      if(this.filter.type != type){
+        this.filter = {type}
+      }
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.nav-title{
+  min-width: 250px;
+  display: flex;
+  a{
+    flex: 1 1 100%;
+    line-height: 40px;
+    text-align: center;
+    color: @text-color;
+    &:hover{
+      color: @primary-color;
+    }
+    &.selected{
+      color: @primary-color;
+    }
+  }
+}
+.nav-panel{
+  min-width: 250px;
+  height: 100%;
+  
+  display: flex;
+  flex-direction: column;
+  & > .header{
+    flex: none;
+    padding: @content-padding-v @content-padding-h;
+  }
+  & > .body{
+    flex: auto;
+    min-height: 1px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    .ant-spin{
+      position: absolute;
+      top: 38%;
+      left: 50%;
+      margin-left: -10px;
+      margin-top: -12px;
+    }
+    .scopes-select{
+      padding: 0 @content-padding-h;
+      margin: 0;
+      flex: none;
+    }
+    .content-select{
+      flex: auto;
+      overflow: auto;
+    }
+  }
+  & > .footer{
+    flex: none;
+    padding: @content-padding-v @content-padding-h;
+  }
+}
+</style>

@@ -1,0 +1,43 @@
+<template>
+  <Input v-model="inputValue" v-bind="$attrs"/>  
+</template>
+<script>
+import {Input} from 'ant-design-vue'
+import { connect, mapProps, observer, useForm, useField, useFieldSchema } from '@formily/vue'
+
+export default {
+  components: {
+    Input,
+  },
+  props: {
+    value: {},
+  },
+  setup(){
+    return {
+      _formComponentType: 'widget',
+      form: useForm(),
+      schema: useFieldSchema(),
+    }
+  },
+  data(){
+    return {
+      inputValue: this.value
+    }
+  },
+  created(){
+    // console.log(this.$attrs)
+  },
+  watch: {
+    inputValue(v){
+      console.log(v);
+      this.$emit('change', v);
+    },
+    value(v){
+      this.inputValue = v;
+    }
+  }
+}
+</script>
+<style>
+
+</style>

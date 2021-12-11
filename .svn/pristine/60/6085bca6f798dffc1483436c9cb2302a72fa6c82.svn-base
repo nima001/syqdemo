@@ -1,0 +1,450 @@
+<template>
+  <a-layout style="height:100%;">
+    <a-layout-header class="breadcrumb">
+      <header>
+        <a-breadcrumb separator=">">
+          <a-breadcrumb-item>
+            <router-link :to="{path:'/business'}">业务中心</router-link>
+          </a-breadcrumb-item>
+          <a-breadcrumb-item>
+            <router-link :to="{name:'creatprocess'}">在线办理</router-link>
+          </a-breadcrumb-item>
+          <a-breadcrumb-item>{{this.$route.query.name}}</a-breadcrumb-item>
+        </a-breadcrumb>
+      </header>
+      <a-button @click="$router.go(-1)">返回上一级</a-button>
+    </a-layout-header>
+    <a-layout-content class="body">
+      <h2>办事指南</h2>
+      <div class="picture">
+        <h3>流程图</h3>
+        <div class="pictureContent">
+          <img :src="imageUrl" alt />
+        </div>
+      </div>
+      <div>
+        <h3>申请材料</h3>
+        <ul class="catalog">
+          <li class="title">
+            <span>流程节点</span>
+            <span>所需材料</span>
+            <span>是否必要</span>
+            <span>材料来源</span>
+            <span>材料格式</span>
+            <span>联系电话</span>
+            <span>备注</span>
+          </li>
+          <li v-if="!list.length" class="noData">
+            <a-icon type="frown" />暂无数据
+          </li>
+          <template v-else>
+            <li v-for="(item,index) in list" :key="index">
+              <span class="listTitle" :title="item.name">{{item.name}}</span>
+              <ul class="listContent" v-if="item.children && item.children.length">
+                <li v-for="(obj,idx) in item.children" :key="idx">
+                  <span class="listTitle" :title="obj.name">{{obj.name}}</span>
+                  <span>{{obj.needtansfer?'是':'否'}}</span>
+                  <span>{{obj.type==1?'在线生成':obj.type==2?'线下上传':''}}</span>
+                  <span class="listTitle" :title="obj.format">{{obj.format}}</span>
+                </li>
+              </ul>
+              <ul class="listContent" v-else>
+                <li>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </li>
+              </ul>
+              <span class="contactinfo">{{item.contactinfo}}</span>
+              <ul class="memo">
+                <li v-for="(obj,idx) in item.children" :key="idx">
+                    <span class="listTitle" :title="obj.memo">{{obj.memo}}</span>
+                </li>
+              </ul>
+            </li>
+          </template>
+        </ul>
+      </div>
+    </a-layout-content>
+    <!-- 发起单位弹框 -->
+    <a-modal
+      :visible="visiblePc"
+      title="请选择发起单位"
+      @cancel="visiblePc=false"
+      :footer="null"
+      width="450px"
+      :bodyStyle="tStyle"
+    >
+      <org-user-select mode="org" @finish="deptOk" :rootSelectable="true"></org-user-select>
+    </a-modal>
+    <!-- 发起用户选择弹框 -->
+    <a-modal
+      :visible="visibleUser"
+      title="选择减员人员"
+      @cancel="visibleUser=false"
+      :footer="null"
+      width="500px"
+      :bodyStyle="{'height':'330px','padding':0}"
+      :destroyOnClose="true"
+    >
+      <select-process-user @userOk="userOk"></select-process-user>
+    </a-modal>
+    <a-layout-footer style="text-align: center;position:fixed;bottom:0;left:0;right:0;">
+      <div class="footer">
+        <a-button type="primary" @click="openPc">在线办理</a-button>
+      </div>
+    </a-layout-footer>
+  </a-layout>
+</template>
+
+<script>
+import { getListMaterial, getCodeProcess, chooseOrg } from "@/workflow/api/catalog";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { showError } from "@/framework/utils/index";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import SelectProcessUser from "./components/SelectProcessUser";
+import {
+  Layout,
+  Breadcrumb,
+  Icon,
+  Modal,
+  Button
+} from "ant-design-vue";
+export default {
+  name: "ProcessGuide",
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      list: [],
+      id: this.$route.query.id,
+      name: this.$route.query.name,
+      imageUrl: "",
+      visiblePc: false,
+      visibleUser: false,
+      visibleFlag: true,
+      tStyle: {
+        padding: "5px 3px 5px 10px",
+        width: "100%",
+        height: "550px",
+        color: "black"
+      },
+      curCode: this.$route.query.code
+    };
+  },
+  components: {
+    ALayout: Layout,
+    ALayoutHeader: Layout.Header,
+    ALayoutContent: Layout.Content,
+    ALayoutFooter: Layout.Footer,
+    ABreadcrumb: Breadcrumb,
+    ABreadcrumbItem: Breadcrumb.Item,
+    AIcon: Icon,
+    AButton: Button,
+    AModal: Modal,
+    OrgUserSelect,
+    SelectProcessUser
+  },
+  created() {
+    this.getListMaterials(this.id);
+  },
+  methods: {
+    getListMaterials(id) {
+      getListMaterial(id)
+        .then(res => {
+          this.list = res.result.modelMaterialVos;
+          this.imageUrl =
+            this.uiConfigs["api.url"] +
+            "/file/v1/download" +
+            "?uri=" +
+            encodeURIComponent(res.result.pictureurl);
+        })
+        .catch(err => {});
+    },
+    //下载
+    download(url) {
+      if (url) {
+        this.downurl =
+          this.uiConfigs["api.url"] +
+          "/file/v1/download" +
+          "?uri=" +
+          encodeURIComponent(url);
+        let a = document.createElement("a");
+        a.href = this.downurl;
+        a.style.display = "none";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    },
+    //办理流程
+    openPc() {
+      getCodeProcess(this.curCode)
+        .then(res => {
+          if (res.code == "success") {
+            if (res.result.showtype == 3) {
+              this.visibleFlag = true;
+              this.isUrl(res.result.gotoUrl);
+            } else if (res.result.showtype == 1) {
+              this.visiblePc = true;
+              this.visibleFlag = true;
+            } else if (res.result.showtype == 5) {
+              this.visibleUser = true;
+              this.visibleFlag = false;
+            }
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //确定选择的机构
+    deptOk(type, list) {
+      if (type == "ok" && list.length > 0) {
+        let obj = list[0];
+        this.visiblePc = false;
+        let query = {};
+        query.code = this.curCode;
+        query.orgid = obj._id;
+        chooseOrg(query)
+          .then(res => {
+            this.isUrl(res.result.gotoUrl);
+          })
+          .catch(err => {
+            showError(err);
+          });
+      } else if (type == "cancel") {
+        this.visiblePc = false;
+      }
+    },
+    //确定选择的用户
+    userOk(val) {
+      this.visibleUser = false;
+      let query = {};
+      query.code = this.curCode;
+      query.userid = val;
+      chooseOrg(query)
+        .then(res => {
+          this.isUrl(res.result.gotoUrl);
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //判断跳转的路径是否需要拼接
+    isUrl(url) {
+      if (url) {
+        let link = decodeURIComponent(url);
+        if (link.indexOf("http://") == 0 || link.indexOf("https://") == 0) {
+          // 直接跳转
+          window.open(link, "_blank");
+        } else {
+          // 相对路径
+          if (link.indexOf("/") == 0) {
+            link = link.substr(1);
+          }
+          let newURL =
+            process.env.NODE_ENV === "production"
+              ? process.env.BASE_URL + link
+              : window.location.origin + "/" + link;
+          window.open(newURL, "_blank");
+        }
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-layout {
+  padding-bottom: 65px;
+  .ant-layout-header {
+    height: auto;
+    padding: 0;
+    background-color: #fff;
+    display: flex;
+    justify-content: space-between;
+    header {
+      flex: 1;
+      .ant-breadcrumb {
+        padding: 12px 24px;
+      }
+    }
+    button {
+      display: inline-block;
+      margin: 6px 20px;
+    }
+  }
+  .ant-layout-footer {
+    padding: 0px;
+    height: 65px;
+    background: #fff;
+    box-shadow: 0px -2px 5px rgba(0, 0, 0, 0.349019607843137);
+    z-index: 9999;
+    .footer {
+      width: 1200px;
+      height: 100%;
+      line-height: 65px;
+      margin: 0 auto;
+      text-align: center;
+    }
+  }
+}
+.body {
+  height: calc(100% - 68px);
+  overflow-y: auto;
+  margin: 12px;
+  padding: 10px 30px;
+  background: #fff;
+  h2 {
+    text-align: center;
+    font-size: 25px;
+  }
+  h3 {
+    color: #d60003;
+    font-weight: bold;
+    position: relative;
+    padding-left: 15px;
+    &::before {
+      position: absolute;
+      content: "";
+      width: 5px;
+      height: 20px;
+      top: 2px;
+      left: 0;
+      background: #d60003;
+      transform: skewY(-25deg);
+    }
+  }
+  /deep/ .ant-table-small > .ant-table-content > .ant-table-body {
+    margin: 0;
+  }
+  .catalog {
+    width: 90%;
+    margin: 15px auto 45px;
+    border: 1px solid #ddd;
+    border-bottom: none;
+    li {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+      &.title {
+        height: 36px;
+        line-height: 36px;
+        background: #efefefa3;
+        span {
+          border-right: 1px solid #ddd;
+          padding-left: 5px;
+          &:first-child {
+            width: 12%;
+          }
+          &:nth-child(2) {
+            width: 18%;
+          }
+          &:nth-child(3) {
+            width: 10%;
+          }
+          &:nth-child(4) {
+            width: 10%;
+          }
+          &:nth-child(5) {
+            width: 18%;
+          }
+          &:nth-child(6) {
+            width: 14%;
+          }
+          &:last-child {
+            width: 18%;
+            border-right: none;
+          }
+        }
+      }
+      .listTitle {
+        width: 12%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-right: 1px solid #ddd;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .listContent {
+        width: 56%;
+        color: #000;
+        li {
+          display: flex;
+          height: 36px;
+          line-height: 36px;
+          &:last-child {
+            border-bottom: none;
+          }
+          span {
+            padding-left: 5px;
+            width: 17.86%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            border-right: 1px solid #ddd;
+            display: inline-block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            &:last-child,
+            &:first-child {
+              width: 32.14%;
+            }
+          }
+        }
+      }
+      .contactinfo {
+        width: 14%;
+        border-right: 1px solid #ddd;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .memo {
+        width: 18%;
+        li {
+          height: 36px;
+          line-height: 36px;
+          span {
+            padding-left: 5px;
+            width: 100%;
+            display: inline-block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          &:last-child {
+            border-bottom: none;
+          }
+        }
+      }
+    }
+  }
+  .noData {
+    justify-content: center;
+    padding: 15px 0;
+    font-size: 16px;
+    color: gray;
+    i {
+      line-height: 43px;
+      font-size: 23px;
+      padding-right: 10px;
+    }
+  }
+}
+.picture {
+  margin-top: 20px;
+  .pictureContent {
+    text-align: center;
+    margin-bottom: 30px;
+    img {
+      max-width: 100%;
+    }
+  }
+}
+</style>

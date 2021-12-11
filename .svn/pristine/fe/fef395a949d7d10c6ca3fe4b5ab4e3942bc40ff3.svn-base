@@ -1,0 +1,316 @@
+<template>
+  <a-collapse v-model="activeKey" :bordered="false" style="background-color: unset">
+    <a-collapse-panel key="11" header="图形属性">
+      <div class="label">
+        <a-checkbox v-model="chartData.settings.gemo.label.visible">显示标签</a-checkbox>
+      </div>
+      <div class="label-color">
+        <span>标签颜色</span>
+        <ColorPicker :color.sync="labelColor"/>
+      </div>
+      <div v-show="chartData.settings.chartType == 'bar-chart' || chartData.settings.chartType == 'stack-bar-chart'">
+        <div class="size">
+          <span>条宽度</span>
+          <a-input-number v-model="chartData.settings.gemo.size" allowClear :min="0" />
+        </div>
+        <div class="background">
+          <span>添加背景颜色</span>
+          <a-switch @click="(check, e) => {e.stopPropagation();}" v-model="chartData.settings.gemo.background"/>
+        </div>
+        <div class="annotation">
+          <span>标注</span>
+          <a-switch
+            @click="(check, e) => {e.stopPropagation();}" v-model="chartData.settings.gemo.annotation"/>
+        </div>
+      </div>
+      <div class="color">
+        <div class="colors">
+          <div>色卡</div>
+          <a-popover
+            placement="topLeft"
+            :getPopupContainer="(triggerNode) => {return triggerNode.parentNode;}"
+            trigger="click"
+          >
+            <template slot="content">
+              <div class="coloritem">
+                <div class="title">
+                  <span>色卡</span>
+                </div>
+                <div class="color-list">
+                  <div class="color" v-for="(color, colorIndex) in colorArray">
+                    <div
+                      class="color_con"
+                      :style="{ background: item }"
+                      v-for="(item, index) in color.filter((colorItem, colorIndex) => colorIndex < 10)"
+                      @click="choose(colorIndex)"
+                    />
+                  </div>
+                </div>
+              </div>
+            </template>
+            <div class="color-select">
+              <div class="select">
+                <div class="selectitem selectone"></div>
+                <div class="selectitem selecttwo"></div>
+                <div class="selectitem selectthree"></div>
+              </div>
+              <a-icon type="caret-down" />
+            </div>
+          </a-popover>
+        </div>
+      </div>
+      <div class="color-array">
+        <div class="title">
+          <span>添加颜色</span>
+        </div>
+        <a-button style="width: 200px" icon="plus" type="primary" ghost @click="add">添加颜色</a-button>
+        <div
+          class="color_list"
+          :index="index"
+          v-for="(item, index) in colorArray[colorActive].filter((colorItem, active) => active > 9)"
+          @mouseover.prevent="() => (iconhover = true)"
+          @mouseout.prevent="() => (iconhover = false)"
+        >
+          <div class="colorcontent">
+            <ColorPicker :index="10 + index" :color.sync="colorArray[colorActive]">
+              <a-icon
+                type="minus-circle"
+                :class="{ iconhover: iconhover }"
+                @click="del(10 + index)"
+              />
+            </ColorPicker>
+          </div>
+        </div>
+      </div>
+      <div
+        class="slider"
+        v-show="
+          chartData.settings.chartType == 'line-chart' ||
+          chartData.settings.chartType == 'bar-chart' ||
+          chartData.settings.chartType == 'stack-bar-chart'
+        "
+      >
+        <span>滑块</span>
+        <a-switch @click="(check, e) => {e.stopPropagation();}" v-model="chartData.settings.gemo.slider"/>
+      </div>
+      <div
+        class="exchange"
+        v-show="chartData.settings.chartType == 'pie-chart' || chartData.settings.chartType == 'ring-chart'"
+      >
+        <span>翻转</span>
+        <a-switch @click="(check, e) => { e.stopPropagation(); } " v-model="chartData.settings.gemo.exchange"/>
+      </div>
+    </a-collapse-panel>
+  </a-collapse>
+</template>
+
+<script>
+import { Collapse, Switch, Button, Icon, Popover, InputNumber, Checkbox } from 'ant-design-vue';
+import ColorPicker from './ColorPicker';
+export default {
+  props: {
+    value: {
+      type: Object,
+    },
+  },
+  components: {
+    AIcon: Icon,
+    ColorPicker,
+    ASwitch: Switch,
+    AButton: Button,
+    APopover: Popover,
+    ACheckbox: Checkbox,
+    ACollapse: Collapse,
+    ACollapsePanel: Collapse.Panel,
+    AInputNumber: InputNumber,
+  },
+  data() {
+    return {
+      labelColor: undefined,
+      iconhover: false,
+      colorActive: 0,
+      activeKey: undefined,
+      chartData: this.value,
+      colorArray: [
+        ["#4c84ff","#72c2ff","#82e1fc","#1dbb8a","#8fe94e","#fbc800","#ed9421","#f25f93","#ef8bcf","#c562f1"],
+        ["#D15456", "#5488D1", "#EDBA55", "#D48265", "#91C7AE", "#749F83", "#BDA29A", "#6E7074", "#585470", "#706254"]
+      ],
+    };
+  },
+  watch: {
+    chartData: {
+      deep: true,
+      handler(val) {
+        this.$emit("input", val);
+      },
+    },
+    colorArray: {
+      deep: true,
+      handler(val) {
+        this.$set(this.chartData.settings.gemo,'color',...val);
+        this.$emit('input', this.chartData);
+      }
+    },
+    labelColor: {
+      deep: true,
+      handler(val) {
+        this.$set(this.chartData.settings.gemo.label,'color',val[0]);
+        this.$emit('input', this.chartData);
+      }
+    }
+  },
+  methods: {
+    open(key) {
+      if (this.activeKey && this.activeKey.length) {
+        let index = this.activeKey.indexOf(key);
+        if (index >= 0) {
+          this.activeKey.splice(index, 1);
+        }
+      }
+    },
+    add() {
+      this.colorArray.map((item)=>{
+        item.push('#000');
+      });
+    },
+    del(index) {
+      this.colorArray.map((item)=>{
+        item.splice(index,1);
+      });
+    },
+    choose(index) {
+      this.colorActive = index;
+      this.$set(this.chartData.settings.gemo, "color", this.colorArray[index]);
+      this.$emit('input', this.chartData);
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.color-select {
+  display: flex;
+  align-items: center;
+  padding: @padding-xs / 2;
+  cursor: pointer;
+  &:hover {
+    background: #f1eaff;
+  }
+  & .select {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    line-height: 1;
+    overflow: hidden;
+    & .selectitem {
+      width: 33.3333%;
+      height: 100%;
+      display: inline-block;
+    }
+    & .selectone {
+      background-color: rgb(91, 143, 249);
+      color: rgb(91, 143, 249);
+    }
+    & .selecttwo {
+      background-color: rgb(205, 221, 253);
+      color: rgb(205, 221, 253);
+    }
+    & .selectthree {
+      background-color: rgb(97, 221, 170);
+      color: rgb(97, 221, 170);
+    }
+  }
+  & .anticon {
+    height: 16px;
+    color: #873bf4;
+  }
+}
+.label,
+.color,
+.background,
+.slider,
+.exchange,
+.size,
+.annotation,
+.color-array {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+.label-color {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  span {
+    display: inline-block;
+    height: 40px;
+    margin-left: 24px;
+    margin-right: 24px;
+  }
+  /deep/.colorPicker {
+    flex: 1;
+  }
+}
+.background,
+.slider,
+.exchange,
+.size,
+.annotation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.color .colors {
+  display: flex;
+  justify-content: space-between;
+  margin: @padding-sm 0;
+  & /deep/.ant-popover {
+    .ant-popover-content .ant-popover-inner .coloritem {
+      width: 150px;
+      height: 120px;
+      & .color-list {
+        & .color {
+          width: 100%;
+          height: 32px;
+          padding: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          & .color_con {
+            width: 10px;
+            height: 30px;
+            cursor: pointer;
+            position: relative;
+          }
+        }
+      }
+    }
+  }
+}
+.color-array {
+  .ant-btn {
+    margin: 12px 0;
+  }
+  .color_list {
+    .colorcontent {
+      .anticon {
+        height: 30px;
+        font-size: 1.3em;
+        padding: 0 5px;
+        color: red;
+        display: none;
+        cursor: pointer;
+      }
+      &:hover .anticon {
+        &.iconhover {
+          position: absolute;
+          top: 0;
+          right: 0;
+          bottom: 0;
+          background: fade(#fff, 20%);
+          line-height: 30px;
+          display: inline-block;
+        }
+      }
+    }
+  }
+}
+</style>

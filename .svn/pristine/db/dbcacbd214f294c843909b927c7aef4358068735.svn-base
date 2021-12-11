@@ -1,0 +1,143 @@
+
+/**
+ * 判断操作符是否是一个数组操作
+ * @param {String} op 
+ * @author sunwen
+ */
+export function isArrayOp(op){
+  if(op){
+    return ['between', 'in', 'nin'].includes(op);
+  }
+}
+
+/**
+ *
+ * @param position 0_1_1_1
+ */
+export function parentArr (positionStr, wrap) {
+  let position = positionStr.split('_')
+  position.shift()
+  let index = parseInt(position.pop())
+  for (let i = 0; i < position.length; i++) {
+    let index = parseInt(position[i])
+    wrap = wrap['criteria'][index]
+  }
+  return { data: wrap['criteria'], index }
+}
+
+/**
+ *切割数组
+ * @param {*} arrary [1,3,5,6,8]
+ * @param {*} index  1
+ * [1,3] [5,6,8]
+ *
+ */
+export function splitArr (arr, index) {
+  let preArr = []
+  let nextArr = []
+  let arrary = JSON.parse(JSON.stringify(arr))
+  for (let i = 0; i < arrary.length; i++) {
+    let curItem = arrary[i]
+    if (i <= index) {
+      preArr.push(curItem)
+    } else {
+      nextArr.push(curItem)
+    }
+  }
+  return [preArr, nextArr]
+}
+
+/**
+ *拆分操作
+ *   {"op": "and","criteria": []}
+ * @export
+ * @param {*} arr
+ */
+export function objInArrary (arr) {
+  let wrap = { op: 'and', criteria: [] }
+  wrap.criteria = arr
+  return wrap
+}
+
+/**
+ * 获取数组指定项的索引
+ */
+export function eachArray (key, arr) {
+  for (let i = 0; i < arr.length; i++) {
+    let cur = arr[i]
+    if (cur.key == key) {
+      return i
+    }
+  }
+}
+
+/**
+ * datatype  2 字典  3 引用   4 输入
+ */
+export function comType (field, op) {
+  let { datatype, inputtype } = field || {};
+  if (datatype == 2) { /** 字典 */
+    if (op == 'in' || op == 'nin') {
+      return 'DictArray'
+    } else if (op) {
+      return 'DictValue'
+    }
+  } else if (datatype == 3) { /** 引用 */
+    if (op == 'in' || op == 'nin') {
+      // 引用数据多选
+      return 'ReferArray'
+    } else if (op) {
+      // 引用数据
+      return 'ReferValue'
+    }
+  } else if (datatype == 4) { /** 输入 */
+    if (inputtype == 1 || inputtype == 2) {
+      // 数字
+      if (
+        op == 'add' ||
+        op == 'subtract' ||
+        op == 'multiply' ||
+        op == 'divide'
+      ) {
+        return 'NumberArith'
+      } else if (op == 'in' || op == 'nin') {
+        return 'NumberArray'
+      } else if (op == 'between') {
+        return 'NumberBetween'
+      } else if (op) {
+        return 'NumberValue'
+      }
+    } else if (inputtype == 3) {
+      // 时间
+      if (op == 'between') {
+        return 'Date-between'
+      } else if (op) {
+        return 'DateValue'
+      }
+    } else if (inputtype == 4) {
+      // 布尔
+      return 'BooleanValue'
+    }else{
+      // 字符
+      if (op == 'in' || op == 'nin') {
+        return 'StringArray'
+      } else if (op) {
+        return 'StringValue'
+      }
+    }
+  }
+}
+
+// 函数防抖
+export function debounce (fn, delay) {
+  var timer = null
+  var delay = delay || 200
+  return function () {
+    var args = arguments
+    var that = this
+    clearTimeout(timer)
+    timer = setTimeout(function () {
+      fn.apply(that, args)
+    }, delay)
+  }
+}

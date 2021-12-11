@@ -1,0 +1,47 @@
+<template>
+  <div class="org-namenotation">
+    <a-row :gutter="20" v-if="data.exist">
+      <a-col :span="24">
+        <span class="name">{{data.exist}}</span>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20" v-if="data.noexist">
+      <a-col :span="24">
+        <span class="name">{{data.noexist}}</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**机构命名情况
+*/
+import { Row, Col } from "ant-design-vue";
+export default {
+  props: {
+    data: Object
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+  },
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.org-namenotation{  
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

@@ -1,0 +1,98 @@
+<template>
+  <div class="container">
+    <a-input placeholder="请输入" v-model="defaultData.value" @change="handleChange" />
+    <span class="fx" @click="toggleEditor">
+      <img src="../../../assets/img/query-value-fn.png" />
+    </span>
+    <equation-editor v-if="dataEditor" :fnData="fnData" namespace="query" @finish="onFinish"></equation-editor>
+  </div>
+</template>
+<script>
+import { debounce } from "@/framework/utils/index";
+import { Input } from "ant-design-vue";
+export default {
+  name: "TypeNine",
+  data(){
+    return{
+      dataEditor: false
+    }
+  },
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  components: {
+    AInput: Input,
+    EquationEditor:() => import('../../../components/EquationEditor')
+  },
+  computed:{
+    fnData() {
+      let data = typeof this.defaultData.value == "string" ? this.defaultData.value : "";
+      return data;
+    }
+  },
+  methods: {
+    handleChange: debounce(function(e) {
+      let value = e.target.value;
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value
+      });
+    }, 300),
+    toggleEditor() {
+      this.dataEditor = !this.dataEditor;
+    },
+    onFinish(type, data) {
+      this.dataEditor = !this.dataEditor;
+      if (type == "ok") {
+        this.$store.commit({
+          type: "SET_VALUE",
+          position: this.position,
+          value: `\${${data}\}`
+        });
+      }
+    }    
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  // flex: 1;
+  width: 320px;
+  display: flex;
+  align-items: center;
+  border: 1px solid @border-color-base;
+  transition: all 0.3s;
+  border-radius: @border-radius-base;
+  padding-right: 11px;
+  &:hover {
+    border-color: @primary-color;
+  }
+  .ant-input {
+    border: none;
+    &:focus {
+      box-shadow: none;
+    }
+  }
+  input {
+    flex: 1;
+  }
+  .fx {
+    cursor: pointer;
+    margin-left: 8px;
+    width: 16px;
+    height: 16px;
+    img {
+      max-width: 100%;
+      vertical-align: top;
+    }
+  }
+}
+</style>

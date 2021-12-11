@@ -1,0 +1,216 @@
+<template>
+  <div class="form-panel">
+    <div class="form-body" ref="formBody">
+      <div v-for="item in tables" :key="item.key" :id="item.key">
+        <div class="title-bar">{{item.name}}</div>
+        <bar-chart :dataTable="item.chart"/> 
+        <a-table style="padding-bottom: 20px;"
+          :columns="item.table.columns"
+          :dataSource="item.table.rows"
+          :pagination="false"
+        />
+      </div>
+    </div>
+    <a-anchor wrapperClass="form-anchor" :getContainer="() => $refs.formBody">
+      <a-anchor-link v-for="item in tables" :href="`#${item.key}`" :title="item.name" :key="item.key"/>
+    </a-anchor>
+  </div>
+</template>
+<script>
+import { Anchor, Table } from "ant-design-vue";
+import BarChart from '@person/views/statistics/chart/components/BarChart'
+
+import { orgCountReport } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '@framework/utils'
+
+/**
+ * 机构数监测
+ */
+export default {
+  components: {
+    AAnchor: Anchor,
+    AAnchorLink: Anchor.Link,
+    ATable: Table,
+    BarChart,
+  },
+  props: {
+    unittype: {
+      type: Number,
+      required: true,
+    }
+  },
+  data(){
+    return {
+      tables: undefined
+    }
+  },
+  watch: {
+    unittype(v){
+      this.tables = null;
+      this.loadData();
+    }
+  },
+  created(){
+    this.loadData();
+  },
+  methods: {
+    loadData(){
+      orgCountReport(this.unittype).then(({result}) => {
+        let tables = [];
+        let { keyCols, valueCols, rows } = result;
+        let total = this.groupSum(rows, undefined, valueCols)[0];
+        total[keyCols[0].column] = "全市";
+        let data = this.groupSum(rows, keyCols[0], valueCols)
+        tables.push({ 
+          key: 'all', 
+          name: this.unittype == 1 ? '党政机构情况表' : '事业机构情况表',
+          chart: {
+            keyCols: [keyCols[0]],
+            valueCols: [{column: 'v', showname: '剩余可用数'}],
+            rows: data.map(item => ({
+              [keyCols[0].column]: item[keyCols[0].column],
+              v: (item[valueCols[0].column] || 0) - (item[valueCols[1].column] || 0)
+            }))
+          },
+          table: {
+            columns: [
+              { 
+                title: keyCols[0].showname, 
+                width: "35%", 
+                align: 'center', 
+                dataIndex: keyCols[0].column, 
+              },
+              ... valueCols.map(item => ({
+                title: item.showname, 
+                align: 'center', 
+                dataIndex: item.column, 
+              }))
+            ],
+            rows: [ total, ...data ]
+          }
+        });
+
+        data = rows.filter(item => item[keyCols[1].column] == '正厅局级');
+        total = this.groupSum(data, undefined, valueCols)[0];
+        total[keyCols[0].column] = "全市";
+        tables.push({ 
+          key: 'zjj', 
+          name: this.unittype == 1 ? '行政局级情况表' : '事业局级情况表',
+          chart: {
+            keyCols: [result.keyCols[0]],
+            valueCols: [{column: 'v', showname: '剩余可用数'}],
+            rows: data.map(item => ({
+              [keyCols[0].column]: item[keyCols[0].column],
+              v: (item[valueCols[0].column] || 0) - (item[valueCols[1].column] || 0)
+            }))
+          },
+          table: {
+            columns: [
+              { 
+                title: keyCols[0].showname, 
+                width: "35%", 
+                align: 'center', 
+                dataIndex: keyCols[0].column, 
+              },
+              ... valueCols.map(item => ({
+                title: item.showname, 
+                align: 'center', 
+                dataIndex: item.column, 
+              }))
+            ],
+            rows: [ total, ...data ]
+          }
+        })
+
+        data = rows.filter(item => item[keyCols[1].column] == '副厅局级');
+        total = this.groupSum(data, undefined, valueCols)[0];
+        total[keyCols[0].column] = "全市";
+        tables.push({ 
+          key: 'fjj', 
+          name: this.unittype == 1 ? '行政副局级情况表' : '事业副局级情况表',
+          chart: {
+            keyCols: [result.keyCols[0]],
+            valueCols: [{column: 'v', showname: '剩余可用数'}],
+            rows: data.map(item => ({
+              [keyCols[0].column]: item[keyCols[0].column],
+              v: (item[valueCols[0].column] || 0) - (item[valueCols[1].column] || 0)
+            }))
+          },
+          table: {
+            columns: [
+              { 
+                title: keyCols[0].showname, 
+                width: "35%", 
+                align: 'center', 
+                dataIndex: keyCols[0].column, 
+              },
+              ... valueCols.map(item => ({
+                title: item.showname, 
+                align: 'center', 
+                dataIndex: item.column, 
+              }))
+            ],
+            rows: [ total, ...data ]
+          }
+        })
+        this.tables = tables;
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    groupSum(list, groupCol, valueCols){//分组求和
+      let map = new Map(), newList = [];
+      (list || []).forEach(item => {
+        let _item;
+        if(groupCol){
+          let key = item[groupCol.column];
+          _item = map.get(key);
+          if(!_item){
+            _item = { [groupCol.column]: key };
+            map.set(key, _item);
+            newList.push(_item);
+          }
+        }else{
+          _item = newList[0];
+          if(!_item){
+            _item = {};
+            newList.push(_item);
+          }
+        }
+        valueCols.forEach(col => {
+          let key = col.column;
+          _item[key] = (_item[key] || 0) + (item[key] || 0);
+        })
+      });
+      return newList;
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  position: relative;
+  height: 100%;
+  .form-body {
+    height: 100%;
+    padding: 0 @content-padding-h;
+    overflow-y: auto;
+    padding-right: 200px + @content-padding-h;
+
+    .title-bar{
+      margin: 10px 0;
+      line-height: 1em;
+      font-size: 18px;
+      text-align: center;
+      font-weight: bold;
+    }
+  }
+  /deep/.form-anchor {
+    position: absolute;
+    top: 50px;
+    right: @content-padding-h;
+    width: 180px;
+    padding-left: 5px;
+  }
+}
+</style>

@@ -1,0 +1,369 @@
+<template>
+  <div class="form">
+    <a-form-model
+        ref="form"
+        :model="form"
+      >
+        <a-row>
+          <a-col :span="6" :offset="6">
+            <h1>基本信息</h1>
+          </a-col>
+        </a-row>
+        <a-form-model-item 
+          label="机构名称" 
+          v-bind="formItemLayout" 
+          :rules="{
+            required: true,
+            message: '此项不能为空',
+            trigger: 'blur',
+        }">
+          <a-input v-model="form.name" placeholder="请输入"  style="width: 85%"/>
+        </a-form-model-item>
+        <a-form-model-item 
+          label="规范简称" 
+          v-bind="formItemLayout" 
+          :rules="{
+            required: true,
+            message: '此项不能为空',
+            trigger: 'blur',
+        }">
+          <a-input v-model="form.shortname" placeholder="请输入" style="width: 85%" />
+        </a-form-model-item>
+        <div v-if="selectedtreeid == 12">
+          <a-form-model-item 
+            label="上级组织" 
+            v-bind="formItemLayout" 
+            :rules="{
+              required: true,
+              message: '此项不能为空',
+              trigger: 'blur',
+          }">
+            <a-input 
+              v-model="form.defaultorg" 
+              placeholder="输入关键词查找或选择组织" 
+              addon-before="组织架构"
+              @click="defaultorgClick"
+              style="width: 85%"
+              />
+          </a-form-model-item>
+        </div>
+        <div v-else-if="selectedtreeid == 10">
+          <a-form-model-item 
+            label="上级组织" 
+            v-bind="formItemLayout" 
+            :rules="{
+              required: true,
+              message: '此项不能为空',
+              trigger: 'blur',
+          }">
+            <a-input 
+              v-model="form.verorg" 
+              placeholder="输入关键词查找或选择组织" 
+              addon-before="单位垂直"
+              @click="verorgClick"
+              style="width: 85%"
+              />
+          </a-form-model-item>
+        </div>
+        <div v-else>
+          <a-form-model-item 
+            label="上级组织" 
+            v-bind="formItemLayout" 
+            :rules="{
+              required: true,
+              message: '此项不能为空',
+              trigger: 'blur',
+          }">
+            <a-input 
+              v-model="form.defaultorg" 
+              placeholder="输入关键词查找或选择组织" 
+              addon-before="组织架构"
+              @click="defaultorgClick"
+              style="width: 85%"
+              />
+          </a-form-model-item>
+          <a-form-model-item 
+            v-bind="formItemLayoutWithOutLabel" 
+            :rules="{
+              required: true,
+              message: '此项不能为空',
+              trigger: 'blur',
+          }">
+            <a-input 
+              v-model="form.verorg" 
+              placeholder="输入关键词查找或选择组织" 
+              addon-before="单位垂直"
+              @click="verorgClick"
+              style="width: 85%"
+              />
+          </a-form-model-item>
+        </div>
+        
+        <a-form-model-item 
+          label="单位类型" 
+          v-bind="formItemLayout" 
+          :rules="{
+            required: true,
+            message: '此项不能为空',
+            trigger: 'blur',
+        }">
+          <dict-select dict="idm.org.orgunittype"
+            placeholder="单位类型"
+            allowClear
+            class="search-item"
+            v-model="form.orgunittype"
+            style="width: 85%"
+          />
+        </a-form-model-item>
+        <a-form-model-item 
+          label="区划等级" 
+          v-bind="formItemLayout" 
+          :rules="{
+            required: true,
+            message: '此项不能为空',
+            trigger: 'blur',
+        }">
+          <dict-select dict="idm.org.divisionlevel"
+            placeholder="区划等级"
+            allowClear
+            class="search-item"
+            v-model="form.arealevel"
+            style="width: 85%"
+          />
+        </a-form-model-item>
+        <a-form-model-item 
+          label="行政区划" 
+          v-bind="formItemLayout" 
+        >
+          <a-input v-model="form.administrative" placeholder="请输入" style="width: 85%" />
+        </a-form-model-item>
+        <a-form-model-item 
+          label="统一社会信用代码" 
+          v-bind="formItemLayout" 
+        >
+          <a-input v-model="form.usccode" placeholder="请输入" style="width: 85%" />
+        </a-form-model-item>
+        <a-form-model-item
+          v-for="(domain, index) in form.domains"
+          :key="domain.key"
+          v-bind="index === 0 ? formItemLayout : formItemLayoutWithOutLabel"
+          :label="index === 0 ? '内设机构' : ''"
+          :prop="'domains.' + index + '.value'"
+        >
+          <a-input
+            v-model="domain.value"
+            placeholder="请输入"
+            style="width: 85%; margin-right: 3px"
+          />
+          <a-icon
+            v-if="form.domains.length > 1"
+            class="dynamic-delete-button"
+            type="minus-circle-o"
+            :disabled="form.domains.length === 1"
+            @click="removeDomain(domain)"
+          />
+          <a-icon
+            class="dynamic-add-button"
+            type="plus-circle-o"
+            @click="addDomain"
+          />
+        </a-form-model-item>
+        <a-row>
+          <a-col :span="6" :offset="6">
+            <h1>联系信息</h1>
+          </a-col>
+        </a-row>
+        <a-form-model-item 
+          label="联系人" 
+          v-bind="formItemLayout" 
+        >
+          <a-input v-model="form.connectperson" placeholder="请输入" style="width: 85%" />
+        </a-form-model-item>
+        <a-form-model-item 
+          label="联系人手机" 
+          v-bind="formItemLayout" 
+        >
+          <a-input v-model="form.connectmobilephone" placeholder="请输入" style="width: 85%" />
+        </a-form-model-item>
+        <a-form-model-item 
+          label="联系人电话" 
+          v-bind="formItemLayout" 
+        >
+          <a-input v-model="form.connectphone" placeholder="请输入" style="width: 85%" />
+        </a-form-model-item>
+        <!-- <a-form-model-item :wrapper-col="{ span: 6, offset: 10 }">
+          <a-button>
+            取消
+          </a-button>
+          <a-button type="primary" style="margin-left: 10px;" @click="confirm">
+            确定
+          </a-button>
+        </a-form-model-item> -->
+      
+        <a-modal
+          v-model="orgvisible"
+          :width="500"
+          title="选择单位"
+          :bodyStyle="{ height: '500px', padding: '0'}"
+          @ok="orgOk"
+          >
+          <org-tree @select="onOrgSelect" :nodeid="nodeid" :treeid="treeid" />
+        </a-modal>
+        <a-modal
+          v-model="verorgvisible"
+          :width="500"
+          title="选择单位"
+          :bodyStyle="{ height: '500px', padding: '0'}"
+          @ok="verorgOk"
+          >
+          <org-tree @select="onVerOrgSelect" :nodeid="nodeid" :treeid="treeid"/>
+        </a-modal>
+
+    </a-form-model>
+  </div>
+</template>
+
+<script>
+import { Input, Icon, Table, Modal, Button, Divider, Form, Tag, FormModel, Row, Col} from "ant-design-vue";
+import DictSelect from "@/framework/components/DictSelect";
+import OrgTree from "@/idm/components/OrgTree";
+export default {
+  props:["selectedtreeid"],
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    AIcon: Icon,
+    ATable: Table,
+    AModal: Modal,
+    AButton: Button,
+    ADivider: Divider,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AFormModel: FormModel,
+    AFormModelItem: FormModel.Item,
+    ATag: Tag,
+    DictSelect,
+    OrgTree
+  },
+  data() {
+    return {
+      formItemLayout: {
+        labelCol: {
+          // xs: { span: 24 },
+          sm: { span: 8 },
+        },
+        wrapperCol: {
+          // xs: { span: 24 },
+          sm: { span: 8 },
+        },
+      },
+      formItemLayoutWithOutLabel: {
+        wrapperCol: {
+          // xs: { span: 24, offset: 0 },
+          sm: { span: 8, offset: 8 },
+        },
+      },
+      form: {
+        name: '',
+        shortname: '',
+        defaultorg: '',
+        verorg: '',
+        orgunittype: 1,
+        arealevel: 1,
+        administrative: '',
+        usccode: '',
+        domains: [{value: ''}],
+        connect: '',
+        connectmobilephone: '',
+        connectphone: ''
+      },
+      formLayout: 'horizontal',
+      properties: {},
+      nodeid: Number(this.$route.query.id) || undefined,
+      treeid: Number(this.$route.query.treeid) || undefined,
+      treeIdData:{},
+      orgvisible: false,
+      verorgvisible: false,
+      orgValue: null,
+      selected: null,
+      verselected: null,
+    }
+  },
+   methods: {
+    defaultorgClick() {
+      this.treeid = 12;
+      this.orgvisible = true;  
+    },
+    onOrgSelect(node, dept, init) {
+      this.selected = { node, dept, treeid: this.treeid};
+      this.form.defaultorg = this.selected.node.name
+    },
+    onVerOrgSelect(node, dept, init) {
+      this.verselected = { node, dept, treeid: this.treeid};
+      this.form.verorg = this.verselected.node.name
+    },
+    verorgClick(){
+      this.treeid = 10;
+      this.verorgvisible = true;
+    },
+    orgOk() {
+      this.orgvisible = false;
+    },
+    verorgOk() {
+      this.verorgvisible = false;
+    },
+    removeDomain(item) {
+      let index = this.form.domains.indexOf(item);
+      if (index !== -1) {
+        this.form.domains.splice(index, 1);
+      }
+    },
+    addDomain() {
+      this.form.domains.push({
+        value: '',
+        key: Date.now(),
+      });
+    },
+   }
+}
+</script>
+
+<style lang="less" scoped>
+  .form{
+      // flex-shrink: 1;
+      // overflow-y: auto;
+      // min-height: 0;
+      padding: @padding-lg;
+      .dynamic-delete-button{
+        cursor: pointer;
+        position: relative;
+        top: 4px;
+        font-size: 24px;
+        color: #999;
+        transition: all 0.3s;
+      }
+      .dynamic-delete-button:hover {
+        color: #777;
+      }
+      .dynamic-delete-button[disabled] {
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+      .dynamic-add-button{
+        cursor: pointer;
+        position: relative;
+        top: 4px;
+        font-size: 24px;
+        color: #999;
+        transition: all 0.3s;
+      }
+      .dynamic-add-button:hover {
+        color: #777;
+      }
+      .dynamic-add-button[disabled] {
+        cursor: not-allowed;
+        opacity: 0.5;
+      }
+    }
+</style>

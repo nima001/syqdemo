@@ -1,0 +1,104 @@
+<template>
+  <div class="line-chart">
+    <div class="chart-title">{{title}}</div>
+    <div class="table">
+      <div id="container"></div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Line } from '@antv/g2plot';
+export default {
+  name: 'LineChart',
+  props: ['chartData', 'pagetype'],
+  data() {
+    return {
+      datalist: [],
+      linePlot: null,
+      title: ''
+    }
+  },
+  watch: {
+    chartData: {
+      handler(val) {
+        this.datalist = [].concat(val);
+        this.linePlot.changeData(this.datalist);
+      },
+      deep: true
+    },
+    pagetype: {
+      handler(val) {
+        if(val == 1) {
+          this.title = '编制数和实有数';
+        }else if(val == 2) {
+          this.title = '编外控制数和实有人数';
+        }else if(val == 5) {
+          this.title = '机构职责调整数';
+        }else if(val == 6) {
+          this.title = '出（入）编业务办理情况';
+        }else if(val == 8) {
+          this.title = '用编计划情况';
+        }
+      },
+      immediate: true
+    }
+  },
+  mounted() {
+    this.init();
+  },
+  methods:{
+    init() {
+      this.linePlot = new Line(document.getElementById('container'), {
+        height: 600,
+        title: {
+          visible: false
+        },
+        padding: 'auto',
+        forceFit: true,
+        data: this.datalist,
+        xField: 'xname',
+        yField: 'value',
+        legend: {
+          visible: true,
+          position: 'bottom',
+        },
+        point: {
+          visible: true,
+        },
+        label: {
+          visible: true,
+          type: 'point',
+        },
+        tooltip: {
+          visible: true
+        },
+        seriesField: 'fieldname',
+        color: ['#D15456', '#5488D1', '#D1BF3D'],
+        responsive: true,
+      });
+
+      this.linePlot.render()
+    }
+  }
+}
+</script>
+
+<style lang="less" scoped>
+.line-chart{
+  height: 100%;
+  background: @white;
+  .chart-title{
+    text-align: center;
+    font-size: 20px;
+    padding: @content-padding-v 0;
+  }
+  .table{
+    padding: @content-padding-v @content-padding-h;  
+    .title{
+      padding: @content-padding-h 0;
+      text-align: center;
+    }
+  }
+}
+</style>

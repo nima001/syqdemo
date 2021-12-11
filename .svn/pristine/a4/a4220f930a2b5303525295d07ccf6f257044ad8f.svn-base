@@ -1,0 +1,85 @@
+<template>
+  <div class="main">
+    <div class="left">
+      <div class="monitor">
+        <org-monitor></org-monitor>
+      </div>
+      <div class="retired">
+        <retire-chart></retire-chart>
+      </div>
+      <div class="question">
+        <org-question></org-question>
+      </div>
+    </div>
+    <div class="middle">
+      <div class="loop">
+        <loop-city></loop-city>
+      </div>
+      <div class="LiquidSwiper">
+        <liquid-swiper></liquid-swiper>
+      </div>
+      <div class="warn">
+        <warn-info></warn-info>
+      </div>
+    </div>
+    <div class="right">
+      <div class="lineChart">
+        <line-chart-wrap title="教育编制发展趋势"></line-chart-wrap>
+      </div>
+      <div class="lineChart">
+        <line-chart-wrap title="医疗编制发展趋势"></line-chart-wrap>
+      </div>
+      <div class="lineChart">
+        <line-chart-wrap title="疾控编制发展趋势" :last="true"></line-chart-wrap>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import OrgMonitor from "../housekeeper/OrgMonitot";
+import RetireChart from "../housekeeper/RetireChart";
+import OrgQuestion from "../housekeeper/OrgQuestion";
+import LoopCity from "../housekeeper/LoopCity";
+import LiquidSwiper from "../housekeeper/LiquidSwiper";
+import WarnInfo from "../housekeeper/WarnInfo";
+import LineChartWrap from "../housekeeper/LineChartWrap";
+export default {
+  components: {
+    OrgMonitor,
+    RetireChart,
+    OrgQuestion,
+    LoopCity,
+    LiquidSwiper,
+    WarnInfo,
+    LineChartWrap
+  },
+  data() {
+    return {};
+  },
+  created() {},
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+.main {
+  display: flex;
+  justify-content: space-between;
+  padding: 0px 12px;
+  .left {
+    width: 340px;
+  }
+  .middle {
+    width: 695px;
+  }
+  .right {
+    width: 330px;
+    display: flex;
+    flex-direction: column;
+    .lineChart {
+      flex: 1;
+      overflow: hidden;
+    }
+  }
+}
+</style>

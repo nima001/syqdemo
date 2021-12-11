@@ -1,0 +1,59 @@
+<template>
+  <a-radio-group v-if="tile" v-model="value" v-bind="attrs">
+    <a-radio v-for="item in options" :value="item.value" :key="item.value">
+      <VNodeRender v-if="item.icon" :vNode="item.icon" />
+      <span v-if="item.label">{{item.label}}</span>
+    </a-radio>
+  </a-radio-group>
+  <a-select v-else v-model="value" :options="options" v-bind="attrs"/>
+</template>
+<script>
+import { Select, Radio } from 'ant-design-vue'
+import PropMixin from './PropMixin'
+
+export default {
+  components: {
+    ASelect: Select,
+    ARadioGroup: Radio.Group,
+    ARadio: Radio.Button,
+    VNodeRender: {
+      props: {
+        vNode: {} 
+      },
+      render (h) {
+        return this.vNode
+      }
+    }
+  },
+  mixins: [PropMixin],
+  computed: {
+    tile(){
+      return (this.property.attrs || {}).tile;
+    },
+    options(){
+      let { options } = this.property.attrs || {};
+      return options;
+    },
+    attrs(){
+      let { tile, options, ...others } = (this.property.attrs || {});
+      return others;
+    },
+    value:{
+      get(){
+        return this.propValue === undefined ? this.property.defaultValue : this.propValue;
+      },
+      set(v){
+        this.propValue = v;
+      },
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.ant-select{
+  width: 100%;
+}
+.ant-radio-button-wrapper{
+  padding: 0 6px;
+}
+</style>

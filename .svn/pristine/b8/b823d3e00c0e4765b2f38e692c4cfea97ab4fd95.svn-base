@@ -1,0 +1,167 @@
+<template>
+  <div class="input-table">
+    <a-table
+      :rowKey="generateRowKey"
+      :columns="columns" 
+      :dataSource="propValue" 
+      :pagination="false"
+    >
+      <template slot="opts" slot-scope="text,row,index">
+        <a @click="editItem(text,row,index)">{{edit ? '编辑' : '查看'}}</a>
+        <a v-if="edit" @click="removeItem(text,row,index)" style="margin-left: 10px;">删除</a>
+      </template>
+    </a-table>
+    <a-button v-if="edit && !property.disable" type="dashed" @click="addGroup" style="width: 100%;margin: 6px 0;">
+      <a-icon type="plus"/> 添加
+    </a-button>
+    <a-modal :title="property.label" v-model="visible" :width="800" @ok="onItemSubmit">
+      <FormGroup ref="formModal"
+        :properties="property.properties"
+        :data="item"
+        :edit="edit"
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Modal, Table, Button, Icon } from 'ant-design-vue';
+import get from 'lodash/get';
+import set from 'lodash/set';
+import cloneDeep from 'lodash/cloneDeep';
+import moment from "moment";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  props: {
+    edit: {
+      type: Boolean,
+      default: false,
+    },
+    property: {
+      type: Object,
+    },
+    data: {
+      type: Object,
+    }
+  },
+  components: {
+    AModal: Modal,
+    ATable: Table,
+    AButton: Button,
+    AIcon: Icon,
+    FormGroup: () => import('./FormGroup.vue')
+  },
+  data() {
+    return {
+      visible: false,
+      index: undefined,
+      item: {},
+    };
+  },
+  computed: {
+    propValue:{
+      get(){
+        return get(this.data, this.property.code);
+      },
+      set(value){
+        set(this.data, this.property.code, value)
+      }
+    },
+    columns(){
+      let cs = [];
+      (this.property.properties || []).forEach(item => {
+        if(item.show){
+          cs.push({
+            title: item.label,
+            dataIndex: item.code,
+            customRender: this.createPropRender(item)
+          })
+        }
+      });
+      cs.push({ title: "操作", scopedSlots: { customRender: 'opts' } })
+      return cs;
+    },
+  },
+  methods: {
+    validateField(obj){
+      set(obj, this.property.code, this.propValue || null)//设置为null 才会序列化 需要传key服务器识别情况数据
+      return Promise.resolve();
+    },
+    createPropRender(property){
+      return (text, row, index) => {
+        if(property.type == 'dict'){
+          let v = this.$store.getters.dictKey(property.dict, text);
+          text = (v && v.text) || '';
+          return <span title={text}>{text}</span>;
+        }else if(property.type == 'date'){
+          if(text){
+            let t = moment(text);
+            return t && t.format('YYYY-MM-DD');  
+          }
+        }else{
+          return <span title={text}>{text}</span>;
+        }
+      }
+    },
+    generateRowKey(record){
+      if(record._id){
+        return record._id;
+      }else if(!record._tempid){
+        record._tempid = new Date().getTime();
+      }
+      return record._tempid;
+    },
+    removeItem(text, row, index){
+      this.propValue.splice(index, 1);
+    },
+    editItem(text, row, index){
+      this.index = index,
+      this.item = cloneDeep(this.checkProperty(row));
+      this.visible = true;
+    },
+    addGroup() {
+      this.index = undefined,
+      this.item = this.checkProperty({});
+      this.visible = true;
+    },
+    onItemSubmit(){
+      if(this.edit){
+        let obj = {}
+        this.$refs.formModal.validateFields(obj).then(() => {
+          let list = this.propValue;
+          if(!list){
+            list = [];
+            this.propValue = list;
+          }
+          if(this.index >= 0){//编辑
+            this.$set(list, this.index, {
+              ...this.item,
+              ...obj,
+            })
+          }else{//新增
+            list.push(obj);
+          }
+          this.visible = false;
+        }).catch(error => {
+          showError({message: '表单验证失败，请检查表单数据'});
+        });
+      }else{
+        this.visible = false;
+      }
+    },
+    checkProperty(data){
+      this.property.properties.forEach(p => {
+        if(get(data, p.code) === undefined){
+          set(data, p.code, undefined);
+        }
+      })
+      return data;
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.input-table {
+
+}
+</style>

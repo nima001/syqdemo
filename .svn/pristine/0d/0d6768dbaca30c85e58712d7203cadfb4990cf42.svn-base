@@ -1,0 +1,40 @@
+<!-- 用户信息中心页面 -->
+<template>
+  <a-layout class="open-layout">
+    <div class="body">
+        <div class="header">
+            <a-icon type="user" />
+            <h1>您好，{{session.usernaem}}</h1>
+        </div>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+export default {
+  components: {},
+
+  props: {},
+
+  data () {
+    return {
+        session: this.$store.getters.session,
+    };
+  },
+
+//   computed: {},
+
+//   watch: {},
+
+//   mounted(){},
+
+  methods: {}
+}
+
+</script>
+<style lang='less' scoped>
+.open-layout {
+  .body {
+  }
+}
+</style>

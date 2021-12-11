@@ -1,0 +1,18 @@
+const assessment = {
+  state: {
+    //  新增时的评估数据
+    assessData: {},
+    //  新增时每一项的参数
+    reportArgs: {},
+  },
+  mutations: {
+    setAssessData: (state, payload) => {
+      state.assessData = payload;
+    },
+    setReportArgs: (state, payload) => {
+      state.reportArgs = payload;
+    },
+  }
+}
+
+export default assessment

@@ -1,0 +1,42 @@
+<template>
+  <div class="area-compoile">
+    <a-row v-if="isShow" :gutter="20">
+      <a-col :span="24">
+        <span class="name">重点领域编制配比要求及现状：{{data.result}}</span>
+        <br>
+        <span class="name">{{data.addition}}</span>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+<script>
+import { Row, Col } from "ant-design-vue";
+
+//评估项-重点领域编制配比
+export default {
+  components: {
+    ARow: Row,
+    ACol: Col,
+  },
+  props: {
+    data: Object, //内容数据
+  },
+  computed: {
+    isShow() {
+      return this.data.hasOwnProperty('display') ? false : true;
+    }
+  },
+  created() {
+  },
+  methods: {
+  }
+}
+</script>
+<style lang="less" scoped>
+.area-compoile{
+  margin-bottom: 10px;
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

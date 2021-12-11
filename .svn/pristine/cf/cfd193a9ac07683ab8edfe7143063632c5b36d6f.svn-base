@@ -1,0 +1,130 @@
+<!-- 权限配置 > 新增权限 -->
+<template>
+  <div>
+    <div class="body">
+      <a-form :form="form">
+        <a-form-item label="权限名称">
+          <a-input
+            v-decorator="[
+              'name',
+              { rules: [{ required: true, message: '请输入权限名称' }] },
+            ]"
+          ></a-input>
+        </a-form-item>
+
+        <a-form-item label="权限代码">
+          <a-input
+            v-decorator="[
+              'code',
+              { rules: [{ required: true, message: '请输入权限代码' }] },
+            ]"
+          ></a-input>
+        </a-form-item>
+
+        <a-form-item label="权限标签">
+          <a-select
+            v-decorator="[
+              'tags',
+              { rules: [{ required: true, message: '请输入权限标签' }] },
+            ]"
+            mode="tags"
+            style="width: 100%;margin-bottom: 30px;"
+            placeholder="请选择主题"
+          >
+            <a-select-option v-for="i in 3" :key="(i + 9).toString(36) + i">{{
+              (i + 9).toString(36) + i
+            }}</a-select-option>
+          </a-select>
+        </a-form-item>
+
+        <a-form-item label="权限描述">
+          <a-input v-decorator="['condition']"></a-input>
+        </a-form-item>
+      </a-form>
+
+      <a-button style="margin-top: 40px;" @click="cancel">取消</a-button>
+      <a-button type="primary" @click="submit">保存</a-button>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Form, Button, Input, notification, Select } from "ant-design-vue";
+import { limitadd } from "@/dev/api/limit";
+export default {
+  data() {
+    return {
+      form: this.$form.createForm(this),
+    };
+  },
+
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    AButton: Button,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+  },
+  methods: {
+    // 取消
+    cancel() {
+      this.$router.back();
+    },
+    //   提交表单
+    submit() {
+      this.form.validateFields((err, values) => {
+        if (err) {
+          notification.error({
+            message: "提示",
+            description: "请填写必填信息！",
+            duration: 2,
+          });
+        } else {
+          values.appid = this.$route.query.id;
+          limitadd(values).then((res) => {
+            if (res.code == "success") {
+              this.$router.push({
+                path: "/dev/authmanage",
+                query: { state: 1 },
+              });
+            } else {
+              if (res.code == "form_valid_failed") {
+                let a = eval("(" + res.desc + ")");
+                const value = Object.values(a);
+                const keys = Object.keys(a);
+                const arr = [
+                  {
+                    message: value[0],
+                    field: keys[0],
+                  },
+                ];
+                this.form.setFields({
+                  [keys[0]]: { value: values[keys[0]], errors: arr },
+                });
+              } else {
+                notification.error({
+                  message: "提示",
+                  description: res.desc,
+                  duration: 1.5,
+                });
+              }
+            }
+          });
+        }
+      });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.body {
+  width: 600px;
+  margin: 50px auto 0;
+  .ant-btn {
+    margin-top: 30px;
+    margin-right: 30px;
+  }
+}
+</style>

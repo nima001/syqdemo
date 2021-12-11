@@ -1,0 +1,95 @@
+<template>
+  <iframe
+    :src="src || 'about:blank'"
+    :height="height"
+    class="report-template-display" 
+    frameborder="0"
+    ref="iframe"
+    scrolling="no"
+  />
+</template>
+<script>
+import get from "lodash/get";
+import { previewById } from "@/person/api/booklet";
+
+/**
+ * 报表模板显示组件
+ */
+export default {
+  props: {
+    code: {
+      type: String,
+      required: true
+    },
+    defalutValue: {}
+  },
+  inject: ["formData"],
+  computed:{
+    tempId() {
+      return get(this.formData.data, this.code) || this.defalutValue;
+    },
+    context(){
+      return this.formData.data;
+    }
+  },
+  watch: {
+    tempId(v){
+      this.loadData();
+    },
+    context(){
+      this.loadData();
+    }
+  },
+  data(){
+    return {
+      iframe: undefined,
+      src: undefined,
+      height: 0,
+      
+    }
+  },
+  created(){
+    this.loadData();
+  },
+  methods: {
+    loadData(){
+      if(this.tempId){
+        this.src = undefined;
+        this.height = 0;
+        let id = this.tempId;
+        previewById(this.tempId, this.context).then(({result}) => {
+          if(this.tempId != id){//还未加载完成切换
+            return;
+          }
+          if(result.template){
+            this.src = `javascript:void(function(){document.open();document.write('${result.template}');document.close();}())`;
+            let iframe = this.$refs.iframe;
+            if(iframe){
+              iframe.onload = () => {
+                this.height = iframe.contentWindow.document.body.scrollHeight;
+                iframe.onload = null;
+                // console.log('tempate iframe onload, height is', this.height);
+              };
+            }
+          }else{
+            this.src = 'about:blank'
+          }
+          this.$emit('loaded', this.code)
+        }).catch(err => {
+          console.log(err);
+          if(this.tempId != id){
+            return;
+          }
+          this.$emit('loaded', this.code)
+        })
+      }
+    },
+  }
+}
+</script>
+<style lang="less" scoped >
+.report-template-display{
+  display: block;
+  width: 100%;
+}
+</style>

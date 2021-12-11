@@ -1,0 +1,257 @@
+<template>
+  <div class="report_record">
+    <div class="main">
+      <div class="main-top">
+        <a-row>
+          <a-col class="main-top-btn right-con" :span="24">
+            <a-button class="queryitem" @click="onReset">重置</a-button>
+            <a-button class="queryitem" type="primary" @click="onSearch">搜索</a-button>
+            <a-input
+              class="queryitem"
+              style="width: 200px;"
+              placeholder="输入机构名称搜索"
+              v-model="orgname"
+            >
+            </a-input>
+          </a-col>
+        </a-row>
+      </div>
+      <div class="main-table">
+        <a-table
+          class="antd-table-con"
+          rowKey="id"
+          :columns="columns"
+          :dataSource="tableData"
+          :pagination="false"
+          :loading="loading"
+          >
+          <span slot="operation" class="operation" slot-scope="text, record">
+            <a @click="onShowDetail(record.id)">最新报告</a>
+            <a @click="onHistoryVersion(record.id)">历史版本</a>
+            <a @click="onDelete(record.id)">删除</a>
+            <a v-if="!text.status" @click="onOverReport(record.id)">结束</a>
+          </span>
+        </a-table>
+        <div class="footer">
+          <a-pagination
+            v-if="tableData && tableData.length"
+            showSizeChanger
+            :showTotal="total => `总共：${total}条`"
+            @showSizeChange="onShowSizeChange"
+            :total="pagination.total"
+            :pageSize="pagination.pagesize"
+            v-model="pagination.pagenum"
+            @change="onPageChange"
+          />
+        </div>
+      </div>
+    </div>
+    <!-- 历史版本 -->
+    <a-modal
+      title="历史版本"
+      v-model="addvisible"
+      :width="500"
+      :destroyOnClose="true"
+      :bodyStyle="{height: '500px'}"
+      :footer="null">
+      <history-version ref="HistoryVersion" :reportid="reportid"></history-version>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import { Row, Col, Input, Table, Pagination, Button, Modal, Spin } from "ant-design-vue";
+import HistoryVersion from '@/person-shaoxing/views/assessment/compileAssist/analysis/HistoryVersion';
+import { listReport, removeItem, endReport } from "@/person-shaoxing/api/assessment";
+import { showError } from "@/framework/utils/index";
+export default {
+  props: {},
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    ATable: Table,
+    AButton: Button,
+    APagination: Pagination,
+    AModal: Modal,
+    ASpin: Spin,
+    HistoryVersion
+  },
+  data() {
+    return {
+      loading: false,
+      columns: [
+        { title: '序号', customRender: (text, record, index) => ((this.pagination.pagenum - 1)*this.pagination.pagesize) + (index + 1), width: '5%' },
+        { title: '事件简述', dataIndex: 'content', width: '25%' },
+        { title: '状态', dataIndex: 'status', customRender: (text) => text ? '结束' : '进行中', width: '15%' },
+        { title: '开始评估时间', dataIndex: 'createtime', customRender: (text) => (text && text.substr(0, 10)), width: '15%' },
+        { title: '更新时间', dataIndex: 'updatetime', customRender: (text) => (text && text.substr(0, 10)), width: '15%' },
+        { title: '操作', scopedSlots: { customRender: "operation" }, width: '25%' }
+      ],
+      tableData: [],
+      pagination: {
+        total: 0,
+        pagenum: 1,
+        pagesize: 10
+      },
+      orgname: undefined,
+      addvisible: false,
+      spinning: false,
+      reportid: undefined
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+  },
+  mounted() {},
+  methods: {
+    getData(page) {
+      this.loading = true;
+      let params = {
+        ...page,
+        orgname: this.orgname,
+        needtotal: true
+      }
+      listReport(params)
+      .then(({result}) => {
+        this.loading = false;
+        this.pagination = result;
+        this.tableData = result.rows;
+      })
+      .catch(err => {
+        this.loading = false;
+        showError(err);
+      })
+    },
+    onShowSizeChange(pagenum, pagesize) {
+      this.getData({ pagenum: 1, pagesize });
+    },
+    onPageChange(pagenum, pagesize) {
+      this.getData({ pagenum, pagesize });
+    },
+    onShowDetail(reportid) {
+      this.$router.push({
+        path: '/person/assessment/compileassist/report',
+        query: {
+          reportid,
+          isHistory: 0
+        }
+      })
+    },
+    onHistoryVersion(reportid) {
+      this.addvisible = true
+      this.reportid = reportid
+    },
+    onOverReport(id) {
+      if(id) {
+        let that = this;
+        that.$confirm({
+          title: "确认结束评估项?",
+          onOk() {
+            endReport(id)
+              .then(res => {
+                that.$notification.success({
+                  message: "提示",
+                  description: "结束评估项成功!",
+                  duration: 3
+                });
+                that.getData({ pagenum: that.pagination.pagenum, pagesize: that.pagination.pagesize });
+              })
+              .catch(error => {
+                showError(error);
+              });
+          },
+          onCancel() {}
+        });
+      }
+    },
+    onDelete(id) {
+      if(id) {
+        let that = this;
+        that.$confirm({
+          title: "确认删除评估项?",
+          onOk() {
+            removeItem(id)
+              .then(res => {
+                that.$notification.success({
+                  message: "提示",
+                  description: "删除评估项成功!",
+                  duration: 3
+                });
+                that.getData({ pagenum: that.pagination.pagenum, pagesize: that.pagination.pagesize });
+              })
+              .catch(error => {
+                showError(error);
+              });
+          },
+          onCancel() {}
+        });
+      }
+    },
+    onSearch() {
+      if(this.orgname) {
+        this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+      }else{
+        this.$notification.warning({
+          message: "提示",
+          description: "请输入评估内容模板!",
+          duration: 3
+        });
+      }
+    },
+    onReset() {
+      this.orgname = undefined;
+      this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.report_record{
+  padding: 10px;
+  height: 100%;
+  .main{
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    overflow: hidden;
+    background: @white;
+    height: 100%;
+    .main-top{
+      margin-top: 10px;
+      padding: 0 @content-padding-h;
+      .main-top-btn{
+        padding: @content-padding-v 0;
+        .queryitem{
+          float: right;
+          margin-left: 16px;
+        }
+      }
+    }
+    .main-table{
+      flex-shrink: 1;
+      overflow-y: auto;
+      .antd-table-con{
+        padding: @content-padding-v @content-padding-h;
+        .operation {
+          a {
+            margin-right: 15px;
+            &:hover {
+              text-decoration: underline;
+            }
+          }
+        }  
+      }
+      .footer {
+        display: flex;
+        justify-content: flex-end;
+        padding: 12px @content-padding-h;
+      }
+    }
+  }
+}
+</style>

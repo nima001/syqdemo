@@ -1,0 +1,59 @@
+export default {
+  市委组织部: [
+    {
+      index: '1.1',
+      project: '履职效能',
+      scoremethods:
+        '引用市委市政府对市级单位考核的“工作绩效”考核得分，相应进行折算',
+      indicator: '',
+      indicatornum: undefined,
+      averagenum: undefined,
+      rank: undefined,
+      score: undefined,
+      compare: undefined
+    },
+    {
+      index: '2.1',
+      project: {
+        rowspan: 2,
+        value: '运行效率'
+      },
+      scoremethods:
+        '引用市委市政府对市级单位考核的“综合评价”中市级领导、区县党政正职和万名群众评价考核得分，相应进行折算',
+      indicator: '',
+      indicatornum: undefined,
+      averagenum: undefined,
+      rank: undefined,
+      score: undefined,
+      compare: undefined
+    },
+    {
+      index: '2.2',
+      scoremethods: '专项测评（自评）和谈话',
+      indicator: undefined,
+      indicatornum: undefined,
+      averagenum: undefined,
+      rank: undefined,
+      score: undefined,
+      compare: undefined
+    },
+    {
+      index: '3.1',
+      project: {
+        rowspan: 2,
+        value: '运行效率'
+      },
+      scoremethods:
+        '引用市委市政府对市级单位考核的“综合评价”中市级领导、区县党政正职和万名群众评价考核得分，相应进行折算',
+      indicator: '',
+      indicatornum: undefined,
+      averagenum: undefined,
+      rank: undefined,
+      score: undefined,
+      compare: undefined
+    }
+  ],
+  市委宣传部: [],
+  市委统战部: [],
+  市残联: []
+}

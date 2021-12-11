@@ -1,0 +1,137 @@
+<template>
+  <div class="org-main-panel">
+    <div class="header">
+      <div class="title" :title="loadData && loadData.node.name">{{loadData && loadData.node.name}}</div>
+      <div class="tabs">
+        <a
+          v-for="item in tabs"
+          :key="item.id"
+          :class="{active: active && active.id == item.id}"
+          @click="active = item"
+        >{{item.title}}</a>
+      </div>
+    </div>
+    <div class="body">
+      <component
+        v-if="active"
+        :is="active.component"
+        :org="org"
+        :nodeid="loadData && loadData.node.id"
+        :treeid="loadData && loadData.treeid"
+        :orgid="org && org._id"
+      />
+    </div>
+  </div>
+</template>
+<script>
+import { Button } from "ant-design-vue";
+import OrgInfo from "./components/OrgInfo";
+import MainDuty from "./components/MainDuty";
+import AuthorityList from "./components/AuthorityList";
+import PersonDetail from "./components/PersonDetail";
+export default {
+  props: {
+    loadData: {
+      type: Object
+    }
+  },
+  components: {
+    AButton: Button,
+    OrgInfo,
+    MainDuty,
+    AuthorityList,
+    PersonDetail,
+  },
+  data() {
+    return {
+      tabs: [],
+      active: undefined
+    };
+  },
+  computed: {
+    org() {
+      if (this.loadData) {
+        let { node, dept } = this.loadData;
+        return dept || node.data;
+      }
+    }
+  },
+  created() {
+    this.init();
+  },
+  watch: {
+    org() {
+      this.init();
+    }
+  },
+  methods: {
+    init() {
+      if(this.org){
+        this.tabs = [
+          { id: 1, title: "机构信息", component: "OrgInfo" },
+          { id: 2, title: "主要职责", component: "MainDuty" },
+          { id: 3, title: "权力清单", component: "AuthorityList" },
+          { id: 4, title: "三定一评", component: "div" },
+          { id: 5, title: "事业单位年报", component: "div" },
+          { id: 6, title: "人员列表", component: "PersonDetail" }
+        ];
+        this.active = this.tabs[0];
+      }else{
+        this.tabs = undefined;
+        this.active = undefined;
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.org-main-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: @border-radius-base;
+  background: @white;
+
+  & > .header {
+    margin-top: 10px;
+    padding: @content-padding-v @content-padding-h;
+    display: flex;
+    .title {
+      flex: auto;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-weight: bold;
+      font-size: 18px;
+      line-height: 26px;
+    }
+    .tabs {
+      flex: none;
+      margin-left: 30px;
+      a {
+        display: inline-block;
+        height: 26px;
+        line-height: 26px;
+        padding: 0 12px;
+        margin-left: 6px;
+        border-radius: @border-radius-base;
+        &:hover {
+          background: @primary-1;
+        }
+      }
+      a.active {
+        background-color: @primary-color;
+        color: white;
+        &:hover {
+          background: lighten(@primary-color, 5%);
+        }
+      }
+    }
+  }
+
+  & > .body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
+}
+</style>

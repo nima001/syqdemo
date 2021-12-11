@@ -1,0 +1,16 @@
+svg{
+  & > g{
+    transition: all .5s cubic-bezier(0.075, 0.82, 0.165, 1);
+    &:hover{
+      stroke: #01E3FC;
+      fill: hsla(214, 69%, 68%, 0.5);
+      stroke-width: 2;
+    }
+    &.selected{
+      stroke: #01E3FC;
+      fill: #75A6E6;
+      stroke-width: 2;
+      // transform: translate(-2px, -2px);
+    }
+  }
+}

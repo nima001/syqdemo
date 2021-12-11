@@ -1,0 +1,439 @@
+<template>
+	<div class="cell">
+		<div class="cell-top">
+			<p class="title">数据集</p>
+		</div>
+    <ul>
+			<li class="data-source" v-for="(item,index) in dataSourceCopy" :key="index" @click.stop="toggle(item)">
+        <div class="panel">
+					<div class="panel-title" :class="{active: item === active}">
+						<div class="left"><a-icon type="right" /></div>
+						<div class="right">
+							<div class="top">
+								<div class="editor" v-if="index == editorIndex">
+									<a-input v-model="item.name" size="small" v-focus @blur="editorClose(index)" @click.stop="()=>{}" />
+								</div>
+								<p v-else>
+									<span class="text" @click.stop="editorParams(item,3)">{{item.name}}</span>
+									<span class="editorIcon" @click.stop="editorName(item,index)"><a-icon type="edit" /></span>
+								</p>
+								<div class="icon">
+									<a-icon type="select" @click.stop="openDataSource(item)" />
+									<a-icon type="delete" @click.stop="delDataSource(item, index)" />
+								</div>
+							</div>
+							<p class="desc">{{item.desc}}</p>
+						</div>
+					</div>
+					<a-spin v-if="item === active" :spinning="!getField(item)">
+						<ul class="panel-content">
+							<li class="fields" v-for="item in getField(item)" :key="item.key" @click.stop="editorParams(item,4)">
+								<a-tooltip placement="topLeft" :mouseLeaveDelay="0">
+									<template slot="title">
+										<span>{{item.key}}</span>
+									</template>
+									<span>{{`${item.showname}（${item.key}）`}}</span>
+								</a-tooltip>
+							</li>
+						</ul>
+					</a-spin>
+        </div>
+			</li>
+    </ul>
+    <div class="add">
+      <span @click.stop="addDataSource"><a-icon type="plus" />添加数据集</span>
+    </div>
+    <!--添加数据集(综合查询)-->
+    <query-modal 
+      :show="queryEdit.show == 1"
+      v-model="queryEdit.value"
+      :namespace="namespace"
+			:contextFields="selfFields"
+      @ok="onQueryEdited"
+      @cancel="() => queryEdit.show = 0"
+    >
+			<template #dataOpts v-if="!queryEdit.item">
+				<a @click="editAggregate">数据汇总</a>
+			</template>
+    </query-modal>
+		<a-modal :visible="queryEdit.show == 2" :footer="null" :closable="false"
+			:bodyStyle="{height: '80vh', padding: '10px 0 0 0'}"
+			:width="1100"	:destroyOnClose="true"
+			@cancel="() => queryEdit.show = 0"
+		>
+			<a-icon v-if="!queryEdit.item" type="arrow-left" class="back-query" @click="backQuery"/>
+			<a-icon type="close" class="close-chart" @click="() => queryEdit.show = 0"/>
+			<chart-console v-model="queryEdit.value" 
+				:namespace="namespace" 
+				:fieldsEditable="false"
+				@save="onQueryEdited"
+				class="chart-edit"
+			/>
+		</a-modal>
+  </div>
+</template>
+<script>
+import { Input, Icon, Tooltip, Spin, Modal, Divider} from "ant-design-vue";
+import QueryModal from "@/person/views/integratedquery/QueryModal";
+import ChartConsole from '@person/views/statistics/chart/ChartConsole';
+import {randomStr,showError} from "@framework/utils/index";
+import { mixins } from "./minxin";
+import cloneDeep from "lodash/cloneDeep";
+import { getQuery } from "@person/api/integratedquery";
+import { getHeader } from "@person/api/chart";
+import Bus from "@/framework/utils/EventBus";
+
+// 数据集
+export default {
+  components: {
+    ATooltip: Tooltip,
+    AInput: Input,
+    AIcon: Icon,
+    ASpin: Spin,
+    AModal:Modal,
+    QueryModal,
+    ChartConsole,
+  },
+  props: {
+    dataSource: {
+      type: Array
+		},
+		selfFields: {
+      type: Array,
+      default: ()=>{
+        return []
+      }
+    },
+  },
+  mixins: [mixins],
+  data() {
+    return {
+      // 当前编辑状态数据集
+      editorIndex: undefined,
+      //字段前缀  a.name a['_id@orgstatistic.org']
+			prefix: "",
+			active: undefined,
+			queryEdit: {
+				show: 0,//1显示查询 2显示聚合查询
+				item: undefined,
+				value: undefined,
+			},
+			dataSourceCopy: cloneDeep(this.dataSource),
+			fieldMap: {},
+    };
+  },
+  directives:{
+    focus:{
+      inserted(el){
+        el.focus();
+      }
+    }
+	},
+  watch:{
+    dataSource(v){
+			this.dataSourceCopy = v;
+    }
+  },
+  methods: {
+		getField(item){
+			let {queryid, aggregate} = item;
+			return this.fieldMap[(aggregate ? 'a' : 'q') + '_' + queryid];
+		},
+		setField(item, fields){
+			let {queryid, aggregate} = item;
+			this.fieldMap[(aggregate ? 'a' : 'q') + '_' + queryid] = fields;
+		},
+    openDataSource(item) {
+			this.queryEdit = {
+				show: item.aggregate ? 2 : 1,
+				item,
+				value: {id: item.queryid}
+			}
+			// Vuex缓存作用域数据
+			Bus.$emit('saveScopeData')
+    },
+    addDataSource() {
+			this.queryEdit = {show: 1, item: undefined, value: undefined};
+      Bus.$emit('saveScopeData');
+		},
+		editAggregate(){
+			this.queryEdit.show = 2;
+			this.queryEdit.value = { 
+				query: this.queryEdit.value,
+				fields: this.selfFields
+			}
+		},
+		backQuery(){
+			this.queryEdit.show = 1;
+			this.queryEdit.value = this.queryEdit.value.query;
+		},
+    toggle(item) {
+			if(this.active === item){
+				this.prefix = "";
+				this.active = undefined;
+			}else{
+				this.prefix = item.name;
+				this.active = item;
+				if(!this.getField(item)){//加载数据
+					this.loadFields(item);
+				}
+			}
+		},
+		loadFields(item){
+			if(item.aggregate){
+				getHeader(item.queryid).then(({result}) => {
+					let header = [...result.keyCols, ...result.valueCols];
+					this.setField(item, [
+						...header.map(item => ({
+							key: item.column,
+							showname: item.showname
+						})),
+					])
+					this.dataSourceCopy = [...this.dataSourceCopy]//刷新列表
+				})
+			}else{
+				console.log(item.queryid)
+				getQuery(item.queryid).then(({result}) => {
+					this.setField(item, result.fields || [])
+					this.dataSourceCopy = [...this.dataSourceCopy]//刷新列表
+				}).catch(err => {
+					showError(err);
+				})
+			}
+		},
+    editorName(item, index) {
+      this.prefix = item.name;
+      this.editorIndex = index;
+    },
+    editorClose(index) {
+      this.editorIndex = undefined;
+      this.$emit("sourceCall", this.dataSourceCopy);
+    },
+    delDataSource(item, index) {
+			this.dataSourceCopy.splice(index, 1);
+			this.setField(item);
+      this.$emit("sourceCall", this.dataSourceCopy);
+    },
+    //添加、更新数据集
+    onQueryEdited() {
+			let { item, value, show } = this.queryEdit;
+			if(!item){
+				item = { 
+					name: randomStr(5), 
+					queryid: value.id,
+					aggregate: show == 2
+				};
+				this.dataSourceCopy.push(item);
+			}
+			item.desc = value.title;
+			if(item.aggregate){//聚合查询清空字段缓存
+				this.setField(item);
+				if(item == this.active){//当前是展开的发起请求
+					this.loadFields(item);
+				}
+			}else{//查询直接更新查询字段
+				this.setField(item, value.fields);
+			}
+			this.queryEdit.show = 0;
+			console.log(this.dataSourceCopy)
+      this.$emit("sourceCall", this.dataSourceCopy);
+    },
+  }
+};
+</script>
+<style lang='less' scoped>
+.cell {
+  width: 100%;
+  border: 1px solid @border-color-base;
+  margin-top: @padding-md;
+  height: 360px;
+  display: flex;
+  flex-direction: column;
+  &-top {
+    display: flex;
+    align-items: center;
+    background: #d1d1d180;
+    border-bottom: 1px solid #d9d9d9;
+    p {
+      width: 40%;
+      margin: 0px;
+      height: 30px;
+      line-height: 30px;
+      text-indent: 10px;
+    }
+    .ant-select {
+      flex: 1;
+      margin-right: 8px;
+    }
+  }
+  ul {
+    flex: 1;
+    width: 100%;
+    overflow-y: auto;
+    margin: 0px;
+    li {
+      padding: 0px 10px;
+      width: 100%;
+      height: 30px;
+      line-height: 30px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      &:hover {
+        background: #d1d1d180;
+        cursor: pointer;
+      }
+      &.data-source {
+        height: auto;
+        cursor: pointer;
+        border-bottom: 1px solid #d9d9d9;
+        padding: 0px;
+        &:last-child {
+          border-bottom: none;
+        }
+        &:hover {
+          background: none;
+          cursor: inherit;
+        }
+        .editor {
+          display: flex;
+          flex: 1;
+          margin-right: 10px;
+          a {
+            width: 50px;
+            text-align: center;
+          }
+          input {
+            flex: 1;
+          }
+        }
+        .panel {
+          &-title {
+            padding: 6px 10px;
+            cursor: pointer;
+            &:hover {
+              background: #9e9e9e1c;
+              .right {
+                width: 100%;
+                overflow: hidden;
+                .top {
+                  .editorIcon {
+                    visibility: visible;
+                  }
+                }
+              }
+            }
+            &.active {
+              border-bottom: 1px solid #d9d9d9;
+              .left {
+                i {
+                  transform: rotate(90deg);
+                  transition: 0.24s;
+                }
+              }
+            }
+            display: flex;
+            .left {
+              width: 25px;
+              display: flex;
+              justify-content: left;
+              align-items: center;
+            }
+            .right {
+              flex: 1;
+              .top {
+                display: flex;
+                .icon {
+                  width: 40px;
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  i {
+                    cursor: pointer;
+                    padding: 0px 2px;
+                    color: @primary-color;
+                  }
+                }
+                p {
+                  flex: 1;
+                  margin-right: 10px;
+                  height: 24px;
+                  line-height: 24px;
+                  .text {
+                    padding: 0px 6px;
+                    &:hover {
+                      background: #d9d9d9;
+                    }
+                  }
+                  .editorIcon {
+                    color: @primary-color;
+                    cursor: pointer;
+                    padding: 0px 4px;
+                    visibility: hidden;
+                  }
+                }
+              }
+              p.desc {
+								margin-top: 4px;
+								color: @text-color-secondary;
+              }
+            }
+          }
+          &-content {
+            padding: 8px 0px;
+            background: #fff;
+            .fields {
+              padding: 0px 10px;
+            }
+          }
+          /deep/ .ant-spin-nested-loading > div > .ant-spin .ant-spin-dot {
+            position: absolute;
+            top: 15%;
+            left: 50%;
+          }
+        }
+        p {
+          height: 20px;
+          line-height: 20px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          background: none;
+          margin: 0px;
+        }
+      }
+    }
+  }
+  .add {
+    height: 30px;
+    line-height: 30px;
+    border-top: 1px solid @border-color-base;
+    cursor: pointer;
+    color: @primary-color;
+    display: flex;
+    span {
+      flex: 1;
+      text-align: center;
+    }
+  }
+}
+.chart-edit{
+	/deep/&.report-chart-panel > .header{
+		padding-left: 40px;
+	}
+}
+.back-query{
+	position: absolute;
+	top: 24px;
+	left: 20px;
+	padding: 8px;
+	font-size: 24px;
+}
+.close-chart{
+	position: absolute;
+	top: 0;
+	right: 0;
+	padding: 8px;
+	font-size: 1.1em;
+}
+</style>

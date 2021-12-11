@@ -1,0 +1,769 @@
+<template>
+  <div class="table-list">
+    <a-row class="antd-table-query">
+      <a-col class="query-info" :span="3">
+        <span v-show="!handlestatus" @click="onSendMsg">消息通知</span>
+      </a-col>
+      <a-col class="query-serach" :span="21">
+        <dict-select
+          class="queryitem"
+          style="width: 160px; height: 37px"
+          dict="usermanage.org.systype"
+          v-model="search.systype"
+          placeholder="全部序列"
+        ></dict-select>
+        <dict-select
+          v-if="handlestatus == 0 || handlestatus == 1"
+          class="queryitem"
+          style="width: 160px; height: 37px"
+          dict="person.shaoxing.monitor.businesstype"
+          v-model="search.businesstype"
+          placeholder="全部类别"
+        ></dict-select>
+        <a-select
+          v-if="handlestatus == 0"
+          class="queryitem"
+          style="width: 160px"
+          placeholder="全部状态"
+          @change="onStatusChange"
+        >
+          <a-select-option :value="0">未通知</a-select-option>
+          <a-select-option :value="1">已通知</a-select-option>
+        </a-select>
+        <a-input
+          class="queryitem"
+          style="width: 160px"
+          placeholder="请输入关键词"
+          v-model="search.searchkey"
+        >
+        </a-input>
+        <a-button class="queryitem" type="primary" @click="onSearch"
+          >搜索</a-button
+        >
+        <a-button class="queryitem" @click="onReset">重置</a-button>
+      </a-col>
+    </a-row>
+    <a-table
+      class="antd-table-con"
+      rowKey="id"
+      :columns="initColumn"
+      :dataSource="tableData"
+      :pagination="false"
+      :loading="loading"
+      :rowSelection="rowSelection"
+      @expand="expandChildlist"
+      :expandedRowKeys="expandedRowKeys"
+    >
+      <span slot="operation" class="operation" slot-scope="text, record">
+        <!-- 未整改 -->
+        <template v-if="handlestatus == 0 || handlestatus == 5">
+          <a
+            :style="record.blackliststatus == 0 ? '' : 'color:gray'"
+            @click="record.blackliststatus == 0 && onAddBlacklist(record.id)"
+          >
+            加入黑名单
+          </a>
+          <a
+            :style="record.defer == 0 ? '' : 'color:gray'"
+            @click="record.defer == 0 && onAddDefer(record.id)"
+          >
+            加入暂缓
+          </a>
+          <a @click="onShowDetail(record.description)">查看详情</a>
+        </template>
+        <template v-if="handlestatus == 1">
+          <a @click="onShowDetail(record.description)">查看详情</a>
+        </template>
+        <!-- 机构黑名单 -->
+        <template v-if="handlestatus == 2">
+          <a v-if="record.children" @click="onRemoveAll(record.id)"
+            >取消黑名单</a
+          >
+          <a v-if="!record.children" @click="onCancelBlack(record.id)"
+            >取消黑名单</a
+          >
+          <a v-if="!record.children" @click="onShowBlacklist(record.id)"
+            >查看详情</a
+          >
+        </template>
+        <template v-if="handlestatus == 3">
+          <a @click="onCancelDefer(record.id)">取消暂缓</a>
+          <a @click="onShowDetail(record.description)">查看详情</a>
+        </template>
+        <!-- <a>授权</a> -->
+      </span>
+    </a-table>
+    <div class="footer">
+      <a-pagination
+        v-if="tableData && tableData.length"
+        showSizeChanger
+        :showTotal="(total) => `总共：${total}条`"
+        @showSizeChange="onShowSizeChange"
+        :total="pagination.total"
+        :pageSize="pagination.pagesize"
+        v-model="pagination.pagenum"
+        @change="onPageChange"
+      />
+    </div>
+    <a-modal
+      title="添加角色"
+      :footer="null"
+      v-model="blackvisible"
+      width="1000px"
+      :bodyStyle="{ height: '520px', padding: 0, overflow: 'hidden' }"
+    >
+      <!-- <add-role :bookid="bookid" @finish="onAddRole"></add-role> -->
+      <black-detail :problemid="problemid"></black-detail>
+    </a-modal>
+
+    <a-modal
+      centered
+      v-model="detailVisible"
+      title="详情"
+      ok-text="确认"
+      cancel-text="取消"
+      :footer="null"
+    >
+      <p>{{ detailContent }}</p>
+    </a-modal>
+  </div>
+</template>
+<script>
+import {
+  Row,
+  Col,
+  Input,
+  Table,
+  Pagination,
+  Button,
+  Modal,
+  Select,
+} from "ant-design-vue";
+import DictSelect from "@/framework/components/DictSelect";
+import BlackDetail from "@/person-shaoxing/views/monitor/issueTracking/BlackDetail";
+import {
+  Listproblem,
+  orgBlacklist,
+  problemblackList,
+  addblackList,
+  addDefer,
+  removeBlacklist,
+  batchremove,
+  problemmonitorMsg,
+  removeDefer,
+} from "@/person-shaoxing/api/monitor";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: "TableList",
+  props: ["district", "orgid", "showChart", "title"],
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AInput: Input,
+    ATable: Table,
+    AButton: Button,
+    APagination: Pagination,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AModal: Modal,
+    DictSelect,
+    BlackDetail,
+  },
+  watch: {
+    district: {
+      handler() {
+        this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+      },
+      immediate: true
+    },
+    title: {
+      handler(val) {
+        if (val == "未处理") {
+          this.handlestatus = 0;
+          this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+        } else if (val == "黑名单机构") {
+          this.handlestatus = 2;
+          this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+        } else if (val == "已处理") {
+          this.handlestatus = 1;
+          this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+        } else if (val == "暂缓解决问题") {
+          this.handlestatus = 3;
+          this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+        } else{
+          this.handlestatus = 5;
+          this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+        }
+      },
+      immediate: true,
+    },
+    handlestatus: {
+      handler(val) {
+        for (let key in this.search) {
+          this.search[key] = undefined;
+        }
+        if (val) {
+          if (val == 2) {
+            this.search.businesstype = undefined;
+            this.initColumn = [
+              { title: '名称', dataIndex: 'orgname', width:'20%' },
+              { title: '类别', dataIndex: 'businesstype', customRender: this.dictRender('person.shaoxing.monitor.businesstype'), width:'20%' },
+              { title: '关联问题数', dataIndex: 'number', width:'20%' },
+              { title: '添加时间', dataIndex: 'createtime', customRender: (text) => (text && text.substr(0, 10)), width:'20%' },       
+              { title: "操作", scopedSlots: { customRender: "operation" }, width:'20%' }
+            ];
+          } else if (val == 3) {
+            this.initColumn = [
+              {
+                title: "类别",
+                dataIndex: "businesstype",
+                customRender: this.dictRender(
+                  "person.shaoxing.monitor.businesstype"
+                ),
+                width: "10%",
+              },
+              { title: "名称", dataIndex: "orgname", customRender: text => <span title={text}>{text}</span>,width: "15%" },
+              {
+                title: "问题或异动情况描述",
+                dataIndex: "description",
+                customRender: text => <span title={text}>{text}</span>,
+                width: "40%",
+              },
+              {
+                title: "发现时间",
+                dataIndex: "discovertime",
+                customRender: (text) => text && text.substr(0, 10),
+                width: "12%",
+              },
+              {
+                title: "暂缓时间",
+                dataIndex: "defertime",
+                customRender: (text) => text && text.substr(0, 10),
+                width: "12%",
+              },
+              {
+                title: "操作",
+                scopedSlots: { customRender: "operation" },
+                width: "20%",
+              },
+            ];
+          }else if(val == 5) {
+            this.initColumn = [
+            {
+              title: "类别",
+              dataIndex: "businesstype",
+              customRender: this.dictRender(
+                "person.shaoxing.monitor.businesstype"
+              ),
+              width: "10%",
+            },
+            { title: "相关部门", dataIndex: "orgname", customRender: text => <span title={text}>{text}</span>,width: "15%" },
+            {
+              title: "问题或异动情况描述",
+              dataIndex: "description",
+              customRender: text => <span title={text}>{text}</span>,
+              width: "30%",
+            },
+            {
+              title: "发现时间",
+              dataIndex: "discovertime",
+              customRender: (text) => text && text.substr(0, 10),
+              width: "12%",
+            },
+            {
+              title: "状态",
+              dataIndex: "handlestatus",
+              customRender: (text) => (text == 0 ? "未通知" : "已通知"),
+              width: "7.5%",
+            },
+            {
+              title: "操作",
+              scopedSlots: { customRender: "operation" },
+              width: "25%",
+            },
+          ];
+          this.rowSelection = {
+            onChange: (selectedRowKeys, selectedRows) => {
+              this.selectedRows = selectedRows;
+              this.selectedRowKeys = selectedRowKeys;
+            },
+          };
+          } else {
+            this.initColumn = [
+              {
+                title: "类别",
+                dataIndex: "businesstype",
+                customRender: this.dictRender(
+                  "person.shaoxing.monitor.businesstype"
+                ),
+                width: "10%",
+              },
+              { title: "相关部门", dataIndex: "orgname",customRender: text => <span title={text}>{text}</span>, width: "20%" },
+              {
+                title: "问题或异动情况描述",
+                dataIndex: "description",
+                customRender: text => <span title={text}>{text}</span>,
+                width: "50%",
+              },
+              {
+                title: "发现时间",
+                dataIndex: "discovertime",
+                customRender: (text) => text && text.substr(0, 10),
+                width: "10%",
+              },
+              {
+                title: "操作",
+                scopedSlots: { customRender: "operation" },
+                width: "10%",
+              },
+            ];
+          }
+          this.rowSelection = null;
+          this.search.noticestatus = undefined;
+        } else {
+          this.initColumn = [
+            {
+              title: "类别",
+              dataIndex: "businesstype",
+              customRender: this.dictRender(
+                "person.shaoxing.monitor.businesstype"
+              ),
+              width: "10%",
+            },
+            { title: "相关部门", dataIndex: "orgname",customRender: text => <span title={text}>{text}</span>, width: "15%" },
+            {
+              title: "问题或异动情况描述",
+              dataIndex: "description",
+              customRender: text => <span title={text}>{text}</span>,
+              width: "30%",
+            },
+            {
+              title: "发现时间",
+              dataIndex: "discovertime",
+              customRender: (text) => text && text.substr(0, 10),
+              width: "12%",
+            },
+            {
+              title: "状态",
+              dataIndex: "handlestatus",
+              customRender: (text) => (text == 0 ? "未通知" : "已通知"),
+              width: "7.5%",
+            },
+            {
+              title: "操作",
+              scopedSlots: { customRender: "operation" },
+              width: "25%",
+            },
+          ];
+          this.rowSelection = {
+            onChange: (selectedRowKeys, selectedRows) => {
+              this.selectedRows = selectedRows;
+              this.selectedRowKeys = selectedRowKeys;
+            },
+          };
+        }
+      },
+      immediate: true,
+    },
+  },
+  data() {
+    return {
+      initColumn: [
+        {
+          title: "类别",
+          dataIndex: "businesstype",
+          customRender: this.dictRender("person.shaoxing.monitor.businesstype"),
+          width: "10%",
+        },
+        { title: "相关部门", dataIndex: "orgname", customRender: text => <span title={text}>{text}</span>,width: "15%" },
+        { title: "问题或异动情况描述", dataIndex: "description", customRender: text => <span title={text}>{text}</span>, width: "40%" },
+        {
+          title: "发现时间",
+          dataIndex: "discovertime",
+          customRender: (text) => text && text.substr(0, 10),
+          width: "12%",
+        },
+        {
+          title: "状态",
+          dataIndex: "handlestatus",
+          customRender: (text) => (text ? "未通知" : "已通知"),
+          width: "7.5%",
+        },
+        {
+          title: "操作",
+          scopedSlots: { customRender: "operation" },
+          width: "20%",
+        },
+      ],
+      tableData: [],
+      loading: false,
+      search: {
+        searchkey: undefined,
+        systype: undefined,
+        businesstype: undefined,
+        noticestatus: undefined,
+      },
+      pagination: {
+        total: 0,
+        pagenum: 1,
+        pagesize: 10,
+      },
+      blackvisible: false,
+      problemid: undefined,
+      handlestatus: 0,
+      selectedRowKeys: [],
+      selectedRow: [],
+      rowSelection: null,
+      expandedRowKeys: [],
+      detailContent: undefined,
+      detailVisible: false,
+    };
+  },
+  created() {},
+  methods: {
+    getData(page) {
+      this.loading = true;
+      let params = {
+        ...this.search,
+        ...page,
+        orgid: this.orgid,
+        needtotal: true,
+        district: this.district,
+        handlestatus: this.handlestatus,
+      };
+      params.defer = this.handlestatus == 3 ? 1 : undefined;
+      if (this.handlestatus == 2) {
+        // 黑名单列表
+        orgBlacklist(params)
+          .then(({ result }) => {
+            this.loading = false;
+            this.pagination = result;
+            this.tableData = result.rows;
+          })
+          .catch((err) => {
+            this.loading = false;
+            showError(err);
+          });
+      }else if (this.handlestatus == 5) {
+        this.loading = true;
+        let params = {
+          ...this.search,
+          ...page,
+          orgid: this.orgid,
+          needtotal: true,
+          district: this.district,
+          defer:0
+        };
+        Listproblem(params)
+          .then(({ result }) => {
+            this.loading = false;
+            this.pagination = result;
+            this.tableData = result.rows;
+          })
+          .catch((err) => {
+            this.loading = false;
+            showError(err);
+          });
+      } else {
+        Listproblem(params)
+          .then(({ result }) => {
+            this.loading = false;
+            this.pagination = result;
+            this.tableData = result.rows;
+          })
+          .catch((err) => {
+            this.loading = false;
+            showError(err);
+          });
+      }
+    },
+    dictRender(key, attr) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    onSearch() {
+      this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+    },
+    onReset() {
+      for (let key in this.search) {
+        this.search[key] = undefined;
+      }
+      this.getData({ pagenum: 1, pagesize: this.pagination.pagesize });
+    },
+    onPageChange(pagenum, pagesize) {
+      this.getData({ pagenum, pagesize });
+    },
+    onShowSizeChange(pagenum, pagesize) {
+      this.getData({ pagenum: 1, pagesize });
+    },
+    onStatusChange(value) {
+      this.search.noticestatus = value;
+    },
+    expandChildlist(expanded, record) {
+      if (expanded) {
+        if (!record.expanded) {
+          //请求一次后不需要再次请求
+          let params = {
+            ...this.search,
+            orgblacklistid: record.id,
+            orgid: record.orgid,
+          };
+          problemblackList(params)
+            .then(({ result }) => {
+              this.loading = false;
+              (result || []).forEach((item) => {
+                record.children.push(item);
+              });
+              record.expanded = true;
+              this.expandedRowKeys.push(record.id);
+            })
+            .catch((err) => {
+              this.loading = false;
+              showError(err);
+            });
+        } else {
+          this.expandedRowKeys.push(record.id);
+        }
+      } else {
+        this.expandedRowKeys.splice(
+          this.expandedRowKeys.findIndex((item) => item == record.id),
+          1
+        );
+      }
+    },
+    onSendMsg() {
+      if (this.selectedRowKeys.length > 0) {
+        let arr = [];
+        this.selectedRows.forEach((item) => {
+          arr.push(item.id);
+        });
+        let ids = arr.join(",");
+        problemmonitorMsg(ids)
+          .then((res) => {
+            this.$notification.success({
+              message: "提示",
+              description: "通知成功",
+              duration: 3,
+            });
+            this.getData({
+              pagenum: this.pagination.pagenum,
+              pagesize: this.pagination.pagesize,
+            });
+          })
+          .catch((err) => {
+            showError(err);
+          });
+      } else {
+        this.$notification.warning({
+          message: "提示",
+          description: "请选择",
+          duration: 3,
+        });
+      }
+    },
+    onAddBlacklist(id) {
+      if (id) {
+        let that = this;
+        that.$confirm({
+          title: "确认加入黑名单?",
+          onOk() {
+            addblackList(id)
+              .then((res) => {
+                that.$notification.warning({
+                  message: "提示",
+                  description: "加入黑名单成功!",
+                  duration: 3,
+                });
+                that.getData({
+                  pagenum: that.pagination.pagenum,
+                  pagesize: that.pagination.pagesize,
+                });
+              })
+              .catch((error) => {
+                showError(error);
+              });
+          },
+          onCancel() {},
+        });
+      }
+    },
+    //  加入暂缓
+    onAddDefer(id) {
+      if (id) {
+        let that = this;
+        that.$confirm({
+          title: "确认加入暂缓?",
+          onOk() {
+            addDefer(id)
+              .then((res) => {
+                that.$notification.warning({
+                  message: "提示",
+                  description: "加入暂缓成功!",
+                  duration: 3,
+                });
+                that.getData({
+                  pagenum: that.pagination.pagenum,
+                  pagesize: that.pagination.pagesize,
+                });
+              })
+              .catch((error) => {
+                showError(error);
+              });
+          },
+          onCancel() {},
+        });
+      }
+    },
+    //  取消黑名单
+    onCancelBlack(id) {
+      if (id) {
+        let that = this;
+        that.$confirm({
+          title: "确认移除黑名单?",
+          onOk() {
+            removeBlacklist(id)
+              .then((res) => {
+                that.$notification.warning({
+                  message: "提示",
+                  description: "移除黑名单成功!",
+                  duration: 3,
+                });
+                that.getData({
+                  pagenum: that.pagination.pagenum,
+                  pagesize: that.pagination.pagesize,
+                });
+              })
+              .catch((error) => {
+                showError(error);
+              });
+          },
+          onCancel() {},
+        });
+      }
+    },
+    //  取消黑名单
+    onRemoveAll(id) {
+      if (id) {
+        let that = this;
+        that.$confirm({
+          title: "确认移除黑名单?",
+          onOk() {
+            batchremove(id)
+              .then((res) => {
+                that.$notification.warning({
+                  message: "提示",
+                  description: "移除黑名单成功!",
+                  duration: 3,
+                });
+                that.getData({
+                  pagenum: that.pagination.pagenum,
+                  pagesize: that.pagination.pagesize,
+                });
+              })
+              .catch((error) => {
+                showError(error);
+              });
+          },
+          onCancel() {},
+        });
+      }
+    },
+    //  查看黑名单详情
+    onShowBlacklist(id) {
+      this.problemid = id;
+      this.blackvisible = true;
+    },
+    //  取消暂缓
+    onCancelDefer(id) {
+      if (id) {
+        let that = this;
+        that.$confirm({
+          title: "确认移除暂缓?",
+          onOk() {
+            removeDefer(id)
+              .then((res) => {
+                that.$notification.warning({
+                  message: "提示",
+                  description: "移除暂缓成功!",
+                  duration: 3,
+                });
+                that.getData({
+                  pagenum: that.pagination.pagenum,
+                  pagesize: that.pagination.pagesize,
+                });
+              })
+              .catch((error) => {
+                showError(error);
+              });
+          },
+          onCancel() {},
+        });
+      }
+    },
+    onShowDetail(content) {
+      this.detailVisible = true;
+      this.detailContent = content;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.table-list {
+  .antd-table-query {
+    margin-top: 20px;
+    padding: @content-padding-v @content-padding-h;
+    .query-info {
+      span {
+        display: inline-block;
+        padding: 0 10px;
+        height: 32px;
+        line-height: 32px;
+        background-color: @primary-color;
+        color: @white;
+        border-radius: 5%;
+        cursor: pointer;
+      }
+    }
+    .query-serach {
+      display: flex;
+      justify-content: flex-end;
+      .queryitem {
+        margin-left: 20px;
+        // height: 37px;
+      }
+    }
+  }
+  .antd-table-con {
+    padding: @content-padding-v @content-padding-h;
+    /deep/table {
+      table-layout: fixed;
+      td,
+      th {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+    .operation {
+      a {
+        margin-right: 15px;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+  .footer {
+    display: flex;
+    justify-content: flex-end;
+    // align-items: flex-end;
+    // position: absolute;
+    // bottom: 0;
+    // right: 0;
+    padding: 12px @content-padding-h;
+  }
+}
+</style>

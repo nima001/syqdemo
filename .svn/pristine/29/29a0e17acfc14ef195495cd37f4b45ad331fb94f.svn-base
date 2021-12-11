@@ -1,0 +1,22 @@
+<template>
+  <svg class="icon" aria-hidden="true">
+    <use :xlink:href="`#icon-${type}`" />
+  </svg>
+</template>
+
+<script>
+import "../assets/iconfont";
+export default {
+  name: "Icon",
+  props: ["type"]
+};
+</script>
+<style lang="less" scoped>
+.icon {
+  width: 20px;
+  height: 20px;
+  vertical-align: -0.28em;
+  fill: currentColor;
+  overflow: hidden;
+}
+</style>

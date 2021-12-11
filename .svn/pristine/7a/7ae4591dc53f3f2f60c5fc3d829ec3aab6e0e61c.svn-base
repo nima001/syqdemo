@@ -1,0 +1,49 @@
+import Layout from '../../views/Layout'
+
+/**
+ * 机构编制统计模块路由（预警预报）
+ */
+export const orgStaffReportRoutes = {
+  path: '/person',
+  component: Layout,
+  children: [
+    {
+      path: 'orgstaffreport',
+      component: () => import('../../views/orgStaffReport/index'),
+      name: 'orgStaffReportIndex',
+      meta: {
+        access: 'login',
+        path: [{ name: '预警预报', path: '/person/orgstaffreport' }]
+      }
+    },
+    {
+      path: 'overview',
+      component: () => import('@/person-shaoxing/views/overview/index'),
+      name: 'overview',
+      meta: {
+        access: 'login',
+        path: [{ name: '一图总览', path: '/person/overview' }]
+      }
+    }
+  ]
+}
+
+/**
+ * 可视化大屏
+ */
+export const visualScreen = [
+  {
+    path: '/person/screen/index',
+    component: () => import('@/person-shaoxing/views/visualscreen/index'),
+    meta: {
+      access: 'login'
+    }
+  },
+  {
+    path: '/person/screen/detail',
+    component: () => import('@/person-shaoxing/views/visualscreen/ScreenDetail'),
+    meta: {
+      access: 'login'
+    }
+  }
+]

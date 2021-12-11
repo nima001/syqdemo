@@ -1,0 +1,109 @@
+<template>
+  <a-collapse v-model="activeKey" :bordered="false" style="background-color: unset">
+    <a-collapse-panel
+      class="y-setting"
+      key="9"
+      v-if="chartData.settings.chartType!='pie-chart'&&chartData.settings.chartType!='ring-chart'&&chartData.settings.chartType!='radar-chart'"
+      header="y轴"
+      :disabled="chartData.settings.yAxis.disabled == false"
+    >
+      <template v-slot:extra>
+        <a-switch @click="(check, e) => { e.stopPropagation();open('9');}" v-model="chartData.settings.yAxis.disabled"/>
+      </template>
+      <a-collapse v-model="activeKey" :bordered="false" style="background-color: unset">
+        <a-collapse-panel
+          class="titlesetting"
+          key="10"
+          header="标题"
+          :disabled="chartData.settings.yAxis.title.disabled==false"
+        >
+          <template v-slot:extra>
+            <a-switch @click="(check, e) => { e.stopPropagation();open('10'); }" v-model="chartData.settings.yAxis.title.disabled"/>
+          </template>
+          <div class="content">
+            <span>内容</span>
+            <a-input v-model="chartData.settings.yAxis.title.content" />
+          </div>
+        </a-collapse-panel>
+        <div class="grid">
+          <span>网格线</span>
+          <a-switch @click="(check, e) => { e.stopPropagation(); }" v-model="chartData.settings.yAxis.grid"/>
+        </div>
+      </a-collapse>
+    </a-collapse-panel>
+  </a-collapse>
+</template>
+
+<script>
+import { Input, Collapse, Switch, Radio } from "ant-design-vue";
+export default {
+  props: {
+    value: {
+      type: Object,
+    },
+  },
+  components: {
+    AInput: Input,
+    ASwitch: Switch,
+    ARadioButton: Radio.Button,
+    ARadioGroup: Radio.Group,
+    ACollapse: Collapse,
+    ACollapsePanel: Collapse.Panel,
+  },
+  data() {
+    return {
+      activeKey: undefined,
+      chartData: this.value,
+    };
+  },
+  watch: {
+    chartData: {
+      deep: true,
+      handler(val) {
+        this.$emit("input", val);
+      },
+    },
+  },
+  methods: {
+    open(key) {
+      if (this.activeKey && this.activeKey.length) {
+        let index = this.activeKey.indexOf(key);
+        if (index >= 0) {
+          this.activeKey.splice(index, 1);
+        }
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.y-setting {
+  /deep/.titlesetting {
+    border-bottom: 0;
+    & .ant-collapse-header {
+      padding-right: 0;
+    }
+    & .ant-collapse-content-box {
+      padding-left: @padding-lg*2;
+      padding-right: 0;
+      .content {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        span {
+          white-space: nowrap;
+        }
+        .ant-input {
+          margin-left: @padding-lg;
+        }
+      }
+    }
+  }
+  .grid {
+    padding-left: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+}
+</style>

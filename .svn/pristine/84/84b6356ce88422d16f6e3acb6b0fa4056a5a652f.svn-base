@@ -1,0 +1,109 @@
+<template>
+  <div class="wrap">
+    <p class="title">超编、超职机构数监测</p>
+    <div class="content">
+      <swiper :size="formatList['length']" :slideSyle="slideSyle">
+        <template v-for="(item,index) in formatList" :slot="'swiper'+`${index}`">
+          <monitot-item :list="item" :key="index"></monitot-item>
+        </template>
+      </swiper>
+    </div>
+  </div>
+</template>
+
+<script>
+import Swiper from "../components/Swiper";
+import { sliceArr } from "@/person-shaoxing/utils/index";
+import MonitotItem from "./MonitotItem";
+import { orgCountErrortReport } from "@/person-shaoxing/api/orgStaffReport";
+import { mixins } from "../components/minxin";
+import { showError} from "@/framework/utils/index";
+export default {
+  components: {
+    Swiper,
+    MonitotItem
+  },
+  data() {
+    return {
+      list: [
+        { name: "超编行政机构数", number: 18 },
+        { name: "超编事业单位数", number: 6 },
+        { name: "领导超职行政机构数", number: 43 },
+        { name: "领导超职事业单位数", number: 21 },
+        { name: "超编行政机构数", number: 20 },
+        { name: "超编事业单位数", number: 89 },
+        { name: "领导超职行政机构数", number: 68 },
+        { name: "领导超职事业单位数", number: 46 }
+      ],
+      slideSyle: {
+        padding: "0px"
+      }
+    };
+  },
+  mixins:[mixins],
+  watch:{
+    dictId(v){
+
+    }
+  },
+  computed: {
+    formatList() {
+      return sliceArr(this.list, 4);
+    }
+  },
+  mounted(){
+    this.orgCount()
+  },
+  methods:{
+    orgCount(){
+      orgCountErrortReport(this.dictId).then(res=>{
+
+      }).catch(err=>{
+        showError(err)
+      })
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  padding-bottom: 35px;
+  .title {
+    height: 26px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.8;
+    margin: 0px;
+  }
+  .content {
+    height: 248px;
+  }
+  .swiperSpot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 10px 0px 0px;
+    li {
+      width: 12px;
+      height: 12px;
+      background: #8fc7ff;
+      border-radius: 50%;
+      opacity: 0.4;
+      margin-right: 20px;
+      cursor: pointer;
+      &.active {
+        width: 36px;
+        height: 36px;
+        background: url("../img/spot.png");
+        margin-right: 10px;
+      }
+      &:last-child {
+        margin-right: 0px;
+      }
+    }
+  }
+}
+</style>

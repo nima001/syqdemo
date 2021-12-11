@@ -1,0 +1,230 @@
+<template>
+  <div class="wrap">
+    <div :id="id"></div>
+  </div>
+</template>
+
+<script>
+import { Column } from "@antv/g2plot";
+import BaseMixin from "./BaseMixin"
+export default {
+  mixins: [BaseMixin],
+  data() {
+    return {
+      id: Math.random().toString(36).substr(2),
+      plot: undefined,
+      label:[],
+    };
+  },
+  watch: {
+    district(val) {
+      if(val) {
+        this.draw(this.data);
+      }
+      return val;
+    }
+  },
+  computed: {
+    colors(){
+      let colors = this.$store.getters.getConfig('chart.colors');
+      if(colors){
+        try{
+          colors = JSON.parse(colors)
+          if(colors && colors.length){
+            return colors;
+          }
+        }catch(err){
+
+        }
+      }
+      return ["#D15456","#5488D1","#EDBA55","#D48265","#91C7AE","#749F83","#BDA29A","#6E7074","#585470","#706254"]
+    },
+    district() {
+      return this.$store.getters.dict(this.data.keyCols[0].key);
+    }
+  },
+  mounted() {
+    if(this.district) {
+      this.draw(this.data);
+    }
+  },
+  methods: {
+    createData(dataTable) {
+      if (!dataTable) {
+        return;
+      }
+      let { keyCols, valueCols, rows } = dataTable;
+      let datas = [];
+      rows.map((item) => {
+        let key = keyCols[0];
+        this.label.push(item[valueCols[0].column]);
+        if(this.district) {
+          datas.push({
+            key: this.district.filter((filterItem)=>filterItem['value']==item[key.column])[0].text,
+            type: valueCols[1].key,
+            value: item[valueCols[1].column] || 0,
+          });
+          datas.push({
+            key: this.district.filter((filterItem)=>filterItem['value']==item[key.column])[0].text,
+            type: valueCols[2].key,
+            value: item[valueCols[2].column] || 0,
+          });
+        }
+      });
+      return datas;
+    },
+    draw(dataTable) {
+      let data = this.createData(dataTable);
+      if (!data) {
+        return;
+      }
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      let annotationdata = [];
+      annotationdata = this.annotation(data);
+      let color = this.colorRgba(this.settings.color[0]||this.colors[0], "20%");
+      const column = new Column(this.id, {
+        data,
+        isStack: true,
+        xField: "key",
+        yField: "value",
+        seriesField: 'type',
+        appendPadding: [50, 20, 0, 0],
+        legend: {
+            position: 'top-left',
+            layout: 'horizontal',
+            marker: {
+              symbol: 'circle',
+            }
+        },
+        color: this.settings.color||this.colors,
+        columnBackground: {
+          style: {
+            fill: color,
+          },
+        },
+        xAxis: {
+          //x轴配置
+          tickLine: null,
+          line: null,
+          title: {
+            text: "区域",
+            spacing: 10,
+            style: {
+              fill: "#D0D0D0",
+            },
+          },
+        },
+        yAxis: {
+          //x轴配置
+          tickLine: null,
+          line: null,
+          title: {
+            text: "事项数",
+            spacing: 10,
+            style: {
+              fill: "#D0D0D0",
+            },
+          },
+        },
+        minColumnWidth: 28,
+        maxColumnWidth: 28,
+        annotations: annotationdata, //标注
+        interactions: [{ type: "active-region", enable: false }],
+      });
+      this.changeAnnotation(column,data);
+      column.render();
+      this.plot = column;
+    },
+    //图例点击
+    changeAnnotation(column,data){
+      let { keyCols, valueCols, rows } = this.data;
+      column.on('legend-item:click', (...args) => {
+          this.label = [];
+          if(args[0].view.filteredData.length) {
+            if(args[0].view.filteredData.length===data.length) {
+              rows.map((item) => {
+                this.label.push(item[valueCols[0].column]);
+              });
+            }else if(args[0].view.filteredData.length===(data.length/2)){
+              let type = args[0].view.filteredData[0].type;
+              let filterData = data.filter((item)=>item.type === type);
+              filterData.map((item) => {
+                this.label.push(item.value);
+              });
+            }
+            column.options.annotations.forEach((item,index)=>{
+              if(index%(valueCols.length-1)===0) {
+                column.options.annotations[index]['content'] = this.label[index/(valueCols.length-1)];
+              }else{
+                column.options.annotations[index]['content'] = undefined;
+              }
+            });
+          }else{
+            column.options.annotations.forEach((item,index)=>{
+              column.options.annotations[index]['content']=  [];
+            });
+          }
+          column.changeData(data);
+      });
+    },
+    annotation(data) {
+      let annotationdata = [];
+      data.forEach((item,index) => {
+          annotationdata.push({
+            type: "text",
+            animate: false,
+            position: [item.key, "max"],
+            content: index%(this.data.valueCols.length-1)===0?this.label[index/(this.data.valueCols.length-1)]:undefined,
+            style: {
+              fill: this.settings.color[1]||this.colors[1],
+              textAlign: "center",
+            },
+            offsetY: -20,
+          });
+      });
+      return annotationdata;
+    },
+    colorRgba(sHex, alpha) {
+    // 十六进制颜色值的正则表达式
+      var reg = /^#([0-9a-fA-f]{3}|[0-9a-fA-f]{6})$/
+      /* 16进制颜色转为RGB格式 */
+      let sColor = sHex;
+      if (sColor && reg.test(sColor)) {
+        if (sColor.length === 4) {
+          var sColorNew = '#'
+          for (let i = 1; i < 4; i += 1) {
+            sColorNew += sColor.slice(i, i + 1).concat(sColor.slice(i, i + 1))
+          }
+          sColor = sColorNew
+        }
+        // 处理六位的颜色值
+        var sColorChange = []
+        for (let i = 1; i < 7; i += 2) {
+          sColorChange.push(parseInt('0x' + sColor.slice(i, i + 2)))
+        }
+        // return sColorChange.join(',')
+        return 'rgba(' + sColorChange.join(',') + ',' + alpha + ')'
+      } 
+      else {
+        return sColor
+      }
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.wrap {
+  width: 100%;
+  height: 270px;
+  display: flex;
+  flex-direction: column;
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

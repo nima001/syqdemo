@@ -1,0 +1,262 @@
+<template>
+  <div class="container">
+    <a-modal
+      title="附件管理"
+      :width="800"
+      :bodyStyle="{ height: '400px' }"
+      :visible="filemanageModal"
+      :destroyOnClose="true"
+      @ok="handleOk"
+      @cancel="handleCancel"
+    >
+      <a-spin :spinning="spinning">
+        <div class="spin">
+          <a-row>
+            <a-col :span="6">文件上传:</a-col>
+            <a-col :span="17">
+              <a-upload
+                :multiple="true"
+                :before-upload="beforeUpload"
+                :showUploadList="false"
+                @change="handleChange"
+              >
+                <a-button type="primary"><a-icon type="upload" />上传</a-button>
+              </a-upload>
+            </a-col>
+            <a-col :span="6">文件删除:</a-col>
+            <a-col :span="17">
+              <ul v-if="annexList.length">
+                <li
+                  v-for="(item, index) in annexList"
+                  :key="index"
+                  @mouseover.prevent="() => (over = true)"
+                  @mouseleave.prevent="() => (over = false)"
+                >
+                  <span :title="item.annexname">{{ index + 1 }}. {{ item.annexname }}</span>
+                  <span :class="{ active: over }">
+                    <a-icon type="download" title="下载" @click="downDoc(item)"/>
+                    <a-icon type="delete" title="删除" @click="remove(item)"/>
+                  </span>
+                </li>
+              </ul>
+              <div class="emptycontent" v-else>暂无数据</div>
+            </a-col>
+          </a-row>
+        </div>
+      </a-spin>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import { Upload, Button, Row, Col, Icon, Spin } from "ant-design-vue";
+import EmptyData from "@/framework/components/EmptyData";
+import { has, pull } from "lodash";
+import { uploadV2, download } from "@/framework/api/file";
+import { showError } from "@/framework/utils";
+import { annexsave, annexlist } from "@/person-shaoxing/api/information";
+export default {
+  props: {
+    filemanageModal: {
+      //弹窗是否显示
+      type: Boolean,
+    },
+    docid: {
+      //id
+      type: Number,
+    },
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AIcon: Icon,
+    ASpin: Spin,
+    EmptyData,
+    AButton: Button,
+    AUpload: Upload,
+  },
+  data() {
+    return {
+      over: false,
+      annexList: [],
+      spinning: false,
+      documentAnnexVo: {},
+    };
+  },
+  watch: {
+    docid: {
+      immediate: true,
+      handler(val) {
+        if (val) {
+          this.documentAnnexVo.docid = val;
+        }
+      },
+    },
+    filemanageModal: {
+      immediate: true,
+      handler(val) {
+        if (val) {
+          this.getList(this.docid);
+        }
+      }
+    },
+  },
+  methods: {
+    handleCancel() {
+      this.annexList = [];
+      this.$emit("update:filemanageModal", false);
+    },
+    notify(val) {
+      this.$notification.warning({
+        message: "提示",
+        description: val,
+        duration: 3,
+      });
+    },
+    success(val) {
+      this.$notification.success({
+        message: "提示",
+        description: val,
+        duration: 3,
+      });
+    },
+    beforeUpload(file) {
+      return false;
+    },
+    remove(file) {
+      let index = undefined;
+      this.annexList.forEach((item, itemIndex) => {
+        if (item.annexuri === file.annexuri) {
+          index = itemIndex;
+        }
+      });
+      this.annexList.splice(index, 1);
+    },
+    handleChange(info) {
+      if (!has(info.file, "status")) {
+        this.spinning = true;
+        uploadV2(info.file)
+          .then((res) => {
+            if (res.data.code === "success") {
+              this.annexList.push({
+                annexname: res.data.result.name,
+                annexuri: res.data.result.uploadid,
+              });
+            } else {
+              this.notify("文件上传失败!");
+            }
+          })
+          .catch((err) => {
+            showError(err);
+          })
+          .finally(() => {
+            this.spinning = false;
+          });
+      }
+    },
+    getList(docid) {
+      annexlist(docid)
+        .then(({ result }) => {
+          this.annexList = result;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    //文件下载
+    downDoc(record) {
+      if (record.annexuri) {
+        download(record.annexuri);
+      } else {
+        this.$notification.warning({
+          message: "提示",
+          description: "暂无可下载内容!",
+          duration: 3,
+        });
+      }
+    },
+    handleOk() {
+      this.spinning = true;
+      this.documentAnnexVo.annexList = this.annexList;
+      annexsave(this.documentAnnexVo)
+        .then(({code}) => {
+            if(code === 'success') {
+                this.success("保存成功!");
+                this.handleCancel();
+            }else{
+                this.notify("保存失败!");
+            }
+        })
+        .catch((err) => {
+          showError(err);
+        }).finally(()=>{
+            this.spinning = false;
+        });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.container,
+.ant-spin-nested-loading {
+  height: 100%;
+}
+.container {
+  position: absolute;
+}
+.ant-col:nth-child(2n-1) {
+  height: 32px;
+  line-height: 32px;
+  text-align: right;
+}
+.ant-col:nth-child(2n) {
+  margin-left: @layout-space-base;
+}
+.ant-col {
+  margin: @layout-space-base 0;
+  ul {
+    height: 295px;
+    overflow-y: auto;
+    li {
+      height: 32px;
+      padding: 0 @layout-space-base;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.3s;
+      &:hover {
+        background-color: @primary-1;
+      }
+      & span {
+        user-select: none;
+        transition: all 0.3s;
+      }
+      & span:first-child {
+        display: inline-block;
+        max-width: 440px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      & span:last-child .anticon{
+        opacity: 0;
+        margin-right: 0.5em;
+        transition: all .3s;
+        cursor: pointer;
+        &:hover {
+          color: @primary-color;
+          display: inline-block;
+          transform: scale(1.1);
+        }
+      }
+      &:hover span.active .anticon{
+        opacity: 1;
+      }
+    }
+  }
+  .emptycontent {
+    height: 32px;
+    line-height: 32px;
+  }
+}
+</style>

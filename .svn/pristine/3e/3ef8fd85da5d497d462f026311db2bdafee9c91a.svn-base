@@ -1,0 +1,20 @@
+import Layout from '../../views/Layout'
+
+/**
+ * 机构编制统计模块路由（预警预报）
+ */
+export const orgStaffReportRoutes = {
+  path: '/person/orgstaffreport',
+  component: Layout,
+  children: [
+    {
+      path: '',
+      component: () => import('../../views/orgStaffReport/index'),
+      name: 'orgStaffReportIndex',
+      meta: {
+        auth: 'login',
+        path: [{ name: '预警预报', path: '/person/orgstaffreport' }]
+      }
+    },
+  ]
+}

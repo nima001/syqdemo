@@ -1,0 +1,30 @@
+<template>
+  <div class>曲线</div>
+</template>
+
+<script>
+import { transferChart } from "@/hall/api/usermanage";
+import { showError } from "@/framework/utils/index";
+export default {
+  data() {
+    return {};
+  },
+  mounted() {
+    this.getData();
+  },
+  methods: {
+    getData() {
+      transferChart()
+        .then(({ result }) => {
+          console.log(result);
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+//@import url(); 引入公共css类
+</style>

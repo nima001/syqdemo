@@ -1,0 +1,15 @@
+import { connect, mapProps } from '@formily/vue'
+import DictSelect from '@framework/components/DictSelect'
+
+export default connect(
+  DictSelect,
+  mapProps(
+    // { required: 'allowClear' },
+    (props, field) => {
+      // console.log(props, field);
+      return {
+        allowClear: !field.required,
+      }
+    }
+  ),
+)

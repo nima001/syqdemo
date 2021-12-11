@@ -1,0 +1,105 @@
+<template>
+  <div class="multiwrap" @click="showModal">
+    <multi-select :list="list" @delFilter="filterValue"></multi-select>
+    <a-modal
+      title="人员选择"
+      v-model="visible"
+      :footer="null"
+      :width="800"
+      :bodyStyle="{ height: '600px', padding: '0'}"
+    >
+      <org-user-select :mode="mode" :showDept='true' :selected="selected" :maxSelect="800" @finish="selectUser" />
+    </a-modal>
+  </div>
+</template>
+<script>
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+import MultiSelect from "../../../components/MultiSelect";
+import { Modal } from "ant-design-vue";
+export default {
+  name: "TypeTwelve",
+  data() {
+    return {
+      visible: false,
+      selected: []
+    };
+  },
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  components: {
+    AModal: Modal,
+    OrgUserSelect,
+    MultiSelect
+  },
+  computed: {
+    mode() {
+      let { datasource, key } = this.defaultData.field;
+      let deptArr = ['dept','workdept','admin@user.dept','admin@user.workdept'];
+      return datasource == "user" ? "user" : deptArr.includes(key) ? "dept" : "org";
+    },
+    list() {
+      return this.defaultData.value ? this.defaultData.value : [];
+    }
+  },
+  methods: {
+    showModal() {
+      this.visible = !this.visible;
+      this.selected = this.defaultData.value || [];
+    },
+    selectUser(type, list) {
+      this.visible = false;
+      if (type == "ok" && list.length) {
+        let value = this.filterData(list);
+        this.$store.commit({
+          type: "SET_VALUE",
+          position: this.position,
+          value
+        });
+      }
+    },
+    filterData(arr) {
+      let arrList = [];
+      for (let i = 0; i < arr.length; i++) {
+        let obj = {};
+        obj._id = arr[i]._id;
+        obj.username = arr[i].username;
+        arrList.push(obj);
+      }
+      return arrList;
+    },
+    filterValue(_id) {
+      let arrList = this.defaultData.value;
+      let newValue = arrList.filter(item => {
+        return _id != item._id;
+      });
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value: newValue
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.multiwrap {
+  // flex: 1;
+  width: 320px;
+  border: 1px solid #d9d9d9;
+  padding: 0px 10px;
+  line-height: 30px;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  min-height: 30px;
+  box-sizing: border-box;
+}
+</style>

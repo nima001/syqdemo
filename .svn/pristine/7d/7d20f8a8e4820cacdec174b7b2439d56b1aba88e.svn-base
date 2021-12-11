@@ -1,0 +1,23 @@
+/** 
+ * 信息服务模块路由
+*/
+import Layout from '../../views/Layout'
+
+export const informationRoutes = {
+    path: '/person/information',
+    component: Layout,
+    children: [
+        {
+            path: 'intelligent',
+            component: () => import('../../views/information/intelligentSearch/Intelligent.vue'),
+            name: 'intelligent',
+            meta: { path: [{ name: '智能搜索', path: '/person/information/intelligent' }] }
+        },
+        {
+            path: 'orgline',
+            component: () => import('../../views/orgline/index.vue'),
+            name: 'orgline',
+            meta: {path: [{ name: '条线配置', path: '/person/information/orgline' }] }
+        }
+    ]
+}

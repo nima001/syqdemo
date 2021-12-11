@@ -1,0 +1,101 @@
+<template>
+  <div class="wrap" >
+    <loading v-if="loading"/>
+    <template v-else>
+      <p class="title">告警信息</p>
+      <ul class="warnList">
+        <li class="warnItem" v-for="(item,index) in list" :key="index">
+          <!-- <span class="name">【{{item.name}}】</span> -->
+          <span class="detail">{{item.content}}</span>
+        </li>
+      </ul>
+    </template>
+  </div>
+</template>
+
+<script>
+import { alarmMsg } from "@/person-shaoxing/api/orgStaffReport";
+import { mixins } from "../components/minxin";
+import { showError } from "@/framework/utils/index";
+import LcdFont from "../components/LcdFont";
+import Loading from "../components/Loading";
+export default {
+  components:{
+    Loading
+  },
+  data() {
+    return {
+      list: [],
+      loading:true,
+    };
+  },
+  mixins: [mixins],
+  watch: {
+    dictId(v) {
+      this.loading = true;
+      this.warnInfo();
+    }
+  },
+  mounted() {
+    this.warnInfo();
+  },
+  methods: {
+    warnInfo() {
+      alarmMsg(this.dictId)
+        .then(res => {
+          let list = res.result.rows;
+          this.list = list.slice(0, 3);
+          this.loading = false;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  margin-top: 10px;
+  height: 157px;
+  position: relative;
+  .title {
+    height: 26px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.6;
+    margin: 0px;
+  }
+  .warnList {
+    margin: 20px 0px 0px;
+    .warnItem {
+      display: flex;
+      height: 37px;
+      align-items: center;
+      padding-left: 20px;
+      &:nth-child(odd) {
+        background: url("../img/warn-dote.png") repeat;
+      }
+      span {
+        width: 131px;
+        height: 21px;
+        font-size: 16px;
+        font-family: Microsoft YaHei;
+        font-weight: 400;
+        line-height: 21px;
+        color: #ffffff;
+        opacity: 0.8;
+      }
+      .name {
+        width: 80px;
+      }
+      .detail {
+        flex: 1;
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,121 @@
+<!-- 服务接入信息查看页面 -->
+<template>
+  <a-layout class="open-layout">
+    <div class="body">
+      <span class="servicetitle">{{$route.query.code}}</span>
+      <a-icon type="close" class="closeicon" @click="closestep" />
+           <a-button type="primary" class="changbutton" @click="changeInfo">
+      变更
+    </a-button>
+    <div class="clearfloat"></div>
+      <div ref="tabs">
+        <a-tabs v-model="activeKey" @change="callback">
+          <a-tab-pane key="1" tab="接口信息">
+            <div class="content">
+              <actionApply :allow="false" />
+            </div>
+          </a-tab-pane>
+          <a-tab-pane key="2" tab="参数信息">
+            <div class="content">
+                <serviceForm :allow="false"/>
+            </div>
+          </a-tab-pane>
+        </a-tabs>
+      </div>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import { Tabs, Layout, Icon, Button} from "ant-design-vue";
+import ServiceActionApply from "./ServiceActionApply";
+import ServiceForm from "./ServiceForm";
+export default {
+  components: {
+    ALayout: Layout,
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    AIcon: Icon,
+    AButton: Button,
+    actionApply: ServiceActionApply,
+    serviceForm: ServiceForm,
+  },
+
+  //   props: {},
+
+  data() {
+    return {
+      activeKey: "1"
+    };
+  },
+
+  computed: {},
+
+  watch: {},
+
+  mounted: {},
+
+  methods: {
+    callback(key) {
+      this.activeKey = key;
+    },
+    //关闭当前窗口，返回上一级
+    closestep() {
+      this.$router.go(-1);
+    },
+    changeInfo(){
+      this.$router.push({
+        // path: "/dev/userService",
+        path: "/dev/serviceapplystep",
+        query: this.$route.query
+      });
+    },
+  }
+};
+</script>
+<style lang='less' scoped>
+.open-layout {
+  padding: 20px;
+  height: 100%;
+  .body {
+    width: 100%;
+    height: 100%;
+    padding: 8px 10px;
+    margin: 0 auto;
+    overflow-y: auto;
+    background: #fff;
+    .servicetitle {
+      font-size: 20px;
+    }
+    .closeicon {
+      float: right;
+      font-size: 15px;
+      :hover {
+        color: @primary-color;
+      }
+    }
+    .content{
+        width: 80%;
+        margin: 20px auto;
+    }
+    .changbutton{
+        color:#409EFF;
+        background-color:#ECF5FF;
+        border-color: #B3D8FF;
+        float: right;
+        top: 35px;
+        right: 4%;
+        width: 90px;
+        z-index: 1;
+    }
+    .changbutton:focus, .changbutton:hover{
+            background-color: #409EFF;
+            color: #fff;
+
+    }
+    .clearfloat{
+      clear:both
+      }
+  }
+}
+</style>

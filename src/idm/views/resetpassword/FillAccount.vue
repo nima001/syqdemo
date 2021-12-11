@@ -1,0 +1,148 @@
+<template>
+  <div class="fill-account">
+    <a-form :form="form" class="form-account">
+
+      <a-form-item
+      >
+        <a-input
+          v-decorator="[
+            'loginname',
+            { rules: [{ required: true, message: '请输入账号名!' }] },
+          ]"
+          placeholder="用户名/手机号码/身份证号"
+        />
+      </a-form-item>
+
+
+      <a-row>
+        <a-col :span="18">
+          <a-form-item class="item-code">
+            <a-input
+              v-decorator="[
+                'verifycode',
+                { rules: [{ required: true, message: '请输入验证码！' }] },
+              ]"
+              placeholder="请输入验证码"
+            />
+          </a-form-item>
+
+        </a-col>
+        <a-col :span="6">
+          <div class="verifyimg">
+            <img :src="verifyImg" alt="">
+          </div>
+        </a-col>
+      </a-row>
+
+      <a-form-item class="submit">
+        <a-button type="primary" html-type="submit" @click="nextStep">
+          下一步
+        </a-button>
+      </a-form-item>
+      
+    </a-form>
+  </div>
+</template>
+
+<script>
+import { Form, Input, Button, Row, Col } from "ant-design-vue";
+import JSEncrypt from 'jsencrypt';
+import { getPublicKey, getCode } from "../../api/idmbase";
+import { resetpwdFinduser } from "../../api/resetPassword";
+import { getCookie } from '@/framework/utils/auth';
+import { showError } from "@/framework/utils/index";
+
+export default {
+  props: {},
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    AButton: Button,
+    ARow: Row,
+    ACol: Col
+  },
+  data() {
+    return {
+      form: this.$form.createForm(this, { name: 'fill_account' }),
+      verifyImg: undefined,
+      // RSA加密公钥
+      publicKey:undefined,
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    //  获取验证码
+    this.verifyImg = getCode(12) + Math.random();
+    this.inItFn()
+  },
+  mounted() {
+  },
+  methods: {
+    inItFn(){
+      getPublicKey().then(({result})=>{
+        this.publicKey = result;
+      }).catch(err=>{
+        showError(err);
+      });
+    },
+
+    nextStep() {
+      this.form.validateFields((err, values) => {
+        if(!err) {
+          let { loginname, verifycode } = values;
+          let enCrypt = new JSEncrypt();
+          enCrypt.setPublicKey(this.publicKey);
+          let verifyUid = getCookie('uuid');
+          this.confirmUser({ loginname:enCrypt.encrypt(loginname), verifycode, verifyUid });
+        } else {
+          showError({
+            message: '请正确填写表单'
+          });
+        }
+      })
+    },
+    confirmUser(data) {
+      resetpwdFinduser(data)
+      .then(({result}) => {
+        this.$emit('toggle-step', 'next');
+        this.$emit('set-info', result);
+      })
+      .catch(err => {
+        //  更新验证码
+        this.verifyImg = getCode(12) + Math.random();
+        showError(err);
+      })
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.fill-account{
+  .form-account{
+    width: 350px;
+    margin: 100px auto 0;
+    .submit{
+      margin-top: 50px;
+      button{
+        width: 100%;
+      }
+    }
+    .ant-row{
+      .ant-col{
+        .verifyimg{
+          width: 100%;
+          height: 32px;
+          margin-top: 4px;
+          img{
+            width: 100%;
+            height: 100%;
+          }
+        }
+      }
+    }
+  }
+
+}
+</style>

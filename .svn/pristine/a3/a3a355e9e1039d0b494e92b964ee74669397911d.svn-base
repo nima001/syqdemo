@@ -1,0 +1,20 @@
+<template>
+  <div>
+    <Title title="职务层次分布"/>
+    <div style="height:260px"></div>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+
+export default {
+  components: {
+    Title
+  }
+}
+</script>
+
+<style>
+
+</style>

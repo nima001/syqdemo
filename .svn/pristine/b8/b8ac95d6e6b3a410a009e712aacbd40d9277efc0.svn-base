@@ -1,0 +1,244 @@
+<template>
+  <div>
+    <div style="height: 305px" class="container">
+      <div class="title">
+        <p>近五年共计退休人数</p>
+        <lcd-font
+          :length="6"
+          :smooth="false"
+          :realNumber="realNumber"
+          :realStyle="realStyle"
+          :fakeStyle="fakeStyle"
+        />
+      </div>
+      <div>
+        <!-- <BarChart
+          v-if="data"
+          :data="data"
+          :settings="dataSetting"
+        /> -->
+        <div class="detail-info">
+          <div class="body">
+            <ul class="bar-chart">
+              <li v-for="(item,index) in data" :key="index">
+                <div class="num">{{Math.max(item || 0, 0)}}</div>
+                <div class="bar">
+                  <div :style="{
+                    height: getBarPercent(item)
+                  }"></div>
+                </div>
+                <div class="label">近{{index+1}}年</div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import Title from "./Title";
+import LcdFont from "../components/LcdFont";
+import BarChart from "@person/components/chart/BarChart";
+import { values, isNumber } from 'lodash';
+import { retireAnalyze } from "../../../api/analyze";
+import { showError } from "../../../../framework/utils";
+import { areaStatistics } from '@/person-shaoxing/api/orgStaffReport';
+export default {
+  props: {
+    districtCode: {
+      type: String,
+    },
+    type: String,
+  },
+  components: {
+    Title,
+    BarChart,
+    LcdFont
+  },
+  data() {
+    return {
+      realStyle: {
+        color: "#01E3FC",
+        textStroke: "1 #ECA066",
+        opacity: 0.95,
+        fontSize: '25px',
+      },
+      realNumber: 0,
+      fakeStyle: {
+        fontSize: '25px',
+      },
+      data: undefined,
+    };
+  },
+  watch: {
+    districtCode(val) {
+      this.loadData(val);
+      return val;
+    },
+  },
+  computed: {
+    dataSetting() {
+      return {
+        canvas: {width: 350, height: 250},
+        padding: [20, 10, 0, -15],
+        legend: true,
+        color: ['#FF7C28', '#8FC7FF'],
+        slider: {
+          visible: true,
+          style: { textStyle: { fill: '#fff' }, padding: [0, 0, 10, -20] },
+        },
+        legend: { visible: true, position: 'top' },
+        yAxis: { grid: true ,title: {visible: true, content: '人数'}},
+      }
+    },
+    maxNum(){
+      let num = 0;
+      if(this.data){
+        this.data.forEach((item) => {
+          if(item > 0 && num < item){
+            num = item;
+          }
+        });
+      }
+      return num
+    },
+  },
+  mounted() {
+    if(this.districtCode) {
+      this.loadData(this.districtCode);
+    }
+  },
+  methods: {
+    getBarPercent(num){
+      if(this.maxNum > 0){
+        num = Math.max(num || 0, 0);
+        return `${100 - (num * 100/this.maxNum).toFixed(2)}%`
+      }
+      return "100%"
+    },
+    loadData(val) {
+      // retireAnalyze(val)
+      //   .then(({ result }) => {
+      //     this.data = result;
+      //   })
+      //   .catch((error) => {
+      //     showError(error);
+      //   });
+      let array = undefined;
+      if(this.type=='dz') {
+        array = [
+          'dzqjwntxzrs', 'dzq2021txrs',
+          'dzq2022txrs', 'dzq2023txrs',
+          'dzq2024txrs', 'dzq2025txrs',
+        ];
+      }else if(this.type=='zf') {
+        array = [
+          'zfjwntxzrs', 'zf2021txrs',
+          'zf2022txrs', 'zf2023txrs',
+          'zf2024txrs', 'zf2025txrs',
+        ];
+      }else if(this.type=='sy') {
+        array = [
+          'syjwntxzrs', 'sy2021txrs',
+          'sy2022txrs', 'sy2023txrs',
+          'sy2024txrs', 'sy2025txrs',
+        ];
+      }
+      areaStatistics(val,array).then(({result}) => {
+        if(this.type=='dz') {
+          this.realNumber = result.dzqjwntxzrs;
+          this.$delete(result,"dzqjwntxzrs");
+        }else if(this.type=='zf') {
+          this.realNumber = result.zfjwntxzrs;
+          this.$delete(result,"zfjwntxzrs");
+        }else if(this.type=='sy') {
+          this.realNumber = result.syjwntxzrs;
+          this.$delete(result,"syjwntxzrs");
+        }
+        this.$delete(result,"name");
+        this.data = values(result);
+        this.showAge = true;
+      }).catch(error => {
+        showError(error)
+      });
+    },
+  },
+};
+</script>
+
+<style scoped lang="less">
+.container {
+  margin: 0 20px;
+  .title {
+    font-size: 18px;
+    line-height: 26px;
+    color: #01E3FC;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    p {
+      margin: 0;
+    }
+  }
+  .detail-info{
+    & > .body{
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      .bar-chart{
+        display: flex;
+        justify-content: center;
+        li{
+          min-width: 30px;
+          padding: 4px;
+          margin: 0 @padding-xs;
+          text-align: center;
+          .num{
+            margin-bottom: @padding-md;
+            color: fade(#fff, 80%);
+            font-size: 18px;
+          }
+          .bar{
+            width: 18px;
+            height: 130px;
+            background: linear-gradient(to top, #373FCB, #8672DD);
+            margin: auto;
+            position: relative;
+            cursor: pointer;
+            & > div{
+              background-color: #343434;
+            }
+            &::before {
+              content: '';
+              position: absolute;
+              top: -10px;
+              left: -10px;
+              right: -10px;
+              bottom: 0;
+              background: linear-gradient(to top, fade(#383FCC, 20%), fade(#8773DD, 20%));
+            }
+          }
+          .label{
+            margin-top: 10px;
+            color: fade(#fff, 80%);
+            font-size: 16px;
+            white-space: nowrap;
+          }
+        }
+      }
+    }
+  }
+  // .wrap {
+  //   height: 100%;
+  // }
+  // /deep/.chart {
+  //   flex: 1;
+  //   & > div {
+  //     height: 100%;
+  //   }
+  // }
+}
+</style>

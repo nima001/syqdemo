@@ -1,0 +1,246 @@
+<template>
+  <div class="detail-info">
+    <div class="body">
+      <ul class="bar-chart" v-if="showXl">
+        <li :class="['prev',{'show': data&&data.rows&&data.rows.length&&isShow()}]">
+          <div class="empty"></div>
+          <div class="bar" @click="back()">
+            <div :style="{
+              height: '100%'
+            }"></div>
+          </div>
+          <div class="label">上一级</div>
+        </li>
+        <li v-for="item in data.rows" :key="item.k0">
+          <div class="num">{{Math.max(item.v || 0, 0)}}</div>
+          <div class="bar" @click="showOrgList(item)">
+            <div :style="{
+              height: getBarPercent(item.v)
+            }"></div>
+          </div>
+          <div class="label">{{item.k0}}</div>
+        </li>
+      </ul>
+      <ul class="bar-chart" v-else>
+        <li :class="['prev',{'show': isShow()}]">
+          <div class="bar" @click="back()">
+            <div :style="{
+              height: '100%'
+            }"></div>
+          </div>
+          <div class="label">上一级</div>
+        </li>
+        <li v-for="item in data" :key="item.key">
+          <div class="bar" @click="loadData(item.text)">
+            <div :style="{
+              height: '100%'
+            }"></div>
+          </div>
+          <div class="label">{{item.text}}</div>
+        </li>
+      </ul>
+    </div>
+    <dialog-box v-model="showOrgs" :title="'行政编制实有数'">
+      <OrgList :district="districtcode" :unittypes="[1, 2]" :systype="systype" />
+    </dialog-box>
+  </div>
+</template>
+<script>
+import DialogBox from '../components/DialogBox'
+import LcdFont from "../components/LcdFont";
+import OrgList from '../components/OrgList';
+import { endsWith } from 'lodash';
+import { orgQuery } from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@/framework/utils/index";
+import { orgAnalyzeXz } from '../../../api/analyze';
+import AreaChartVue from '../../../../person/components/chart/AreaChart.vue';
+
+export default {
+  components: {
+    DialogBox, LcdFont, OrgList
+  },
+  props: {
+    districtCode: String,
+    districts: Array,
+    // data: {
+    //   type: Object,
+    //   default: ()=>{
+    //     return {};
+    //   }
+    // }
+  },
+  data(){
+    return {
+      data: [],
+      showXl: false,
+      showOrgs: false,
+      systype: undefined,
+      prevText: undefined,
+      districtcode: this.districtCode,
+    }
+  },
+  watch: {
+    districtCode(val) {
+      return val;
+    },
+    districts(val) {
+      return val;
+    },
+    districtName(val) {
+      return val;
+    }
+  },
+  computed: {
+    districtName() {
+      let array = this.districts.filter((item)=>item.value==this.districtCode);
+      return array[0].text;
+    },
+    num(){
+      if(this.total >= 0 && this.used >= 0){
+        return this.total - this.used;
+      }
+      return 0;
+    },
+    maxNum(){
+      let num = 0;
+      if(this.data.rows){
+        this.data.rows.forEach((item) => {
+          if(item.v > 0 && num < item.v){
+            num = item.v;
+          }
+        });
+      }
+      return num
+    },
+    systypeList() {
+      let v = this.$store.getters.dict('usermanage.org.systype');
+      return v || [];
+    }
+  },
+  mounted(){
+    this.loadData(this.districtName);
+  },
+  methods: {
+    back() {
+      this.showXl = false;
+      this.loadData(this.prevText);
+    },
+    isShow(show) {
+      if(this.districtCode==='330001') {
+        return false;
+      }else{
+        let array = this.districts.filter((item)=>item.value==this.districtcode);
+        if(array.length) {
+          if(this.data.rows) {
+            this.prevText = array[0].group;
+          }else{
+            this.prevText = array[0].group.split('/')[0];
+          }
+          if(array[0].value=="330001"&&!this.showXl) {
+            return false;
+          }
+          return true;
+        }else{
+          return false;
+        }
+      }
+    },
+    getBarPercent(num){
+      if(this.maxNum > 0){
+        num = Math.max(num || 0, 0);
+        return `${100 - (num * 100/this.maxNum).toFixed(2)}%`
+      }
+      return "100%"
+    },
+    showOrgList(item) {
+      let st = this.systypeList.filter((type)=> type.text==item.k0)[0];
+      let array = this.districts.filter((district)=>district.text==item.k0);
+      if(array.length) {
+        this.districtcode = array[0].value;
+      }
+      this.systype = st && st.value;
+      this.showOrgs = true;
+    },
+    //查询下一级
+    loadData(districtName) {
+      let array = this.districts.filter((item)=>endsWith(item.group, districtName));
+      this.data = array;
+      if(!this.data.length) {
+        let districtArray= this.districts.filter((item)=>item.text==districtName);
+        this.districtcode = districtArray[0].value;
+        this.showXl = true;
+        this.xzShow(districtArray[0].value);
+      }else{
+        this.districtcode = this.data[0].value;
+      }
+    },
+    xzShow(districtCode) {
+      orgAnalyzeXz(districtCode).then(({result})=>{
+        this.data = result;
+      }).catch(err=>{
+        showError(err);
+      })
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.detail-info{
+  height: 90%;
+  & > .body{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    .bar-chart{
+      display: flex;
+      justify-content: center;
+      li.prev {
+        display: none;
+      }
+      li.show {
+        display: inline-block;
+      }
+      li{
+        min-width: 74px;
+        padding: 4px;
+        text-align: center;
+        .empty {
+          height: 53px;
+        }
+        .num{
+          margin-bottom: @padding-md;
+          color: #01E3FC;
+          font-size: 25px;
+          font-weight: bold;
+        }
+        .bar{
+          width: 18px;
+          height: 250px;
+          background: linear-gradient(to top, #373FCB, #8672DD);
+          margin: auto;
+          position: relative;
+          cursor: pointer;
+          & > div{
+            background-color: #343434;
+          }
+          &::before {
+            content: '';
+            position: absolute;
+            top: -10px;
+            left: -20px;
+            right: -20px;
+            bottom: 0;
+            background: linear-gradient(to top, fade(#383FCC, 20%), fade(#8773DD, 20%));
+          }
+        }
+        .label{
+          margin-top: 10px;
+          color: fade(#fff, 80%);
+          font-size: 16px;
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,48 @@
+/**
+ * 权限
+ */
+import store from '../../store'
+import { componentAuth } from '../../api/menu'
+
+let loading = undefined;
+
+const  permit = {
+  state: {
+    permit: undefined
+  },
+  mutations: {
+    ADD_PERMIT (state, permit) {
+      let obj = {};
+      (permit || []).forEach(c => {
+        obj[c.uri] = {name: c.name, type: c.type};
+      });
+      state.permit = obj;
+    },
+  },
+  actions: {
+    loadPermit (context) {
+      if(loading){
+        return;
+      }
+      loading = true;
+      componentAuth().then(res => {
+        context.commit('ADD_PERMIT', res.result)
+      }).catch(err => {
+        console.log(err)
+      }).finally(() => {
+        loading = false;
+      })
+    }
+  },
+  getters: {
+    hasPermit: (state) => (uri) => {
+      if(state.permit){
+        return !!state.permit[uri]
+      }else{
+        store.dispatch('loadPermit');
+      }
+    }
+  }
+}
+
+export default permit

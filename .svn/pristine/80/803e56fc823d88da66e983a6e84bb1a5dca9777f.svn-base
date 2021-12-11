@@ -1,0 +1,41 @@
+import request from "../utils/request"
+
+export function indexReportdata() {
+  return request({
+      url: `/idmgzbm/index/report/indexReportdata`,
+      method: 'get'
+  })
+}
+
+export function loginDate(data) {
+  return request({
+      url: `/idmgzbm/index/report/loginDate`,
+      method: 'post',
+      data
+  })
+}
+
+export function realTimeData() {
+  return request({
+      url: `/idmgzbm/index/report/realTimeData`,
+      method: 'get'
+  })
+}
+
+export function getMenu() {
+  return request({
+      url: `/idmgzbm/acl/menu/getMenuData`,
+      method: 'get'
+  })
+}
+
+//  是否第一次登陆
+export function isFristLogin() {
+  return request({
+      url: `/idmgzbm/index/isFirstLogin`,
+      method: 'get'
+  })
+}
+
+
+

@@ -1,0 +1,113 @@
+<template>
+  <card title="一票否优">
+    <div class="kpi-veto">
+      <div class="title">机构数</div>
+      <div class="value">
+        <div class="num">21</div>
+      </div>
+    </div>
+  </card>
+</template>
+<script>
+import Card from './ScreenCard'
+import echarts from 'echarts'
+/**
+ * 一票否优
+ */
+export default {
+  components: {
+    Card,
+  },
+  // mounted: function() {
+  //     this.$nextTick(function() {
+  //       this.showChart()
+  //     })
+  //   },
+  // methods: {
+  //   showChart() {
+  //     var myChart = echarts.init(document.getElementById('mainbot'));
+  //     this.option = {
+       
+  //       tooltip: {
+  //           trigger: 'item',
+  //           formatter: '{b}:{c}'
+  //       },
+  //       xAxis: [
+  //           {
+  //               show: false,
+  //           }
+  //       ],
+  //       yAxis:[
+  //           {
+  //               type: 'category',
+  //               data: [' 机构数'],
+  //               axisLine: {show: false},     
+  //               axisTick: [{    
+  //                   show: false
+  //               }],
+               
+  //           }
+  //       ],
+  //       series: [
+  //           {
+  //               name: '机构数',
+  //               type: 'bar',
+  //               data: [                  
+  //                   {name: '机构数', value: 21}
+  //               ],
+  //               itemStyle: {
+  //                   normal: {
+  //                       color: '#30555B',
+  //                       label: {
+  //                           show: true,
+  //                           fontSize: '14',
+  //                           position: 'right'
+  //                       }
+  //                   },
+ 
+  //               },
+  //           },
+  //       ]
+  //   };
+  //   myChart.setOption(this.option);
+  //   }
+  // }
+}
+</script>
+<style lang="less" scoped>
+  .kpi-veto {
+    display: flex;
+    color: #FFFFFF;
+    padding: 10px 15px;
+    .title{
+      flex: 1;
+      background: #541010;
+      opacity: 0.7;
+      height: 47px;
+      line-height: 47px;
+      text-align: center;
+      font-size: 14px;
+      font-family: Microsoft YaHei;
+      font-weight: 400;
+    }
+    .value{
+      flex: 2;
+      background: #541010;
+      opacity: 0.3;
+      height: 47px;
+      position: relative;
+      .num{
+        position: absolute;
+        right: 20px;
+        height: 47px;
+        line-height: 47px;
+        opacity: 0.8;
+        font-size: 24px;
+        font-family: D-DIN Exp;
+        font-weight: 400;
+        color: #FFFFFF;
+      }
+    }
+
+  }
+</style>

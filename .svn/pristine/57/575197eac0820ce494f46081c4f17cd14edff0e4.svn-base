@@ -1,0 +1,122 @@
+<template>
+  <div class="decorator">
+    <a-form-item :required="required" 
+      :lable-align="lableAlign"
+      :validateStatus="validateStatus"
+      :help="help"
+      :class="{layoutLeft: labelLayout == 'left', layoutInset: labelLayout == 'inset' }"
+    > 
+      <template v-if="label" #label>
+        <span>{{label}}</span>
+      </template>
+      <slot/>
+    </a-form-item>
+  </div>
+</template>
+<script>
+import { Form } from 'ant-design-vue'
+import { connect, mapProps, observer, useForm, useField, useFieldSchema } from '@formily/vue'
+import { watch } from '@vue/composition-api';
+
+export default {
+  components: {
+    AFormItem: Form.Item
+  },
+  props: {
+    label: String,
+    required: Boolean,
+    lableAlign: String, //标签对齐方式 'left' | 'right'
+    labelLayout: { //标签布局 'top' | 'left' | 'inset'
+      type: String,
+      default: 'top'
+    },
+    feedbackLayout: String, //反馈信息布局 'popover' | 'bottom'
+    bordered: Boolean, //是否显示边框
+    validateStatus: String,
+    help: String,
+  },
+  setup(){
+    const form = useForm();
+    const schema = useFieldSchema()
+    const field = useField();
+    watch(schema, (a, b) => {
+      console.log('watch', a.title, b.title)
+    })
+    // console.log(useField())
+    return {
+      _formComponentType: 'decorator',
+      form,
+      schema,
+      field
+    }
+  },
+  // created(){
+  //   console.log('create', this.schema.name, this._uid)
+  // },
+  // destroyed(){
+  //   console.log('destroyed', this.schema.name, this._uid)
+  // },
+  computed: {
+    wrapperCol(){
+      if(this.labelLayout != 'top'){
+        return { offset: this.label ? 0 : 4, span: 20 }
+      }
+    },
+    labelCol(){
+      if(this.labelLayout != 'top'){
+        return { span: 4 }
+      }
+    }
+  },
+}
+</script>
+<style lang="less" scoped>
+.decorator{
+  border-bottom: 1px solid transparent;
+
+  /deep/.layoutLeft{
+    display: flex;
+    .ant-form-item-label{
+      flex: none;
+    }
+    .ant-form-item-control-wrapper{
+      flex: auto;
+    }
+  }
+  /deep/.layoutInset{
+    display: flex;
+    .ant-form-item-label{
+      flex: none;
+      min-width: 5em;
+      max-width: 10em;
+      text-align: left;
+      box-sizing: border-box;
+      padding: 0px 11px;
+      height: 32px;
+      line-height: 30px;
+      background-color: #fafafa;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      border-right: none;
+      border-top-right-radius: 0px;
+      border-bottom-right-radius: 0px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+    .ant-form-item-label + .ant-form-item-control-wrapper{
+      .ant-input {
+        border-top-left-radius: 0px;
+        border-bottom-left-radius: 0px;
+      }
+    }
+
+    .ant-form-item-control-wrapper{
+      flex: auto;
+      .ant-form-item-control{
+        line-height: unset;
+      }
+    }
+  }
+}
+</style>

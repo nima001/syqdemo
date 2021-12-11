@@ -1,0 +1,98 @@
+<template>
+  <div class="preview-wrap">
+    <a class="download" @click="convert">下载PDF</a>
+    <div class="content">
+      <iframe id="external-frame" :class="rotate ? 'coverimg rotate' : 'coverimg'" frameborder="0px" :src="src" scrolling="no"></iframe>
+    </div>
+  </div>
+</template>
+
+<script>
+import {convertHtmlToFileAsync} from '@framework/api/file'
+import {showError} from '@framework/utils'
+
+export default {
+  name: "TemplatePreview",
+  data() {
+    return {
+      rotate: false,
+      src: 'about:blank',
+      sheet: undefined,
+    };
+  },
+  mounted() {
+    if(window.opener){
+      let { type, data } = window.opener.paramsBridge;
+      if(type == 'templete.preview' && data){
+        this.sheet = data;
+        //TODO 根据页面设置修改样式
+        this.rotate = data.rotate;
+        let html = data.template ? data.template.replaceAll("'", "\\'") : '';
+        this.src = `javascript:void(function(){document.open();document.write('${html}');document.close();}())`;
+      }
+    }
+    let that = this;
+    window.onload = function() {
+      that.setIframeHeight(document.getElementById("external-frame"));
+    };
+  },
+  methods: {
+    setIframeHeight(iframe) {
+      if (iframe) {
+        var iframeWin =
+          iframe.contentWindow || iframe.contentDocument.parentWindow;
+        if (iframeWin.document.body) {
+          iframe.height =
+            iframeWin.document.documentElement.scrollHeight ||
+            iframeWin.document.body.scrollHeight;
+        }
+      }
+    },
+    convert(){
+      if(!this.sheet){
+        return;
+      }
+      let { name, pagesize, rotate, margins, template} = this.sheet;
+      convertHtmlToFileAsync({
+        title: name || '未命名',
+        pagesize,
+        rotate, margins,
+        html: template
+      }).then(() => {
+      }).catch(error => {
+        showError(error);
+      })
+    }
+  },
+};
+</script>
+<style lang='less'>
+#app {
+  background: #eee;
+}
+.preview-wrap {
+  height: 100%;
+  overflow: auto;
+  .download{
+    position: fixed;
+    top: 5px;
+    right: 10px;
+  }
+  .content {
+    background: #eee;
+    padding: 30px 0px;
+    .coverimg {
+      margin-top: 60px;
+      width: 794px;
+      min-height: 1123px;
+      background: #fff;
+      display: block;
+      margin: 0px auto;
+      &.rotate{
+        width: 1123px;
+        min-height: 794px;
+      }
+    }
+  }
+}
+</style>

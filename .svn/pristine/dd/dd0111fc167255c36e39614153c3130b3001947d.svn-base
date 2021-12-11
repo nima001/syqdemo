@@ -1,0 +1,46 @@
+import request from '@/framework/utils/request'
+
+/************************  分析管理接口 *************************/
+//统计分析查询
+export function anslyzequery(data) {
+    return request({
+        url: '/person/anslyze/query',
+        method: 'post',
+        data
+    })
+}
+//保存统计分析
+export function anssave(data){
+    return request({
+        url: '/person/anslyze',
+        method: 'post',
+        data
+    })
+}
+//删除统计分析
+export function deleteanslyze(id){
+    return request({
+        url: `/person/anslyze/${id}`,
+        method: 'delete',
+        params:{
+            id
+        }
+    })
+}
+
+//分析内容查询
+export function  anscontentquery(data) {
+      return request({
+        url: '/person/anslyze/content/query',
+        method: 'post',
+        data
+    })
+}
+//保存统计分析内容
+export function anscontentsave(data){
+    return request({
+        url: '/person/anslyze/content',
+        method: 'post',
+        data
+    });
+}

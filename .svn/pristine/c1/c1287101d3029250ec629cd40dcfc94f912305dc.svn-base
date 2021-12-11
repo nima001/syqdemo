@@ -1,0 +1,92 @@
+<template>
+  <FormGroup v-if="contextProps && contextProps.length" 
+    ref="contextFrom"
+    :properties="contextProps" 
+    :data="contextData" 
+    :edit="true" 
+  />
+</template>
+<script>
+import FormGroup from "@person/views/org/components/form/FormGroup";
+
+export default {
+  components:{
+    FormGroup,
+  },
+  props: {
+    scopes: {
+      type: Array,
+      default: () => []
+    }
+  },
+  data(){
+    return {
+      contextData: {},
+      contextProps: [],
+    }
+  },
+  created(){
+    this.initData();
+  },
+  watch: {
+    scopes(){
+      this.initData();
+    }
+  },
+  methods: {
+    getFieldsValue(){
+      let contextFrom = this.$refs.contextFrom;
+      if(contextFrom){
+        let context = {};
+        return contextFrom.validateFields(context).then(() => {
+          return Promise.resolve(context);
+        })
+      }else{
+        return Promise.resolve({});
+      }
+    },
+    initData(){
+      this.contextData = this.bulidContextData(this.scopes);
+      this.contextProps = this.bulidContextPorps(this.scopes);
+    },
+    bulidContextData(fields){
+      let obj = {};
+      (fields || []).forEach(item => {
+        obj[item.code] = undefined;
+      })
+      return obj;
+    },
+    bulidContextPorps(fields){
+      let arr = [];
+      (fields || []).forEach(item => {
+        let { code, name, require, datatype, inputtype, datasource, hint, multi, defaultvalue} = item;
+        let obj = { label: name, code, span: 4, require, hint, multi, defaultValue: defaultvalue}
+        if(datatype == 2){
+          obj.type = 'dict';
+          obj.dict = datasource;
+        }else if(datatype == 3){
+          if(datasource == 'organization'){
+            obj.type = 'org';
+          }else if(datasource == 'user'){
+            obj.type = 'user';  
+          }
+        }else if(datatype == 4){
+          if(inputtype == 1 || inputtype == 2){
+            obj.type = 'number';
+          }else if(inputtype == 3){
+            obj.type = 'date';
+          }else if(inputtype == 4){
+            obj.type = 'bool';
+          }else{
+            obj.type = 'text';
+          }
+        }
+        if(obj.type){
+          arr.push(obj);
+        }
+      });
+      return arr;
+    }
+  }
+}
+</script>

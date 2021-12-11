@@ -1,0 +1,152 @@
+import request from '@/framework/utils/request'
+
+/************************  组织树接口 *************************/
+//获取组织树
+export function treepath(id, treeid) {
+    return request({
+        url: '/hall2/orgtree/path',
+        method: 'get',
+        params: {
+            id, treeid
+        }
+    });
+}
+//组织树节点搜索
+export function treequery(data) {
+    return request({
+        url: '/hall2/orgtree/query',
+        method: 'post',
+        data
+    })
+}
+//获取组织结构
+export function treeroot(treeid) {
+    return request({
+        url: '/hall2/orgtree/root',
+        method: 'get',
+        params:{
+            treeid
+        }
+    });
+}
+
+//获取组织下机构情况
+export function listnode(id, treeid) {
+    return request({
+        url: '/hall2/orgtree/listnode',
+        method: 'get',
+        params: {
+            pid: id,
+            treeid: treeid
+        }
+    })
+}
+
+
+// 统计分析查询/按权限
+export function querydisplay(data) {
+    return request({
+        url: '/hall2/analyze/query/display',
+        method: 'post',
+        data
+    })
+}
+
+//组织查询
+export function orgquery(data) {
+    return request({
+        url: '/hall2/org/query',
+        method: 'post',
+        dataType: 'json',
+        data
+    })
+}
+
+
+//个人
+//个人查询
+export function userquery(data) {
+    return request({
+        url: '/hall2/user/query',
+        method: 'post',
+        dataType: 'json',
+        data
+    })
+}
+
+
+//组织
+//组织查询
+export function neworgquery(data) {
+    return request({
+        url: '/hall2/orgtree/query',
+        method: 'post',
+        dataType: 'json',
+        data
+    })
+}
+
+
+
+//新增组织
+export function orgcreate(data) {
+    return request({
+        url: '/hall2/org/create',
+        method: 'post',
+        dataType: 'json',
+        data
+    })
+}
+
+//新增节点
+export function catalognodequery(data) {
+    return request({
+        url: '/hall2/catalognode/query',
+        method: 'post',
+        dataType: 'json',
+        data
+    })
+}
+
+//删除组织
+export function orgdelete(data) {
+    return request({
+        url: '/hall2/org/delete'+data,
+        method: 'post',
+        dataType: 'json'
+        
+    })
+}
+
+//删除节点
+export function deletebatch(data) {
+    return request({
+        url: '/hall2/catalognode/deletebatch'+data,
+        method: 'post',
+        dataType: 'json'
+    })
+}
+
+
+//更新组织
+export function orgupdate(id,data) {
+    return request({
+        url: '/hall2/org/update/'+id,
+        method: 'post',
+        dataType: 'json',
+        data
+    })
+}
+
+//更新节点
+export function catalognodeupdate(data) {
+    return request({
+        url: '/hall2/catalognode/update',
+        method: 'post',
+        dataType: 'json',
+        data
+    })
+}
+
+
+

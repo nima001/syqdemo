@@ -1,0 +1,269 @@
+<template>
+  <div class="wrap">
+    <div class="organizeLayout">
+      <div class="top">
+        <a-button type="primary" @click="visible = true">新增</a-button>
+        <a-button type="primary" :style="{marginLeft:'10px'}" @click="exportbutton">导出</a-button>
+      </div>
+      <div class="middle">
+        <a-table
+          rowKey="id"
+          :customRow="customRow"
+          :columns="columns"
+          :dataSource="pagination.rows"
+          :pagination="false"
+          :loading="loading"
+        >
+          <!-- 暂不支持选择导出，隐藏复选框 -->
+        <!-- :row-selection="{selectedRowKeys,onChange:onSelectChange}"-->
+          <template slot="operate" slot-scope="text, record">
+            <a @click.stop="editor(record)">编辑</a>
+            <a :style="{marginLeft:'12px'}" @click.stop="deletes(record)">删除</a>
+          </template>
+        </a-table>
+      </div>
+      <div class="bottom">
+        <a-pagination
+          :total="pagination.total"
+          :showSizeChanger="true"
+          @showSizeChange="onShowSizeChange"
+          :page-size="pagination.pagesize"
+          v-model="pagination.pagenum"
+          @change="onPageChange"
+          :showTotal="(total) => `总共：${total}条`"
+        ></a-pagination>
+      </div>
+      <orglist-modal v-if="visible" v-model="visible" :record="editRecord" @finish="callBack"></orglist-modal>
+      <TaskProgress :taskid="taskid" defaultInfo="正在导出" @finish="onProgressFinish"/>
+    </div>
+  </div>
+</template>
+<script>
+import { neworgquery, orgdelete, deletebatch, orgexport} from "@/hall/api/usermanage";
+import { Table, Button, Pagination } from "ant-design-vue";
+import { mixins } from "@/hall/mixin/index";
+import { showError, validatePhoneNumber } from "@framework/utils";
+import { assign } from "lodash";
+import { download } from "@/framework/api/file";
+import OrglistModal from "./components/OrglistModal";
+import TaskProgress from "@/framework/components/TaskProgress";
+import Bus from '@/framework/utils/EventBus';
+export default {
+  data() {
+    return {
+      columns: [
+        {
+          title: "序号",
+          width: "50px",
+          customRender: (text, record, index) => `${index + 1}`
+        },
+        {
+          title: "组织名称",
+          dataIndex: "name"
+        },
+        {
+          title: "组织类型",
+          dataIndex: "orgtype",
+          customRender: this.dictRender("usermanage.org.orgtype")
+        },
+        {
+          title: "父组织",
+          dataIndex: "fname"
+        },
+        {
+          title: "单位电话",
+          dataIndex: "orgphone"
+        },
+        {
+          title: "操作",
+          dataIndex: "operate",
+          scopedSlots: { customRender: "operate" }
+        }
+      ],
+      selectedRowKeys: [],
+      pagination: {
+        pagenum: 1,
+        pagesize: 10,
+        total: 0,
+        needtotal: true,
+        rows: []
+      },
+      loading: true,
+      visible: false,
+      editRecord: {},
+      taskid: undefined
+    };
+  },
+  mixins: [mixins],
+  components: {
+    ATable: Table,
+    AButton: Button,
+    APagination: Pagination,
+    OrglistModal,
+    TaskProgress
+  },
+  mounted() {
+    this.getData(this.nodeData);
+  },
+  methods: {
+    exportbutton() {
+      if (this.pagination.rows.length <= 0) {
+        showError({
+          code: "showError",
+          message: "当前条件下没有可导出的数据！",
+        });
+        return;
+      }
+      let properties = `[
+        {"key":"name","name":"组织名称"},
+        {"key":"orgtype","name":"组织类型"},
+        {"key":"orgphone","name":"单位电话"},
+        ]`;
+      let title = this.nodeData.name + "下属组织信息";
+      let data = {
+          pid: this.nodeData.id,
+          needtotal: true,
+          nodename: title,
+          pagesize: this.pagination.total
+        };
+      orgexport(data)
+        .then((res) => {
+          this.taskid = res.result;
+        })
+        .catch((error) => {
+          showError(error);
+        });
+    },
+    onProgressFinish(uri){
+      download(uri);
+    },
+    getData(nodeData) {
+      if (nodeData && nodeData.id) {
+        this.loading = true;
+        neworgquery({ pid: nodeData.id, ...this.pagination })
+          .then(res => {
+            let { pagenum, pagesize, total, rows } = res.result;
+            rows = rows.map(function(item) {
+              return {
+                id: item.id,
+                fname: nodeData.name,
+                ...item.data
+              };
+            });
+            assign(this.pagination, { pagenum, pagesize, total, rows });
+          })
+          .catch(error => {
+            showError(error);
+          })
+          .finally(() => {
+            this.loading = false;
+          });
+      } else {
+        this.loading = false;
+      }
+    },
+    editor(record) {
+      this.editRecord = record;
+      this.visible = true;
+    },
+    customRow(row, index) {
+      return {
+        on: {
+          click: () => {
+            let rowKeys = this.selectedRowKeys;
+            if (rowKeys.length > 0 && rowKeys.includes(row.id)) {
+              rowKeys.splice(rowKeys.indexOf(row.id), 1);
+            } else {
+              rowKeys.push(row.id);
+            }
+            this.selectedRowKeys = rowKeys;
+          }
+        }
+      };
+    },
+    onSelectChange(selectedRowKeys) {
+      this.selectedRowKeys = selectedRowKeys;
+    },
+    dictRender(key, attr) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key || row[attr], text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    onPageChange(page, pagesize) {
+      assign(this.pagination, { pagenum: page });
+      this.getData(this.nodeData);
+    },
+    onShowSizeChange(current, size) {
+      assign(this.pagination, { pagenum: 1, pagesize: size });
+      this.getData(this.nodeData);
+    },
+    deletes(record) {
+      let _this = this;
+      this.$confirm({
+        title: '提示',
+        content: '确定要删除该组织吗？',
+        okText: '确定',
+        okType: 'danger',
+        cancelText: '取消',
+        onOk() {
+          orgdelete("?ids=" + record._id)
+            .then(res => {
+              deletebatch("?ids=" + record.id)
+                .then(res => {
+                  // _this.getData(_this.nodeData);
+                  _this.$message.success("组织删除成功！");
+                  Bus.$emit('update')
+                })
+                .catch(error => {
+                  showError(error);
+                });
+            })
+            .catch(err => {
+              showError(err);
+            });
+        }
+      });
+    },
+    callBack(res) {
+      this.visible = false;
+      this.editRecord = {}; 
+      if(res.type){
+        Bus.$emit('update')
+        this.getData(this.nodeData);
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.wrap {
+  padding: @layout-space-base 0px 0px;
+  height: 100%;
+  .organizeLayout {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: @white;
+    border-radius: @border-radius-base;
+    padding: @content-padding-v 0px;
+    .top {
+      padding: @content-padding-v @content-padding-h;
+      display: flex;
+    }
+    .middle {
+      padding: @content-padding-v @content-padding-h;
+      flex-shrink: 1;
+      overflow-y: auto;
+      /deep/ tr {
+        cursor: pointer;
+      }
+    }
+    .bottom {
+      padding: @content-padding-v @content-padding-h;
+      text-align: right;
+    }
+  }
+}
+</style>

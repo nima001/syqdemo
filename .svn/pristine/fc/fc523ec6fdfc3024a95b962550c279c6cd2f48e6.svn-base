@@ -1,0 +1,269 @@
+<template >
+  <div class="star-menu">
+    <div ref="container" class="container">
+      <swiper ref="swiper" :options="swiperOption">
+        <swiper-slide v-for="(item, index) in menu" :key="index">
+          <template v-if="item">
+            <div @click="jump(item)" v-if="item.id != 'add'">
+              <div class="remove" @click.stop="unStar(item.id, index)">
+                <a-icon type="minus-circle" />
+              </div>
+              <img
+                v-if="item.icon"
+                :src="
+                  uiConfigs['api.url'] + '/file/v1/download?uri=' + item.icon
+                "
+                :onerror="`this.src='${defaultIcon}'`"
+              />
+              <img v-else :src="defaultIcon" />
+              <div>{{ item.name }}</div>
+            </div>
+            <div
+              class="add-business"
+              v-if="item.id == 'add'"
+              @click="showModal"
+            >
+              <a-icon type="plus-circle" theme="filled" class="add" />
+              <div>添加</div>
+            </div>
+          </template>
+        </swiper-slide>
+      </swiper>
+      <AddMenu
+        :parentCheck="true"
+        v-model="menuId"
+        title="添加常用业务"
+        :show.sync="show"
+        @change="updateMenuList"
+      />
+      <template v-if="pageSize < menu.length">
+        <div
+          class="swiper-button prev"
+          @click="
+            () => {
+              this.$refs.swiper.swiperInstance.slidePrev();
+            }
+          "
+        >
+          <a-icon type="left" />
+        </div>
+        <div
+          class="swiper-button next"
+          @click="
+            () => {
+              this.$refs.swiper.swiperInstance.slideNext();
+            }
+          "
+        >
+          <a-icon type="right" />
+        </div>
+      </template>
+    </div>
+  </div>
+</template>
+<script>
+import { Swiper, SwiperSlide } from "vue-awesome-swiper";
+import "swiper/swiper-bundle.css";
+import { Icon } from "ant-design-vue";
+import { updateStarMenu, getcollectMenu } from "../api/menu";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { showError } from "@/framework/utils/index";
+import EmptyData from "@/framework/components/EmptyData";
+import AddMenu from "./components/AddMenu";
+import { ResizeObserver } from "@juggle/resize-observer";
+export default {
+  name: "StarMenu",
+  components: {
+    AIcon: Icon,
+    EmptyData,
+    AddMenu,
+    Swiper,
+    SwiperSlide,
+  },
+  data() {
+    return {
+      defaultIcon: require("../assets/img/icon-menu-default.png"),
+      uiConfigs: uiConfigsCookies(),
+      menuList: [],
+      menuId: [],
+      resizeObserver: undefined,
+      show: false,
+      pageSize: 0,
+      swiperOption: {
+        slidesPerView: "auto",
+        slidesPerGroup: 1,
+        observer: true,
+        observeParents: true,
+      },
+    };
+  },
+  created() {
+    this.getCollectList();
+  },
+  mounted() {
+    this.resizeObserver = new ResizeObserver((entries, observer) => {
+      const { width, height } = entries[0].contentRect;
+      this.pageSize = Math.floor(width / 140);
+    });
+    this.resizeObserver.observe(this.$refs.container);
+  },
+  destroyed() {
+    if (this.resizeObserver) {
+      this.resizeObserver.disconnect();
+    }
+  },
+  computed: {
+    menu() {
+      return [...(this.menuList || []), { id: "add" }];
+    },
+  },
+  methods: {
+    getCollectList() {
+      getcollectMenu()
+        .then((res) => {
+          this.menuList = res.result || [];
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    unStar(id, index) {
+      let ids = [];
+      this.menuList.forEach((item, i) => {
+        if (index != i) {
+          ids.push(item.id);
+        }
+      });
+      updateStarMenu(ids)
+        .then((res) => {
+          let index = this.menuList.findIndex((item) => item.id == id);
+          if (index >= 0) {
+            this.menuList.splice(index, 1);
+          }
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+
+    showModal() {
+      this.menuId = this.menuList.map((item) => item.id);
+      this.show = !this.show;
+    },
+    updateMenuList(list) {
+      updateStarMenu(list)
+        .then(() => {
+          this.getCollectList();
+          this.show = false;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    jump(item) {
+      if (!item) {
+        return;
+      }
+      if (item.children && item.children.length > 0) {
+        this.$router
+          .push({
+            name: "SubMenu",
+            params: { id: item.id },
+          })
+          .catch((err) => {
+            //ignore
+          });
+      } else if (item.componenturi) {
+        if (item.componenturi.startsWith("redirect:")) {
+          let path = item.componenturi.slice(9);
+          let temp = path.toUpperCase();
+          if (temp.startsWith("http:") || temp.startsWith("https:")) {
+            window.open(path, "_blank");
+          } else {
+            const { href } = this.$router.resolve({ path });
+            if (href) {
+              window.open(href, "_blank");
+            }
+          }
+        } else {
+          this.$router.push(item.componenturi).catch((err) => {
+            //ignore
+          });
+        }
+      }
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+.swiper-slide {
+  width: 140px;
+  height: 115px;
+  position: relative;
+  text-align: center;
+  cursor: pointer;
+  &:hover {
+    box-shadow: 1px 1px 10px #dad9d9;
+    .remove {
+      display: block;
+    }
+  }
+  .remove {
+    top: 5px;
+    right: 5px;
+    position: absolute;
+    display: none;
+    &:hover {
+      color: @error-color;
+    }
+  }
+  img {
+    width: 50px;
+    height: 50px;
+    margin: auto;
+    margin-top: 20px;
+    margin-bottom: 5px;
+    object-fit: contain;
+  }
+  .add-menu {
+    margin-top: -15px;
+  }
+}
+.container {
+  height: 115px;
+  width: 100%;
+  position: relative;
+  .swiper-button {
+    cursor: pointer;
+    font-size: 25px;
+    position: absolute;
+    z-index: 1000;
+    color: @primary-color;
+    top: 50%;
+    margin-top: -25px;
+    transform: scaleY(1.5);
+    &.next {
+      right: 0;
+    }
+    &:hover {
+      opacity: 0.6;
+    }
+  }
+}
+.add-business {
+  height: 115px;
+  position: relative;
+  /deep/.add {
+    font-size: 50px;
+    color: rgb(230, 230, 230);
+    position: absolute;
+    left: 50%;
+    top: 20px;
+    margin-left: -25px;
+  }
+  div {
+    text-align: center;
+    padding-top: 74px;
+  }
+}
+</style>

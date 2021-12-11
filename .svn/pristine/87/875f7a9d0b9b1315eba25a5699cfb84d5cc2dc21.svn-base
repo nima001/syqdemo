@@ -1,0 +1,189 @@
+<template>
+  <div class="wrap">
+    <div class="content">
+      <div class="header">
+        <div class="view">
+          <div class="title">
+            <span>绍</span>
+            <span>兴</span>
+            <span>市</span>
+            <span>机</span>
+            <span>构</span>
+            <span>编</span>
+            <span>制</span>
+            <span>智</span>
+            <span>慧</span>
+            <span>化</span>
+            <span>平</span>
+            <span>台</span>
+          </div>
+          <ul class="tabList">
+            <li
+              :class="{'active':defaultTab == item.cmpt}"
+              v-for="(item,index) in tabList"
+              @click="switchTab(item)"
+              :key="index"
+            >{{item.name}}</li>
+          </ul>
+        </div>
+        <div class="indexPage" @click="toHome">
+          <div class="pageViewiew">
+            <span class="indexIocn"></span>
+            <span class="indexTitle">首页</span>
+          </div>
+        </div>
+      </div>
+      <div class="body">
+        <component :is="defaultTab"></component>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import ResourceMap from "./components/ResourceMap";
+import HouseKeeper from "./components/HouseKeeper";
+import BusinessHelper from "./components/BusinessHelper";
+import KpiLine from "./components/KpiLine";
+import Vue from "vue";
+export default {
+  components: {
+    ResourceMap,
+    HouseKeeper,
+    BusinessHelper,
+    KpiLine
+  },
+  data() {
+    return {
+      tabList: [
+        { name: "资源地图", cmpt: "ResourceMap" },
+        { name: "编制管家", cmpt: "HouseKeeper" },
+        { name: "业务助手", cmpt: "BusinessHelper" },
+        { name: "绩效指数", cmpt: "KpiLine" }
+      ],
+      defaultTab: "ResourceMap",
+      dictId: this.$route.query.id
+    };
+  },
+  provide() {
+    const _this = this;
+    return {
+      dictCode: new Vue({
+        data() {
+          return {
+            dictId: _this.dictId
+          };
+        }
+      })
+    };
+  },
+  methods: {
+    switchTab(tab) {
+      this.defaultTab = tab.cmpt;
+    },
+    toHome() {
+      this.$router.push({ path: "/person/screen/index" });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  background: #00040a url("./img/bj.png");
+  background-size: cover;
+  background-repeat: no-repeat;
+  display: flex;
+  flex-direction: column;
+  .content {
+    width: 1440px;
+    height: 900px;
+    margin: 0 auto;
+    .header {
+      height: 156px;
+      position: relative;
+      padding-top: 16px;
+      background: url("./img/header.png") center top;
+      .view {
+        width: 421px;
+        margin: 0 auto;
+        .title {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          span {
+            height: 35px;
+            font-size: 26px;
+            font-family: Alibaba PuHuiTi;
+            font-weight: bold;
+            line-height: 35px;
+            color: #ffffff;
+            text-shadow: 0px 0px 16px rgba(28, 28, 30, 0.95);
+            opacity: 1;
+          }
+        }
+        .tabList {
+          margin: 0px;
+          padding: 0px;
+          display: flex;
+          justify-content: space-between;
+          margin-top: 6px;
+          li {
+            height: 22px;
+            font-size: 16px;
+            cursor: pointer;
+            font-family: Alibaba PuHuiTi;
+            font-weight: bold;
+            line-height: 22px;
+            color: #8fc7ff;
+            text-shadow: 0px 0px 16px rgba(28, 28, 30, 0.95);
+            letter-spacing: 4px;
+            opacity: 0.6;
+            &.active {
+              color: #fff;
+              opacity: 1;
+            }
+          }
+        }
+      }
+      .indexPage {
+        width: 115px;
+        height: 55px;
+        position: absolute;
+        top: 2px;
+        left: 0px;
+        background: url("./img/indexLine.png") center bottom no-repeat;
+        .pageViewiew {
+          width: 80px;
+          height: 40px;
+          margin-left: 18px;
+          display: flex;
+          cursor: pointer;
+          justify-content: space-between;
+          cursor: pointer;
+          .indexIocn {
+            width: 40px;
+            height: 40px;
+            background: url("./img/home.png");
+          }
+          .indexTitle {
+            height: 40px;
+            font-size: 16px;
+            font-family: Alibaba PuHuiTi;
+            font-weight: bold;
+            line-height: 40px;
+            color: #ffffff;
+            letter-spacing: 3px;
+            opacity: 0.6;
+          }
+        }
+      }
+    }
+    .body {
+      margin-top: -56px;
+    }
+  }
+}
+</style>

@@ -1,0 +1,70 @@
+<template>
+  <div class="school-leader">
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <a-table 
+          class="rule-table"
+          :rowKey="generateRowKey"
+          :columns="columns" 
+          :dataSource="tableData" 
+          :pagination="false"
+          :bordered="true"
+          >
+        </a-table>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**学校领导职数配置规则
+*/
+import { Row, Col, Table } from "ant-design-vue";
+export default {
+  props: {
+    data: Object,
+    str: String
+  },
+  components: { ARow: Row, ACol: Col, ATable: Table },
+  data() {
+    return {
+      columns: [
+        { title: '全日制在校生', dataIndex: 'studennum', width: '30%' },
+        { title: '领导职数', dataIndex: 'leadernum', width: '30%' },
+        { title: '操作', dataIndex: 'ps', width: '40%' }
+      ],
+      tableData: []
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    this.tableData = [this.data];
+  },
+  mounted() {
+    let data = {}
+    data.isSort = false;
+    data.isSpecial = false;
+    data.tableData = this.tableData;
+    data.headArr = [
+      {text: '全日制在校生', colspan: 1}, 
+      {text: '领导职数', colspan: 1}, 
+      {text: '操作', colspan: 1}
+    ];
+    this.$store.commit('setProcessedData', { key: this.str, data});
+  },
+  methods: {
+    generateRowKey() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.school-leader{
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

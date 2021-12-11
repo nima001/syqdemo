@@ -1,0 +1,103 @@
+import DataSet from '@antv/data-set';
+import { foldValueCols } from './index';
+import { last, map } from 'lodash';
+
+export default {
+  	props: {
+	  data: {// 数据
+      type: Object,
+    },
+    settings: {// 配置
+      type: Object,
+      default: () => ({})
+    },
+	allowDrag: {
+		type: Boolean,
+		default: false
+	},
+	allowMove: {
+		type: Boolean,
+		default: false
+	}
+	},
+	data() {
+		return {
+			changeData: [],
+			plot: undefined,
+		}
+	},
+	computed: {
+		title(){
+			let { title, context = {}} = this.settings;
+			if(title){
+				for(let key in context){
+					title = title.replace(new RegExp('\\$\\{' + key + '\\}', 'g'), context[key]);
+				}
+			}
+			return title;
+		},
+		subtitle() {
+			let { subtitle, context = {}} = this.settings;
+			if(subtitle){
+				for(let key in context){
+					subtitle = subtitle.replace(new RegExp('\\$\\{' + key + '\\}', 'g'), context[key]);
+				}
+			}
+			return subtitle;
+		},
+		muitl(){
+			if(this.data){
+			  let { keyCols, valueCols, rows } = this.data;
+			  return valueCols.length > 1 || keyCols.length > 1;
+			}
+		},
+	},
+	methods: {
+		transform(table, sortType){
+			let { keyCols, valueCols, rows } = table;
+			let cs = foldValueCols(valueCols);
+			const dv = new DataSet.DataView().source(rows);
+			if(cs.length > 1){
+				let fields = [], map = {};
+				cs.forEach(item => {
+					fields.push(item.column);
+					map[item.column] = item.showname;
+				})
+				dv.transform({
+					type: 'fold',
+					fields,
+					key: 'col',
+					value: 'value',
+				});
+				dv.transform({
+					type: 'map',
+					callback: (row) => {
+						row.col = map[row.col];
+						return row;
+					},
+				});
+				if(sortType) {
+					dv.transform({
+						type: 'sort-by',
+						fields: 'value',
+						...sortType, 
+					})
+				}
+				rows = dv.rows;
+				keyCols = [...keyCols, { column: 'col' }],
+				valueCols = [{ column: 'value' }];
+				return {
+					keyCols, valueCols, rows
+				}
+			}
+			if(sortType) {
+				dv.transform({
+					type: 'sort-by',
+					fields: last(valueCols).column,
+					...sortType, 
+				})
+			}
+			return { keyCols, valueCols, rows: dv.rows };
+		}
+	},
+}

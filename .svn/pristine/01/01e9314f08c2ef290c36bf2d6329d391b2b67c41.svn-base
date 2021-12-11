@@ -1,0 +1,81 @@
+import request from '../utils/request'
+
+// 获取菜单
+export function getListMenu() {
+	if (process.env.VUE_APP_PROJECT_NAME === 'zfw') {
+		return request({
+      url: `/idmgzbm/acl/menu/getMenuData`,
+      method: 'get'
+  	});
+	} else {
+		return request({
+			url: `/base/menu/${process.env.VUE_APP_PROJECT_NAME}`,
+			method: 'get',
+		});
+	}
+}
+
+// 获取收藏菜单接口
+export function getcollectMenu() {
+	return request({
+		url: `/base/menu/star/${process.env.VUE_APP_PROJECT_NAME}`,
+		method: 'get',
+	});
+}
+
+//收藏菜单的删除或添加接口
+export function updateStarMenu(ids) {
+	return request({
+		url: `/base/menu/star/${process.env.VUE_APP_PROJECT_NAME}`,
+		method: 'post',
+		data: {
+				ids
+		},
+		headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'}
+	});
+}
+
+//获取我的控件列表
+export function getWidgets() {
+	return request({
+		url: `/base/widget/${process.env.VUE_APP_PROJECT_NAME}`,
+		method: 'get',
+	});
+}
+
+//获取布局
+export function getLayout() {
+	return request({
+		url: `/base/layout/${process.env.VUE_APP_PROJECT_NAME}`,
+		method: 'get',
+	});
+}
+
+//获取布局
+export function updateLayout(layout) {
+	return request({
+		url: `/base/layout/${process.env.VUE_APP_PROJECT_NAME}`,
+		method: 'post',
+		data: layout
+	});
+}
+
+//验证组件是否有权限
+export function validateCom(component) {
+	return request({
+		url: `/base/component/validate/${process.env.VUE_APP_PROJECT_NAME}`,
+		method: 'get',
+		params: {
+			component
+		}
+	});
+}
+
+// 授权组件列表
+export function componentAuth(){
+	return request({
+		url: `/base/component/auth/${process.env.VUE_APP_PROJECT_NAME}`,
+		method: 'get',
+	})
+}
+

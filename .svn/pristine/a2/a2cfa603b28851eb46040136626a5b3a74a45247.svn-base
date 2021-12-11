@@ -1,0 +1,245 @@
+<template>
+  <div class="staff-violate">
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">（1）实有人员年龄分布情况</span>
+      </a-col>
+      <a-col :span="24">
+        <span class="name">30周岁以下人员{{data.zeroth}}名，占比{{thirtyDown}}；31周岁至40周岁人员{{data.nineth}}名，占比{{thirtyToFourty}}；41周岁至50周岁人员{{data.eightth}}名，占比{{fourtyToFifty}}；51周岁以上人员{{data.seventh}}名，占比{{fiftyUp}}；平均年龄 43.0 岁。</span>
+      </a-col>
+      <a-col :span="24">
+        <div id="ageChart"></div>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">（2）实有人员学历分布情况</span>
+      </a-col>
+      <a-col :span="24">
+        <span class="name">研究生以上学历人员{{data.yjsxl}}名，占比{{yjs}};大学本科学历人员{{data.dxxl}}名，占比{{dx}};大学专科学历人员{{data.dzxl}}名，占比{{dz}};其他学历人员{{data.qtxl}}名，占比{{qt}}。</span>
+      </a-col>
+      <a-col :span="24">
+        <div id="educationChart"></div>
+      </a-col>
+    </a-row>
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <span class="name">（3）实有人员性别分布情况</span>
+      </a-col>
+      <a-col :span="24">
+        <span class="name">女性人员{{data.women}}名，占比{{women}}，男性人员{{data.man}}名，占比{{man}}。</span>
+      </a-col>
+      <a-col :span="24">
+        <div id="sexChart"></div>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**人员结构分析
+*/
+import { Row, Col } from "ant-design-vue";
+import { Chart } from '@antv/g2';
+import { numberToPercent, colorGroup, createHtmlTemp } from "@/person-shaoxing/utils/index";
+export default {
+  props: {
+    data: Object
+  },
+  components: {
+    ARow: Row,
+    ACol: Col 
+  },
+  data() {
+    return {
+      chart: null
+    };
+  },
+  watch: {},
+  computed: {
+    ageAll() { 
+      return this.data.zeroth + this.data.nineth + this.data.eightth + this.data.seventh 
+    },
+    educationAll() {
+      return this.data.yjsxl + this.data.dxxl + this.data.dzxl + this.data.qtxl 
+    },
+    peopleAll() {
+      return this.data.man + this.data.women
+    },
+    //  30岁以下百分比
+    thirtyDown() {
+      return numberToPercent(this.data.zeroth, this.ageAll, 2)
+    },
+    //  31周岁至40周岁百分比
+    thirtyToFourty() {
+      return numberToPercent(this.data.nineth, this.ageAll, 2)
+    },
+    //  41周岁至50周岁百分比
+    fourtyToFifty() {
+      return numberToPercent(this.data.eightth, this.ageAll, 2)
+    },
+    //  51周岁以上百分比
+    fiftyUp() {
+      return numberToPercent(this.data.seventh, this.ageAll, 2)
+    },
+    //  研究生学历百分比
+    yjs() {
+      return numberToPercent(this.data.yjsxl, this.educationAll, 2)
+    },
+    //  大学学历百分比
+    dx() {
+      return numberToPercent(this.data.dxxl, this.educationAll, 2)
+    },
+    //  大专学历百分比
+    dz() {
+      return numberToPercent(this.data.dzxl, this.educationAll, 2)
+    },
+    //  其他学历百分比
+    qt() {
+      return numberToPercent(this.data.qtxl, this.educationAll, 2)
+    },
+    //  男人人数百分比
+    man() {
+      return numberToPercent(this.data.man, this.peopleAll, 2)
+    },
+    //  女人人数百分比
+    women() {
+      return numberToPercent(this.data.women, this.peopleAll, 2)
+    },
+    //  年龄数据
+    ageData() {
+      return [
+        {item: '30岁以下', value: this.data.zeroth, percent: this.thirtyDown},
+        {item: '31岁至40岁', value: this.data.nineth, percent: this.thirtyToFourty},
+        {item: '41岁至50岁', value: this.data.eightth, percent: this.fourtyToFifty},
+        {item: '51岁以上', value: this.data.seventh, percent: this.fiftyUp}
+      ]
+    },
+    //  教育数据
+    educationData() {
+      return [
+        {item: '研究生学历', value: this.data.yjsxl, percent: this.yjs},
+        {item: '大学学历', value: this.data.dxxl, percent: this.dx},
+        {item: '大专学历', value: this.data.dzxl, percent: this.dz},
+        {item: '其他学历', value: this.data.qtxl, percent: this.qt}
+      ]
+    },
+    //  性别数据
+    sexData() {
+      return [
+        {item: '男性', value: this.data.man, percent: this.man},
+        {item: '女性', value: this.data.women, percent: this.women}
+      ]
+    },
+  },
+  created() {},
+  mounted() {
+    this.createChart('ageChart', this.ageData);
+    this.createChart('educationChart', this.educationData);
+    this.createChart('sexChart', this.sexData); 
+  },
+  methods: {
+    getHtml() {
+      let arr = [
+        {val: '<p>（1）实有人员年龄分布情况</p>'},
+        {val: `<p>30周岁以下人员${this.data.zeroth}名，占比${this.thirtyDown}；31周岁至40周岁人员${this.data.nineth}名，占比${this.thirtyToFourty}；41周岁至50周岁人员${this.data.eightth}名，占比${this.fourtyToFifty}；51周岁以上人员${this.data.seventh}名，占比${this.fiftyUp}；平均年龄 43.0 岁。</p>`},
+        {},
+        {val: '<p>（2）实有人员学历分布情况</p>'},
+        {val: `<p>研究生以上学历人员${this.data.yjsxl}名，占比${this.yjs};大学本科学历人员${this.data.dxxl}名，占比${this.dx};大学专科学历人员${this.data.dzxl}名，占比${this.dz};其他学历人员${this.data.qtxl}名，占比${this.qt}。</p>`},
+        {},
+        {val: '<p>（3）实有人员性别分布情况</p>'},
+        {val: `<p>女性人员${this.data.women}名，占比${this.women}，男性人员${this.data.man}名，占比${this.man}。</p>`},
+        {}
+      ]
+      arr[2].val = this.getCanvas('ageChart')
+      arr[5].val = this.getCanvas('educationChart')
+      arr[8].val = this.getCanvas('sexChart')
+
+      let obj = {
+        children: [],
+        showtitle: false,
+        title: '实有人员结构分析'
+      }
+      arr.forEach((item, index) => {
+        if (index == 2 || index == 5 || index == 8) {
+          let list = {
+            children: [{image: ''}],
+            showtitle: false,
+            title: '实有人员结构分析'
+          }
+          list.children[0].image = item.val
+          obj.children.push(list)
+        } else {
+          let list = {
+            children: [{html: ''}],
+            showtitle: false,
+            title: '实有人员结构分析'
+          }
+          list.children[0].html = createHtmlTemp(item.val)
+          obj.children.push(list)
+        }
+      })
+      return obj
+    },
+    getCanvas(id) {
+      let el = document.getElementById(id)
+      if (el) {
+        let canvas = el.querySelector('canvas')
+        if (canvas) {
+          return canvas.toDataURL('image/png');
+        }
+      }
+    },
+    createChart(id, data) {
+      this.chart = new Chart({
+        container: id,
+
+        height: 400,
+        width: 600
+      });
+
+      this.chart.coordinate('theta', {
+        radius: 0.75,
+      });
+      this.chart.data(data);
+
+      this.chart.scale('value', {
+        formatter: (val) => {
+          if (!val) return 0
+          return val;
+        },
+      });
+
+      this.chart.tooltip({
+        showTitle: false,
+        showMarkers: false,
+      });
+
+      this.chart
+        .interval()
+        .position('value')
+        .color('item', colorGroup)
+        .label('value', {
+          content: (data) => {
+            return `${data.item}: ${data.value}`;
+          },
+        })
+        .adjust('stack');
+      this.chart.legend({
+        position: 'right',
+      });
+      this.chart.interaction('element-active');
+
+      this.chart.render();
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.staff-violate{  
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

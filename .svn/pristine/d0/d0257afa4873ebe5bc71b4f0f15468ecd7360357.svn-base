@@ -1,0 +1,72 @@
+
+import { uiConfigsCookies } from '@/framework/utils/auth'
+import axios from 'axios'
+import request from '../utils/request'
+import { loopTaskResult } from './asynctask'
+
+// 上传文件
+export function upload(docFile) {
+    let uiConfigs = uiConfigsCookies();
+    return new Promise((resolve, reject) => {
+        let formdata = new FormData()
+        formdata.append("file", docFile)
+        let config = {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        }
+        axios.post(uiConfigs['api.url'] + '/file/v1/upload', formdata, config).then(res => {
+            resolve(res)
+        }).catch(error => {
+            reject(error)
+        })
+    })
+}
+//文件下载
+export function download(uri) {
+    let uiConfigs = uiConfigsCookies();
+    window.open(uiConfigs['api.url'] + '/file/v1/download?uri=' + encodeURIComponent(uri))
+}
+
+//文件上传V2版本
+export function uploadV2(docFile) {
+    let uiConfigs = uiConfigsCookies();
+    return new Promise((resolve, reject) => {
+        let formdata = new FormData()
+        formdata.append("file", docFile)
+        let config = {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        }
+        axios.post(uiConfigs['api.url'] + '/file/v2/file/upload', formdata, config).then(res => {
+            resolve(res)
+        }).catch(error => {
+            reject(error)
+        })
+    })    
+}
+
+//文件下载V2版本
+export function downloadV2(uri) {
+    let uiConfigs = uiConfigsCookies();
+    window.open(uiConfigs['api.url'] + '/file/v2/file/download?uri=' + encodeURIComponent(uri))
+}
+
+/**
+ * html转换成pdf或docx并下载
+ * @param {*} htmlSheet {title, createTitle, newPager, pagerSize, rotate, margins, html, children}
+ * @param {Boolean} isbook 
+ * @param {String} type 文件类型：pdf/docx
+ */
+export function convertHtmlToFileAsync(htmlSheet, isbook, type) {
+    return request({
+		url: `/file/v1/htmlsheetconvert/convertasync?isbook=${isbook?1:0}&type=${type?type:"pdf"}`,
+		method: 'post',
+        data: htmlSheet
+    }).then(({result}) => {
+        return loopTaskResult(result);
+	}).then((uri) => {
+        downloadV2(uri);
+    });
+}

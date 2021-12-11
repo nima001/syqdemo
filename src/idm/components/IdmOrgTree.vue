@@ -1,0 +1,181 @@
+<template>
+  <div class="wrap">
+    <div class="warp-top">
+      <a-radio-group default-value="defaultorg" :value="currentRadio" class="tree-select-radio">
+        <a-radio-button
+          value="defaultorg"
+          :class="treeIdData.otherorgids ? 'tree-select-radio-button-other' : 'tree-select-radio-button'"
+          @click="toggleRaio({ treeid: 12, value: 'defaultorg' })"
+          >
+          组织架构
+        </a-radio-button>
+        <a-radio-button
+          value="verorg"
+          :class="treeIdData.otherorgids ? 'tree-select-radio-button-other' : 'tree-select-radio-button'"
+          @click="toggleRaio({ treeid: 10, value: 'verorg' })"
+          >
+          单位垂直
+        </a-radio-button>
+
+        <div
+          class="tree-select-dropdown"
+          @click="dropdownClick"
+          :class="borderClass ? 'border-color-bule' : 'border-color-gray'"
+          v-if="treeIdData.otherorgids">
+          <a-dropdown :trigger="['click']">
+            <a class="ant-dropdown-link">
+              <a-icon type="down" />
+            </a>
+            <a-menu slot="overlay" @click="handleMenuClick">
+              <a-menu-item v-for="item in treeIdData.otherorgids" :key="item.value">
+                <a href="javascript:;" >{{item.name}}</a>
+              </a-menu-item>
+            </a-menu>
+          </a-dropdown>
+        </div>
+
+      </a-radio-group>
+    </div>
+    <div class="warp-tree">
+      <org-tree @select="onOrgSelect" :nodeid="nodeid" :treeid="treeid"/>
+    </div>
+    <div class="warp-footer">
+      <div class="right">
+        <a-button @click="cancel">取消</a-button>
+        <a-button type="primary" @click="ok">确认</a-button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Dropdown, Menu, Icon, Radio, Button } from "ant-design-vue";
+import OrgTree from "@/idm/components/OrgTree";
+import { treeids } from "@/idm/api/org";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  props: {},
+  components: {
+    AIcon: Icon,
+    AButton: Button,
+    ARadio: Radio,
+    ARadioGroup: Radio.Group,
+    ARadioButton: Radio.Button,
+    ADropdown: Dropdown,
+    AMenu: Menu,
+    AMenuItem: Menu.Item,
+    OrgTree,
+  },
+  data() {
+    return {
+      nodeid: undefined,
+      treeid: 12,
+      treeIdData: {},
+      currentRadio: 'defaultorg',
+      borderClass: false,
+      selected: null,
+    };
+  },
+  watch: {},
+  computed: {},
+  created() {
+    this.getTreeids();
+  },
+  mounted() {},
+  methods: {
+    onOrgSelect(data) {
+      this.selected = data;
+    },
+    cancel() {
+      this.$emit('select-cancel', 'fail');
+    },
+    ok() {
+      this.$emit('select-ok', this.selected, this.treeid);
+    },
+    getTreeids(){
+      treeids()
+      .then(({result}) => {
+        this.treeIdData = result;
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    toggleRaio(data) {
+      let { value, treeid } = data;
+      this.currentRadio = value;
+      this.treeid = treeid;
+      this.borderClass = false;
+    },
+    dropdownClick(element){
+      this.borderClass = true;
+      this.currentRadio = null;
+    },
+    handleMenuClick(e) {
+      this.treeid = e.key;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.wrap{
+  height: 100%;
+  .warp-top{
+    margin-top: 12px;
+    padding: 0 20px;
+    .tree-select-radio{
+      width: 100%;
+      position: relative;
+      // .tree-select-radio-button{
+      //   width: 50%;
+      // }
+      // .tree-select-radio-button-other{
+      //   width: 44%;
+      // }
+      .tree-select-dropdown{
+        position: absolute;
+        top: 0;
+        left: 174px;
+        width: 12%;
+        height: 32px;
+        line-height: 30px;
+        border: 1px solid #d9d9d9;
+        border-left-color: transparent;
+        border-radius: 0 4px 4px 0;
+        text-align: center;
+      }
+      .border-color-bule{
+        border-color: @primary-color;
+        border-left-color: @primary-color;
+      }
+      .border-color-gray{
+        border-color: #d9d9d9;
+        border-left-color: transparent;
+      }
+      .tree-select-dropdown-active{
+        border-color: @primary-color;
+      }
+    }
+  }
+  .warp-tree{
+    height: calc(~'100% - 100px');
+  }
+  .warp-footer{
+    height: 56px;
+    .right{
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 20px;
+      height: 100%;
+      border-top: 1px solid #e8e8e8;
+      button{
+        &:last-child{
+          margin-left: 12px;
+        }
+      }
+    }
+  }
+}
+</style>

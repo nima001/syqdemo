@@ -1,0 +1,81 @@
+<!-- 创建应用成功 -->
+<template>
+  <a-layout class="dev-layout">
+    <div class="body">
+      <a-icon type="check-circle" class="tip-icon" />
+      <div class="box">
+        <p>接入码：{{ data.accessCode }}</p>
+        <p>接入密钥：{{ data.accessKey }}</p>
+      </div>
+      <p>应用创建成功......</p>
+      <p>现在您可以进行开发调试了</p>
+      <a-button type="primary">
+        <router-link to="/dev/managementcenter"
+          >{{ num }}S后进入管理中心</router-link
+        >
+      </a-button>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import { Button, Icon, Layout } from "ant-design-vue";
+export default {
+  data() {
+    return {
+      data: "",
+      num: 10,
+      timer: null,
+    };
+  },
+  components: {
+    ALayout: Layout,
+    AButton: Button,
+    AIcon: Icon,
+  },
+  created() {
+    clearInterval(this.interval);
+    this.data = this.$route.query.result;
+    this.interval = window.setInterval(() => {
+      this.num = this.num - 1;
+    }, 1000);
+    this.timer = setTimeout(() => {
+      this.$router.push({ path: "/dev/managementcenter" });
+    }, 10000);
+  },
+  destroyed() {
+    clearTimeout(this.timer);
+    this.timer = null;
+    window.clearInterval(this.interval);
+    this.interval = null;
+  },
+};
+</script>
+<style lang="less" scoped>
+.dev-layout {
+  height: 100%;
+  width: 100%;
+  padding: 10px;
+  .body {
+    padding: 30px 24px 8px 24px;
+    height: 100%;
+    text-align: center;
+    background: #fff;
+    .tip-icon {
+      font-size: 100px;
+      color: #80c342;
+    }
+  }
+  .box {
+    width: 500px;
+    padding: 15px 0;
+    margin: 30px auto;
+    background-color: #f6f6f6;
+  }
+  .ant-btn {
+    margin-top: 65px;
+    background-color: @primary-2;
+    color: @primary-color;
+  }
+}
+</style>

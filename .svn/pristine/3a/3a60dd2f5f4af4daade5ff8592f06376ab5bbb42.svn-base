@@ -1,0 +1,49 @@
+<template>
+  <div class="wrap">
+    <form-display :formConfig="formConfig" :formData="formData" :showAnchor="false">
+      <ant-chart slot="chart" slot-scope="props" v-bind="props"></ant-chart>
+    </form-display>
+  </div>
+</template>
+
+<script>
+import FormDisplay from "@formdesign/views/FormDisplay";
+import AntChart from "@person/views/statistics/chart/AntChart";
+export default {
+  components: {
+    FormDisplay,
+    AntChart
+  },
+  data() {
+    return {
+      formData: { bar: 1 },
+      formConfig: [
+        { type: "titleBar", code: "baseinfo", name: "基本信息" },
+        {
+          type: 'colLayout',
+          children: [
+            { 
+              span: 24, 
+              components: [
+                { 
+                  type: 'colLayout', 
+                  children: [
+                    { span: 12, components: [{ type: 'chart', code: 'bar'}]},
+                    { span: 12, components: [{ type: 'chart', code: 'bar'}]},
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+  },
+  methods: {}
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  padding: 0px @content-padding-h;
+}
+</style>

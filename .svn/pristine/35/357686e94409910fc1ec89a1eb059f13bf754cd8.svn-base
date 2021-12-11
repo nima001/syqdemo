@@ -1,0 +1,315 @@
+<template>
+  <div class="content">
+    <div class="codes" @click="showModal">
+      <a-form :form="this.form">
+        <a-form-item style="margin-bottom: 0">
+          <a-input :disabled="this.loading" read-only placeholder="请选择权力事项">
+            <a-icon slot="addonAfter" v-if="!this.form.getFieldValue('code')" type="select"/>
+            <a-icon slot="suffix" v-else @click.stop="clear('code')" type="close-circle" theme="filled"/>
+          </a-input>
+        </a-form-item>
+      </a-form>
+    </div>
+
+    <a-modal
+      v-model="qlsxVisible"
+      title="选择权力事项"
+      :width="900"
+      :bodyStyle="{ height: '555px', padding: '0' }"
+    >
+      <a-row>
+        <a-col>
+          <a-upload :before-upload="beforeUpload" :file-list="this.fileList" @change="handleChange" accept=".xls, .xlsx">
+            <a-button icon="upload" type="primary" :disabled="this.tablespin">上传事项文件</a-button>
+          </a-upload>
+        </a-col>
+        <a-col>
+          <a-table
+            :scroll="{ y: 400 }"
+            :loading="tablespin"
+            :columns="this.columns"
+            :row-selection="rowSelection"
+            :dataSource="this.tabledata"
+          >
+            <template slot="searchcode" slot-scope="text, record">
+              <p v-if="record.searchcode" class="search">{{ record.searchcode }}</p>
+              <p v-if="record.resultcode" class="result">{{ record.resultcode }}</p>
+              <p v-if="!record.searchcode && !record.resultcode">无结果</p>
+            </template>
+            <template slot="searchname" slot-scope="text, record">
+              <p v-if="record.searchname" class="search">{{ record.searchname }}</p>
+              <p v-if="record.resultname" class="result">{{ record.resultname }}</p>
+              <p v-if="!record.searchcode && !record.resultcode">无结果</p>
+            </template>
+            <template slot="success" slot-scope="text">
+              <a-icon type="check-circle" v-if="text" style="color: green" />
+              <a-icon type="close-circle" v-else style="color: red" />
+            </template>
+          </a-table>
+        </a-col>
+      </a-row>
+      <task-progress
+        :taskid="taskid"
+        defaultInfo="请稍候..."
+        @finish="onProgressFinish"
+      />
+      <template slot="footer">
+        <a-button key="submit" type="primary" :disabled="this.tablespin" :loading="this.tablespin" @click="handleOk">
+          确定
+        </a-button>
+      </template>
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import {
+  Form,
+  Input,
+  Modal,
+  Icon,
+  Button,
+  Row,
+  Col,
+  Upload,
+  Table,
+} from "ant-design-vue";
+import { cloneDeep } from 'lodash';
+import { qlsxexcel } from "@/person-shaoxing/api/assessment";
+import TaskProgress from "@/framework/components/TaskProgress";
+import { showError } from "@/framework/utils";
+const columns = [
+  {
+    title: "序号",
+    customRender: (text, record, index) => index + 1, width: "10%" },
+  {
+    title: "权力基本码",
+    key: "searchcode",
+    width: "20%",
+    scopedSlots: { customRender: "searchcode" },
+  },
+  {
+    title: "权力事项名称",
+    key: "searchname",
+    scopedSlots: { customRender: "searchname" },
+  },
+  {
+    title: "校验结果",
+    dataIndex: "success",
+    key: "success",
+    align: "center",
+    width: '20%',
+    scopedSlots: { customRender: "success" },
+  },
+];
+export default {
+  props: {
+    //加载状态
+    loading: {
+      type: Boolean,
+    },
+    codes: {
+      //选中事项
+      type: Array,
+    },
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AIcon: Icon,
+    AForm: Form,
+    AIcon: Icon,
+    TaskProgress,
+    AInput: Input,
+    ATable: Table,
+    AModal: Modal,
+    AButton: Button,
+    AUpload: Upload,
+    AFormItem: Form.Item,
+  },
+  data() {
+    return {
+      columns,
+      district: [],
+      selected: [],
+      fileList: [],
+      codesdata: [],
+      tabledata: [],
+      file: undefined,
+      tablespin: false,
+      taskid: undefined,
+      qlsxVisible: false,
+      selectedRowKeys: [],
+      form: this.$form.createForm(this, { name: "qlsxform" }),
+    };
+  },
+  computed: {
+    rowSelection() {
+      return {
+        selectedRowKeys: this.selectedRowKeys,
+        onSelect: (record, selected, selectedRows) => {
+          if(selected) {
+            this.selected.push(record);
+            this.selectedRowKeys.push(record.key);
+          }else{
+            let Index = undefined;
+            this.selected.forEach((item,index)=>{
+              if(item.key===record.key) {
+                Index = index;
+              }
+            });
+            this.selected.splice(Index,1);
+            this.selectedRowKeys.splice(Index,1);
+          }
+        },
+        onSelectAll: (selected, selectedRows, changeRows) => {
+          if(selected) {
+            this.selected = cloneDeep(this.tabledata);
+            this.selectedRowKeys = [];
+            this.selected.forEach((item, index) => {
+              this.selectedRowKeys.push(index);
+            });
+          }else{
+            this.selected = [];
+            this.selectedRowKeys = [];
+          }
+        },
+      };
+    },
+  },
+  mounted() {
+    this.qlsxVisible = false;
+  },
+  methods: {
+    showModal() {
+      this.qlsxVisible = true;
+    },
+    beforeUpload(file) {
+      return false;
+    },
+    handleChange(info) {
+      if (this.checkType(info.file)) {
+        this.fileList = info.fileList.slice(-1);
+        if (this.fileList.length) {
+          this.file = info.file;
+          this.qlsxExcel(this.file);
+        }
+      }
+    },
+    handleOk() {
+      this.tablespin = true;
+      let result = this.selected.filter((item) => item.success === false);
+      if (result.length) {
+        this.$notification.warning({
+          message: "提示",
+          description: "包含失败的校验项目",
+          duration: 3,
+        });
+      } else {
+        this.codesdata = [];
+        this.selected.forEach((item) => {
+          let code = {};
+          if (item.searchcode) {
+            code.quanlicode = item.searchcode;
+          }
+          if (item.searchname) {
+            code.quanliname = item.searchname;
+          }
+          this.codesdata.push(code);
+        });
+        this.$emit('update:codes', this.codesdata);
+      }
+      this.tablespin = false;
+      this.qlsxVisible = false;
+    },
+    checkType(file) {
+      if (file.type !== "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" && file.type !== "application/vnd.ms-excel" && file.type !== ".csv") {
+        this.$notification.warning({
+          title: "提示",
+          message: "请选择excel文件",
+          duration: 3,
+        });
+        this.fileList = [];
+        return false;
+      }
+      return true;
+    },
+    onProgressFinish(res) {
+      res.forEach((item, index) => {
+        item.key = index;
+      });
+      this.tabledata = res;
+    },
+    qlsxExcel(file) {
+      this.tablespin = true;
+      qlsxexcel(file)
+        .then((res) => {
+          this.tablespin = false;
+          if (res.data.result) {
+            this.taskid = res.data.result;
+          }
+        })
+        .catch((err) => {
+          this.tablespin = false;
+          showError(err);
+        });
+    },
+  },
+};
+</script>
+<style scoped lang="less">
+.content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  & .codes {
+    width: 100%;
+    cursor: pointer;
+  }
+  /deep/.ant-input-group-wrapper {
+    cursor: pointer;
+    .ant-input {
+      pointer-events: none;
+    }
+  }
+}
+.ant-modal-body {
+  .ant-row {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    .ant-col {
+      padding: @padding-xs @padding-lg;
+      /deep/.ant-table-body {
+        overflow-y: auto !important;
+        p {
+          margin: 0;
+        }
+        p.result {
+          color: @primary-color;
+        }
+      }
+      .ant-upload {
+        .ant-btn {
+          border-radius: 50px;
+        }
+      }
+      /deep/.ant-upload-list {
+        & .ant-upload-list-item:hover .ant-upload-list-item-info {
+          background-color: #ffffff;
+        }
+        & .ant-upload-list-item-card-actions {
+          display: none;
+        }
+      }
+    }
+    .ant-col:first-child > span {
+      display: flex;
+    }
+    .ant-col:last-child {
+      flex: 1;
+    }
+  }
+}
+</style>

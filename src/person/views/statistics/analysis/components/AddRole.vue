@@ -1,0 +1,236 @@
+<template>
+  <div class="add-role">
+    <div class="toolbar">
+      <div class="left">
+      </div>
+      <div class="right">
+        <ul>
+          <li>
+            <a-input 
+              placeholder="请输入角色编码"
+              allowClear
+              v-model="search.codelike">
+            </a-input>
+          </li>
+          <li>
+            <a-input 
+              placeholder="请输入角色名称"
+              allowClear
+              v-model="search.namelike">
+            </a-input>
+          </li>
+          <li>
+            <a-button type="primary" @click="onSearch">查询</a-button>
+          </li>
+          <li>
+            <a-button @click="onReset">重置</a-button>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="body">
+      <a-table
+        :row-selection="{ selectedRowKeys: selectedRowKeys, onChange: onSelectChange }"
+        :columns="columns"
+        :dataSource="page.rows"
+        rowKey="id"
+        :loading="pageLoading"
+        :pagination="false"
+        :rowClassName="(record) => selectRole && selectRole.id == record.id ? 'selected': ''"
+        :customRow="row => ({on:{click: () => {onRowClick(row)}}})"
+      ></a-table>
+    </div>
+    <div class="footer">
+      <a-pagination
+        v-if="page.rows && page.rows.length"
+        showSizeChanger
+        :showTotal="total => `总共：${total}条`"
+        @showSizeChange="onShowSizeChange"
+        :total="page.total"
+        :pageSize="page.pagesize"
+        v-model="page.pagenum"
+        @change="onPageChange"
+      />
+      <a-button class="step-next" type="primary" @click="addRole">确定</a-button>
+    </div>
+  </div>
+</template>
+<script>
+import { Button, Table, Pagination, Input } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+import { queryrole } from "@/person/api/booklet";
+import { addRole} from "@/person/api/statistics";
+export default {
+  name: "AddRole",
+  props: ['analyzeid'],
+  data() {
+    return {
+      columns: [
+        { title: "序号", customRender: (text, record, index) => ((this.page.pagenum - 1)*this.page.pagesize) + (index + 1) },
+        { title: "角色名称", dataIndex: "name", },
+        { title: "角色分组", dataIndex: "group", }
+      ],
+      selectedRowKeys: [],
+      selectRole: null,
+      search: {
+        codelike: null,
+        namelike: null
+      },
+      pageLoading: false,
+      page: {
+        rows: null,
+        pagesize: 20,
+        pagenum: 1,
+        total: 0
+      },
+    }
+  },
+  components: {
+    ATable: Table,
+    AButton: Button,
+    APagination: Pagination,
+    AInput: Input
+  },
+  created() {
+    this.loadData(this.page);
+  },
+  methods: {
+    loadData(page) {
+      this.pageLoading = true;
+      queryrole({
+        ...this.search,
+        ...page,
+        needtotal: true
+      })
+      .then(({result}) => {
+        this.pageLoading = false;
+        this.page = result;
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    onRowClick(row) {
+      this.selectRole = row;
+    },
+    onSearch() {
+      this.loadData({ pagenum: 1, pagesize: this.page.pagesize });
+    },
+    onReset() {
+      this.search.namelike = null;
+      this.search.codelike = null;
+      this.loadData({ pagenum: 1, pagesize: this.page.pagesize });
+    },
+    onShowSizeChange(pagenum, pagesize) {
+      this.loadData({ pagenum: 1, pagesize });
+    },
+    onPageChange(pagenum, pagesize) {
+      this.loadData({ pagenum, pagesize });
+    },
+    onSelectChange(selectedRowKeys) {
+      this.selectedRowKeys = selectedRowKeys;
+    },
+    addRole() {
+      if (this.selectedRowKeys.length) {
+        addRole({analyzeid: parseInt(this.analyzeid), roleid: this.selectedRowKeys})
+        .then(res => {
+          this.$message.info('添加角色成功');
+          this.$emit("finish", "ok");
+        })
+        .catch(error => {
+          showError(error);
+        });
+      }else{
+        this.$message.info('请选择一个文件');
+      }
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.add-role{
+  height: 100%;
+  min-width: 1000px;
+  display: flex;
+  flex-direction: column;
+  & > .toolbar {
+    white-space: nowrap;
+    padding: @content-padding-v @content-padding-h;
+    .left {
+      float: left;
+    }
+    .right {
+      float: right;
+    }
+    ul {
+      margin: 0;
+      white-space: nowrap;
+    }
+    li {
+      display: inline-block;
+      margin-left: 8px;
+      white-space: nowrap;
+      .name {
+        line-height: 32px;
+        padding-right: 5px;
+        vertical-align: middle;
+      }
+      .ant-input-group.ant-input-group-compact,
+      .ant-select,
+      .ant-btn,
+      .ant-input-affix-wrapper {
+        display: inline-block;
+        vertical-align: middle;
+      }
+    }
+    .pzwh-tooltip {
+      font-size: @font-size-base;
+      color: @primary-color;
+    }
+    .pzwh {
+      width: auto;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      &:hover {
+        border-color: @primary-color;
+      }
+      &:focus-within {
+        border-color: @primary-color;
+        box-shadow: 0 0 0 2px fade(@primary-color, 20%);
+      }
+      /deep/.ant-input {
+        border: none;
+        height: 30px;
+      }
+      /deep/.ant-input-group-addon {
+        border: none;
+        background: none;
+        padding: 0 4px;
+      }
+    }
+  }
+  & > .body {
+    flex: auto;
+    min-height: 0;
+    overflow: auto;
+    padding: 0 @content-padding-h;
+    /deep/tr.selected {
+      background: @primary-2;
+    }
+    /deep/.opts > .disable {
+      color: @disabled-color;
+      cursor: not-allowed;
+    }
+  }
+  & > .footer {
+    padding: 12px @content-padding-h;
+    border-top: 1px solid @border-color-base;
+    .ant-pagination{
+      float: left;
+    }
+    .ant-btn{
+      float: right;
+    }
+  }
+}
+</style>

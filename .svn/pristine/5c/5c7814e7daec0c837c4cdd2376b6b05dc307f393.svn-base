@@ -1,0 +1,440 @@
+<template>
+  <div class="catalog-tree">
+    <div class="header" id="catalog-search-bar">
+      <div class="search-input">
+        <a-input
+          placeholder="输入组织名称搜索"
+          v-model="search.key"
+          @change="onSearch"
+          @pressEnter="onSearch"
+        >
+          <a-icon
+            slot="suffix"
+            :type="search.key ? 'close-circle' : 'search'"
+            @click="clearSearch"
+          />
+        </a-input>
+      </div>
+      <div class="search-data-panel" v-if="search.key">
+        <a-spin v-if="search.data == null" key="search-data" class="searching">
+          <a-icon slot="indicator" type="loading" />
+        </a-spin>
+        <div v-else-if="search.data.length" key="search-data" class="datalist">
+          <ul>
+            <li
+              v-for="item in search.data"
+              :key="item.id"
+              @click="onSearchSelected(item)"
+              :title="item.name"
+            >
+              <custom-icon type="org" :object="item.data" class="icon"/>
+              <span class="text">{{ item.name }}</span>
+            </li>
+          </ul>
+        </div>
+        <div v-else key="search-data" class="empty">
+          <img class="icon" src="@/framework/assets/img/search-empty.png" alt />
+          <div class="text">无搜索结果</div>
+        </div>
+      </div>
+    </div>
+    <div class="body">
+      <a-tree
+        ref="tree"
+        :loadData="onLoadData"
+        :treeData="treeData"
+        showIcon
+        :expandedKeys="expandedKeys"
+        :selectedKeys="selectedKeys"
+        @expand="onExpand"
+        @select="onSelect"
+      >
+        <custom-icon slot="icon" slot-scope="data" class="icon" 
+          :type="data._node.data ? 'org' : 'dir'" 
+          :object="(data._extra || data._node).data"
+        />
+      </a-tree>
+    </div>
+  </div>
+</template>
+<script>
+import { Input, Spin, Icon, Tree } from "ant-design-vue";
+import CustomIcon from "@/framework/components/CustomIcon";
+import get from 'lodash/get';
+import { showError } from "@/framework/utils/index";
+
+let searchDelayTimer = 0;
+let searchid = 0;
+
+/**
+ * 目录树（支持搜索、定位）
+ * props
+ * 说明见props
+ * 事件 
+ * 1.select 组织树节点选中 function(node, extra, init)
+ * 2.searchSelect 搜索结果选中 function(item)
+ * 节点数据属性
+ * 1.id 数据ID
+ * 2.name 数据显示名称
+ * 3.data 节点数据（为空视为分类）
+ * 4.hasChild 是否含有子节点
+ * @author sunwen
+ */
+export default {
+  components: {
+    AInput: Input,
+    ASpin: Spin,
+    AIcon: Icon,
+    ATree: Tree,
+    CustomIcon
+  },
+  props: {
+    location: {}, //初始化定位的节点
+    title: { //title 从数据中获取显示的名称（为空 显示node.name）
+      type: [String, Function],
+    },
+    dirSelectable: { //分类节点是否可选中
+      type: Boolean,
+      default: false
+    },
+    autoSelect: {//初始化时自动选中第一个节点
+      type: Boolean,
+      default: true
+    },
+    onLoad: Object,//加载函数 root(), path(nodeid), children(node), search(searchkey, pagenum)
+    loadExtra: Function,//加载扩展数据返回Promise对象 function(node, extra)
+  },
+  data() {
+    return {
+      treeData: [],
+      expandedKeys: [],
+      selectedKeys: [],
+      search: {
+        key: '',
+        data: undefined
+      }
+    };
+  },
+  created() {
+    this.loadData();
+    document.addEventListener("click", this.onSearchClose);
+  },
+  destroyed() {
+    document.removeEventListener("click", this.onSearchClose);
+  },
+  watch: {
+    location(v){
+      if(v){
+        this.locationAndSelect(v);
+      }
+    }
+  },
+  methods: {
+    async loadData() {
+      try {
+        let root = await this.onLoad.root();
+        let expandedKeys = [], location, 
+          treeData = (root.children || []).map(item => this._createNodeData(item));
+        if (this.location) {
+          location = await this._locationPath(treeData, expandedKeys, this.location);
+        } else if (treeData.length == 1) { //第一级如果只有一个节点默认展开
+          let first = treeData[0];
+          first.children = await this._loadChildren(first._node);
+          expandedKeys.push(first.key);
+        }
+        this.treeData = treeData;
+        this.expandedKeys = expandedKeys;
+        if (location) {
+          this.selectedKeys = [location.key];
+          this.scrollSelectedIntoView()
+          this.$emit("select", location._node, location._extra, true);
+        }else if(this.autoSelect && treeData.length){
+          let first = treeData[0];
+          this.selectedKeys = [first.key];
+          this.$emit("select", first._node, first._extra, true);
+        }
+      } catch (error) {
+        showError(error);
+      }
+    },
+    async _locationPath(treeData, expandedKeys, id) {
+      try {
+        let path = await this.onLoad.path(id);
+        if (path && path.length > 0) {
+          let children = treeData, matchNode = null, first = null, last = path.pop();
+          while ((first = path.shift())) {
+            matchNode = children.find(ele => ele.key == first.id);
+            if (!matchNode) {
+              return;//未匹配到节点数据直接返回
+            }
+            children = matchNode.children;
+            if (!children) {
+              path.unshift(first);
+              break; //子节点未加载跳出循环异步加载子节点
+            }
+            expandedKeys.push(matchNode.key);
+          }
+          if (path.length > 0) {
+            let reqList = await Promise.all(path.map(item => this._loadChildren(item)));
+            let allMatch = reqList.every((ele, index) => {
+              matchNode.children = ele;
+              expandedKeys.push(matchNode.key);
+              if (index < path.length - 1) {
+                let pathItem = path[index + 1];
+                let pathNode = ele.find(item => item.key == pathItem.id);
+                if (pathNode) {
+                  matchNode = pathNode;
+                } else {
+                  return false;
+                }
+              }
+              return true;
+            });
+            if (allMatch) {
+              return matchNode.children.find(ele => ele.key == last.id);
+            }
+          } else {
+            return children.find(ele => ele.key == last.id);
+          }
+        }
+      } catch (error) {
+        showError(error);
+      }
+    },
+    _loadChildren(node, extraData) {
+      if (this.loadExtra) {
+        if(extraData){
+          return this.loadExtra(node, extraData).then(list => {
+            return (list || []).map(item =>
+              this._createNodeData(node, item)
+            );
+          });
+        }else{
+          return Promise.all([
+            this.onLoad.children(node),
+            this.loadExtra(node, extraData)
+          ]).then(([children, extraList]) => {
+            let arr = [];
+            if (extraList) {
+              extraList.forEach(item => arr.push(this._createNodeData(node, item)));
+            }
+            if (children) {
+              children.forEach(item => arr.push(this._createNodeData(item)));
+            }
+            return arr;
+          });
+        }
+      } else {
+        return this.onLoad.children(node).then(children => {
+          return (children || []).map(item => this._createNodeData(item));
+        });
+      }
+    },
+    onExpand(expandedKeys) {
+      this.expandedKeys = expandedKeys;
+    },
+    onSelect(selectedKeys, info) {
+      if (selectedKeys.length > 0) {
+        this.selectedKeys = selectedKeys;
+        let nodeData = info.node.dataRef;
+        this.$emit("select", nodeData._node, nodeData._extra);
+      }
+    },
+    onLoadData(treeNode) {
+      let data = treeNode.dataRef;
+      if (data.children) {
+        return Promise.resolve();
+      }
+      return this._loadChildren(data._node, data._extra)
+        .then(children => {
+          treeNode.dataRef.children = children;
+          this.treeData = [...this.treeData];
+        })
+        .catch(error => {
+          showError(error);//TODO 失败后还原成未加载状态
+        });
+    },
+    onSearch() {
+      let searchkey = this.search.key;
+      if (searchkey && searchkey.trim()) {
+        let sid = ++searchid;
+        this.search.data = null;
+        clearTimeout(searchDelayTimer);
+        //延时500毫秒发起请求，减少连续输入时请求数
+        searchDelayTimer = setTimeout(() => {
+          this.onLoad.search(searchkey.trim(), 1).then(list => {
+            //TODO sunwen 实现分页加载 滚动到底部加载下一页
+            if (searchkey == this.search.key && sid == searchid) {
+              (list || []).forEach(item => {
+                item.name = this.getNodeTitle(item);
+              });
+              this.search.data = list;
+            }
+          }).catch(error => {
+            showError(error);
+          });
+        }, 500);
+      } else {
+        this.clearSearch();
+      }
+    },
+    clearSearch() {
+      this.search.key = '';
+      this.search.data = undefined;
+      clearTimeout(searchDelayTimer);
+    },
+    onSearchClose(e) {
+      if (!e.path.find(ele => ele.id == "catalog-search-bar")) {
+        this.clearSearch();
+      }
+    },
+    onSearchSelected(item) {
+      if(this.$listeners.searchSelect){
+        //搜索结果选中事件被监听，选中后定位交由外部处理
+        this.$emit('searchSelect', item);
+      }else{
+        this.locationAndSelect(item.id);
+      }
+    },
+    locationAndSelect(nodeid){
+      let expandedKeys = [];
+      this._locationPath(this.treeData, expandedKeys, nodeid).then(location => {
+        this.clearSearch();
+        this.treeData = [...this.treeData];
+        this.expandedKeys = expandedKeys;
+        if (location) {
+          this.selectedKeys = [location.key];
+          this.scrollSelectedIntoView()
+          this.$emit("select", location._node, location._extra);
+        }
+      }).catch(err => {
+        showError(err);
+      });
+    },
+    getNodeTitle(node, extra){
+      let data = extra || node.data;
+      if(data){
+        if(typeof(this.title) == 'function'){
+          return this.title(data);
+        }else if(this.title){
+          return get(data, this.title);
+        } 
+      }
+    },
+    _createNodeData(node, extra) {
+      let n = extra || node,
+        isLeaf = n.hasChild === false ? true : undefined; 
+      return {
+        key: n.id,
+        title: this.getNodeTitle(n) || n.name,
+        selectable: this.dirSelectable || !!extra || !!n.data,
+        scopedSlots: { icon: "icon" },
+        isLeaf,
+        _node: node,
+        _extra: extra
+      };
+    },
+    scrollSelectedIntoView(){
+      this.$nextTick(() => {
+        let $selectd = this.$refs.tree.$el.querySelector("li.ant-tree-treenode-selected");
+        if ($selectd) {
+          $selectd.scrollIntoView();
+        }
+      })
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.catalog-tree {
+  height: 100%;
+  flex-direction: column;
+  display: flex;
+  & > .header {
+    flex: none;
+    position: relative;
+    .search-input {
+      margin: 12px 20px 0 20px;
+    }
+    .search-data-panel {
+      position: absolute;
+      z-index: 1000;
+      width: 100%;
+      margin-top: 5px;
+      padding: 10px 0;
+      background-color: white;
+      box-shadow: 0px 4px 8px #e5e5e5;
+      .datalist {
+        min-height: 140px;
+        max-height: 490px;
+        overflow: auto;
+        ul {
+          margin: 0;
+        }
+        li {
+          padding: 2px 20px;
+          line-height: 1.8em;
+          cursor: pointer;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          &:hover {
+            background-color: @primary-1;
+          }
+          .icon {
+            width: 18px;
+            height: 18px;
+            padding: 1px;
+            margin-right: 2px;
+            vertical-align: -0.38em;
+          }
+          .text {
+            vertical-align: middle;
+          }
+        }
+      }
+      .searching {
+        display: block;
+        text-align: center;
+        line-height: 140px;
+      }
+      .empty {
+        text-align: center;
+        height: 140px;
+        .icon {
+          margin-top: 40px;
+        }
+        .text {
+          line-height: 26px;
+          color: #c5c5c5;
+        }
+      }
+    }
+  }
+  & > .body {
+    flex: auto;
+    margin: 5px 5px;
+    overflow: auto;
+    .icon{
+      width: 18px;
+      height: 18px;
+      padding: 1px;
+      margin-top: 3px;
+    }
+    /deep/ .ant-tree{
+      margin-left: 12px;
+      li span.ant-tree-iconEle{
+        width: 18px;
+        height: 20px;
+        line-height: 20px;
+        margin-right: 2px;
+      }
+      li span.ant-tree-switcher {
+        width: 16px;
+        height: 20px;
+        line-height: 20px;
+      }
+    }
+  }
+}
+</style>

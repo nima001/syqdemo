@@ -1,0 +1,93 @@
+<template>
+  <div class="quota-plan-form">
+     <div class="form">
+       <a-form :form="form" layout="vertical" @submit.prevent="handleSubmit">
+        <a-form-item label="下达时间">
+          <a-date-picker v-decorator="['applytime', {rules: [{type: 'object', required: true, message: '请选择下达时间' }]}]" style="width:100%" />
+        </a-form-item>
+        <a-form-item label="申请用编计划数">
+          <a-input-number v-decorator="['total', {rules: [{required: true, message: '请输入用编计划数' }]}]" :min="1" style="width:100%" />
+        </a-form-item>
+        <a-form-item label="用途">
+          <dict-select dict="person.orgquotatype"
+            v-decorator="['useas', {rules: [{required: true,message: '请选择用途' }]}]"
+            :filter="item => item.key == 'zcxaz' || item.key == 'zkrb'"
+          />
+        </a-form-item>
+        <div class="footer">
+          <a-button @click="cancel" >取消</a-button>
+          <a-button type="primary" html-type="submit">提交</a-button>
+        </div>
+      </a-form>
+     </div>
+  </div>
+</template>
+<script>
+import { Button, Form, DatePicker, Input, InputNumber } from "ant-design-vue";
+import DictSelect from "@/framework/components/DictSelect";
+import { showError } from '@/framework/utils/index'
+import { addPlan } from '@/person/api/orgQuotaPlan'
+
+export default {
+  props: ["orgid"],
+  components: {
+    AButton: Button,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInputNumber: InputNumber,
+    ADatePicker: DatePicker,
+    DictSelect,
+  },
+  data() {
+    return {
+      form: this.$form.createForm(this, {}),
+    };
+  },
+  methods: {
+    handleSubmit(e){
+      this.form.validateFields((error, values) => {
+        if(!error){
+          addPlan({orgid: this.orgid, ...values, items: [{
+            key: values.useas,
+            total: values.total,
+          }]}).then(({result}) => {
+            this.$emit('finish', 'ok');
+          }).catch(error => {
+            showError(error);
+          })
+        }
+      });
+    },
+    cancel(){
+      this.$emit('finish', 'cancel');
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.quota-plan-form {
+  height: 100%;
+  padding: 4px 4px 60px 4px;
+  & > .form{
+    box-sizing: border-box;
+    height: 100%;
+    overflow-y: auto;
+    padding: 20px 20px 0 20px;
+  }
+  .footer{
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    box-sizing: border-box;
+    width: 100%;
+    height: 60px;
+    line-height: 36px;
+    padding: 12px 24px;
+    text-align: right;
+    border: 1px solid @border-color-base;
+    & button:first-child{
+      margin-right: 10px;
+    }
+  }
+}
+</style>

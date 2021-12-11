@@ -1,0 +1,135 @@
+<template>
+  <div class="form-panel">
+    <div class="form-body" ref="formBody">
+      <div v-for="item in tables" :key="item.key" :id="item.key">
+        <chart-table :value="item.data" 
+          :name="item.name" 
+          :chartCols="item.chartCols" 
+          :tableCols="item.tableCols"
+          :warnCols="item.warnCols"
+          :unittype="unittype" 
+          :district="district"
+        />
+      </div>
+    </div>
+    <a-anchor wrapperClass="form-anchor" :getContainer="() => $refs.formBody">
+      <a-anchor-link v-for="item in tables" :href="`#${item.key}`" :title="item.name" :key="item.key"/>
+    </a-anchor>
+  </div>
+</template>
+<script>
+import { Anchor, Table } from "ant-design-vue";
+import ChartTable from './ChartTable'
+import { orgCountReport } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '@framework/utils'
+
+/**
+ * 机构数监测
+ */
+export default {
+  components: {
+    AAnchor: Anchor,
+    AAnchorLink: Anchor.Link,
+    ATable: Table,
+    ChartTable,
+  },
+  props: {
+    unittype: {
+      type: Number,
+      required: true,
+    },
+    district: String,
+  },
+  data(){
+    return {
+      data: undefined,
+    }
+  },
+  computed: {
+    tables(){
+      if(this.data){
+        let { header, rows } = this.data;
+        let keyCols = [header[0]], valueCols = header.slice(1).map(item => {
+          return {
+            key: item.key,
+            column: item.column,
+            showname: item.showname
+          }
+        });
+        if(this.unittype == 1){
+          return [{ 
+            key: 'all', 
+            name: '党政机构情况表',
+            data: { keyCols, valueCols, rows },
+            chartCols: ['_id@organization.statistic.dzjgzlsys'],
+            tableCols: ['_id@organization.statistic.dzhgzl_xe', '_id@organization.statistic.dzjgzl_sy']
+          },{ 
+            key: 'zjj', 
+            name: '行政局级情况表',
+            data: { keyCols, valueCols, rows },
+            chartCols: ['_id@organization.statistic.xzjjjgsys'],
+            tableCols: ['_id@organization.statistic.xzjjjg_xe', '_id@organization.statistic.xzjjjg_sy']
+          },{ 
+            key: 'fjj', 
+            name: '行政副局级情况表',
+            data: { keyCols, valueCols, rows },
+            chartCols: ['_id@organization.statistic.xzfjjjgsys'],
+            tableCols: ['_id@organization.statistic.xzfjjjg_xe', '_id@organization.statistic.xzfjjjg_sy']
+          }];
+        }else{
+          return [{ 
+            key: 'all', 
+            name: '事业机构情况表',
+            data: { keyCols, valueCols, rows },
+            chartCols: ['_id@organization.statistic.syjgsys'],
+            tableCols: ['_id@organization.statistic.syjg_xe', '_id@organization.statistic.syjg_sy']
+          },{ 
+            key: 'zjj', 
+            name: '事业局级情况表',
+            data: { keyCols, valueCols, rows },
+            chartCols: ['_id@organization.statistic.syjjjgsys'],
+            tableCols: ['_id@organization.statistic.syjjjg_xe', '_id@organization.statistic.syjjjg_sy']
+          },{ 
+            key: 'fjj', 
+            name: '事业副局级情况表',
+            data: { keyCols, valueCols, rows },
+            chartCols: ['_id@organization.statistic.syfjjjgsys'],
+            tableCols: ['_id@organization.statistic.syfjjjg_xe', '_id@organization.statistic.syfjjjg_sy']
+          }];
+        }
+      }
+    }
+  },
+  created(){
+    this.loadData();
+  },
+  methods: {
+    loadData(){
+      orgCountReport().then(({result}) => {
+        this.data = result;
+      }).catch(error => {
+        showError(error);
+      });
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  position: relative;
+  height: 100%;
+  .form-body {
+    height: 100%;
+    padding: 0 @content-padding-h;
+    overflow-y: scroll;
+    padding-right: 200px + @content-padding-h;
+  }
+  /deep/.form-anchor {
+    position: absolute;
+    top: 50px;
+    right: @content-padding-h;
+    width: 180px;
+    padding-left: 5px;
+  }
+}
+</style>

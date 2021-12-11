@@ -1,0 +1,28 @@
+<template>
+  <div class="title-bar" :id="code">{{name}}</div>
+</template>
+<script>
+
+export default {
+  title: '一级标题',
+  props: {
+    name: {
+      type: String
+    },
+    code: {
+      type: String
+    },
+    level: [Number, String],
+  },
+}
+</script>
+<style lang="less" scoped>
+.title-bar {
+  line-height: 2em;
+  margin: 15px 0;
+  font-size: 16pt;
+  color: black;
+  font-family: 黑体,SimHei;
+  font-weight: bold;
+}
+</style>

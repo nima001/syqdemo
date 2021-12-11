@@ -1,0 +1,102 @@
+<template>
+  <div class="trend">
+    <div class="top">
+      <div class="top_left">
+        {{title}}用户趋势图
+        <span>
+          <img src="../../assets/img/helps.png" alt="">
+        </span>
+      </div>
+      <div class="top_right">
+        数据表
+      </div>
+    </div>
+    <div class="date">{{time}}</div>
+    <div class="total">
+      <ul>
+        <li v-for="(list, index) in total" :key="index">
+          <div class="total_val">{{list.value}}</div>
+          <div class="total_name">{{list.name}}</div>
+        </li>
+      </ul>
+    </div>
+    <LineChart :data="$attrs.pageData.chartArr" :loading="loading" style="height: 219px;margin-top: 24px;"></LineChart>
+  </div>
+</template>
+
+<script>
+import LineChart from '@/zfw/components/lineChart';
+export default {
+  props: {
+    loading: {
+      type: Boolean
+    },
+    title: {
+      type: String
+    },
+    time: {
+      type: String
+    }
+  },
+  components: { LineChart },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+    total() {
+      return this.$attrs.pageData.totalArr
+    }
+  },
+  created() {},
+  mounted() {},
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.trend{
+  margin-top: 0;
+  .top{
+    display: flex;
+    justify-content: space-between;
+    .top_left{
+      color: black;
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .top_right{
+      color: @primary-color;
+    }
+  }
+  .date{
+    color: #a2a2a2;
+  }
+  .total{
+    ul{
+      display: flex;
+      li{
+        margin-right: 80px;
+        .total_val{
+          font-size: 30px;
+          &:nth-child(1){
+            color: #185292;
+          }
+          &:nth-child(2){
+            color: #93bd3f;
+          }
+        }
+        .total_name{
+          font-size: 18px;
+          color: #bebebe;
+        }
+      }
+    }
+  }
+  .name{
+    font-weight: bold;
+    color: #939393;
+    margin-bottom: 10px;
+  }
+}
+</style>

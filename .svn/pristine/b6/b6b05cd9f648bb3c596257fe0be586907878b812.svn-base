@@ -1,0 +1,20 @@
+/***
+ * 质效评估模块路由
+ */
+import Layout from '../../views/Layout'
+export const kpi = {
+  path: '/person/kpi',
+  component: Layout,
+  redirect: 'assess',
+  children: [
+    {
+      path: 'assess',
+      component: () => import('../../views/kpi/assess/index'),
+      meta: {
+        access: 'login',
+        path: [{ name: '质效评估', path: '/person/kpi/assess' }]
+      }
+    }
+  ]
+}
+ 

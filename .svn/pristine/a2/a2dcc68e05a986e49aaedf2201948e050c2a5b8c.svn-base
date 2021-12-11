@@ -1,0 +1,345 @@
+<template>
+  <div>
+    <dialog-box v-model="show" :title="title">
+      <div class="detail-info">
+        <div class="header">
+          <p class="title">职务层次平均年龄</p>
+          <div class="orgs">
+            <ul>
+              <li>
+                <div class="name">厅局级</div>
+                <div class="content">
+                    <div class="principal">
+                        <span>正职</span>
+                        <span v-if="data.xzbztjjzzpjnl||data.sybztjjzzpjnl">{{`${(data.xzbztjjzzpjnl||data.sybztjjzzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                    <div class="vice">
+                        <span>副职</span>
+                        <span v-if="data.xzbztjjfzpjnl||data.sybztjjfzpjnl">{{`${(data.xzbztjjfzpjnl||data.sybztjjfzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                </div>
+              </li>
+              <li>
+                <div class="name">县处级</div>
+                <div class="content">
+                    <div class="principal">
+                        <span>正职</span>
+                        <span v-if="data.xzbzxcjzzpjnl||data.sybzxcjzzpjnl">{{`${(data.xzbzxcjzzpjnl||data.sybzxcjzzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                    <div class="vice">
+                        <span>副职</span>
+                        <span v-if="data.xzbzxcjfzpjnl||data.sybzxcjfzpjnl">{{`${(data.xzbzxcjfzpjnl||data.sybzxcjfzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                </div>
+              </li>
+              <li>
+                <div class="name">乡科级</div>
+                <div class="content">
+                    <div class="principal">
+                        <span>正职</span>
+                        <span v-if="data.xzbzxkjzzpjnl||data.sybzxkjzzpjnl">{{`${(data.xzbzxkjzzpjnl||data.sybzxkjzzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                    <div class="vice">
+                        <span>副职</span>
+                        <span v-if="data.xzbzxkjfzpjnl||data.sybzxkjfzpjnl">{{`${(data.xzbzxkjfzpjnl||data.sybzxkjfzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                </div>
+              </li>
+              <li>
+                <div class="name">股级</div>
+                <div class="content">
+                    <div class="principal">
+                        <span>正职</span>
+                        <span v-if="data.xzbzgjzzpjnl||data.sybzgjzzpjnl">{{`${(data.xzbzgjzzpjnl||data.sybzgjzzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                    <div class="vice">
+                        <span>副职</span>
+                        <span v-if="data.xzbzgjfzpjnl||data.sybzgjfzpjnl">{{`${(data.xzbzgjfzpjnl||data.sybzgjfzpjnl).toFixed(2)}`}}</span>
+                        <span v-else>0</span>
+                    </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="body">
+          <div class="left">
+            <div>
+              <p>{{title}}排行</p>
+              <div class="all-list" @click="showAges">
+                全部列表
+              </div>
+            </div>
+            <div>
+              <ul v-if="data.xzpjnlqsgdw||data.sypjnlqsgdw">
+                <li v-for="item in JSON.parse(data.xzpjnlqsgdw||data.sypjnlqsgdw).filter((item)=>item.index<6)">
+                  <span class="index">{{item.index}}</span>
+                  <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>{{item.orgname}}</span>
+                    </template>
+                    <span class="name">{{item.orgname}}</span>
+                  </a-tooltip>
+                  <span class="num">{{`${(item.avgage).toFixed(2)}`}}</span>
+                </li>
+              </ul>
+              <ul v-if="data.xzpjnlqsgdw||data.sypjnlqsgdw">
+                <li v-for="(item, index) in JSON.parse(data.xzpjnlqsgdw||data.sypjnlqsgdw).filter((item)=>item.index>5)">
+                  <span class="index">{{item.index}}</span>
+                  <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>{{item.orgname}}</span>
+                    </template>
+                    <span class="name">{{item.orgname}}</span>
+                  </a-tooltip>
+                  <span class="num">{{`${(item.avgage).toFixed(2)}`}}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <!-- <div class="right">
+            <p>{{title}}机构排行(后十)</p>
+            <div>
+              <ul v-if="data.xzpjnlhsgdw||data.sypjnlhsgdw">
+                <li v-for="item in JSON.parse(data.xzpjnlhsgdw||data.sypjnlhsgdw).filter((item)=>item.index<6)">
+                  <span class="index">{{item.index}}</span>
+                  <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>{{item.orgname}}</span>
+                    </template>
+                    <span class="name">{{item.orgname}}</span>
+                  </a-tooltip>
+                  <span class="num">{{`${(item.avgage).toFixed(2)}`}}</span>
+                </li>
+              </ul>
+              <ul v-if="data.xzpjnlhsgdw||data.sypjnlhsgdw">
+                <li v-for="item in JSON.parse(data.xzpjnlhsgdw||data.sypjnlhsgdw).filter((item)=>item.index>5)">
+                  <span class="index">{{item.index}}</span>
+                  <a-tooltip placement="topRight" :mouseEnterDelay="0.5">
+                    <template slot="title">
+                      <span>{{item.orgname}}</span>
+                    </template>
+                    <span class="name">{{item.orgname}}</span>
+                  </a-tooltip>
+                  <span class="num">{{`${(item.avgage).toFixed(2)}`}}</span>
+                </li>
+              </ul>
+            </div>
+          </div> -->
+        </div>
+      </div>
+    </dialog-box>
+    <SecondModel :ageList.sync="ageList"/>
+  </div>
+</template>
+<script>
+import { Tooltip } from 'ant-design-vue';
+import SecondModel  from '../components/SecondModel';
+import DialogBox from "../components/DialogBox";
+import LcdFont from "../components/LcdFont";
+
+export default {
+  components: {
+    DialogBox,
+    LcdFont,
+    SecondModel,
+    ATooltip: Tooltip,
+  },
+  props: {
+    districtCode: String,
+    showAge: Boolean,
+    title: String,
+    data: {
+      type: Object,
+      default: ()=> {
+        return {}
+      }
+    },
+    query: {
+      type: Object,
+      default: ()=>{
+        return {};
+      }
+    },
+  },
+  data() {
+    return {
+      ageList: false,
+      show: this.value,
+      showList: false,
+    };
+  },
+  watch: {
+    showAge(value) {
+      let v = this.$store.getters.dictKey('usermanage.org.district', this.districtCode);
+      this.query.nodename = v.text;
+      this.show = value;
+    },
+    show(show) {
+      if(!show) {
+        this.$emit('update:showAge', show);
+      }
+    },
+  },
+  mounted() {
+    this.ageList = false;
+  },
+  methods: {
+    showAges() {
+      this.ageList = true;
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.detail-info {
+  height: 90%;
+  & > .header {
+    text-align: center;
+    margin-top: 75px;
+    height: 145px;
+    p.title {
+      color: fade(#fff, 80%);
+      font-size: 1.3em;
+      font-weight: bold;
+    }
+    .orgs {
+      ul {
+        display: flex;
+        justify-content: space-evenly;
+        color: fade(#fff, 80%);
+        li {
+          display: flex;
+          align-items: center;
+          .name {
+              margin-right: 30px;
+          }
+          .content {
+            position: relative;
+            &::before {
+              content: '';
+              position: absolute;
+              left: -32px;
+              height: 75px;
+              width: 30px;
+              background: url('../../../assets/img/screen/org-background.png') no-repeat;
+              background-position: 100% 50%;
+            }
+            .principal, .vice {
+              width: 140px;
+              height: 32px;
+              border-radius: @border-radius-base;
+              padding: 0 @padding-xs;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              background: #17324E;
+              span:last-child {
+                color: #02e7ef;
+              }
+            }
+            .principal {
+              margin-bottom: 10px;
+            }
+          }
+        }
+      }
+    }
+  }
+  & .body {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    .left, .right {
+      // width: 48%;
+      text-align: center;
+      & > div {
+        display: flex;
+        justify-content: center;
+        position: relative;
+        p {
+          color: fade(#fff, 80%);
+          font-size: 1.4em;
+          font-weight: bold;
+        }
+        .all-list {
+          text-align: right;
+          float: right;
+          color: fade(#fff, 60%);
+          letter-spacing:8px;
+          font-weight: 700;
+          font-size: 15px;
+          position: absolute;
+          top: 8px;
+          right: -8px;
+          cursor: pointer;
+          &:hover{
+            color: #fff;
+            user-select: none;
+          }
+        }
+      }
+      ul {
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        padding-left: @padding-sm;
+        &:last-child {
+          margin-left: 50px;
+        }
+        li {
+          width: 100%;
+          margin: 10px 0;
+          display: flex;
+          justify-content: flex-end;
+          span {
+            padding: 0 @padding-xs;
+            display: inline-block;
+            height: 32px;
+          }
+          span.index {
+            width: 32px;
+            padding: 0;
+            line-height: 32px;
+            margin-right: 2px;
+            border-radius: @border-radius-base;
+            text-align: center;
+            font-weight: bold;
+            color: #313B72;
+            background: #978FFF;
+          }
+          span.name{
+            overflow-x: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            text-align: left;
+            width: 185px;
+            line-height: 32px;
+            color: fade(#fff, 80%);
+            background: #3A404F;
+          }
+          span.num {
+            width: 50px;
+            padding: 0;
+            text-align: center;
+            line-height: 32px;
+            color: #02E7EF;
+            background: #232B42;
+            white-space: nowrap;
+          }
+        }
+      }
+    }
+    .right ul li span.index {
+      background: #FE7A2E;
+    }
+  }
+}
+</style>

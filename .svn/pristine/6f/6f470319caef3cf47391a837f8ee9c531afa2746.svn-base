@@ -1,0 +1,60 @@
+<template>
+	<a-layout>
+		<ChartConsole :chart="chart" :context="context" @save="onSave"/>
+	</a-layout>
+</template>
+<script>
+import { Layout } from 'ant-design-vue'
+import ChartConsole from './ChartConsole';
+import { closeWindowDelay } from '@framework/utils'
+
+export default {
+	components:{
+		ALayout: Layout,
+		ChartConsole,
+	},
+	data(){
+		return {
+			chart: undefined,
+			context: undefined,
+			callback: undefined,
+		}
+	},
+	created(){
+		let { id, feedback } = this.$route.query
+		if(feedback && window.opener){//需要返回保存信息
+			let { type, data, context, callback } = window.opener.paramsBridge;
+			if(type == 'chart'){
+				this.chart = data;
+				this.context = context,
+				this.callback = callback;
+			}
+		}else if(id){
+			this.chart = Number(id) || undefined;
+		}
+	},
+	methods: {
+		onSave(chart){
+			if(typeof(this.callback) == 'function'){
+				try{
+					let rt = this.callback(chart);
+					if(rt === true){
+						closeWindowDelay(3, '保存成功');
+						return;
+					}
+				}catch(e){
+					//ignore
+				}
+			}
+			this.$message.success('保存成功');
+		},
+		
+	}
+}
+</script>
+<style lang="less" scoped>
+.ant-layout{
+	height: 100%;
+	padding: @layout-space-base;
+}
+</style>

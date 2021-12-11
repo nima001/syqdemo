@@ -1,0 +1,145 @@
+import Vue from 'vue'
+import Router from 'vue-router'
+
+Vue.use(Router)
+
+/* Router Modules */
+// import { dev } from './modules/openplatform';
+import Layout from '../views/Layout';
+
+export default new Router({
+  mode: 'history',
+  base: process.env.BASE_URL,
+  routes: [
+    {
+      path: '/',
+      name: 'dev',
+      redirect: '/dev/index',
+    },
+    {
+      path: '/dev',
+      component: Layout,
+      redirect: '/dev/index',
+      children: [
+        {
+          path: 'index',
+          component: () => import('@/dev/views/index'),
+          name: 'dev',
+          meta: { path: [] }
+        },
+        {
+          path: 'managementcenter',
+          component: () => import('@/dev/views/ManagementCenter'),
+          name: 'managementcenter',
+          meta: { path: [], auth: 'login' },
+        },
+        {
+          path: 'manageapp',
+          component: () => import('@/dev/views/app/ManageApp'),
+          name: 'manageapp',
+          meta: {
+            path: [{ name: '应用中心', path: '/dev/managementcenter' },
+            { name: '应用管理', path: '/dev/manageapp' },], auth: 'login'
+          },
+        },
+        {
+          path: 'appadd',
+          component: () => import('@/dev/views/app/AppAdd'),
+          name: 'appadd',
+          meta: { path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '创建应用', path: '/dev/appadd' }], auth: 'auth' },
+        },
+        {
+          path: 'developdoc',
+          component: () => import('@/dev/views/developDoc'),
+          name: 'developDoc',
+          meta: {}
+        },
+    
+        {
+          path: 'addbusiness',
+          component: () => import('@/dev/views/business/AddBusiness'),
+          name: 'addbusiness',
+          meta: { path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '创建业务', path: '/dev/addbusiness' }], auth: 'login' },
+        },
+        {
+          path: 'authmanage',
+          component: () => import('@/dev/views/app/RolePermission'),
+          name: 'authmanage',
+          meta: {
+            path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+            { name: '权限管理', path: '/dev/authmanage' }
+            ], auth: 'login'
+          },
+        },
+        {
+          path: 'addaccess',
+          component: () => import('@/dev/views/accesslibrary/AddAccess'),
+          name: 'addaccess',
+          meta: {
+            path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+            { name: '权限管理', path: '/dev/authmanage' }, { name: '权限新增', path: '/dev/addaccess' }
+            ], auth: 'login'
+          },
+        },
+        {
+          path: 'addrole',
+          component: () => import('@/dev/views/accesslibrary/AddRole'),
+          name: 'addrole',
+          meta: {
+            path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+            { name: '角色新增', path: '/dev/addrole' }
+            ], auth: 'login'
+          },
+        },
+        {
+          path: 'operationcontrol',
+          component: () => import('@/dev/views/business/OperationControl'),
+          name: 'operationcontrol',
+          meta: {
+            path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+            { name: '业务管理', path: '/dev/OperationControl' }
+            ], auth: 'login'
+          },
+        },
+        {
+          path: 'serviceauthority',
+          component: () => import('@/dev/views/business/ServiceAuthority'),
+          name: 'serviceauthority',
+          meta: {
+            path: [{ name: '应用中心', path: '/dev/managementcenter' }, { name: '应用管理', path: '/dev/manageapp' },
+            { name: '权限配置', path: '/dev/serviceauthority' }
+            ], auth: 'login'
+          },
+        },
+        {
+          path: 'createsuccessful',
+          component: () => import('@/dev/views/createsuccessful/createSuccessful'),
+          name: 'createsuccessful',
+          meta: { path: [{ name: '应用中心', path: '/dev/createsuccessful' }], auth: 'login' },
+        },
+        {
+          path: 'userservice',
+          component: () => import('@/dev/views/service/UserService'),
+          name: 'userservice',
+          meta: { path: [{ name: '应用管理', path: '/dev/manageapp' }, { name: '用户服务', path: '/dev/userservice' }], auth: 'login' },
+        },
+        {
+          path: 'serviceOrg',
+          component: () => import('@/dev/views/service/ServiceOrg'),
+          name: 'serviceOrg',
+          meta: { path: [{ name: '应用管理', path: '/dev/manageapp' }, { name: '组织服务', path: '/dev/serviceOrg' }], auth: 'login' },
+        },
+        {
+          path: 'message',
+          component: () => import('@/dev/views/message'),
+          name: 'message',
+        },
+      ]
+    },
+    {
+      path: '*',
+      component: () => import('@/framework/views/error/404'),
+      meta: { title: '404' }
+    }
+  ]
+});

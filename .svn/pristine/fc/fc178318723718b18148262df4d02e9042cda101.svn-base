@@ -1,0 +1,191 @@
+<template>
+  <div class="org-staff-report-panel">
+    <div class="header">
+      <a-tabs v-model="district">
+        <a-tab-pane v-for="item in districtList" :key="item.value" :tab="item.text"></a-tab-pane>
+      </a-tabs>
+    </div>
+    <div class="body">
+      <!-- <a-tabs v-model="active" type="card" > 
+        <a-tab-pane v-for="item in types" :key="item.id" :tab="item.title">
+          <component :is="active" :district="district" :orgCount="orgCount" />  
+        </a-tab-pane>
+      </a-tabs> -->
+      <!-- 解决tabs切换 所有的component都发送请求 -->
+      <div class="main">
+        <ul class="tabs">
+          <li v-for="tab in types" :class="[active == tab.id ? 'active' : '']" @click="active = tab.id" :key="tab.id">
+            {{tab.title}}
+          </li>
+        </ul>
+        <div class="container">
+          <keep-alive include="OrgReport,StaffReport,PostReport,RetireReport">
+            <component :is="active" :district="district" :orgCount="orgCount" />
+          </keep-alive>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Tabs } from "ant-design-vue";
+import OrgReport from './components/OrgReport'
+import StaffReport from './components/StaffReport'
+import PostReport from './components/PostReport'
+import RetireReport from './components/RetireReport'
+import TempStaffReport from './components/TempStaffReport'
+import CompileReport from './components/CompileReport'
+import { orgCountErrortReport } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '@framework/utils'
+
+/**
+ * 单位编制相关统计
+ */
+export default {
+  components: {
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    OrgReport, 
+    StaffReport,
+    PostReport,
+    RetireReport,
+    TempStaffReport,
+    CompileReport,
+  },
+  data(){
+    return {
+      types: [
+        {id: 'orgReport', title: '机构超限额'},
+        {id: 'staffReport', title: '编制超编'},
+        {id: 'postReport', title: '职数超职'},
+        {id: 'retireReport', title: '退休预报'},
+        {id: 'tempStaffReport', title: '周转编制使用'},
+        {id: 'compileReport', title: '机构编制问题'},
+        {id: 'v', title: '数据质量'}
+      ],
+      district: undefined,
+      active: 'orgReport',
+      orgCount: undefined
+    }
+  },
+  computed: {
+    districtList(){
+      let list = this.$store.getters.dict('usermanage.org.district');
+      if(!this.district && list && list.length){
+        this.district = list[0].value;
+      }
+      return list
+    },
+  },
+  watch: {
+    district(district) {
+      this.loadData(district);
+    }
+  },
+  methods: {
+    loadData(district) {
+      orgCountErrortReport(district)
+      .then(({result}) => {
+        this.orgCount = result;
+      })
+      .catch(err => {
+        showError(err);
+      })
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.org-staff-report-panel{
+  width: 1440px;
+  margin: @layout-space-base auto;
+  .ant-tabs{
+    padding: 10px;//显示 box-shadow
+  }
+  & > .header {
+    /deep/ .ant-tabs-bar{
+      margin: 0;
+      border-bottom-color: transparent;
+      border-radius: 5px;
+      text-align: center;
+      background-color: white;
+      box-shadow: 0px 0px 10px -2px #ddd;
+    }
+  }
+
+  & > .body {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    /deep/ .ant-tabs-card{
+      .ant-tabs-bar {
+        border-color: transparent;
+        margin: 0;
+        text-align: center;
+      }
+      .ant-tabs-nav-container{
+        height: 45px;
+      }
+      .ant-tabs-nav-scroll{
+        padding-top: 5px;
+      }
+      .ant-tabs-bar .ant-tabs-tab {
+        width: 180px;
+        border-color: transparent;
+        background: transparent;
+        border-radius: 5px 5px 0 0;
+      }
+      .ant-tabs-bar .ant-tabs-tab-active {
+        border-color: #fff;
+        background: #fff;
+        box-shadow: 0px 0px 10px -2px #ddd;
+      }
+      .ant-tabs-content > .ant-tabs-tabpane {
+        background: #fff;
+        padding: 30px;
+        border-radius: 5px;
+        box-shadow: 0px 0px 10px -2px #ddd;
+      }
+    }
+    .main{
+      padding: 10px;
+      .tabs{
+        width: 100%;
+        margin: 0;
+        padding-top: 5px;
+        display: flex;
+        li{
+          width: 180px;
+          line-height: 40px;
+          padding: 0 16px;
+          text-align: center;
+          border-color: transparent;
+          background: transparent;
+          border-radius: 5px 5px 0 0;
+          cursor: pointer;
+          &:hover{
+            color: @primary-color;
+          }
+          &:nth-child(1){
+            margin-left: 80px;
+          }
+        }
+        li.active{
+          color: @primary-color;
+          border-color: #fff;
+          background: #fff;
+          // box-shadow: 0px 0px 10px -2px #ddd;
+          box-shadow: -3px -3px 7px -4px #ddd, 3px -3px 7px -4px #ddd;
+          border-bottom-color: transparent;
+        }
+      }
+      .container{
+        width: 100%;
+        padding: 30px;
+        background-color: #fff;
+        border-radius: 5px;
+        box-shadow: 0px 0px 10px -2px #ddd;
+      }
+    }
+  }
+}
+</style>

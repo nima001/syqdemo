@@ -1,0 +1,105 @@
+<template>
+  <div class="form-panel">
+    <div class="card" v-for="(item, index) in list" :key="index">
+      <div class="title">{{item.title}}</div>
+      <proportion 
+        :totalText="item.totalText" 
+        :total="data[item.total]" 
+        :numText="item.numText" 
+        :num="data[item.num]" 
+        :surplusText="item.surplusText" 
+        class="content"
+      />
+    </div>
+  </div>
+</template>
+<script>
+import { Table } from "ant-design-vue";
+import Proportion from './Proportion'
+import { areaStatistics } from '@/person-shaoxing/api/orgStaffReport'
+import { showError } from '@framework/utils'
+
+/**
+ * 机构数监测
+ */
+export default {
+  name: 'OrgReport',
+  components: {
+    ATable: Table,
+    Proportion
+  },
+  props: {
+    district: {
+      type: Object,
+      default: () => ({})
+    },
+  },
+  data(){
+    return {
+      data: {},
+      list: [
+        { title: '行政机构', total: 'dzhgzl_xe', totalText: '限额', num: 'dzjgzl_sy', numText: '实有', surplusText: '剩余数' },
+        { title: '正局级行政机构', total: 'xzjjjg_xe', totalText: '限额', num: 'xzjjjg_sy', numText: '实有', surplusText: '剩余数' },
+        { title: '副局级行政机构', total: 'xzfjjjg_xe', totalText: '限额', num: 'xzfjjjg_sy', numText: '实有', surplusText: '剩余数' },
+        { title: '事业单位', total: 'syjg_xe', totalText: '限额', num: 'syjg_sy', numText: '实有', surplusText: '剩余数' },
+        { title: '正局级事业单位', total: 'syjjjg_xe', totalText: '限额', num: 'syjjjg_sy', numText: '实有', surplusText: '剩余数' },
+        { title: '副局级事业单位', total: 'syfjjjg_xe', totalText: '限额', num: 'syfjjjg_sy', numText: '实有', surplusText: '剩余数' },
+      ]
+    }
+  },
+  watch: {
+    district(district){
+      this.loadData(district.district)
+    }
+  },
+  created(){
+    this.loadData(this.district.district)
+  },
+  methods: {
+    loadData(district){
+      areaStatistics(district, [
+        'dzhgzl_xe', 'dzjgzl_sy', 
+        'xzjjjg_xe', 'xzjjjg_sy',
+        'xzfjjjg_xe', 'xzfjjjg_sy',
+        'syjg_xe', 'syjg_sy',
+        'syjjjg_xe', 'syjjjg_sy',
+        'syfjjjg_xe', 'syfjjjg_sy',
+      ]).then(({result}) => {
+        this.data = result;
+      }).catch(error => {
+        showError(error);
+      });
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  display: flex;
+  justify-content: space-between;
+  .card{
+    width: 200px;
+    border: 1px solid @border-color-split;
+    border-radius: 5px;
+    &:hover{
+      border-color: @primary-3;
+      background-color: @primary-1;
+      .title{
+        border-color: @primary-3;
+      }
+    }
+    .title{
+      white-space: nowrap;
+      overflow: hidden;
+      line-height: 50px;
+      text-align: center;
+      font-weight: bold;
+      border-bottom: 1px solid @border-color-split;
+    }
+    .content{
+      margin-top: 10px;
+      padding: 10px 0;
+    }
+  }
+}
+</style>

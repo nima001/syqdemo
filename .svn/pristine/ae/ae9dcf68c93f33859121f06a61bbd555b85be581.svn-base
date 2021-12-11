@@ -1,0 +1,128 @@
+<template>
+  <div class="user-basetab">
+    <div class="top-btn">
+      <template v-if="editor">
+        <a-button type="primary" @click="save">保存</a-button>
+        <a-button @click="editor=false" :style="{marginLeft:'10px'}">取消</a-button>
+      </template>
+      <a-button v-else type="primary" @click="editor=true">编辑</a-button>
+    </div>
+    <div class="main-form">
+      <form-display :formConfig="formConfig" :formLayout="formLayout" :formData="formData" :editor="editor" ref="formDisplay" v-if="show"></form-display>
+    </div>
+  </div>
+</template>
+<script>
+import FormData from "@/hall/utils/FormData";
+import FormDisplay from "@formdesign/views/FormDisplay";
+import { Button } from "ant-design-vue";
+import cloneDeep from 'lodash/cloneDeep';
+import { updateUser, modelForm } from "@/hall/api/usermanage";
+import { showError } from "@framework/utils/index";
+export default {
+  components: {
+    AButton: Button,
+    FormDisplay
+  },
+  data() {
+    return {
+      // 表单配置
+      formConfig: [],
+      // 表单初始化数据
+      formData: cloneDeep(this.user),
+      // 表单可编辑
+      editor: false,
+      // 表单布局  horizontal vertical
+      formLayout: undefined  
+    };
+  },
+  props: {
+    user: {
+      type: Object,
+      default: () => ({})
+    },
+  },
+  computed:{
+    show(){
+      return this.formConfig.length ==0 ? false:true;
+    }
+  },
+  watch:{
+    user:{
+      handler(v){
+        this.formData = v;
+      },
+      deep:true
+    }
+  },
+  created() {
+        let result = FormData;
+        this.formConfig = result.list;
+        this.formLayout = result['formLayout']
+        console.log(this.user)
+    // modelForm("user", this.user._id)
+    //   .then(res => {
+    //     let result = JSON.parse(res.result);
+    //     this.formConfig = result.list;
+    //     this.formLayout = result['formLayout']
+    //   })
+    //   .catch(err => {
+    //     this.formConfig = []
+    //     showError(err);
+    //   });
+  },
+  methods: {
+    save() {
+      // 表单提交
+      if(!this.$refs.formDisplay){
+        return
+      }
+      this.$refs.formDisplay.submit()
+        .then(res => {
+          // res : 表单填写数据
+          this.update(res);
+        })
+        .catch(errors => {
+          if(Array.isArray(errors)){
+            let firstError = errors[0];
+            showError({message: firstError.message || firstError})
+          }else{
+            showError(errors);
+          }
+        });
+    },
+    update(data) {
+      updateUser(this.user._id, data)
+        .then(res => {
+          this.formData = Object.assign({},this.formData,res.result)
+          this.editor = false;
+          this.$message.info("保存成功");
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.user-basetab {
+  height: 80%;
+  display: flex;
+  flex-direction: column;
+  overflow-y: scroll;
+  .top-btn {
+    padding: 0 @content-padding-h;
+    margin-top: 10px;
+  }
+  .main-form {
+    flex: 1 1 100%;
+    min-height: 0;
+    margin: @content-padding-v 0;
+    .form-display-panel {
+      height: 100%;
+      padding: @layout-space-base;
+    }
+  }
+}
+</style>

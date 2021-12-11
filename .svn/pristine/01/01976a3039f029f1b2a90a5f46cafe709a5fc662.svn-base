@@ -1,0 +1,14 @@
+
+import { connect, mapProps } from '@formily/vue'
+import Input from './Input'
+
+export default connect(
+  Input,
+  mapProps(
+    (props, field) => {
+      return {
+        allowClear: !field.required,
+      }
+    }
+  ),
+)

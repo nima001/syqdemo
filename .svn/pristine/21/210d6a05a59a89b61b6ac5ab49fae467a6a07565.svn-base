@@ -1,0 +1,411 @@
+<template>
+  <a-layout>
+    <a-row>
+      <a-col :span="3" class="leftbox" :style="{'height':boxHeight}">
+        <div class="leftdiv" v-if="src">
+          <div @click="cardresult.preCatalogId?upIndex():backCatalog()" class="iconbox">
+            <a-icon type="left" :style="{ fontSize: '30px', color: 'white' }" />
+          </div>
+        </div>
+      </a-col>
+      <a-col :span="18" class="ifmbox">
+        <a-spin tip="Loading..." v-if="loading" class="loading" :style="{'margin-top':loadHeight}"></a-spin>
+        <iframe
+          id="iframeId"
+          :class="cardresult.rotate?coverimgOne:coverimgTwo"
+          frameborder="0"
+          :src="src"
+          scrolling="no"
+        ></iframe>
+        <ul
+          class="floatingMenu"
+          v-if="src"
+          :style="{'right': right,'bottom':ulHeight<0?0:(ulHeight+'px')}"
+        >
+          <li @click="backCatalog">
+            <a-icon type="bars" :style="{ fontSize: '30px', color: '#000' }" />
+          </li>
+          <li @click="downSpan">
+            <a-icon type="download" :style="{ fontSize: '30px', color: '#000' }" />
+          </li>
+          <li @click="retweetCover">
+            <a-icon type="retweet" :style="{ fontSize: '30px', color: '#000' }" />
+          </li>
+          <li @click="cardresult.preCatalogId?upIndex():backCatalog()">
+            <a-icon type="left" :style="{ fontSize: '30px', color: '#000' }" />
+          </li>
+          <li @click="nextIndex" :class="cardresult.nextCatalogId? classA : classB ">
+            <a-icon
+              type="right"
+              :style="{ fontSize: '30px', color: '#000' }"
+              :class="cardresult.nextCatalogId? classC : classD "
+            />
+          </li>
+        </ul>
+      </a-col>
+      <a-col :span="3" class="rightbox" :style="{'height': boxHeight}">
+        <div class="rightdiv" v-if="src">
+          <div
+            class="iconbox"
+            @click="nextIndex"
+            :class="cardresult.nextCatalogId? classA : classB "
+          >
+            <a-icon
+              type="right"
+              :style="{ fontSize: '30px', color: '#fff' }"
+              :class="cardresult.nextCatalogId? classE : classD "
+            />
+          </div>
+        </div>
+      </a-col>
+    </a-row>
+    <a-modal title="提示" :visible="visible" @cancel="handleCancel">
+      <template slot="footer">
+        <a-button key="back" @click="handleCancel">取消</a-button>
+        <a-button
+          key="submit"
+          type="primary"
+          :loading="load"
+          :href="this.href + '/person/report/book/sheet/export?catalogId=' + this.cardresult.id"
+          target="_blank"
+          @click="handleOk"
+          class="hrefbuttton"
+        >下载</a-button>
+      </template>
+      <p>{{ModalText}}</p>
+    </a-modal>
+  </a-layout>
+</template>
+<script>
+import { getSheet, exportSheet } from "@/person/api/booklet";
+import { showError } from "@/framework/utils/index";
+import { setTimeout, clearTimeout } from "timers";
+import {
+  Layout,
+  Row,
+  Col,
+  Spin,
+  Button,
+  Modal,
+  Icon,
+  Breadcrumb
+} from "ant-design-vue";
+export default {
+  name: "SheetDetail",
+  data() {
+    return {
+      cardresult: "",
+      catalogId: "",
+      queryid: "",
+      src: null,
+      ModalText: "确定导出该册报表？",
+      visible: false,
+      load: false,
+      loading: false,
+      date: "",
+      classB: "classB",
+      classA: "classA",
+      classD: "classD",
+      classC: "classC",
+      classE: "classE",
+      coverimgTwo: "coverimgTwo",
+      coverimgOne: "coverimgOne",
+      winWidth: "",
+      winHeight: "",
+      right: "",
+      boxHeight: "",
+      ulHeight: "",
+      loadHeight: ""
+    };
+  },
+  components: {
+    ALayout: Layout,
+    ALayoutHeader: Layout.Header,
+    ALayoutContent: Layout.Content,
+    ARow: Row,
+    ACol: Col,
+    ASpin: Spin,
+    AButton: Button,
+    AModal: Modal,
+    AIcon: Icon,
+    ABreaCrumb: Breadcrumb
+  },
+  computed:{
+    href(){
+      return this.$store.getters.getConfig('api.url');
+    }
+  },
+  created() {
+    this.queryid = this.$route.query.id;
+    this.sheetDetail();
+    this.date = this.$route.query.date;
+  },
+  mounted() {
+    window.addEventListener("resize", this.getwindow);
+  },
+  //注销window.onresize事件
+  beforeDestroy() {
+    clearTimeout(this.timer);
+    window.removeEventListener("resize", this.getwindow);
+  },
+  methods: {
+    retweetCover() {
+      getSheet(this.catalogId, true)
+        .then(({ result }) => {
+          this.$nextTick(function() {
+            this.src = `javascript:void(function(){document.open();document.write('${result.content}');document.close();}())`;
+          }),
+            this.sheetDetail();
+          this.$message.success("刷新成功");
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    getwindow() {
+      //窗口可视区域发生变化的时候执行
+      window.onresize = () => {
+        this.winWidth =
+          document.body.clientWidth || document.documentElement.clientWidth;
+        //屏幕可视区域的高度
+        this.winHeight =
+          document.body.clientHeight || document.documentElement.clientHeight;
+        this.right =
+          (this.winWidth - (this.cardresult.rotate ? 1123 : 794)) / 2 -
+          60 -
+          30 +
+          "px";
+        // ulHeight = this.winHeight - 109 - 254 + "px";
+        this.boxHeight = this.winHeight - 109 - 12 - 22 + "px";
+        this.ulHeight = this.winHeight - 109 - 12 - 808;
+        this.loadHeight = (this.winHeight - 109 - 58) / 2 - 127 + "px";
+      };
+    },
+    gowindow() {
+      //屏幕可视区域的宽度
+      this.winWidth =
+        document.body.clientWidth || document.documentElement.clientWidth;
+      //屏幕可视区域的高度
+      this.winHeight =
+        document.body.clientHeight || document.documentElement.clientHeight;
+      this.right =
+        (this.winWidth - (this.cardresult.rotate ? 1123 : 794)) / 2 -
+        60 -
+        30 +
+        "px";
+      // let ulHeight = this.winHeight - 109 - 254 + "px";
+      this.boxHeight = this.winHeight - 109 - 12 - 22 + "px";
+      this.ulHeight = this.winHeight - 109 - 12 - 808;
+      this.loadHeight = (this.winHeight - 109 - 58) / 2 - 127 + "px";
+    },
+    sheetDetail() {
+      this.loading = true;
+      this.catalogId = sessionStorage.getItem("catalogId");
+      getSheet(this.catalogId)
+        .then(res => {
+          if (res.code == "success") {
+            this.cardresult = res.result;
+            this.gowindow();
+            this.loading = false;
+            this.src = `javascript:void(function(){document.open();document.write('${this.cardresult.content}');document.close();}())`;
+            this.timer = setTimeout(this.setIframeHeight, 10);
+          }
+        })
+        .catch(error => {
+          this.loading = false;
+          this.src = "";
+          showError(error);
+        });
+    },
+    //导出
+    downSpan() {
+      this.visible = true;
+    },
+    //确定导出
+    handleOk(e) {
+      this.visible = false;
+    },
+    //取消导出
+    handleCancel(e) {
+      this.visible = false;
+    },
+    //返回
+    backCatalog() {
+      let id = this.queryid;
+      this.$router.push({
+        name: "Catalogue",
+        query: {
+          id: id,
+          date: this.$route.query.date
+        }
+      });
+    },
+    //下一页
+    nextIndex() {
+      sessionStorage.setItem("catalogId", this.cardresult.nextCatalogId);
+      this.sheetDetail();
+    },
+    //上一页
+    upIndex() {
+      sessionStorage.setItem("catalogId", this.cardresult.preCatalogId);
+      this.sheetDetail();
+    },
+    //自适应
+    setIframeHeight() {
+      var ifm = document.getElementById("iframeId");
+      var subWeb = document.frames
+        ? document.frames["iframeId"].document
+        : ifm.contentDocument;
+      if (ifm != null && subWeb != null) {
+        ifm.style.height = "auto"; //关键这一句，先取消掉之前iframe设置的高度
+        ifm.style.height = subWeb.body.scrollHeight + "px";
+      }
+    },
+    //返回
+    back() {
+      this.$router.push({
+        name: "CountChartIndex",
+        params: {
+          date: this.$route.query.date
+        }
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ifmbox {
+  display: flex;
+  justify-content: center;
+}
+.coverimgOne {
+  min-height: 794px;
+  min-width: 1123px;
+  background: white;
+  margin: @layout-space-base 0px;
+}
+.coverimgTwo {
+  min-height: 1123px;
+  min-width: 794px;
+  background: white;
+  margin: @layout-space-base 0px;
+}
+.floatingMenu {
+  z-index: 99;
+  width: 60px;
+  height: 385px;
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  margin-bottom: 1em;
+  li {
+    margin-bottom: 20px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #dedede;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    &:hover {
+      //box-shadow: 0px 5px 25px #000000;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+  }
+}
+.classA {
+  margin-bottom: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #dedede;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  &:hover {
+    //   box-shadow: 0px 5px 25px #000000;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+}
+.classB {
+  margin-bottom: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  background: rgba(222, 222, 222, 0.45) !important;
+}
+.classC {
+  color: #000;
+}
+.classD {
+  color: #b5b5b5 !important;
+}
+.classE {
+  color: white !important;
+}
+.leftdiv {
+  position: fixed;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  &:hover .iconbox {
+    display: flex;
+  }
+}
+.leftbox {
+  margin-top: @layout-space-base;
+  // min-height: 794px;
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  // height: 100%;
+}
+.rightdiv {
+  position: fixed;
+  width: 150px;
+  height: 150px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  &:hover .iconbox {
+    display: flex;
+  }
+}
+.rightbox {
+  margin-top: @layout-space-base;
+  // min-height: 794px;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+}
+.iconbox {
+  margin-bottom: 20px;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #767676;
+  justify-content: center;
+  align-items: center;
+  &:hover {
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+  display: none;
+}
+.loading {
+  width: 58.83px;
+  height: 58.83px;
+  position: fixed;
+}
+.hrefbuttton {
+  margin-left: 8px;
+}
+</style>

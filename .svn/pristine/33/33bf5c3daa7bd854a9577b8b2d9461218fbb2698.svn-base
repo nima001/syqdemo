@@ -1,0 +1,154 @@
+<!-- 权限配置 > 新增角色 -->
+<template>
+  <a-layout class="dev-layout">
+    <div class="body">
+      <a-form :form="form">
+        <a-form-item label="角色名称">
+          <a-input
+            placeholder="不能以数字开头，不能含有特殊字符和空格"
+            v-decorator="[
+              'name',
+              { rules: [{ required: true, message: '请输入应用全称' }] },
+            ]"
+          ></a-input>
+        </a-form-item>
+
+        <a-form-item label="角色代码">
+          <a-input
+            placeholder="不能以数字开头，不能含有特殊字符和空格"
+            v-decorator="[
+              'code',
+              { rules: [{ required: true, message: '请输入应用全称' }] },
+            ]"
+          ></a-input>
+        </a-form-item>
+
+        <!-- <a-form-item label="角色说明">
+         <a-textarea :rows="4" v-decorator="['id']"/>
+        </a-form-item>-->
+
+        <a-form-item label="角色类型">
+          <a-select
+            mode="combobox"
+            optionLabelProp="children"
+            v-decorator="[
+              'group',
+              { rules: [{ required: true, message: '请输入角色类型' }] },
+            ]"
+          >
+            <a-select-option v-for="i in arrs" :key="i.id.toString()">{{
+              i.name
+            }}</a-select-option>
+          </a-select>
+        </a-form-item>
+      </a-form>
+      <a-button style="margin-top: 40px;" @click="cancel">取消</a-button>
+      <a-button type="primary" @click="submit">保存</a-button>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import {
+  Form,
+  Button,
+  Input,
+  notification,
+  Select,
+  Layout,
+} from "ant-design-vue";
+import { roleadd, rolelistgroup } from "@/dev/api/role";
+export default {
+  data() {
+    return {
+      form: this.$form.createForm(this),
+      arrs: [],
+    };
+  },
+
+  components: {
+    ALayout: Layout,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AButton: Button,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+  },
+  created() {
+    this.cesi();
+  },
+  methods: {
+    cesi() {
+      rolelistgroup(this.$route.query.id).then((res) => {
+        console.log(res.result);
+        this.arrs = res.result;
+      });
+    },
+    cancel() {
+      this.$router.back();
+    },
+    //   提交表单
+    submit() {
+      this.form.validateFields((err, values) => {
+        if (err) {
+          notification.error({
+            message: "提示",
+            description: "请填写必填信息！",
+            duration: 2,
+          });
+        } else {
+          let obj = {};
+          obj = values;
+          obj.appid = this.$route.query.id;
+          console.log(obj);
+          roleadd(obj).then((res) => {
+            if (res.code == "success") {
+              this.$router.push("/dev/managementcenter");
+            } else {
+              if (res.code == "form_valid_failed") {
+                let a = eval("(" + res.desc + ")");
+                const value = Object.values(a);
+                const keys = Object.keys(a);
+                const arr = [
+                  {
+                    message: value[0],
+                    field: keys[0],
+                  },
+                ];
+                this.form.setFields({
+                  [keys[0]]: { value: values[keys[0]], errors: arr },
+                });
+              } else {
+                notification.error({
+                  message: "提示",
+                  description: res.desc,
+                  duration: 1.5,
+                });
+              }
+            }
+          });
+        }
+      });
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.dev-layout {
+  height: 100%;
+  padding: 10px;
+}
+.body {
+  height: 100%;
+  width: 100%;
+  padding: 0 30px;
+  margin: 0 auto 0;
+  background: #fff;
+  .ant-btn {
+    margin-top: 30px;
+    margin-right: 30px;
+  }
+}
+</style>

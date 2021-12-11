@@ -1,0 +1,469 @@
+<template>
+  <div class="org-list">
+    <template>
+      <div class="left">
+        <ul>
+          <li
+            v-for="item in systypes"
+            :key="item.key"
+            :class="{ active: sysvalue == item.value }"
+            @click="onSystypeClick(item)"
+          >
+            {{ item.text }}
+          </li>
+        </ul>
+      </div>
+      <div class="right">
+        <!-- <div class="header">
+          <div class="left">
+            <a-input v-model="search.searchkey" />
+          </div>
+          <div class="right">
+            <a-button @click="onSearch">搜索</a-button>
+            <a-button @click="onReset">重置</a-button>
+          </div>
+        </div> -->
+        <a-button v-if="needOrders" type="primary" ghost @click="order()">{{ordertype.name}}</a-button>
+        <ul class="list" ref="list">
+          <li v-for="(item, index) in dataList" :key="`${item._id}${index}`" @click="orgClick(item)">
+            <a-tooltip placement="top" :mouseEnterDelay="0.5">
+              <template slot="title">
+                <span>{{item.name}}</span>
+              </template>
+              <span :class="['text', {'no-num': !item[displayFieldCode]&&item[displayFieldCode]!=0}]">
+                <span>{{item.name}}</span>
+                <span class="num" v-if="item[displayFieldCode]&&toFixed">{{item[displayFieldCode].toFixed(2)}}</span>
+                <span class="num" v-if="(item[displayFieldCode]&&!toFixed)||item[displayFieldCode]==0">{{item[displayFieldCode]}}</span>
+              </span>
+            </a-tooltip>
+          </li>
+          <li v-show="pagination.pagenum < pagination.pagetotal" 
+            class="footer-sentinel" ref="sentinel" style="text-align:center">
+            <a-icon slot="indicator" type="loading"/>
+          </li>
+        </ul>
+      </div>
+    </template>
+  </div>
+</template>
+<script>
+import { Button, Input, Tooltip, Icon } from "ant-design-vue";
+import DialogBox from "./DialogBox";
+import { query } from "@/person/api/integratedquery";
+import { openOrgInfo } from './smzUtils';
+import { includes } from 'lodash';
+import { showError } from '@/framework/utils';
+import BaseMixin from './BaseMixin'
+
+export default {
+  components: {
+    DialogBox,
+    AInput: Input,
+    AButton: Button,
+    ATooltip: Tooltip,
+    AIcon: Icon
+  },
+  mixins: [BaseMixin],
+  props: {
+    needOrders: {//是否需要手动排序
+      type: Boolean,
+      default: false,
+    },
+    district: {
+      type: String,
+    },
+    jgtypes: {
+      type: Array,
+      default: () => []
+    },
+    systype: {
+      
+    },
+    fundforms: {
+      type: Number,
+    },
+    displayField: {
+      type: String,
+    },
+    unitsort: {
+      type: String|Number,
+    },
+    filter: {
+      type: Array,
+      default:()=>[]
+    },
+    toFixed: {//是否保留两位小数
+      type: Boolean,
+      default: false,
+    },
+    politicallevel: {
+      type: Array,
+      default: ()=>{
+        return []
+      }
+    },
+    industrycategory: Number
+  },
+  data() {
+    return {
+      show: false,
+      sysvalue: this.systype,
+      dataList: [],
+      pagination: {
+        pagenum: 1,
+        pagesize: 20,
+        total: 0,
+        pagetotal: 0,
+      },
+      ordertype: {value:'DESC', name: '正序'},
+      intersectionObserver: undefined,
+    };
+  },
+  computed: {
+    systypes() {
+      let arr = this.$store.getters.dict("usermanage.org.systype") || [];
+      return [{ key: "", value: null, text: "全部" }, ...arr];
+    },
+    displayFieldCode(){
+      return this.displayField && this.displayField.replace('_id@organization.statistic.', '_join0.');
+    },
+    params(){
+      let query = {
+        target: { id: 1, title: "组织" },
+        fields: [
+          { key: "name", showname: "机构名称" },
+          { key: "orgcode", showname: "组织编码" },
+        ],
+        filter: { 
+          op: 'and',
+          criteria: [],
+        },
+        orders: [
+          { orderby: 'index', ordertype: "ASC" }  
+        ],
+      }
+      if(this.displayField){
+        query.fields.push({ key: this.displayField });
+        query.orders.unshift({ orderby: this.displayField, ordertype: this.ordertype.value });
+      }
+      let criteria = [];
+      if(this.district){
+        criteria.push({
+          field: { key: "district", showname: "所在区划" },
+          op: "in",
+          value: this.matchCode(this.district),
+        })
+      }
+      if(this.jgtypes){
+        criteria.push({
+          field: { key: "jgtype", showname: "机构类型" },
+          op: "in",
+          value: this.jgtypes,
+        })
+      }
+      if(this.sysvalue){
+        criteria.push({
+          field: { key: "systype", showname: "系统类别" },
+          op: "eq",
+          value: this.sysvalue,
+        })
+      }
+      if(this.politicallevel.length) {
+        criteria.push({
+          field: { key: "politicallevel", showname: "机构规格" },
+          op: "in",
+          value: this.politicallevel,
+        })
+      }
+      if(includes(this.jgtypes,1)) {
+        criteria.push({
+          field: { key: "unittype", showname: "单位类型" },
+          op: "in",
+          value: [1,7],
+        })
+      }else if(includes(this.jgtypes,2)) {
+        criteria.push({
+          field: { key: "unittype", showname: "单位类型" },
+          op: "in",
+          value: [1,3,7],
+        })
+      }
+      if(this.fundforms) {
+        criteria.push({
+          field: { key: "fundform", showname: "经费形式" },
+          op: "eq",
+          value: this.fundforms,
+        })
+      }
+      if(this.unitsort) {
+        criteria.push({
+          field: { key: "unitsort", showname: "单位类别" },
+          op: "eq",
+          value: this.unitsort,
+        })
+      }
+      if(this.industrycategory) {
+        criteria.push({
+          field: { key: "industrycategory", showname: "行业类别" },
+          op: "eq",
+          value: this.industrycategory,
+        })
+      }
+      if(this.filter.length){
+        criteria = [...criteria, ...this.filter];
+      }
+      query.filter.criteria = criteria;
+      return query;
+    }
+  },
+  mounted() {
+    this.dataList = [];
+    this.show = false;
+    this.loadData(this.pagination);
+  },
+  destroyed(){
+    this.unBindScrollSentinel();
+  },
+  methods: {
+    order() {
+      if(this.ordertype.name == '倒序') {
+        this.ordertype = {
+          name: '正序',
+          value: 'DESC'
+        }
+      }else if(this.ordertype.name == '正序') {
+        this.ordertype = {
+          name: '倒序',
+          value: 'ASC'
+        }
+      }
+      this.dataList = [];
+      this.pagination.pagenum = 1;
+      this.loadData(this.pagination);
+    },
+    onSystypeClick(item) {
+      this.pagination = {
+        pagenum: 1,
+        pagesize: 20,
+        total: 0,
+        pagetotal:0,
+      };
+      this.dataList = [];
+      this.sysvalue = item.value;
+      this.loadData(this.pagination);
+    },
+    orgClick(org){
+      openOrgInfo(org.orgcode);
+    },
+    loadData({ pagenum, pagesize }) {
+      query({
+        ...this.params,
+        pagenum,
+        pagesize,
+        needTotal: true,
+      }).then(({result})=>{
+        this.dataList = [...this.dataList, ...result.rows];
+        this.pagination.pagenum = result.pagenum;
+        this.pagination.pagesize = result.pagesize;
+        this.pagination.total = result.total;
+        this.pagination.pagetotal = Math.ceil(this.pagination.total/this.pagination.pagesize);
+        if(this.pagination.pagenum < this.pagination.pagetotal){
+          this.bindScrollSentinel();
+        }else{
+          this.unBindScrollSentinel();
+        }
+      }).catch((err)=>{
+        showError(err);
+      })
+    },
+    bindScrollSentinel(){
+      if(this.intersectionObserver){
+        return;
+      }
+      let sentinel = this.$refs.sentinel;
+      if(sentinel){
+        this.intersectionObserver = new IntersectionObserver((entries) => {
+          if (entries[0].intersectionRatio > 0){
+            let { pagenum, pagesize } = this.pagination;
+            this.loadData({ pagenum: pagenum + 1, pagesize });
+          }
+        });
+        this.intersectionObserver.observe(sentinel);
+      }
+    },
+    unBindScrollSentinel(){
+      if(this.intersectionObserver){
+        this.intersectionObserver.disconnect();
+        this.intersectionObserver = undefined;
+      }
+    },
+   
+  },
+};
+</script>
+<style lang="less" scoped>
+.org-list{
+  height: 575px;
+  display: flex;
+  overflow: hidden;
+  padding: 40px 50px 20px 50px;
+  font-size: 16px;
+  color: #fff;
+  position: relative;
+  & > .left{
+    width: 200px;
+    height: 100%;
+    flex: none;
+    margin-right: 10px;
+    background-color: #081220;
+    overflow-y: auto;
+    & > img {
+      width: 50px;
+    }
+    li{
+      line-height: 46px;
+      margin-top: 5px;
+      cursor: pointer;
+      color: fade(#fff, 60%);
+      text-align: center;
+      &:hover{
+        background-color: #23364c;
+      }
+      &.active{
+        background-color: #23364c;
+        color: #fff;
+      }
+    }
+  }
+  & > .right{
+    flex: auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 10px;
+    /deep/.ant-btn {
+      width: 100px;
+      margin-left: auto;
+      margin-bottom: 10px;
+      color: fade(#fff, 80%);
+      border-color: #1c97b8;
+    }
+    & > .header{
+      display: flex;
+      .left{
+        flex: auto;
+      }
+      .right{
+        flex: none;
+      }
+      .ant-input{
+        background: #111c31;
+        border: unset;
+        color: #fff;
+        height: 46px;
+        &:focus{
+          box-shadow: 0 0 3px 1px rgba(158, 197, 255, 0.582);
+        }
+      }
+      .ant-btn{
+        background: #111c31;
+        color: fade(#fff, 60%);
+        border-color: #1c97b8;
+        margin-left: 20px;
+        height: 44px;
+        width: 80px;
+        &:hover{
+          color: #fff;
+        }
+      }
+    }
+    .list {
+      height: 415px;
+      overflow: auto;
+      display: flex;
+      align-content: flex-start;
+      flex-wrap: wrap;
+      li:not(.footer-sentinel) {
+        width: 45%;
+        margin: @layout-space-base;
+        padding: @padding-xs @padding-sm;
+        text-align: center;
+        background: #181832;
+        background-size: 100%;
+        background-position: 0 0;
+        color: #fff;
+        white-space: nowrap;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+        cursor: pointer;
+        &:nth-child(2n) {
+          margin-left: auto;
+        }
+        &:hover{
+          background-color: lighten(#181832, 10%);
+        }
+        &::before {
+          height: 23px;
+          content: '';
+          position: absolute;
+          top: -8px;
+          left: -3px;
+          right: -3px;
+          background: url('../../../assets/img/screen/list-top-bg.png') no-repeat;
+          background-size: 100%;
+        }
+        & > span {
+          padding: 0 @padding-xs;
+          display: inline-block;
+          width: 100%;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .text {
+          display: flex;
+          justify-content: space-between;
+          &.no-num {
+            justify-content: center;
+          }
+          span:first-child {
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          span:nth-child(2){
+            padding-right: 0;
+          }
+        }
+        .num{
+          color: #02E7EF;
+          padding: 0 10px;
+        }
+      }
+      .footer-sentinel{
+        flex: none;
+        width: 100%;
+        padding: 5px;
+      }
+    }
+    .pagination {
+        width: 120px;
+        padding: @padding-xs @padding-lg;
+        margin: auto;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        border-radius: @border-radius-base;
+        color: fade(#fff, 80%);
+        background: fade(#000, 30%);
+        .current {
+            color: #fff;
+        }
+        .prev, .next {
+            margin: 0 16px;
+            cursor: pointer;
+        }
+    }
+  }
+}
+</style>

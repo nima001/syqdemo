@@ -1,0 +1,178 @@
+<template>
+  <card title="机构质效">
+    <div class="kpi-org">
+      <a-tabs v-model="active" @change="callback" :tabBarStyle="{ color: '#fff' }">
+        <a-tab-pane v-for="item in tabs" :key="item.key" :tab="item.value">
+          <KpiPane v-bind="item"/>
+        </a-tab-pane>
+      </a-tabs>
+    </div>
+  </card>
+</template>
+<script>
+import Card from "./ScreenCard";
+import { Tabs } from "ant-design-vue";
+import KpiPane from "./KpiPane";
+
+/**
+ * 机构绩效
+ */
+export default {
+  components: {
+    Card,
+    KpiPane,
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+  },
+  data() {
+    return {
+      active: "partyMasses",
+      tabs: [
+        {
+          key: "partyMasses",
+          value: "党群综合",
+          average: 82.88,
+          data: [
+            { id: 1, name: "市委组织部", last: 'A',  current: 'A' },
+            { id: 2, name: "市委宣传部", last: 'B', current: 'B' },
+            { id: 3, name: "市委统战部", last: 'A', current: 'A' },
+            { id: 4, name: "市委政研室", last: 'A', current: 'A' },
+            { id: 5, name: "市委编办", last: 'A', current: 'A' },
+            { id: 6, name: "市台办", last: 'C', current: 'C' },
+            { id: 7, name: "市直机关工委", last: 'B', current: 'B' },
+            { id: 8, name: "市委老干部局", last: 'C', current: 'C' },
+            { id: 9, name: "市委党校", last: 'A', current: 'A' },
+            { id: 10, name: "市审计局", last: 'B', current: 'B' },
+            { id: 11, name: "市档案馆", last: 'B', current: 'B' },
+            { id: 12, name: "市机关事务中心", last: 'A', current: 'B' },
+            { id: 13, name: "市总工会", last: 'C', current: 'C' },
+            { id: 14, name: "团市委", last: 'A', current: 'A' },
+            { id: 15, name: "市妇联", last: 'B', current: 'A' },
+            { id: 16, name: "市科协", last: 'C', current: 'C' },
+            { id: 17, name: "市文联", last: 'B', current: 'B' },
+            { id: 18, name: "市贸促会", last: 'C', current: 'C' },
+            { id: 19, name: "市残联", last: 'C', current: 'C' },
+            { id: 20, name: "市红十字会", last: 'B', current: 'B' },
+            { id: 21, name: "市工商联", last: 'C', current: 'C' },
+          ],
+        },
+        {
+          key: "economics",
+          value: "经济建设",
+          average: 84.45,
+          data: [
+            { id: 22, name: "市发展改革委", last: 'A', current: 'A' },
+            { id: 23, name: "市经信局", last: 'A', current: 'A' },
+            { id: 24, name: "市财政局", last: 'B', current: 'B' },
+            { id: 25, name: "市自然资源和规划局", last: 'C', current: 'B' },
+            { id: 26, name: "市建设局", last: 'B', current: 'B' },
+            { id: 27, name: "市交通运输局", last: 'C', current: 'C' },
+            { id: 28, name: "市水利局", last: 'B', current: 'C' },
+            { id: 29, name: "市农业农村局", last: 'A', current: 'A' },
+            { id: 30, name: "市商务局", last: 'A', current: 'A' },
+            { id: 31, name: "市国资委", last: 'C', current: 'C' },
+            { id: 32, name: "市金融办", last: 'A', current: 'A' },
+            { id: 33, name: "市统计局", last: 'B', current: 'B' },
+            { id: 34, name: "市区域合作办", last: 'B', current: 'B' },
+            { id: 35, name: "市供销社", last: 'C', current: 'C' },
+          ],
+        },
+        {
+          key: "society",
+          value: "社会发展",
+          average: 81.13,
+          data: [
+            { id: 36, name: "市教育局", last: 'C', current: 'C' },
+            { id: 37, name: "市科技局", last: 'B', current: 'A' },
+            { id: 38, name: "市民政局", last: 'A', current: 'A' },
+            { id: 39, name: "市人力社保局", last: 'A', current: 'A' },
+            { id: 40, name: "市文化广电旅游局", last: 'B', current: 'B' },
+            { id: 41, name: "市卫生健康委", last: 'A', current: 'A' },
+            { id: 42, name: "市退役军人事务局", last: 'B', current: 'B' },
+            { id: 43, name: "市外办", last: 'B', current: 'B' },
+            { id: 44, name: "市体育局", last: 'C', current: 'C' },
+            { id: 45, name: "市医保局", last: 'C', current: 'C' },
+            { id: 46, name: "市人防办", last: 'C', current: 'B' },
+            { id: 47, name: "市大数据局", last: 'A', current: 'A' },
+            { id: 48, name: "市政务办", last: 'C', current: 'C'},
+            { id: 49, name: "市公积金中心", last: 'A', current: 'B' },
+            { id: 50, name: "市新闻传媒中心", last: 'B', current: 'C' },
+          ],
+        },
+        {
+          key: "judicial",
+          value: "政法执法",
+          average: 82.74,
+          data: [
+            { id: 51, name: "市委政法委", last: 'B', current: 'B' },
+            { id: 52, name: "市信访局", last: 'C', current: 'A' },
+            { id: 53, name: "市公安局", last: 'B', current: 'C' },
+            { id: 54, name: "市司法局", last: 'A', current: 'B' },
+            { id: 55, name: "市生态环境局", last: 'A', current: 'A' },
+            { id: 56, name: "市应急管理局", last: 'B', current: 'B' },
+            { id: 57, name: "市市场监管局", last: 'A', current: 'A' },
+            { id: 58, name: "市综合执法局", last: 'C', current: 'C' },
+          ],
+        },
+      ],
+    };
+  },
+  methods: {
+    callback() {},
+  },
+};
+</script>
+<style lang="less" scoped>
+.kpi-org {
+  height: 100%;
+  color: white;
+  /deep/.ant-tabs {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    .ant-tabs-bar {
+      border: 0;
+      margin: 0 auto;
+    }
+    .ant-tabs-nav {
+      position: relative;
+      &::after {
+        width: 100%;
+        height: 2px;
+        position: absolute;
+        content: "";
+        bottom: 0;
+        background: url("../../../assets/img/screen/radiance-small.png") no-repeat;
+        background-size: 100%;
+      }
+      .ant-tabs-tab {
+        width: 80px;
+        transition: all 1s;
+        margin: 0 5px;
+        font-size: 16px;
+        color: fade(#fff, 60%);
+        padding: 2px 0 10px 0;
+        text-align: center;
+      }
+      .ant-tabs-tab-active,
+      .ant-tabs-tab:hover {
+        color: #00ffea;
+      }
+      .ant-tabs-tab-active {
+        background: radial-gradient(
+          ellipse closest-side at 50% 45%,
+          fade(#3ec0d2, 40%) 0%,
+          fade(#3ec0d2, 12%) 50%,
+          transparent 100%
+        );
+      }
+      .ant-tabs-ink-bar.ant-tabs-ink-bar-animated {
+        background-color: #00ffea;
+      }
+    }
+    .ant-tabs-content {
+      flex: 1;
+    }
+  }
+}
+</style>

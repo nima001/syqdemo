@@ -1,0 +1,376 @@
+<template>
+  <div class="content">
+    <div class="addAndSearch">
+      <div>
+        <a-button type="primary" @click="add()">新增</a-button>
+      </div>
+      <div>
+        <a-input-search placeholder="输入名称搜索" enter-button="搜索" @search="onSearch" />
+      </div>
+    </div>
+    <div class="table">
+      <div class="tableHead">
+        <table width="100%" class="dataTabble">
+          <thead>
+            <tr>
+              <th width="10%">序号</th>
+              <th width="12%">编码</th>
+              <th>名称</th>
+              <th>数据类型</th>
+              <th>数据源</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+      <div class="tableBody">
+        <table width="100%">
+          <draggable
+            :force-fallback="true"
+            v-model="data"
+            :disabled="this.disabled"
+            :animation="200"
+            :delay="20"
+            element="tbody"
+            :move="getdata"
+            @update="datadragEnd"
+          >
+            <tr v-for="(item,id) in data" :key="item.id">
+              <td>
+                <a-icon type="ordered-list" class="icon" />
+                {{item.index}}
+              </td>
+              <td>{{item.code}}</td>
+              <td>{{item.name}}</td>
+              <td v-if="item.datatype==1">对象</td>
+              <td v-else-if="item.datatype==2">字典</td>
+              <td v-else-if="item.datatype==3">引用</td>
+              <td v-else-if="item.datatype==4">输入</td>
+              <td v-else>&nbsp;</td>
+              <td v-if="item.inputtype==0">字符</td>
+              <td v-else-if="item.inputtype==1">整数</td>
+              <td v-else-if="item.inputtype==2">浮点数</td>
+              <td v-else-if="item.inputtype==3">时间</td>
+              <td v-else-if="item.inputtype==4">布尔</td>
+              <td v-else-if="item.datasource!= ''">{{item.datasource}}</td>
+              <td v-else>&nbsp;</td>
+              <td class="action">
+                <span>
+                  <a href="javascript:;" @click="edit(item)">编辑</a>
+                </span>
+                <span @click="onDelete(item.id)">
+                  <a href="javascript:;">删除</a>
+                </span>
+              </td>
+            </tr>
+          </draggable>
+        </table>
+      </div>
+      <a-modal
+        :width="650"
+        :centered="true"
+        class="formModal"
+        v-model="visible"
+        title="新增/编辑"
+        @ok="handleOk"
+      >
+        <a-form
+          class="form"
+          :form="this.form"
+          :label-col="{ span: 5 }"
+          :wrapper-col="{ span: 16 }"
+          :style="{ width: '500px',margin: 'auto' }"
+        >
+          <a-form-item label="编码">
+            <a-input
+              v-decorator="['code', { rules: [{ required: true, message: '请输入编码!' }, {pattern: new RegExp(/^[A-Za-z]+$/),message: '只允许输入英文!'}] }]"
+            />
+          </a-form-item>
+          <a-form-item label="名称">
+            <a-input v-decorator="['name', { rules: [{ required: true, message: '请输入节点名称!' }] }]" />
+          </a-form-item>
+          <a-form-item label="数据类型">
+            <a-select
+              v-decorator="[
+                'datatype',
+                { rules: [{ required: true, message: '请选择数据类型!' }] },
+              ]"
+              @change="changeDatatype"
+            >
+              <a-select-option
+                v-for="(item,index) in datatype"
+                :value="Number(index)+2"
+                :key="index"
+              >{{item}}</a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="输入类型" v-show="showInputtype">
+            <a-select
+              v-decorator="[
+                'inputtype',
+                { rules: [{ required: showInputtype, message: '请选择输入类型!' }] },
+              ]"
+            >
+              <a-select-option
+                v-for="(item,index) in inputtype"
+                :value="index"
+                :key="index"
+              >{{item}}</a-select-option>
+            </a-select>
+          </a-form-item>
+          <a-form-item label="数据源" v-show="showDatasource">
+            <a-input
+              v-decorator="['datasource', { rules: [{ required: showDatasource, message: '请输入数据源!' }] }]"
+            />
+          </a-form-item>
+        </a-form>
+      </a-modal>
+    </div>
+  </div>
+</template>
+<script>
+import {
+  Button,
+  InputSearch,
+  Table,
+  Icon,
+  Modal,
+  Form,
+  Input,
+  Select,
+  Popconfirm,
+} from "ant-design-vue";
+import draggable from "vuedraggable";
+const datatype = ["字典", "引用", "输入"];
+const inputtype = ["字符", "整数", "浮点数", "时间", "布尔"];
+export default {
+  components: {
+    AButton: Button,
+    ATable: Table,
+    AIcon: Icon,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInputSearch: Input.Search,
+    APopconfirm: Popconfirm,
+    draggable,
+  },
+  props: {
+    data: {
+      type: Array,
+    },
+  },
+  data() {
+    return {
+      visible: false,
+      datatype,
+      inputtype,
+      id: 0,
+      beforeid: 0,
+      // datatypeselect: 1,
+      showInputtype: false,
+      showDatasource: false,
+      disabled: false,
+      form: this.$form.createForm(this, { name: "scopeForm" }),
+    };
+  },
+  methods: {
+    //拖动中
+    getdata(event) {
+      this.beforeid = event.draggedContext.element.id; //获取源变更元素id
+    },
+    //排序拖动结束
+    datadragEnd(event) {
+      let where = 0;
+      let afterid = 0;
+      if (event.oldIndex < event.newIndex) {
+        //更新后索引增大，往下,newxIndex和oldIndex从0开始
+        where = -1; //代表移动到目标元素的下方
+        afterid = this.getidbyIndex(Number(event.newIndex - 1)); //寻找目标id
+        this.sort({ from: this.beforeid, to: afterid, where: where }); //调用排序方法
+      } else if (event.oldIndex > event.newIndex) {
+        //更新后索引变小，往上
+        where = 1; //代表移动到目标元素的上方
+        afterid = this.getidbyIndex(Number(event.newIndex + 1)); //寻找目标id
+        this.sort({ from: this.beforeid, to: afterid, where: where }); //调用排序方法
+      } else {
+        where = 0; //位置不变
+      }
+    },
+    getidbyIndex(index) {
+      return this.data[index].id;
+    },
+    sort(data) {
+      this.$emit("sort", data);
+    },
+    //新增按钮点击事件
+    add() {
+      this.showModal();
+      this.$nextTick(() => {
+        this.form.resetFields();
+      });
+    },
+    onDelete(id) {
+      let that = this;
+      this.$confirm({
+        title: "删除该范围?",
+        okText: "Yes",
+        okType: "danger",
+        cancelText: "No",
+        onOk() {
+          that.$emit("delete", id); //通知父组件改变
+        },
+        onCancel() {
+          console.log("Cancel");
+        },
+      });
+    },
+    //查询
+    onSearch(value) {
+      if (value != "") {
+        this.disabled = true;
+      } else {
+        this.disabled = false;
+      }
+      this.$emit("search", value);
+    },
+    //编辑按钮点击事件
+    edit(item) {
+      this.id = item.id;
+      this.showModal();
+      if (item.datatype == 4) {
+        this.showInputtype = true;
+        this.showDatasource = false;
+      } else {
+        this.showDatasource = true;
+        this.showInputtype = false;
+      }
+      this.$nextTick(() => {
+        this.form.setFieldsValue({
+          code: item.code,
+          name: item.name,
+          datatype: item.datatype,
+          inputtype: item.inputtype,
+          datasource: item.datasource,
+        });
+      });
+    },
+    showModal() {
+      this.visible = true;
+    },
+    changeDatatype(value) {
+      if (value == 4) {
+        this.showInputtype = true;
+        this.showDatasource = false;
+      } else {
+        this.showDatasource = true;
+        this.showInputtype = false;
+      }
+    },
+    //确定
+    handleOk(e) {
+      e.preventDefault();
+      //验证输入
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          this.$emit("save", {
+            id: this.id,
+            code: values.code,
+            name: values.name,
+            datatype: values.datatype,
+            inputtype: this.showInputtype ? values.inputtype : "",
+            datasource: this.showDatasource ? values.datasource : "",
+          });
+          //重置所有组件
+          this.form.resetFields();
+          this.visible = false;
+          this.showDatasource = false;
+          this.showInputtype = false;
+        }
+      });
+    },
+  },
+};
+</script>
+
+<style lang="less" scoped>
+.content {
+  height: 100%;
+  padding: @content-padding-v 0;
+  background-color: @white;
+  .addAndSearch {
+    display: flex;
+    justify-content: space-between;
+    padding: @content-padding-v @content-padding-h;
+  }
+  .action {
+    & a:not(:nth-child(2)) {
+      margin-right: 15px;
+      color: @primary-color;
+    }
+  }
+  .table {
+    padding: @content-padding-v 0;
+    & table {
+      table-layout: fixed;
+      & tbody:hover {
+        cursor: pointer;
+      }
+      & thead {
+        background-color: rgb(250, 250, 250);
+        border-bottom: 1px solid #e8e8e8;
+        & th:first-child {
+          text-align: left;
+        }
+      }
+      & tbody {
+        tr:hover {
+          background-color: rgb(251, 229, 229);
+        }
+      }
+      & tr {
+        border-bottom: 1px solid #e8e8e8;
+        transition: background-color 0.4s ease;
+        th:not(:last-child),
+        td:not(:last-child) {
+          padding: 6px 6px;
+          text-align: center;
+        }
+        th:first-child,
+        th:nth-child(2),
+        th:nth-child(3),
+        th:nth-child(5),
+        td:first-child,
+        td:nth-child(6n + 2),
+        td:nth-child(6n + 3),
+        td:nth-child(6n + 5) {
+          text-align: left;
+        }
+        & .icon{
+          margin-right: 2%;
+        }
+      }
+    }
+    .tableHead {
+      padding: 0 @content-padding-h;
+    }
+    .tableBody {
+      height: 500px;
+      overflow-y: auto;
+      padding: 0 @content-padding-h;
+      table {
+        & td:nth-child(6n + 1) {
+          width: 10%;
+          text-align: left;
+        }
+        td:nth-child(6n + 2) {
+          width: 12%;
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,163 @@
+<template>
+  <div class="container">
+    <div class="start">
+      <a-input-group compact>
+        <a-select :value="input[0].type" :showArrow="false" @change="onInputTypeChange(0, $event)">
+          <a-select-option value="">值</a-select-option>
+          <a-select-option value="$"><custom-icon type="fx"/></a-select-option>
+          <a-select-option value="#"><custom-icon color="#f39c2b" type="fx"/></a-select-option>
+        </a-select>
+        <template v-if="input[0].type">
+          <a-input :value="value[0]"
+            read-only
+            @click="showExpr(0)"
+          />
+        </template>
+        <a-date-picker v-else
+          v-model="input[0].value"
+          placeholder="起始时间(包含)"
+        />
+      </a-input-group>
+    </div>
+    <div class="connector">~</div>
+    <div class="end">
+      <a-input-group compact>
+        <a-select :value="input[1].type" :showArrow="false" @change="onInputTypeChange(1, $event)">
+          <a-select-option value="">值</a-select-option>
+          <a-select-option value="$"><custom-icon type="fx"/></a-select-option>
+          <a-select-option value="#"><custom-icon color="#f39c2b" type="fx"/></a-select-option>
+        </a-select>
+        <template v-if="input[1].type">
+          <a-input :value="value[1]"
+            read-only
+            @click="showExpr(1)"
+          />
+        </template>
+        <a-date-picker v-else
+          v-model="input[1].value"
+          placeholder="结束时间(不包含)"
+        />
+      </a-input-group>
+    </div>
+    <equation-editor v-if="showExprEditor" :selfFields='contextFields' :fnData="optInput && optInput.value" namespace="query" @finish="onFinish"/>
+  </div>
+</template>
+<script>
+import { DatePicker, Modal, Icon, Input, Select } from "ant-design-vue";
+import CustomIcon from "@/framework/components/CustomIcon";
+import moment from "moment";
+
+//时间介于
+export default {
+  name: "DateBetween",
+  components: {
+    AInput: Input,
+    AInputGroup: Input.Group,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    CustomIcon,
+    AModal: Modal,
+    ADatePicker: DatePicker,
+    AIcon: Icon,
+    EquationEditor:() => import('@person/components/EquationEditor/index')
+  },
+  props: {
+    position: {
+      type: String,
+      required: true
+    },
+    defaultData: {
+      type: Object,
+      required: true
+    }
+  },
+  data() {
+    return {
+      input: this.initInput(this.defaultData.value),
+      oldValue: [],
+      showExprEditor: false,
+      optInput: undefined,
+    };
+  },
+  inject:['contextFields'],
+  computed:{
+    value(){
+      return this.input.map(item => {
+        let { type, value } = item;
+        if(type && value){
+          return type + '{' + value + '}';;
+        }else{
+          return value && moment(value).format("YYYY-MM-DD");
+        }
+      });
+    }
+  },
+  watch: {
+    value(value){
+      this.$store.commit({
+        type: "SET_VALUE",
+        position: this.position,
+        value
+      });
+    },
+  },
+  methods: {
+    initInput(v){
+      if(Array.isArray(v)){
+        return [this.getInput(v[0]), this.getInput(v[1])];
+      }else{
+        return [this.getInput(v), this.getInput()];
+      }
+    },
+    onInputTypeChange(index, type){
+      let input = this.input[index];
+      if(!input.type != !type){
+        let v = this.oldValue[index];
+        this.oldValue[index] = input.value;
+        input.value = v;
+      }
+      input.type = type;
+    },
+    showExpr(index){
+      this.showExprEditor = true;
+      this.optInput = this.input[index];
+    },
+    onFinish(type, data) {
+      this.showExprEditor = false;
+      if (type == "ok") {
+        this.optInput.value = data;
+      }
+    },
+    getInput(v){
+      if(typeof(v) == 'string'){
+        if(v.startsWith('${') && v.endsWith('}')){
+          return { type: '$', value: v.substring(2, v.length-1) };
+        }else if(v.startsWith('#{') && v.endsWith('}')){
+          return { type: '#', value: v.substring(2, v.length-1) };
+        }
+      }
+      return { type: '', value: v && moment(v)};
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  width: 480px;
+  display: flex;
+  .ant-input-group-compact{
+    display: flex;
+  }
+  .start{
+    flex: auto;
+  }
+  .connector{
+    flex: none;
+    line-height: 32px;
+    padding: 0px 5px;
+  }
+  .end{
+    flex: auto;
+  }
+}
+</style>    

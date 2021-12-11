@@ -1,0 +1,94 @@
+<template>
+  <div class="form-group">
+    <div v-if="title" class="title-bar">{{title}}</div>
+    <a-row :gutter="24">
+      <template v-for="item in properties">
+        <a-col 
+          :lg="getSpan(item.span, 'lg')" 
+          :xl="getSpan(item.span, 'xl')"
+          :xxl="getSpan(item.span, 'xxl')"
+          :key="item.code">
+          <component :is="`input-${item.type}`"
+            ref="inputBox"
+            :property="item"
+            :data="data"
+            :edit="edit"
+          />
+        </a-col>
+      </template>
+    </a-row>
+  </div>
+</template>
+<script>
+import {Row,Col} from 'ant-design-vue';
+import InputText from "./InputText";
+import InputNumber from "./InputNumber";
+import InputDate from "./InputDate";
+import InputBool from "./InputBool";
+import InputDict from "./InputDict";
+import InputOrg from "./InputOrg";
+import InputUser from "./InputUser";
+import InputGroup from "./InputGroup";
+import InputTable from "./InputTable";
+
+export default {
+  props: {
+    title: {
+      type: String,
+    },
+    properties: {
+      type: Array,
+    },
+    data: {
+      type: Object,
+    },
+    edit:{
+      type: Boolean,
+      default: false,
+    }
+  },
+  components: {
+    ARow:Row,
+    ACol:Col,
+    InputText,
+    InputNumber,
+    InputDate,
+    InputBool,
+    InputDict,
+    InputOrg, 
+    InputUser,
+    InputGroup,
+    InputTable
+  },
+  methods: {
+    validateFields(obj){
+      return Promise.all((this.$refs.inputBox || []).map(ele => {
+        return ele.validateField(obj);
+      }));
+    },
+    getSpan(span, size){
+      let s = 0;
+      if(size == 'lg'){//显示3个
+        return 24/3 * span;
+      }else if(size == 'xl'){//显示3个
+        s = 24/3 * span;
+      }else{//xxl//显示4个
+        s = 24/4 * span;
+      }
+      return Math.min(24,  s);
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.form-group {
+  .title-bar {
+    margin: 10px 0;
+    line-height: 1em;
+    border-left: 5px solid @primary-color;
+    font-size: 18px;
+    text-indent: 5px;
+    color: @primary-color;
+  }
+}
+</style>

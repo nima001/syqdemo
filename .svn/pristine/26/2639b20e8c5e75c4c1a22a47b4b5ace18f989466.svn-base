@@ -1,0 +1,775 @@
+<template>
+  <div class="wrap">
+    <div class="top">{{formConfigs.name}}</div>
+    <div class="bottom">
+      <a-form id="form" :form="form" :layout="formLayout">
+        <a-row v-for="(item,index) in parseConfigs" :key="index" :gutter="(item.gutter*2)">
+          <template v-for="(vo,i) in item.columns">
+            <a-col
+              :key="i"
+              :span="vo.column"
+              :class="(vo.component && vo.component.componenttype == 'title')?'dashed-border':''"
+            >
+              <!-- 留白 -->
+              <div v-if="!vo.component" style="height:37px;"></div>
+              <!-- 标题 -->
+              <Title
+                v-if="vo.component && vo.component.componenttype == 'title'"
+              >{{vo.component.name}}</Title>
+              <sub-title
+                v-if="vo.component && vo.component.componenttype == 'subtitle'"
+              >{{vo.component.name}}</sub-title>
+              <!-- 正文 -->
+              <text-box
+                v-if="vo.component && vo.component.componenttype == 'textbox'"
+              >{{vo.component.name}}</text-box>
+              <!-- 单行文本框 -->
+              <input-text
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'inputtext'"
+                :property="vo.component"
+                :bindform="form"
+                :typecode="typecode"
+                :relateControls="relateControls"
+                :resourceId="workFlowParams.resourceId"
+              ></input-text>
+              <!-- 多行文本框 -->
+              <multi-input-text
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'multiinputtext'"
+                :property="vo.component"
+                :bindform="form"
+                :relateControls="relateControls"
+              ></multi-input-text>
+              <!-- 机构选择 -->
+              <Org
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'org'"
+                :property="vo.component"
+                :bindform="form"
+                :typecode="typecode"
+                :relateControls="relateControls"
+                :resourceId="workFlowParams.resourceId"
+              ></Org>
+              <!-- 人员选择 -->
+              <User
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'user'"
+                :property="vo.component"
+                :bindform="form"
+                :typecode="typecode"
+                :relateControls="relateControls"
+                :resourceId="workFlowParams.resourceId"
+              ></User>
+              <!-- 下拉选择框 -->
+              <combo-box
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'combobox'"
+                :property="vo.component"
+                :bindform="form"
+                :typecode="typecode"
+                :relateControls="relateControls"
+                :resourceId="workFlowParams.resourceId"
+              ></combo-box>
+              <!-- 日期选择框 -->
+              <date-box
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'datebox'"
+                :property="vo.component"
+                :bindform="form"
+                :relateControls="relateControls"
+                @fillData="fillData"
+              ></date-box>
+              <!-- 多选框 -->
+              <check-box
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'checkbox'"
+                :property="vo.component"
+                :bindform="form"
+                :relateControls="relateControls"
+                @fillData="fillData"
+              ></check-box>
+              <!-- 审批意见 -->
+              <approval-opinions-one
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'approvalopinionsone'"
+                :property="vo.component"
+                :bindform="form"
+                :relateControls="relateControls"
+              ></approval-opinions-one>
+              <!-- 自定义审批意见 -->
+              <approval-opinions-two
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'approvalopinionstwo'"
+                :property="vo.component"
+                :bindform="form"
+                :relateControls="relateControls"
+              ></approval-opinions-two>
+              <!-- 单选框 -->
+              <radio
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'radio'"
+                :property="vo.component"
+                :bindform="form"
+                :relateControls="relateControls"
+                @fillData="fillData"
+              ></radio>
+              <!-- 佐证材料 -->
+              <evidence
+                v-if="vo.component && vo.component.componenttype == 'evidencegroup'"
+                :property="vo.component"
+                :bindform="form"
+              ></evidence>
+              <!-- 附件上传 -->
+              <file-upload
+                v-if="vo.component && vo.component.componenttype == 'attachmentgroup'"
+                :property="vo.component"
+                :bindform="form"
+              ></file-upload>
+              <!-- 通用列表 -->
+              <common-list
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'commonlist'"
+                :property="vo.component"
+                :bindform="form"
+                :typecode="typecode"
+              ></common-list>
+              <!-- 家庭成员 -->
+              <family-menber
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'familymenber'"
+                :property="vo.component"
+                :bindform="form"
+                :typecode="typecode"
+                :resourceId="workFlowParams.resourceId"
+              ></family-menber>
+              <!-- 奖惩 -->
+              <rewards
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'rewards'"
+                :property="vo.component"
+                :bindform="form"
+              ></rewards>
+              <!-- 图片 -->
+              <Picture
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'picture'"
+                :property="vo.component"
+                :bindform="form"
+              ></Picture>
+              <!-- 简历 -->
+              <Resume
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'resume'"
+                :property="vo.component"
+                :bindform="form"
+              ></Resume>
+              <!-- 数字框 -->
+              <number-box
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'numberbox'"
+                :property="vo.component"
+                :bindform="form"
+                :typecode="typecode"
+                :relateControls="relateControls"
+                :resourceId="workFlowParams.resourceId"
+              ></number-box>
+              <!-- 人设/公管介绍信 -->
+              <people-letter
+                v-if="vo.component && vo.component.componenttype == 'peopleletter'"
+                :property="vo.component"
+                :bindform="form"
+                :allowCommit="allowCommit"
+              ></people-letter>
+              <!-- 单位介绍信 -->
+              <unit-letter
+                v-if="vo.component && vo.component.componenttype == 'unitletter'"
+                :property="vo.component"
+                :bindform="form"
+                :allowCommit="allowCommit"
+              ></unit-letter>
+              <!-- 人员调动通知书 -->
+              <transfer-letter
+                v-if="vo.component && vo.component.componenttype == 'transferletter'"
+                :property="vo.component"
+                :bindform="form"
+                :allowCommit="allowCommit"
+              ></transfer-letter>
+              <!-- 身份证号 -->
+              <idcard
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'idcard'"
+                :property="vo.component"
+                :bindform="form"
+                :typecode="typecode"
+                :resourceId="workFlowParams.resourceId"
+              ></idcard>
+              <!-- 增资批复表 -->
+              <wage-check-form
+                v-if="vo.component && vo.component.componenttype == 'wagecheckform'"
+                :property="vo.component"
+                :bindform="form"
+                :allowCommit="allowCommit"
+              ></wage-check-form>
+              <!-- 固定文本 -->
+              <fixed-text
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'fixedtext'"
+                :property="vo.component"
+                :bindform="form"
+              ></fixed-text>
+              <!-- 地区选择 -->
+              <region
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'region'"
+                :property="vo.component"
+                :bindform="form"
+              ></region>
+              <!-- 科室选择 -->
+              <department
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'department'"
+                :property="vo.component"
+                :bindform="form"
+              ></department>
+              <!-- 开关 -->
+              <switch-box
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'switchbox'"
+                :property="vo.component"
+                :bindform="form"
+              ></switch-box>
+              <!-- 证件选择 -->
+              <Certificate
+                :key="vo.component.code"
+                v-if="vo.component && vo.component.componenttype == 'certificate'"
+                :property="vo.component"
+                :bindform="form"
+                :typecode="typecode"
+                :resourceId="workFlowParams.resourceId"
+              ></Certificate>
+
+              <a-row v-if="vo.list && vo.list.length !=0">
+                <a-col v-for="(lg,m) in vo.list" :key="m">
+                  <!-- 留白 -->
+                  <div v-if="!lg.component" style="height:37px;"></div>
+                  <!-- 标题 -->
+                  <Title
+                    v-if="lg.component && lg.component.componenttype == 'title'"
+                  >{{lg.component.name}}</Title>
+                  <!-- 二级标题 -->
+                  <sub-title
+                    v-if="lg.component && lg.component.componenttype == 'subtitle'"
+                  >{{lg.component.name}}</sub-title>
+                  <!-- 正文 -->
+                  <text-box
+                    v-if="lg.component && lg.component.componenttype == 'textbox'"
+                  >{{lg.component.name}}</text-box>
+                  <!-- 单行文本框 -->
+                  <input-text
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'inputtext'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :typecode="typecode"
+                    :relateControls="relateControls"
+                    :resourceId="workFlowParams.resourceId"
+                  ></input-text>
+                  <!-- 多行文本框 -->
+                  <multi-input-text
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'multiinputtext'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :relateControls="relateControls"
+                  ></multi-input-text>
+                  <!-- 机构选择 -->
+                  <Org
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'org'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :typecode="typecode"
+                    :relateControls="relateControls"
+                    :resourceId="workFlowParams.resourceId"
+                  ></Org>
+                  <!-- 人员选择 -->
+                  <User
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'user'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :typecode="typecode"
+                    :relateControls="relateControls"
+                    :resourceId="workFlowParams.resourceId"
+                  ></User>
+                  <!-- 下拉选择框 -->
+                  <combo-box
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'combobox'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :typecode="typecode"
+                    :relateControls="relateControls"
+                    :resourceId="workFlowParams.resourceId"
+                  ></combo-box>
+                  <!-- 日期选择框 -->
+                  <date-box
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'datebox'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :relateControls="relateControls"
+                    @fillData="fillData"
+                  ></date-box>
+                  <!-- 多选框 -->
+                  <check-box
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'checkbox'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :relateControls="relateControls"
+                    @fillData="fillData"
+                  ></check-box>
+                  <!-- 自定义审批意见 -->
+                  <approval-opinions-two
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'approvalopinionstwo'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :relateControls="relateControls"
+                  ></approval-opinions-two>
+                  <!-- 审批意见 -->
+                  <approval-opinions-one
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'approvalopinionsone'"
+                    :property="lg.component"
+                    :bindform="form"
+                  ></approval-opinions-one>
+                  <!-- 单选框 -->
+                  <radio
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'radio'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :relateControls="relateControls"
+                    @fillData="fillData"
+                  ></radio>
+                  <!-- 佐证材料 -->
+                  <evidence
+                    v-if="lg.component && lg.component.componenttype == 'evidencegroup'"
+                    :property="lg.component"
+                    :bindform="form"
+                  ></evidence>
+                  <!-- 附件上传 -->
+                  <file-upload
+                    v-if="lg.component && lg.component.componenttype == 'attachmentgroup'"
+                    :property="lg.component"
+                    :bindform="form"
+                  ></file-upload>
+                  <!-- 通用列表 -->
+                  <common-list
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'commonlist'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :typecode="typecode"
+                  ></common-list>
+                  <!-- 家庭成员 -->
+                  <family-menber
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'familymenber'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :typecode="typecode"
+                    :resourceId="workFlowParams.resourceId"
+                  ></family-menber>
+                  <!-- 奖惩 -->
+                  <rewards
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'rewards'"
+                    :property="lg.component"
+                    :bindform="form"
+                  ></rewards>
+                  <!-- 图片 -->
+                  <Picture
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'picture'"
+                    :property="lg.component"
+                    :bindform="form"
+                  ></Picture>
+                  <!-- 简历 -->
+                  <Resume
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'resume'"
+                    :property="lg.component"
+                    :bindform="form"
+                  ></Resume>
+                  <!-- 数字框 -->
+                  <number-box
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'numberbox'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :typecode="typecode"
+                    :relateControls="relateControls"
+                    :resourceId="workFlowParams.resourceId"
+                  ></number-box>
+                  <!-- 人设/公管介绍信 -->
+                  <people-letter
+                    v-if="lg.component && lg.component.componenttype == 'peopleletter'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :allowCommit="allowCommit"
+                  ></people-letter>
+                  <!-- 单位介绍信 -->
+                  <unit-letter
+                    v-if="lg.component && lg.component.componenttype == 'unitletter'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :allowCommit="allowCommit"
+                  ></unit-letter>
+                  <!-- 人员调动通知书 -->
+                  <transfer-letter
+                    v-if="lg.component && lg.component.componenttype == 'transferletter'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :allowCommit="allowCommit"
+                  ></transfer-letter>
+                  <!-- 身份证号 -->
+                  <idcard
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'idcard'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :typecode="typecode"
+                    :resourceId="workFlowParams.resourceId"
+                  ></idcard>
+                  <!-- 增资批复表 -->
+                  <wage-check-form
+                    v-if="lg.component && lg.component.componenttype == 'wagecheckform'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :allowCommit="allowCommit"
+                  ></wage-check-form>
+                  <!-- 固定文本 -->
+                  <fixed-text
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'fixedtext'"
+                    :property="lg.component"
+                    :bindform="form"
+                  ></fixed-text>
+                  <!-- 地区选择 -->
+                  <region
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'region'"
+                    :property="lg.component"
+                    :bindform="form"
+                  ></region>
+                  <!-- 科室选择 -->
+                  <department
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'department'"
+                    :property="lg.component"
+                    :bindform="form"
+                  ></department>
+                  <!-- 开关 -->
+                  <switch-box
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'switchbox'"
+                    :property="lg.component"
+                    :bindform="form"
+                  ></switch-box>
+                  <!-- 开关 -->
+                  <Certificate
+                    :key="lg.component.code"
+                    v-if="lg.component && lg.component.componenttype == 'certificate'"
+                    :property="lg.component"
+                    :bindform="form"
+                    :typecode="typecode"
+                    :resourceId="workFlowParams.resourceId"
+                  ></Certificate>
+                </a-col>
+              </a-row>
+            </a-col>
+          </template>
+        </a-row>
+      </a-form>
+    </div>
+  </div>
+</template>
+<script>
+import { checkObjNull, getUserInfo} from "@/workflow/api/workflow";
+import InputText from "./../components/InputText";
+import MultiInputText from "./../components/MultiInputText";
+import Title from "./../components/Title";
+import SubTitle from "./../components/SubTitle";
+import Org from "./../components/Org";
+import User from "./../components/User";
+import ApprovalOpinionsOne from "./../components/ApprovalOpinionsOne";
+import ApprovalOpinionsTwo from "./../components/ApprovalOpinionsTwo";
+import ComboBox from "./../components/ComboBox";
+import Resume from "./../components/Resume";
+import DateBox from "./../components/DateBox";
+import CheckBox from "./../components/CheckBox";
+import Radio from "./../components/Radio";
+import Evidence from "./../components/Evidence";
+import FileUpload from "./../components/FileUpload";
+import CommonList from "./../components/CommonList";
+import FamilyMenber from "./../components/FamilyMenber";
+import Rewards from "./../components/Rewards";
+import Picture from "./../components/Picture";
+import NumberBox from "./../components/NumberBox";
+import PeopleLetter from "./../components/PeopleLetter";
+import UnitLetter from "./../components/UnitLetter";
+import TransferLetter from "./../components/TransferLetter";
+import Idcard from "./../components/Idcard";
+import WageCheckForm from "./../components/WageCheckForm";
+import FixedText from "./../components/FixedText";
+import Region from "./../components/Region";
+import TextBox from "./../components/TextBox";
+import Department from "./../components/Department";
+import SwitchBox from "./../components/SwitchBox";
+import Certificate from './../components/Certificate'
+import { error } from "util";
+import { Form, Row, Col } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: "FormTemplate",
+  data() {
+    return {
+      formLayout: "vertical",
+      fillApiData: {
+        allCode: [],
+        apiMap: {}
+      }
+    };
+  },
+  props: {
+    formConfigs: {
+      type: Object,
+      required: true
+    },
+    workFlowParams: {
+      type: Object,
+      required: true
+    },
+    allowCommit: {
+      type: Number
+    },
+    typecode: {
+      type: Object
+    },
+    relateControls: {
+      type: Array
+    }
+  },
+  components: {
+    AForm: Form,
+    ARow: Row,
+    ACol: Col,
+    InputText,
+    Title,
+    SubTitle,
+    MultiInputText,
+    Org,
+    User,
+    ApprovalOpinionsOne,
+    ApprovalOpinionsTwo,
+    ComboBox,
+    Resume,
+    DateBox,
+    CheckBox,
+    Radio,
+    Evidence,
+    FileUpload,
+    CommonList,
+    FamilyMenber,
+    Rewards,
+    Picture,
+    NumberBox,
+    PeopleLetter,
+    UnitLetter,
+    TransferLetter,
+    Idcard,
+    WageCheckForm,
+    FixedText,
+    Region,
+    TextBox,
+    Department,
+    SwitchBox,
+    Certificate
+  },
+  computed: {
+    parseConfigs() {
+      return JSON.parse(this.formConfigs.configs);
+    },
+  },
+  mounted(){
+    this.handleFillCode(this.typecode);
+  },
+  beforeCreate() {
+    this.form = this.$form.createForm(this);
+  },
+  methods: {
+    getTempSaveData(){
+      return new Promise((resolve,reject)=>{
+        let formData = this.$store.getters.formData;
+        const check = checkObjNull(formData);
+        if (check.type) {
+          let data = {
+            businessData: JSON.stringify(formData),
+            modelInstanceId: this.workFlowParams.modelInstanceId,
+            businessInstanceId: this.workFlowParams.businessInstanceId,
+            taskId: this.workFlowParams.taskId,
+            resourceId: this.workFlowParams.resourceId
+          };
+          resolve(data);
+        }else{
+          rejects({message: "提示",description: "表单未填写完",duration: 1.5});
+        }
+      });
+    },
+    validateFormData(){
+      return new Promise((resolve,reject) => {
+        let formData = this.$store.getters.formData;
+        this.form.validateFields((err, values) => {
+          if(err){
+            reject({code:'form_validate_fail', message: '表单验证失败'});
+          }else{
+            const check = checkObjNull(formData);
+            if (check.type) {
+              let data = {
+                businessData: JSON.stringify(formData),
+                modelInstanceId: this.workFlowParams.modelInstanceId,
+                businessInstanceId: this.workFlowParams.businessInstanceId,
+                taskId: this.workFlowParams.taskId,
+                resourceId: this.workFlowParams.resourceId,
+                businessid: this.workFlowParams.businessid
+              };
+              resolve(data);
+            }else{
+              rejects({message: "提示",description: "表单未填写完",duration: 1.5});
+            }
+          }
+        });
+      })
+    },
+    handleFillCode(typecode){
+      if(!typecode){
+        return;
+      }
+      let keys = Object.keys(typecode);
+      if(!keys || keys.length == 0){
+        return;
+      }
+    
+      this.fillApiData.apiMap = typecode;
+      keys.forEach(item => {
+        let itemCodes = typecode[item];
+        if(itemCodes && itemCodes.length > 0){
+          itemCodes.forEach(codeItem => {
+            if(this.fillApiData.allCode.indexOf(codeItem) < 0){
+              this.fillApiData.allCode.push(codeItem);
+            }
+          });
+        }
+      });
+      return this.fillApiData;
+    },
+    fillData(code){
+      if(!code) return;
+      //判断是否调用接口
+      if(this.fillApiData.allCode.indexOf(code) == -1){
+        return;
+      }
+      let storeFormData = this.$store.getters.formData;
+      if (storeFormData && Object.keys(storeFormData).length == 0) {
+        return;
+      }
+      Object.keys(this.fillApiData.apiMap).forEach(item => {
+        let itemCodes = this.fillApiData.apiMap[item];
+        if(!itemCodes || itemCodes.length == 0){
+          return true;
+        }
+        if(itemCodes.indexOf(code) == -1){
+          return true;
+        }
+        //获取接口需要的表单数据
+        let requestObjMap = {};
+        itemCodes.forEach(itemCode => {
+          let value = storeFormData[itemCode];
+          if(typeof(value) == 'undefined'){
+            requestObjMap[itemCode] = null;
+          }else{
+            requestObjMap[itemCode] = storeFormData[itemCode];
+          }
+        });
+        let requestApiData = {
+          formatCfgId: parseInt(item),
+          objectMap: requestObjMap
+        };
+        getUserInfo(requestApiData).then(res => {
+          const {result} = res;
+          if(!result){
+            return;
+          }
+          let resultKeys = Object.keys(result);
+          if( resultKeys.length == 0){
+            return;
+          }
+          let formData = Object.assign(
+            {},
+            this.$store.getters.formData,
+            result
+          );
+        
+          this.$store.commit({
+            type: "SET_FORM_DATA",
+            data: formData
+          });
+        })
+      });
+    }
+  }
+};
+</script>
+<style>
+.ant-form-item-label label {
+  color: #555;
+}
+</style>
+<style lang="less" scoped>
+.ant-form-vertical .ant-form-item {
+  padding-bottom: 0px;
+}
+.wrap {
+  padding-top: 30px;
+  .top {
+    height: 24px;
+    line-height: 24px;
+    font-size: 14px;
+    color: @primary-color;
+    font-weight: bold;
+    border-left: 4px solid @primary-color;
+    padding-left: 8px;
+  }
+  .bottom {
+    margin-top: 20px;
+    z-index: -1;
+    form {
+      padding: 20px;
+      background: #fafafa;
+      margin-bottom: 30px;
+      /deep/ .ant-form-item {
+        margin-bottom: 10px;
+      }
+      .dashed-border {
+        border-top: 1px dashed #ddd;
+        padding-top: 15px;
+      }
+    }
+  }
+}
+</style>
+

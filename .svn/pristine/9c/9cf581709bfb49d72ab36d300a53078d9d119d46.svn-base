@@ -1,0 +1,80 @@
+<template>
+  <div>
+    <Title title="人员结构"/>
+    <div style="height:260px">
+      <div class="content">
+        <span>平均年龄</span>
+        <span>31.95</span>
+      </div>
+      <div class="chart-content">
+        <RingChart :data="data" :settings="{canvas: {width: 580,height: 170}, legend: {visible: true, layout: 'horizontal', position: 'right', flipPage: false, offsetX: -60}, radius: 0.9, innerRadius: 0.8, infoText: {title: '20岁以下'}  }"/>
+      </div>
+      <div class="chart-content">
+        <RingChart :data="datacopy" :settings="{canvas: {width: 580,height: 170}, layout: 'horizontal', legend: {visible: true, layout: 'horizontal', position: 'right', flipPage: false, offsetX: -80}, radius: 0.9, innerRadius: 0.8, infoText: {title: '博士'}  }"/>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+import RingChart from '@person/components/chart/RingChart';
+
+export default {
+  props: {
+    districtCode: {
+      type: String
+    }
+  },
+  components: {
+    Title,
+    RingChart
+  },
+  data() {
+    return{
+      data: { "keyCols": [ { "column": "k0", "key": "district", "showname": "所在地区" } ], "rows": [ { "k0": "20岁以下", "v0": 247 }, { "k0": "40-49岁", "v0": 247 }, { "k0": "20-29岁", "v0": 352 }, { "k0": "50-59岁", "v0": 361 }, { "k0": "30-39岁", "v0": 305 }, { "k0": "60岁以上", "v0": 371 }], "valueCols": [ { "column": "v0", "showname": "记录数" } ] },
+      datacopy: { "keyCols": [ { "column": "k0", "key": "district", "showname": "所在地区" } ], "rows": [ { "k0": "博士", "v0": 347 }, { "k0": "硕士", "v0": 247 }, { "k0": "本科", "v0": 352 }, { "k0": "专科", "v0": 361 }, { "k0": "高中", "v0": 305 }, { "k0": "中专", "v0": 371 }, { "k0": "初中", "v0": 371 }, { "k0": "其他", "v0": 371 }], "valueCols": [ { "column": "v0", "showname": "记录数" } ] },
+    }
+  },
+  watch: {
+    districtCode(val) {
+      return val;
+    }
+  }
+}
+</script>
+
+<style scoped lang="less">
+@font-face {
+  font-family: LESLIEB;
+  src: url("../../../assets/img/screen/LESLIEB_.TTF") format("truetype");
+}
+.content {
+  margin-top: @layout-space-base;
+  padding: @padding-xs;
+  font-size: 1.4em;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  color: #fff;
+  background: fade(#7AC3E4, 20%);
+  span:first-child {
+    font-weight: bold;
+  }
+  span:last-child {
+    font-size: 1.5em;
+    font-family: LESLIEB;
+    color: fade(#01E3FC, 95%);
+  }
+}
+.chart-content {
+  display: flex;
+  flex-direction: column;
+  background: url('../../../assets/img/screen/legend-bg.png') no-repeat;
+  background-position: 100%;
+  .pie-chart {
+    flex: 1;
+  }
+}
+</style>

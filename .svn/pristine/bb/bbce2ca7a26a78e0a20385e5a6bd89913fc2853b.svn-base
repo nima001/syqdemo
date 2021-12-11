@@ -1,0 +1,348 @@
+<template>
+  <a-layout style="height: 100%">
+    <a-layout-content class="layoutcontent">
+      <div class="contentbox">
+        <div class="topbox">
+          <div class="leftbox">
+            <a-button icon="plus" type="primary" @click="newadd">新增</a-button>
+            <a-button icon="delete" type="primary" style="margin-left: 8px" @click="fielddelete">删除</a-button>
+            <a-button type="primary" style="margin-left: 8px" @click="toTarget">统计对象管理</a-button>
+          </div>
+          <div class="rightbox">
+            <ul>
+              <li>
+                <a-input
+                  allow-clear
+                  placeholder="请输入字段名称或编码"
+                  style="width: 200px"
+                  v-model="searchdata.searchKey"
+                />
+              </li>
+              <li>
+                <a-button type="primary" @click="onSearch">搜索</a-button>
+                <a-button style="margin-left: 8px" @click="onreset"
+                  >重置</a-button
+                >
+              </li>
+            </ul>
+          </div>
+        </div>
+        <div class="tablecount">
+          <a-table
+            rowKey="id"
+            :row-selection="rowSelection"
+            :loading="loading"
+            :columns="columns"
+            :dataSource="pagination.rows"
+            :pagination="false"
+          >
+            <span slot="action" class="operation" slot-scope="text, record">
+              <a @click="edit(record)">编辑</a>
+              <a @click="showModal(record)">添加规则</a>
+            </span>
+          </a-table>
+        </div>
+        <div class="footer">
+          <a-pagination
+            v-if="pagination.rows && pagination.rows.length"
+            showSizeChanger
+            :showTotal="(total) => `总共：${total}条`"
+            @showSizeChange="onShowSizeChange"
+            :total="pagination.total"
+            v-model="pagination.pagenum"
+            @change="onPageChange"
+          />
+        </div>
+      </div>
+    </a-layout-content>
+    <Statistics-Change
+      v-model="visible"
+      :record="record"
+      :targetlist="targetlist"
+      :modelList="modelList"
+      @finish="onEditFinish"
+    />
+    <a-modal
+      v-model="showEditTemp"
+      title="添加规则"
+      :width="800"
+      :destroyOnClose="true"
+      @ok="showEditTemp = false"
+      :bodyStyle="{height: '520px', padding: 0, overflow: 'hidden'}">
+        <edit-statistics-distr ref="editOrgdistr" :record="record" :targetlist="targetlist"></edit-statistics-distr>
+    </a-modal>
+  </a-layout>
+</template>
+<script>
+import { Layout, Pagination, Select, Table, Button, Input} from "ant-design-vue";
+import StatisticsChange from "./components/StatisticsChange";
+import EditStatisticsDistr from './components/EditStatisticsDistr';
+import { fieldsearch, fieldtarget, deletefield,fieldmodel } from "@/person/api/field";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  name: "StatisticsList",
+  components: {
+    ALayout: Layout,
+    ALayoutContent: Layout.Content,
+    APagination: Pagination,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    AButton: Button,
+    AInput: Input,
+    StatisticsChange,
+    EditStatisticsDistr
+  },
+  data() {
+    return {
+      rowSelection: {
+        onChange: (selectedRowKeys, selectedRows) => {
+          this.selectedRowKeys = selectedRowKeys;
+        },
+      },
+      visible: false,
+      record: {},
+      selectedRowKeys: [],
+      searchdata: {
+        type: undefined,
+        targetid: undefined,
+        searchKey: null,
+      },
+      showEditTemp: false,
+      columns: [
+        {
+          title: "序号",
+          width: "5%",
+          customRender: (text, record, index) => `${index + 1}`,
+        },
+        {
+          title: "字段名称",
+          dataIndex: "name",
+          width: "20%",
+        },
+        {
+          title: "字段编码",
+          dataIndex: "code",
+          width: "15%",
+        },
+        {
+          title: "统计模型",
+          dataIndex: "model",
+          width: "15%",
+          customRender: (target) => {
+            let t = this.modelList.find((item) => item.namespace == target);
+            return t && t.name;
+          },
+        },
+        {
+          title: "字段分类",
+          dataIndex: "sort",
+          width: "20%",
+        },
+        {
+          title: "启用",
+          dataIndex: "enable",
+          width: "10%",
+          customRender: (enable) => (enable ? "启用" : "禁用"),
+        },
+        {
+          title: "操作",
+          width: "25%",
+          scopedSlots: { customRender: "action" },
+        },
+      ],
+      loading: false,
+      pagination: {
+        rows: null,
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+      },
+      targetlist: [],
+      modelList: []
+    };
+  },
+  created() {
+    this.getresh();
+    this.gettarget();
+    this.getModel();
+  },
+  methods: {
+    //删除
+    fielddelete() {
+      let that = this;
+      if (this.selectedRowKeys.length > 0) {
+        let data = this.selectedRowKeys;
+        this.$confirm({
+          title: "确认删除该行数据?",
+          onOk() {
+            deletefield(data)
+              .then((res) => {
+                that.$notification.success({
+                  message: "提示",
+                  description: "删除成功!",
+                  duration: 3,
+                });
+                that.selectedRowKeys = [];
+                that.getresh();
+              })
+              .catch((err) => {
+                showError(err);
+              });
+          },
+        });
+      } else {
+        this.$notification.warning({
+          message: "提示",
+          description: "请选择要删除的内容!",
+          duration: 3,
+        });
+      }
+    },
+    edit(record) {
+      this.record = record;
+      this.visible = true;
+    },
+    showModal(record) {
+      this.record = record;
+      this.showEditTemp = true;
+    },
+    //获取文件列表
+    getresh() {
+      let { pagenum, pagesize } = this.pagination;
+      this.loadData(pagenum, pagesize);
+    },
+    //带参查询
+    onSearch() {
+      this.loadData(1, this.pagination.pagesize);
+    },
+    onPageChange(page, pagesize) {
+      this.loadData(page, pagesize);
+    },
+    onShowSizeChange(current, size) {
+      this.loadData(1, size);
+    },
+    loadData(pagenum, pagesize) {
+      let params = {
+        ...this.searchdata,
+        needtotal: true,
+        pagenum,
+        pagesize,
+      };
+      this.loading = true;
+      fieldsearch(params)
+        .then((res) => {
+          this.loading = false;
+          this.pagination = res.result;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    gettarget() {
+      fieldtarget()
+        .then((res) => {
+          this.targetlist = res.result;
+        })
+        .catch((err) => {
+          showError(err);
+        });
+    },
+    getModel(){
+      fieldmodel().then(res=>{
+        this.modelList = res.result
+      }).catch((err) => {
+          showError(err);
+      });
+    },
+    newadd() {
+      this.record = {};
+      this.visible = true;
+    },
+    toTarget(){
+      this.$router.push({path: "/person/fields/targetlist"});
+    },
+    onreset() {
+      this.searchdata = { input: {} };
+      this.loadData(1, this.pagination.pagesize);
+    },
+    onEditFinish(data) {
+      this.visible = false;
+      this.getresh();
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.layoutcontent {
+  height: 100%;
+  padding: @layout-space-base;
+  .contentbox {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    width: 100%;
+    background-color: white;
+    padding-top: @layout-space-base;
+    .topbox {
+      padding: @content-padding-v @content-padding-h;
+      width: 100%;
+      height: auto;
+      .leftbox {
+        float: left;
+      }
+      .rightbox {
+        float: right;
+      }
+      ul {
+        margin: 0;
+        white-space: nowrap;
+      }
+      li {
+        display: inline-block;
+        margin-left: 8px;
+        white-space: nowrap;
+        .name {
+          line-height: 32px;
+          padding-right: 5px;
+          vertical-align: middle;
+        }
+        .ant-input-group.ant-input-group-compact,
+        .ant-select,
+        .ant-input,
+        .ant-btn,
+        .ant-input-affix-wrapper {
+          display: inline-block;
+          vertical-align: middle;
+        }
+      }
+    }
+  }
+  .tablecount {
+    padding: 0 @content-padding-h;
+    flex-shrink: 1;
+    min-height: 0;
+    overflow-y: auto;
+    margin-top: @layout-space-base;
+    .operation {
+      a {
+        margin-right: 15px;
+        &:hover {
+          text-decoration: underline;
+        }
+      }
+    }
+  }
+  .footer {
+    padding: @content-padding-v @content-padding-h;
+    .ant-pagination {
+      float: right;
+      margin-bottom: 10px;
+    }
+  }
+}
+</style>

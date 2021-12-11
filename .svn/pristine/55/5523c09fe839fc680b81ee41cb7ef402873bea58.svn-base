@@ -1,0 +1,205 @@
+<template>
+  <div class="workflow">
+    <a-form-item :label="property.showName?property.name:''">
+      <span @click="trigger" class="uploadBtn" :style="property.showName?'':'margin-top:29px;'">
+        <img v-if="imageUrl" :src="imageUrl" />
+        <a-icon v-else type="plus" />
+      </span>
+      <input
+        type="file"
+        ref="fileBtn"
+        class="fileBtn"
+        id="uploadFile"
+        accept="image/*"
+        @change="getFile($event)"
+        multiple="multiple"
+      />
+      <a-input
+        v-if="!img"
+        type="hidden"
+        v-decorator="[
+          `${property.code}`,
+          {
+            rules: [{required: property.require, message: `请上传${property.name}!`}],
+            initialValue:img
+          }
+        ]"
+      ></a-input>
+    </a-form-item>
+    <stamp
+      :property="property"
+      @imgUrl="getStamp"
+      v-if="property.signcomponent.signcode && property.signcomponent.editable"
+    ></stamp>
+    <a-form-item class="stampNotice" v-if="!imgUrl && property.signcomponent.signcode">
+      <a-input
+        type="hidden"
+        v-decorator="[
+          `${property.signcomponent.code}`,
+          {
+            rules: [{required: property.signcomponent.require, message: `请选择签章!`}],
+            initialValue: stamp
+          }
+        ]"
+      ></a-input>
+    </a-form-item>
+    <div class="seal" v-if="imgUrl">
+      <img :src="imgUrl" />
+    </div>
+  </div>
+</template>
+<script>
+import { uploadImg } from "@/workflow/api/workflow";
+import { getStampInfo } from "@/workflow/api/stamplist";
+import Stamp from "./stampComponent/Stamp";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import "@/workflow/style/workflow.css";
+import { showError } from "@/framework/utils/index";
+import { Form, Icon, Input } from "ant-design-vue";
+export default {
+  name: "Picture",
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      loading: false,
+      imageUrl: "",
+      code: this.property["code"],
+      formData: this.$store.getters.formData,
+      imgUrl: null,
+      stamp: null,
+      img: null
+    };
+  },
+  props: {
+    property: {
+      type: Object,
+      required: true
+    },
+    bindform: {
+      type: Object,
+      required: true
+    }
+  },
+  components: {
+    AFormItem: Form.Item,
+    AIcon: Icon,
+    AInput: Input,
+    Stamp
+  },
+  computed: {
+    data() {
+      return this.$store.getters.formData[this.code];
+    }
+  },
+  watch: {
+    data(newval, oldval) {
+      if (newval && newval !== oldval) {
+        this.imageUrl =
+          this.uiConfigs["api.url"] +
+          "/file/v1/download/" +
+          "?uri=" +
+          encodeURIComponent(newval);
+        this.img = this.imageUrl;
+      }
+    }
+  },
+  created() {
+    if (this.formData[this.code]) {
+      this.imageUrl =
+        this.uiConfigs["api.url"] +
+        "/file/v1/download/" +
+        "?uri=" +
+        encodeURIComponent(this.formData[this.code]);
+      this.img = this.imageUrl;
+    } else {
+      if (!this.property.require) {
+        this.formData[this.code] = null;
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: this.formData
+        });
+      }
+    }
+    if (this.formData[this.property.signcomponent.code]) {
+      //获取签章图片
+      getStampInfo(this.formData[this.property.signcomponent.code])
+        .then(res => {
+          if (res.code == "success") {
+            this.imgUrl =
+              this.uiConfigs["api.url"] +
+              "/file/v1/download/" +
+              "?uri=" +
+              encodeURIComponent(res.result.pictureurl);
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  },
+  methods: {
+    getFile(event) {   
+      let imgFile = event.target.files[0];
+      uploadImg(imgFile)
+        .then(res => {
+          if (res.code == "success") {
+            let url =
+              this.uiConfigs["api.url"] +
+              "/file/v1/download/" +
+              "?uri=" +
+              encodeURIComponent(res.result);
+            this.imageUrl = url;
+            this.$store.getters.formData[this.code] = res.result;
+            this.img = url;
+            this.$store.commit({
+              type: "SET_FORM_DATA",
+              data: this.$store.getters.formData
+            });
+            this.$message.success("文件上传成功！");
+            document.getElementById("uploadFile").value = null;
+          }
+        })
+        .catch(error => {
+          showError(error);
+        });
+    },
+    trigger() {
+      if (this.property.editable) {
+        this.$refs.fileBtn.dispatchEvent(new MouseEvent("click"));
+      }
+    },
+    //获取签章
+    getStamp(img) {
+      if (img) {
+        this.imgUrl = img;
+        this.stamp = img;
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.uploadBtn {
+  display: inline-block;
+  width: 150px;
+  height: 180px;
+  border: 1px dashed #ddd;
+  text-align: center;
+  cursor: pointer;
+  i {
+    font-size: 30px;
+    color: gray;
+    line-height: 180px;
+  }
+  img {
+    width: 150px;
+    height: 180px;
+  }
+}
+.fileBtn {
+  width: 0px;
+  height: 0px;
+  opacity: 0;
+}
+</style>
+

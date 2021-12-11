@@ -1,0 +1,130 @@
+<template>
+  <catalog-tree 
+    :loadData="{ 
+      root: getRoot, 
+      path: getPath, 
+      children: getChildren, 
+      search: search 
+    }"
+    :loadExtra="loadDept"
+    :title="title"
+    :location="location"
+    :dir-selectable="dirSelectable"
+    @searchSelect="onSearchSelected"
+    @select="onSelected"
+  />
+</template>
+<script>
+import CatalogTree from "@/framework/components/CatalogTree";
+import { treepath, treeroot, treequery, listnode, orgquery } from "@/hall/api/usermanage";
+// import { treepath, treeroot, treequery, listnode, orgquery } from "@/person/api/org";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  components: {
+    CatalogTree
+  },
+  props: {
+    nodeid: Number, //初始化定位的节点ID null 无需定位select
+    treeid: Number, //加载的组织树ID (可以为空)
+    title: { //title默认显示字段（默认显示机构简称）
+      type: String,
+      default: 'shortname'
+    },
+    dirSelectable: Boolean,
+    showDept: {//是否显示内设科室
+      type: Boolean,
+      default: true
+    }
+  },
+  data() {
+    return {
+      location: this.nodeid,
+    }
+  },
+  computed:{
+    unittypes(){
+      let str = this.$store.getters.getConfig('unittype.unit');
+      return str ? JSON.parse(str) : [1, 2, 3, 4, 5]
+    },
+    depttypes(){
+      let str = this.$store.getters.getConfig('unittype.dept');
+      return str ? JSON.parse(str) : [9]
+    }
+  },
+  methods: {
+    getRoot(){
+      return treeroot(this.treeid).then(({result}) => {
+        this.checkChild(result.children);
+        return result;
+      });
+    },
+    getPath(nodeid){
+      return treepath(nodeid, this.treeid).then(({result}) => result);
+    },
+    getChildren(node){
+      return listnode(node.id, this.treeid).then(({result}) => {
+        this.checkChild(result);
+        return result;
+      });
+    },
+    loadDept(node, dept){
+      if(this.showDept){
+        let parent = (dept || node).data;
+        if(parent){
+          return orgquery({
+            suporgid: parent._id,
+            unittypes: this.depttypes,
+            pagesize: 50 //FIXME 内设科室暂定最多50条
+          }).then(({result}) => {
+            return (result.rows || []).map(item => ({ id: item._id, name: item.name, type: 'org', data: item }))
+          });
+        }
+      }
+    },
+    search(searchkey, pagenum) {
+      return orgquery({
+        treeid: this.treeid,
+        nodeid: 0,
+        searchkey,
+        unittypes: this.unittypes,
+        pagenum,
+        pagesize: 100
+      }).then(({result}) => {
+        return (result.rows || []).map(item => ({ id: item._id, name: item.name, type: 'org', data: item }))
+      })
+    },
+    onSearchSelected(item){
+      treequery({
+        dataid: item.id,
+        allsub: true,
+        pagesize: 1,
+      }).then(({result}) => {
+        if(result.rows.length == 0){
+          return;
+        }
+        this.location = result.rows[0].id;
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    onSelected(node, extra, init){
+      this.$emit('select', node, extra && extra.data, init);
+    },
+    checkChild(list){
+      if(list){
+        list.forEach(item => {
+          item.type = item.data ? 'org' : 'dir';
+          //显示内设时单位需要加载内设，无法根据索引判断是否有child
+          if(!this.showDept || !item.data){
+            let num = item.rindex - item.lindex;
+            if(num){
+              item.hasChild = num > 1;
+            }
+          }
+        })
+      }
+    }
+  }
+};
+</script>

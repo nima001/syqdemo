@@ -1,0 +1,253 @@
+import DataSet from '@antv/data-set';
+import { foldValueCols } from './index'
+
+export default {
+	icon: 'chart-pie',
+  props: {
+		data: {// 数据
+      type: Object,
+    },
+    settings: {// 配置
+      type: Object,
+      default: () => ({})
+    },
+	},
+	data() {
+		return {
+			changeData: [],
+			plot: undefined,
+		}
+	},
+	watch: {
+		// settings:{
+		// 	deep: true,
+		// 	handler(val, old) {
+		// 		if(this.plot) {
+		// 			let arrayData = cloneDeep(this.changeData);
+		// 			let sortData = cloneDeep(arrayData);
+		// 			let mergeData = [{key: '其他', value: undefined}];
+		// 			if(val.chartType==='pie-chart'&&val.sort&&val.sort!=='recover') {//是否排序
+		// 				sortData = orderBy(arrayData,'value',val.sort);
+		// 			}
+		// 			if(val.afterintercept) {//是否截取
+		// 				sortData = sortData.slice(val.afterintercept[0]-1,val.afterintercept[1]);
+		// 			}
+		// 			if(val.merge) {
+		// 				let xorData = map(xorBy(this.changeData, sortData,'key'), 'value');
+		// 				mergeData[0].value = reduce(xorData,(sum, n)=>{
+		// 					return sum+n;
+		// 				});
+		// 				sortData = concat(sortData, mergeData);
+		// 			}
+		// 			if(val.render===old.render) {
+		// 				this.setting(val);
+		// 				this.plot.changeData(sortData);
+		// 			}
+		// 		}
+		// 	}
+		// },
+		// plot(val) {
+		// 	if(val) {
+		// 		this.setting(this.settings);
+		// 		this.plot.changeData(this.changeData);
+		// 	}
+		// 	return val;
+		// },
+	},
+	computed: {
+		title(){
+			let { title, context = {}} = this.settings;
+			if(title){
+				for(let key in context){
+					title = title.replace(new RegExp('\\$\\{' + key + '\\}', 'g'), context[key]);
+				}
+			}
+			return title;
+		},
+		subtitle() {
+			let { subtitle, context = {}} = this.settings;
+			if(subtitle){
+				for(let key in context){
+					subtitle = subtitle.replace(new RegExp('\\$\\{' + key + '\\}', 'g'), context[key]);
+				}
+			}
+			return subtitle;
+		},
+		muitl(){
+			if(this.data){
+			  let { keyCols, valueCols, rows } = this.data;
+			  return valueCols.length > 1 || keyCols.length > 1;
+			}
+		}
+	},
+	methods: {
+		// setting(settings) {
+		// 	// 配置图例
+		// 	if(settings.legend) {
+		// 		if(settings.legend.visible) {
+		// 			this.plot.legend({
+		// 				position: settings.legend.position,
+		// 				flipPage: settings.legend.flipPage,
+		// 				marker: {
+		// 					symbol: settings.legend.marker
+		// 				},
+		// 			});
+		// 		}else{
+		// 			this.plot.legend(false);
+		// 		}
+		// 	}
+		// 	//配置tooltip
+		// 	if(settings.tooltip) {
+		// 		if(settings.tooltip.visible) {
+		// 			this.plot.tooltip({
+		// 				showCrosshairs: settings.chartType==='line-chart'?true:false,//显示辅助线
+		// 				showTitle: this.muitl,
+		// 				showMarkers: false,
+		// 				shared: settings.chartType==='pie-chart'?false:true,
+		// 			})
+		// 		}else{
+		// 			this.plot.tooltip(false);
+		// 		}
+		// 	}
+		// 	//配置X轴
+		// 	if(settings.xAxis.visible) {
+		// 		if(settings.chartType!=='radar-chart'&&settings.chartType!=='pie-chart') {
+		// 			this.plot.axis('key', {
+		// 				title: { 
+		// 					style: {
+		// 						fill: '#AAAAAA'
+		// 					}
+		// 				},
+		// 				label: {
+		// 					autoRotate: true,
+		// 				},
+		// 				grid: settings.xAxis.grid?true:null,
+		// 				animate: false
+		// 			});
+		// 			if(!this.settings.xAxis.grid&&this.settings.render===false) {
+		// 				this.plot.render();
+		// 			}
+		// 			if(settings.xAxis.title.visible) {
+		// 				this.plot.scale({
+		// 					key: {
+		// 						alias: settings.xAxis.title.content||' '
+		// 					},
+		// 				});
+		// 			}else{
+		// 				this.plot.scale({
+		// 					key: {
+		// 						alias: ' '
+		// 					},
+		// 				});
+		// 			}
+		// 		}
+		// 	}else if(settings.xAxis.visible===false){
+		// 		this.plot.axis('key', false);
+		// 	}
+		// 	//配置y轴
+		// 	if(settings.yAxis.visible) {
+		// 		this.plot.axis('value', {
+		// 			title: { 
+		// 				style: {
+		// 					fill: '#AAAAAA'
+		// 				}
+		// 			},
+		// 			label: {
+		// 				autoRotate: true,
+		// 			},
+		// 			grid: settings.yAxis.grid?true:null,
+		// 			animate: false
+		// 		});
+		// 		if(!this.settings.yAxis.grid&&this.settings.render===false) {
+		// 			this.plot.render();
+		// 		}
+		// 		if(settings.yAxis.title.visible) {
+		// 			this.plot.scale({
+		// 				value: {
+		// 					alias: settings.yAxis.title.content||'记录数',
+		// 					nice: true,
+		// 				},
+		// 			});
+		// 		}else{
+		// 			this.plot.scale({
+		// 				value: {
+		// 					alias: ' ',
+		// 					nice: true,
+		// 				},
+		// 			});
+		// 		}
+		// 	}else if(settings.yAxis.visible===false){
+		// 		this.plot.axis('value', false);
+		// 	}
+		// 	//配置label
+		// 	if(settings.label&&settings.label.visible) {
+		// 		let layout,content,position = {};
+		// 		if(settings.chartType==='stack-bar-chart') {
+		// 			layout = {layout: [ { type: 'interval-hide-overlap' }, { type: 'interval-adjust-color' }, { type: 'limit-in-plot', cfg: { action: 'hide' } },]};
+		// 			content = {content: (obj) =>obj.value>15?`${obj.value}`:null};
+		// 			position = {position: 'middle'};
+		// 		}else if(settings.chartType==='pie-chart') {
+		// 			layout = {layout: [{ type: 'pie-spider' }, { type: 'hide-overlap' }]};
+		// 			content = {content: (obj) => `${obj.key}:  ${obj.value}`};
+		// 			position = null;
+		// 		}else{
+		// 			layout = {layout: [{ type: 'hide-overlap' },{ type: 'limit-in-plot', cfg: { action: 'hide' }}]};
+		// 			content = {content: (obj) => `${obj.value}`};
+		// 			position = null;
+		// 		}
+		// 		this.geometry
+		// 			.label('key*value', {
+		// 				...layout,
+		// 				...position,
+		// 				...content,
+		// 			})
+		// 	}else{
+		// 		this.geometry.label('key*value', {
+		// 			content: ''
+		// 		})
+		// 	}
+		// 	//翻转
+		// 	if(settings.exchange) {
+		// 		if(settings.chartType!=='pie-chart'&&settings.chartType!=='radar-chart') {
+		// 			this.plot.coordinate().transpose();
+		// 		}
+		// 	}else{
+		// 		if(settings.chartType!=='pie-chart'&&settings.chartType!=='radar-chart') {
+		// 			this.plot.coordinate();
+		// 		}
+		// 	}
+		// },
+		transform(table){
+			let { keyCols, valueCols, rows } = table;
+			let cs = foldValueCols(valueCols);
+			if(cs.length > 1){
+				let fields = [], map = {};
+				cs.forEach(item => {
+					fields.push(item.column);
+					map[item.column] = item.showname;
+				})
+				const dv = new DataSet.DataView().source(rows);
+				dv.transform({
+					type: 'fold',
+					fields,
+					key: 'col',
+					value: 'value',
+				});
+				dv.transform({
+					type: 'map',
+					callback: (row) => {
+						row.col = map[row.col];
+						return row;
+					},
+				});
+				rows = dv.rows;
+				keyCols = [...keyCols, { column: 'col' }],
+				valueCols = [{ column: 'value' }];
+				return {
+					keyCols, valueCols, rows
+				}
+			}
+			return table;
+		}
+	},
+}

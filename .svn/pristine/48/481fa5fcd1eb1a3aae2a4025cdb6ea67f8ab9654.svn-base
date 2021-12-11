@@ -1,0 +1,191 @@
+<template>
+  <div class="container">
+    <a-input read-only class="code-one" :value="showname" @click.native="showSelect = true">
+      <a-icon slot="suffix" type="select"/>
+    </a-input>
+    <a-select :value="cond.op2" @change="opChange" >
+      <a-select-option v-for="item in opList" :value="item.value" :key="item.value">{{item.text}}</a-select-option>
+    </a-select>
+    <div class="valueCell">
+      <a-input-group compact>
+        <a-select v-model="input.type" :showArrow="false">
+          <a-select-option value="">值</a-select-option>
+          <a-select-option value="$"><custom-icon type="fx"/></a-select-option>
+          <a-select-option value="#"><custom-icon color="#f39c2b" type="fx"/></a-select-option>
+        </a-select>
+        <template v-if="input.type">
+          <a-input :value="value"
+            read-only
+            @click="showExprEditor = true"
+          />
+        </template>
+        <a-input-number v-else class="input-value"
+          v-model="input.value"
+          placeholder="(空)"
+        />
+      </a-input-group>      
+    </div>
+
+    <a-modal title="字段选择" 
+      :visible="showSelect"
+      :destroyOnClose="true" 
+      :footer='null' 
+      @cancel='showSelect=false'  
+      width='500px' 
+      :bodyStyle="{ height: '600px', padding:'0px'}"
+    >
+      <select-field :targetid="targetid" :criteria="cond" @finish="finishHandle"/>
+    </a-modal>
+    <equation-editor v-if="showExprEditor" :selfFields='contextFields' :fnData="input.value" namespace="query"  @finish="onFinish"/>
+  </div>
+</template>
+<script>
+import { Input, InputNumber, Select, Icon , Modal } from "ant-design-vue";
+import SelectField from '../components/SelectField';
+import { querylistop } from "@/person/api/integratedquery";
+import { showError } from "@/framework/utils/index";
+import CustomIcon from "@/framework/components/CustomIcon";
+
+//数字算术运算(加减乘除)
+export default {
+  name: "NumberArith",
+  components: {
+    AModal: Modal,
+    AInput: Input,
+    AInputNumber: InputNumber,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AIcon: Icon,
+    SelectField,
+    AInputGroup: Input.Group,
+    CustomIcon,
+    EquationEditor:() => import('@person/components/EquationEditor/index')
+  },
+  inject:['contextFields'],
+  props: {
+    target: {
+      type: Object,
+    },
+    cond: {
+      type: Object,
+      required: true
+    },
+  },
+  data(){
+    return {
+      showSelect : false,
+      input: this.initInput(this.cond.value),
+      oldValue: undefined,
+      showExprEditor: false,
+      opList: undefined,
+    }
+  },
+  created() {
+    if (this.cond.field && this.cond.op) {
+      if(this.cond.opList2){
+        this.opList = this.cond.opList2;
+      }else{
+        this.getListop(this.cond.field.key);  
+      }
+    }
+  },
+  computed: {
+    targetid(){
+      if(this.target){
+        return this.target.id;
+      }
+    },
+    showname() {
+      let field = this.cond.field2
+      return field && field.showname;
+    },
+    value(){
+      let {type, value} = this.input;
+      if(type && value){
+        return type + '{' + value + '}';;
+      }else{
+        return value;
+      }
+    }
+  },
+  watch: {
+    'input.type'(vt, ovt){
+      if(!ovt != !vt){
+        let v = this.oldValue;
+        this.oldValue = this.input.value;
+        this.input.value = v;
+      }
+    },
+    value(value){
+      this.cond.value = value;
+    },
+    opList(list){
+      this.cond.opList2 = list;//同步缓存到条件对象上，防止条件变化层级时操作列表重复加载
+    }
+  },
+  methods: {
+    finishHandle(type,data){
+      this.showSelect = false;
+      if(type == 'ok'){
+        this.cond.field2 = data;
+      }
+    },
+    getListop(key) {
+      querylistop({
+        targetid: this.targetid,
+        key,
+        op: this.cond.op
+      }).then(res => {
+        this.opList = res.result;
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    opChange(value) {
+      this.cond.op2 = value;
+    },
+    onFinish(type, data) {
+      this.showExprEditor = false;
+      if (type == "ok") {
+        this.input.value = data;
+      }
+    },
+    initInput(v){
+      if(typeof(v) == 'string'){
+        if(v.startsWith('${') && v.endsWith('}')){
+          return { type: '$', value: v.substring(2, v.length-1) };
+        }else if(v.startsWith('#{') && v.endsWith('}')){
+          return { type: '#', value: v.substring(2, v.length-1) };
+        }
+      }
+      return { type: '', value: v};
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.container {
+  display: flex;
+  width: 600px;
+  .code-one {
+    flex: none;
+    width: 250px;
+    margin-right: 10px;
+  }
+  & > .ant-select {
+    flex: none;
+    width: 120px;
+    margin-right: 10px;
+  }
+  .valueCell{
+    flex: 1;
+    .ant-input-group-compact{
+      display: flex;
+      .input-value{
+        flex: auto;
+        min-width: 1px;
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,216 @@
+<template>
+  <div class="power-list">
+    <div class="mechanism-div">
+      <div class="small-div"></div>
+      <div class="small-p">权力清单</div>
+    </div>
+    <div class="categories-list">
+      <ul class="categories-ul">
+        <li v-for="(item, index) in power" :key="index">
+          <div
+            :class="activeClass == index ? 'active' : ''"
+            class="cate-gories"
+            @click="active(index, item)"
+          >
+            <span class="cate-p">{{ item.name }}</span>
+            <span class="cate-div"></span>
+            <span class="cate-span">{{ item.num }}</span>
+          </div>
+        </li>
+      </ul>
+    </div>
+    <div class="power-table">
+      <div class="table-div">
+        <a-input
+          placeholder="请输入关键词"
+          style="width: 200px; margin-right: 15px"
+          allow-clear
+          v-model="searchkey"
+        />
+        <a-button type="primary">查询</a-button>
+      </div>
+      <a-table :columns="columns" :data-source="data"></a-table>
+    </div>
+  </div>
+</template>
+<script>
+import { Button, Select, Input, Table, Pagination } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+export default {
+  data() {
+    return {
+      activeClass: 0, // 0为默认选择第一个，-1为不选择
+      searchkey: null,
+      power: [
+        {
+          name: "全部权利",
+          num: 50,
+        },
+        {
+          name: "行政许可",
+          num: 5,
+        },
+        {
+          name: "审核转报",
+          num: 5,
+        },
+        {
+          name: "行政给付",
+          num: 0,
+        },
+        {
+          name: "行政奖励",
+          num: 5,
+        },
+        {
+          name: "行政确认",
+          num: 5,
+        },
+        {
+          name: "其他行政权力",
+          num: 5,
+        },
+        {
+          name: "行政处罚",
+          num: 5,
+        },
+        {
+          name: "行政强制",
+          num: 5,
+        },
+        {
+          name: "行政检查",
+          num: 5,
+        },
+        {
+          name: "行政征收",
+          num: 5,
+        },
+        {
+          name: "行政裁决",
+          num: 5,
+        },
+        {
+          name: "内部管理",
+          num: 5,
+        },
+        {
+          name: "公共服务",
+          num: 0,
+        },
+      ],
+      columns: [
+        {
+          title: "序号",
+          dataIndex: "name",
+          key: "name",
+        },
+        {
+          title: "权利基本码",
+          dataIndex: "age",
+          key: "age",
+        },
+        {
+          title: "权力事项名称",
+          dataIndex: "address",
+          key: "address",
+          ellipsis: true,
+        },
+        {
+          title: "变更时间",
+          dataIndex: "address",
+          key: "address",
+        },
+      ],
+    };
+  },
+  components: {
+    AButton: Button,
+    ASelect: Select,
+    AInput: Input,
+    ATable: Table,
+    APagination: Pagination,
+  },
+  created() {},
+  methods: {
+    active(index, item) {
+      this.activeClass = index;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.power-list {
+  padding: 10px 24px;
+  height: 100%;
+  .mechanism-div {
+    display: flex;
+    align-items: center;
+    .small-div {
+      width: 5px;
+      height: 20px;
+      background: @primary-color;
+    }
+    .small-p {
+      font-size: 20px;
+      margin-left: 5px;
+    }
+  }
+  .categories-list {
+    margin: 10px 0;
+    .categories-ul {
+      display: flex;
+      overflow-x: auto;
+      white-space: nowrap;
+      // justify-content: space-between;
+      li {
+        margin-right: 20px;
+      }
+      .cate-gories {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        cursor: pointer;
+        &:hover {
+          color: @primary-color;
+        }
+        &:active {
+          color: @primary-color;
+          .cate-div {
+            background: @primary-color;
+            border-radius: 10px;
+          }
+        }
+        .cate-p {
+          font-size: 16px;
+        }
+        .cate-span {
+          margin-top: 10px;
+          text-align: center;
+          width: 100%;
+          font-size: 16px;
+        }
+        .cate-div {
+          margin-top: 2px;
+          height: 5px;
+          width: 100%;
+        }
+      }
+      &:last-child {
+        margin-right: 0px;
+      }
+      .active {
+        color: @primary-color;
+        .cate-div {
+          background: @primary-color;
+          border-radius: 10px;
+        }
+      }
+    }
+  }
+  .table-div {
+    margin-bottom: 10px;
+    float: right;
+  }
+}
+</style>

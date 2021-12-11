@@ -1,0 +1,20 @@
+<template>
+  <div>
+    <Title title="近5年预计退休人数"/>
+    <div style="height:250px"></div>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+
+export default {
+  components: {
+    Title
+  }
+}
+</script>
+
+<style>
+
+</style>

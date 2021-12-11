@@ -1,0 +1,455 @@
+<template>
+  <a-layout class="chart_manage">
+    <div class="content">
+      <a-row :style="{marginBottom:'8px'}">
+        <a-col :span="4">
+          <a-button icon="plus" @click="showModal">新增</a-button>
+          <a-button icon="delete" @click="deleteCatalogs" style="margin-left:8px;">删除</a-button>
+        </a-col>
+        <a-col :span="20">
+          <div class="queryButton">
+            <a-select class="queryitem" style="width: 160px" allowClear placeholder="报表分类" @change="onNamespaceChange">
+              <a-select-option value="home">首页报表</a-select-option>
+              <a-select-option value="xiaocezi2">实名制一览表</a-select-option>
+              <a-select-option value="report">统计报表</a-select-option>
+            </a-select>
+            <a-input
+              class="queryitem"
+              style="width: 160px"
+              placeholder="相关单位"
+              :value="relatedUnit && relatedUnit.name"
+              :read-only="true"
+              @click="orgvisible = true"
+            >
+            </a-input>
+            <a-select class="queryitem" allowClear style="width: 160px" placeholder="报表类型" @change="onOnepageChange">
+              <a-select-option value=true>统计表</a-select-option>
+              <a-select-option value=false>统计册</a-select-option>
+            </a-select>
+            <a-input class="queryitem" allowClear style="width: 160px" placeholder="报表名称" v-model="searchdata.searchkey">
+            </a-input>
+            <a-button class="queryitem" type="primary" @click="onSearch">搜索</a-button>
+            <a-button class="queryitem" @click="reset">重置</a-button>
+          </div>
+        </a-col>
+      </a-row>
+      <div class="book_table">
+        <a-table
+          :loading="loading"
+          rowKey="id"
+          :columns="columns"
+          :dataSource="page.rows"
+          :pagination="false"
+          @change="tableChange"
+          :rowClassName="(row) => selectedRow && selectedRow.id == row.id ? 'selected': ''"
+          :customRow="customRow"
+          >
+          <span slot="operation" class="operation" slot-scope="text, record">
+            <a @click="editModal(record)">编辑</a>
+            <a v-if="!record.onepage" @click="goManagement(record)">管理</a>
+            <a @click="goImpower(record)">授权</a>
+          </span>
+        </a-table>
+      </div>
+      <div class="footer">
+        <a-pagination
+          v-if="page.rows && page.rows.length > 0"
+          showSizeChanger
+          @showSizeChange="onShowSizeChange"
+          :showTotal="total => `总共：${total}条`"
+          :total="page.total"
+          :pageSize="page.pagesize"
+          v-model="page.pagenum"
+          @change="onPageChange"
+        />
+      </div>
+      <!-- 新增 -->
+      <div class="modal">
+        <a-modal
+          title="新增报表"
+          v-model="visible"
+          :width="800"
+          @ok="handleOk"
+          @cancel="handleCancel">
+          <booklet-change :record="record" ref="BookletAdd"></booklet-change>
+        </a-modal>
+      </div>
+      <!-- 编辑 -->
+      <div class="modal">
+        <a-modal
+          title="编辑报表"
+          v-model="editvisible"
+          :width="800"
+          :bodyStyle="{height: '520px', padding: 0,overflow: 'hidden'}"
+          :destroyOnClose="true"
+          @ok="editOk"
+          @cancel="editleCancel">
+          <booklet-change :record="record" ref="BookletEdit"></booklet-change>
+        </a-modal>
+      </div>
+      <!-- 相关单位 -->
+      <div class="modal">
+        <a-modal
+          :footer="null"
+          v-model="orgvisible"
+          :width="500"
+          title="选择单位"
+          :bodyStyle="{ height: '600px', padding: '0'}"
+        >
+          <org-user-select mode="org" 
+            @finish="orgOk" 
+          />
+        </a-modal>
+      </div>
+    </div>
+  </a-layout>
+</template>
+<script>
+import { reportBookQuery, newbook, deletebook, previewById, updatebook } from "@/person/api/booklet";
+import { Layout, Row, Col, Table, Modal, Select, Button, Input, Spin, Pagination } from "ant-design-vue";
+import { showError } from "@/framework/utils/index";
+import BookletChange from './components/BookeletChange';
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+
+export default {
+  name: "BookletManage",
+  data() {
+    return {
+      updataid: "",
+      columns: [
+        {
+          title: "序号",
+          customRender: (text, record, index) => ((this.page.pagenum - 1)*this.page.pagesize) + (index + 1)
+        },
+        {
+          title: "报表名称",
+          dataIndex: "name"
+        },
+        {
+          title: "报表分类",
+          dataIndex: "namespace",
+          customRender: text => {
+            if(text == 'home') {
+              return text = '首页报表'
+            }else if(text == 'xiaocezi2') {
+              return text = '实名制一览表'
+            }else{
+              return text = '统计报表'
+            }
+          }
+        },
+        {
+          title: "相关单位",
+          dataIndex: `orgname`
+        },
+        {
+          title: "报表类型",
+          dataIndex: "onepage",
+          customRender: text => text?"统计表":"统计册"
+        },
+        {
+          title: "操作",
+          scopedSlots: { customRender: "operation" }
+        }
+      ],
+      loading: false,
+      visible: false,
+      editvisible: false,
+      orgvisible: false,
+      selectedRow: {},
+      isSearch: false,
+      page: {
+        rows: null,
+        total: 0,
+        pagenum: 1,
+        pagesize: 20
+      },
+      searchdata: {
+        namespace: null,
+        onepage: null,
+        searchkey: null,
+        orgid: null
+      },
+      record: {},
+      relatedUnit: {}
+    }
+  },
+  components:{
+    ALayout:Layout,
+    ALayoutHeader:Layout.Header,
+    ALayoutContent:Layout.Content,
+    ASelect:Select,
+    ASelectOption:Select.Option,
+    AInput:Input,
+    AInputSearch:Input.Search,
+    AButton:Button,
+    AModal:Modal,
+    ARow:Row,
+    ACol:Col,
+    ATable:Table,
+    ASpin: Spin,
+    APagination: Pagination,
+    BookletChange,
+    OrgUserSelect
+  },
+  created() {
+    this.queryBook(this.page);
+  },
+  methods: {
+    queryBook(page) {
+      this.loading = true;
+      reportBookQuery({
+        ...this.searchdata,
+        ...page,
+        needtotal: true
+      })
+      .then(({result}) => {
+        this.loading = false;
+        this.page = result;
+      }).catch(error => {
+        this.loading = false;
+        showError(error);
+      });
+    },
+    customRow(row){
+      return {
+        on: {
+          click: () => {
+            this.selectedRow = row;
+          },
+        }
+      };
+    },
+    onNamespaceChange(value) {
+      this.searchdata.namespace = value;
+    },
+    onOnepageChange(value) {
+      this.searchdata.onepage = value;
+    },
+    //搜索
+    onSearch() {
+      this.queryBook({ pagenum: 1, pagesize: this.page.pagesize });
+    },
+    reset() {
+      let obj =  {
+        namespace: null,
+        onepage: null,
+        searchkey: null,
+        orgid: null
+      };
+      this.searchdata = obj;
+      this.relatedUnit = {};
+      this.queryBook({ pagenum: 1, pagesize: this.page.pagesize });
+    },
+    //新增
+    showModal() {
+      this.visible = true;
+      this.record = {};
+    },
+    //新增取消
+    handleCancel(e) {
+      this.visible = false;
+    },
+    //新增确定
+    async handleOk() {
+      try {
+        let value = await this.$refs.BookletAdd.getFormValue();
+        newbook({ 
+          name: value.editnote,
+          namespace: value.namespace,
+          onepage: JSON.parse(value.onepage),
+          archive: JSON.parse(value.archive),
+          orgid: value.orgid,
+          orgname: value.orgname,
+          tempid: value.edittemplate,
+          context: value.context,
+        })
+        .then(res => {
+          this.visible = false;
+          this.$message.success("新增成功！");
+          this.queryBook({ pagenum: this.page.pagenum, pagesize: this.page.pagesize });
+        })
+        .catch(error => {
+          showError(error);
+        });
+      } catch (error) {
+        showError(error);
+      }
+    },
+    //修改
+    editModal(record) {
+      this.updataid = record.id;
+      this.editvisible = true;
+      this.record = record;
+    },
+    //修改取消
+    editleCancel(e) {
+      this.editvisible = false;
+    },
+    //修改确定
+    async editOk() {
+      try {
+        let value = await this.$refs.BookletEdit.getFormValue();
+        let id = this.updataid;
+        updatebook(id, {
+          name: value.editnote,
+          namespace: value.namespace,
+          onepage: JSON.parse(value.onepage),
+          archive: JSON.parse(value.archive),
+          orgid: value.orgid,
+          orgname: value.orgname,
+          tempid: value.edittemplate,
+          context: value.context,
+        })
+        .then(res => {
+          this.editvisible = false;
+          this.$message.success("编辑成功！");
+          this.queryBook({ pagenum: this.page.pagenum, pagesize: this.page.pagesize });
+        })
+        .catch(error => {
+          showError(error);
+        });
+      } catch (error) {
+        showError(error);
+      }
+    },
+    orgOk(type, list) {
+      this.orgvisible = false;
+      if (type == "ok" && list.length > 0) {
+        this.relatedUnit = list[0];
+        this.searchdata.orgid = list[0]._id;
+      }
+    },
+    //管理
+    goManagement(record) {
+      this.$router.push({
+        path: "/person/chartmanage/reportManagement",
+        query: {
+          bookid: record.id
+        }
+      });
+    },
+    goImpower(record) {
+      this.$router.push({
+        path: "/person/chartmanage/impowerManagement",
+        query: {
+          bookid: record.id
+        }
+      }); 
+    },
+    tableChange(pagination, filters, sorter) {
+      this.pagination = pagination;
+    },
+    //删除
+    deleteCatalogs() {
+      let selected = JSON.stringify(this.selectedRow) == "{}" ? false : true;
+      if (selected) {
+        let { id } = this.selectedRow;
+        let that = this;
+        that.$confirm({
+          title: "确认删除该统计册?",
+          onOk() {
+            deletebook(id)
+              .then(res => {
+                that.$notification.warning({
+                  message: "提示",
+                  description: "删除成功!",
+                  duration: 3
+                });
+                that.queryBook({ pagenum: that.page.pagenum, pagesize: that.page.pagesize });
+              })
+              .catch(error => {
+                showError(error);
+              });
+          },
+          onCancel() {}
+        });
+      } else {
+        this.$notification.warning({
+          message: "提示",
+          description: "请选择要删除的报表!",
+          duration: 3
+        });
+      }
+    },
+    //预览模板
+    look() {
+      previewById(template.value)
+        .then(res => {})
+        .catch(error => {
+          this.load = false;
+          this.visible = false;
+          showError(error);
+        });
+    },
+    onShowSizeChange(pagenum, pagesize) {
+      this.queryBook({ pagenum: 1, pagesize });
+    },
+    onPageChange(pagenum, pagesize) {
+      this.queryBook({ pagenum, pagesize });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.chart_manage {
+  height: 100%;
+  padding: @layout-space-base;
+    .content {
+      display: flex;
+      -webkit-box-orient: vertical;
+      -webkit-box-direction: normal;
+      -ms-flex-direction: column;
+      flex-direction: column;
+      overflow: hidden;
+      height: 100%;
+      background: @white;
+      padding-top: 10px;
+      /deep/.ant-row{
+        padding: @content-padding-v @content-padding-h;
+        .queryButton {
+          float: right;
+          .queryitem{
+            margin-left: 10px;
+          }
+        }
+      }
+      .book_table{
+        flex-shrink: 1;
+        overflow-y: auto;
+        padding: @content-padding-v @content-padding-h;
+      }
+      .footer {
+        display: flex;
+        justify-content: flex-end;
+        padding: @content-padding-v @content-padding-h;
+        .ant-pagination {
+          margin-bottom: 10px;
+        }
+      }
+    }
+  }
+  .active {
+    border-color:@primary-color;
+    color:@primary-color;
+  }
+  .native {
+    border-color: #d9d9d9;
+    color: rgba(0, 0, 0, 0.65);
+  }
+  .book_table{
+    /deep/table{
+      tr.selected{
+        background: @primary-2;
+      }
+    }
+  }
+  .operation {
+  a {
+    margin-right: 15px;
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+</style>

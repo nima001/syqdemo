@@ -1,0 +1,134 @@
+<template>
+  <a-collapse v-model="activeKey" :bordered="false" style="background-color: unset">
+    <a-collapse-panel key="9" header="提示" :disabled="chartData.settings.tooltip.visible == false">
+      <template v-slot:extra>
+        <a-switch @click=" (check, e) => {e.stopPropagation();open('9');}" v-model="chartData.settings.tooltip.visible"/>
+      </template>
+      <div class="tip-setting">
+        <div class="setting">
+          <span>单位</span>
+          <a-input @click="unitModal" readOnly v-model="chartData.settings.tooltip.format.unit" allowClear/>
+        </div>
+        <div class="setting">
+          <span>保留小数</span>
+          <a-input @click="toFixedModal" readOnly v-model="chartData.settings.tooltip.format.toFixed" allowClear/>
+        </div>
+      </div>
+      <a-modal
+        :title="title"
+        :visible="show"
+        @ok="ok"
+        @cancel="()=>show=false">
+          <a-input v-if="type==1" v-model="format.unit" allowClear ref="unitInput"/>
+          <a-input-number v-else  ref="fixedInput" :min="0" :max="100" :parser="value=>/^[0-9]*$/.test(value)?value:undefined" v-model="format.toFixed"/>
+      </a-modal>
+    </a-collapse-panel>
+  </a-collapse>
+</template>
+
+<script>
+import { Collapse, Switch, Input, InputNumber, Modal } from 'ant-design-vue'
+import { assign } from 'lodash';
+export default {
+  components: {
+    Amodal: Modal,
+    AInput: Input,
+    ASwitch: Switch,
+    ACollapse: Collapse,
+    AInputNumber: InputNumber,
+    ACollapsePanel: Collapse.Panel,
+  },
+  props: {
+    value: {
+      type: Object,
+    },
+  },
+  data() {
+    return {
+      show: false,
+      type: undefined,
+      title: undefined,
+      format: {
+        unit: undefined,
+        toFixed: undefined,
+      },
+      activeKey: undefined,
+      chartData: this.value,
+    };
+  },
+  watch: {
+    chartData: {
+      deep: true,
+      handler(val) {
+        this.$emit("input", val);
+      },
+    },
+    show(val) {
+      if(this.type===1) {
+        this.$nextTick(()=>{
+          this.$refs.unitInput.focus();
+        })
+      }else if(this.type===2) {
+        this.$nextTick(()=>{
+          this.$refs.fixedInput.focus();
+        })
+      }
+    }
+  },
+  methods: {
+    change(val) {
+      console.log(val)
+    },
+    unitModal() {
+      this.title = '新增后缀单位';
+      this.type = 1;
+      this.show = true;
+      assign(this.format, this.chartData.settings.tooltip.format);
+    },
+    toFixedModal() {
+      this.title = '保留小数位数';
+      this.type = 2;
+      this.show = true;
+      assign(this.format, this.chartData.settings.tooltip.format);
+    },
+    ok() {
+      assign(this.chartData.settings.tooltip.format, this.format);
+      this.show = false;
+    },
+    open(key){
+      if(this.activeKey&&this.activeKey.length) {
+        let index = this.activeKey.indexOf(key);
+        if(index>=0) {
+          this.activeKey.splice(index,1);
+        }
+      }
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.tip-setting {
+    padding: @padding-xs @padding-md @padding-xs 24px;
+    /deep/.setting {
+        padding: @padding-xs 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        span {
+            flex: 1;
+        }
+        .ant-input, .ant-input-number {
+            width: 80px;
+            cursor: pointer;
+        }
+    }
+}
+/deep/.ant-modal .ant-modal-content {
+    .ant-modal-body {
+        text-align: center;
+        .ant-input-number {
+            width: 100%;
+        }
+    }
+}
+</style>

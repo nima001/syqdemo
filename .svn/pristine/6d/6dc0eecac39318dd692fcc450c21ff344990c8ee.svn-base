@@ -1,0 +1,120 @@
+<template>
+  <div>
+    <loading v-if="loading"/>
+    <div v-else class="detail-info">
+      <div class="tabs">
+        <div class="tabs-wrapper">
+          <ul>
+            <li v-for="item in tabs" :key="item.components" 
+              :class="{
+                active: item.components == active
+              }"
+              @click="active = item.components"
+            ><span>{{item.title}}</span></li>
+          </ul>
+        </div>
+      </div>
+      <div class="content">
+        <component :is="active" :orgid="orgid" :lineid="lineid"/>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import OrgBaseInfo from '../components/OrgBaseInfo'
+import OrgStaffInfo from '../components/OrgStaffInfo'
+import OrgPostInfo from '../components/OrgPostInfo'
+import OrgCompInfo from '../components/OrgCompInfo'
+import Loading from "../components/Loading";
+import { showError } from "@/framework/utils/index";
+import { shaoxingorgline } from "@/person-shaoxing/api/assessment";
+
+export default {
+  components: {
+    OrgBaseInfo, OrgStaffInfo, OrgPostInfo, OrgCompInfo,Loading
+  },
+  props: {
+    orgid: String,
+    tab: Number,
+  },
+  data(){
+    return {
+      active: 'OrgBaseInfo',
+      loading:true,
+      tabs: [
+        { components: 'OrgBaseInfo', title: '基本信息' },
+        { components: 'OrgStaffInfo', title: '编制信息' },
+        { components: 'OrgPostInfo', title: '职数信息' },
+      ],
+      lineid: undefined
+    }
+  },
+  created(){
+    if(this.tab){
+      let t = this.tabs[this.tab];
+      if(t){
+        this.active = t.components;
+      }
+    }
+    if(this.orgid){
+      this.loadData(this.orgid);
+    }
+  },
+  methods: {
+    loadData(orgid){
+      shaoxingorgline({orgid}).then(({result}) => {   
+        if(result){
+          this.tabs.push( { components: 'OrgCompInfo', title: '对比信息' });
+          this.lineid = result;
+        }
+        this.loading = false;
+      }).catch((error) => {
+        showError(error)
+      })
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.detail-info{
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 20px;
+  font-size: 16px;
+  & > .tabs{
+    flex: none;
+    background: linear-gradient(to right, rgba(78, 120, 244, .24), rgba(143, 248, 255, .24));
+    height: 74px;
+    .tabs-wrapper{
+      height: 100%;
+      background: url('../img/tab-bg.png') no-repeat;
+    }
+    ul{
+      margin: 0;
+      overflow: hidden;
+    }
+    li{
+      float: left;
+      padding: 0 24px;
+      color: fade(#FFF, 80%);
+      font-weight: bold;
+      font-size: 1.1em;
+      line-height: 74px;
+      cursor: pointer;
+      &:hover{
+        color: #FFF;
+      }
+      &.active{
+        background: url('../img/tab-active-bg.png') no-repeat center center;
+        color: #FFF;
+      }
+    }
+  }
+  & > .content{
+    flex: auto;
+    min-height: 1px;
+  }
+}
+</style>

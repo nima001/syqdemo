@@ -1,0 +1,40 @@
+<template>
+  <div class="title">
+    <div class="body">{{title}}</div>
+    <div class="footer"><span class="dot"></span><span class="line"></span><span class="dot"></span></div>
+  </div>
+</template>
+<script>
+export default {
+  props: {
+    title: String,
+  }
+}
+</script>
+<style lang="less" scoped>
+.title{
+  .body{
+    padding: 12px 0;
+    font-size: 20px;
+    font-weight: bold;
+    line-height: 26px;
+    color: rgba(255, 255, 255, 0.8);
+  }
+  .footer{
+    display: flex;
+    align-items: center;
+    .dot{
+      width: 6px;
+      height: 6px;
+      flex: none;
+      background: rgba(77, 120, 206, 0.5);
+    }
+    .line{
+      height: 2px;
+      flex: auto;
+      margin: 0 8px;
+      background: rgba(77, 120, 206, 0.5);
+    }
+  }
+}
+</style>

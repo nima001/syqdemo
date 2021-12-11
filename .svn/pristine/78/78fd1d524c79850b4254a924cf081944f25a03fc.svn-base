@@ -1,0 +1,292 @@
+<template>
+  <div class="form-panel">
+    <div class="top_card">
+      <div class="card" v-for="(item, index) in list" :key="index">
+        <div class="title">{{item.title}}</div>
+        <proportion 
+          :totalText="item.totalText" 
+          :total="data[item.total]" 
+          :numText="item.numText" 
+          :num="data[item.num]" 
+          :surplusText="item.surplusText" 
+          :overNum="item.overNum"
+          :cardtype="item.type"
+          class="content"
+        />
+      </div>
+    </div>
+    <div class="bottom_table">
+      <div class="table_container">
+        <p class="title">序列行政编制分布明细表——核定机关编制</p>
+        <a-table
+          :loading="loading_xz"
+          :columns="columns"
+          :dataSource="dataSource_xz"
+          :pagination="false"
+          >
+          <div slot="name" slot-scope="text" style="color: #729fff;">{{ text }}</div>
+          <div slot="ck" slot-scope="num" style="color: #299a02;" v-if="num < 0">{{ num }}</div>
+          <div slot="ck" slot-scope="num" style="color: #f4401b;" v-else>{{ num }}</div>
+        </a-table>
+      </div>
+      <div class="table_container">
+        <p class="title">序列事业编制分布明细表——核定事业（含报备员额）编制</p>
+        <a-table
+          :loading="loading_sy"
+          :columns="columns"
+          :dataSource="dataSource_sy"
+          :pagination="false"
+          >
+          <div slot="name" slot-scope="text" style="color: #729fff;">{{ text }}</div>
+          <div slot="ck" slot-scope="num" style="color: #299a02;" v-if="num < 0">{{ num }}</div>
+          <div slot="ck" slot-scope="num" style="color: #f4401b;" v-else>{{ num }}</div>
+        </a-table>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Table } from "ant-design-vue";
+import Proportion from './Proportion'
+import { areaStatistics } from '@/person-shaoxing/api/orgStaffReport'
+import { aggregateQuery } from '@/person/api/chart'
+import { showError } from '../../../../framework/utils';
+
+/**
+ * 机构编制数监测
+ */
+export default {
+  name: 'StaffReport',
+  components: {
+    ATable: Table,
+    Proportion
+  },
+  props: {
+    district: {
+      type: String,
+    },
+    orgCount: {
+      type: Object
+    }
+  },
+  data(){
+    return {
+      data: {},
+      cardList: [
+        { title: '省定行政编制', total: 'zgbzzl', totalText: '省定限额', num: 'jghdbzs', numText: '核定', surplusText: '待分配数' },
+        { title: '省定事业编制', total: 'sybzzl', totalText: '省定限额', num: 'syhdbzs', numText: '核定', surplusText: '待分配数' },
+        { title: '核定机关编制', total: 'jghdbzs', totalText: '核定', num: 'jgbzsyzj', numText: '实有', surplusText: '超空编数' },
+        { title: '省定事业（含报备员额）编制', total: 'syhdbzs', totalText: '核定', num: 'sybzsys', numText: '实有', surplusText: '超空编数' },
+      ],
+      numList: [
+        { title: '行政编制超编机构数', overNum: 0, type: 'num' },
+        { title: '事业编制超编机构数', overNum: 0, type: 'num' },
+      ],
+      columns: [
+        { title: '序列数', dataIndex: 'k0', width: '18%', scopedSlots: { customRender: 'name'} },
+        { title: '编制数', dataIndex: 'v0', width: '18%' },
+        { title: '实有数', dataIndex: 'v1', width: '18%' },
+        { title: '超（-）空（+）编数', dataIndex: 'kong', width: '23%', scopedSlots: { customRender: 'ck'} },
+        { title: '编制可用数', dataIndex: 'konged', width: '23%' },
+      ],
+      dataSource_xz: [
+      ],
+      dataSource_sy: [
+      ],
+      loading_xz: false,
+      loading_sy: false,
+    }
+  },
+  computed: {
+    list: {
+      get() {
+        this.numList.forEach(item => {
+          item.overNum = this.orgCount[item.title] ? this.orgCount[item.title] : 0;
+        })
+        return this.cardList.concat(this.numList);
+      },
+      set() {
+        this.numList.forEach(item => {
+          item.overNum = this.orgCount[item.title] ? this.orgCount[item.title] : 0;
+        })
+        return this.cardList.concat(this.numList);
+      }
+    }
+  },
+  watch: {
+    district(district){
+      this.getAllData(district);
+    },
+  },
+  created(){
+    this.getAllData(this.district);
+  },
+  methods: {
+    getAllData(district) {
+      this.loading_xz = true;
+      this.loading_sy = true;
+      let areaParams = [
+        'zgbzzl', 'sybzzl', 
+        'hdxzbzqy', 'hdxzbzqy_sy',
+        'hesybzqy', 'hdsybzqy_sy',
+      ];
+      //  [1,5,7] => 行政  [2,3,11] => 事业
+      let averageParams_xz = this.averageParams(district, [1,5,7]);
+      let averageParams_sy = this.averageParams(district, [2,3,11]);
+      Promise.all([
+        areaStatistics(district, areaParams)
+          .then(({result}) => result).catch(err => Promise.resolve({})),
+        aggregateQuery(averageParams_xz)
+          .then(({result}) => result).catch(err => Promise.resolve([])),
+        aggregateQuery(averageParams_sy)
+          .then(({result}) => result).catch(err => Promise.resolve([])),
+      ]).then(([res, xz, sy]) => {
+        this.data = res;
+        this.dataSource_xz = this.handleTable(xz.data.rows);
+        this.dataSource_sy = this.handleTable(sy.data.rows);
+      })
+      .catch(err => { showError(err); })
+      .finally(() => { 
+        this.loading_xz = false; 
+        this.loading_sy = false; 
+      })
+    },
+    handleTable(rows) {
+      (rows || []).map(item => {
+        //  kong 超空编数 konged 编制可用数
+        let kong = item.v0 - item.v1;
+        item.kong = kong < 0 ? kong : '+' + kong;
+        item.konged = kong < 0 ? 0 : kong;
+      })
+      return rows;
+    },
+    averageParams(district, values) {
+      let obj =  {
+        query:{
+          namespace:"report.chart",
+          target:{
+            id:1,
+            model:"organization"
+          },
+          fields:[
+            {
+              key:"suporg",
+              showname:"主管单位",
+            },
+            {
+              key:"name",
+              showname:"机构名称",
+            },
+            {
+              key:"_id@organization.statistic.bzzj_sy",
+              showname:"编制总计实有数",
+            },
+            {
+              key:"systype",
+              showname:"系统类别",
+            },
+            {
+              key:"_id@organization.statistic.bzzj",
+              showname:"编制总计",
+            }
+          ],
+          filter:{
+            op:"and",
+            criteria:[
+              {
+                field:{
+                  "key":"district",
+                  "showname":"所在地区",
+                },
+                op:"eq",
+                value: district
+              },
+              {
+                field:{
+                  "key":"unittype",
+                  "showname":"单位类别",
+                },
+                op:"in",
+                value: values 
+              }
+            ]
+          },
+        },
+        groupby:{
+          with:[
+            {
+              type:"value",
+              key:"systype",
+              showname:"系统类别",
+              id:"jweffd"
+            }
+          ],
+          fields:[
+            {
+              type:"sum",
+              key:"_id@organization.statistic.bzzj",
+              showname:"编制总计",
+              id:"msedkq"
+            },
+            {
+              type:"sum",
+              key:"_id@organization.statistic.bzzj_sy",
+              showname:"编制总计实有数",
+              id:"prkuns"
+            }
+          ]
+        },
+      }
+      return obj;
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  width: 100%;
+  > div{
+    display: flex;
+    justify-content: space-between;
+  }
+  .top_card{
+    .card{
+      width: 200px;
+      border: 1px solid @border-color-split;
+      border-radius: 5px;
+      .title{
+        white-space: nowrap;
+        overflow: hidden;
+        line-height: 50px;
+        text-align: center;
+        font-weight: bold;
+        border-bottom: 1px solid @border-color-split;
+      }
+      .content{
+        margin-top: 10px;
+        padding: 10px 0;
+      }
+    }
+  }
+  .bottom_table{
+    margin-top: @padding-lg;
+    .table_container{
+      width: 50%;
+      border: 1px solid #e8e8e8;
+      border-radius: 5px;
+      &:nth-child(2){
+        margin-left: 32px;
+      }
+      .title{
+        font-weight: bold;
+        line-height: 45px;
+        margin: 0;
+        text-indent: 1em;
+      }
+      .ant-table-wrapper{
+        margin: 10px;
+      }
+    }
+  }
+}
+</style>

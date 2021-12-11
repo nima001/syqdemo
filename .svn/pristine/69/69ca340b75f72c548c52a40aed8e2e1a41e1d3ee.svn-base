@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title></title>
+    <script type="text/javascript" src="../internal.js"></script>
+    <style type="text/css">
+        .section {
+            text-align: right;
+            margin-top: 10px;
+            margin-right: 15px;
+            overflow: hidden;
+        }
+        .section .cel{
+            width: 50%;
+            float: left;
+        }
+        .section input {
+            margin-left: 5px;
+            width: 70px;
+        }
+    </style>
+</head>
+<body>
+<div class="section">
+    <div class="cel">
+        <span><var id="lang_tdBkColor"></var></span>
+        <input type="text" id="J_tone" autocomplete="off"/>
+    </div>
+</div>
+<div class="section">
+    <div class="cel">
+        <span><var id="lang_tdTopMargin"></var></span>
+        <input type="text" id="ue_td_top_margin" autocomplete="off"/>
+    </div>
+    <div class="cel">
+        <span><var id="lang_tdLeftMargin"></var></span>
+        <input type="text" id="ue_td_left_margin" autocomplete="off"/>
+    </div class="cel">
+</div>
+<div class="section">
+    <div class="cel">
+        <span><var id="lang_tdBottomMargin"></var></span>
+        <input type="text" id="ue_td_bottom_margin" autocomplete="off"/>
+    </div>
+    <div class="cel">
+        <span><var id="lang_tdRightMargin"></var></span>
+        <input type="text" id="ue_td_right_margin" autocomplete="off"/>
+    </div>
+</div>
+<script type="text/javascript">
+    var tone = $G("J_tone"), 
+        tMargin = $G('ue_td_top_margin'), bMargin = $G('ue_td_bottom_margin'),
+        lMargin = $G('ue_td_left_margin'), rMargin = $G('ue_td_right_margin'),
+        colorPiker = new UE.ui.ColorPicker({
+            editor:editor
+        }),
+        colorPop = new UE.ui.Popup({
+            editor:editor,
+            content:colorPiker
+        });
+    domUtils.on(tone, "click", function () {
+        colorPop.showAnchor(tone);
+    });
+    domUtils.on(document, 'mousedown', function () {
+        colorPop.hide();
+    });
+    colorPiker.addListener("pickcolor", function () {
+        tone.value = arguments[1];
+        colorPop.hide();
+    });
+    colorPiker.addListener("picknocolor", function () {
+        tone.value="";
+        colorPop.hide();
+    });
+    dialog.onok=function(){
+        var bkColor = tone.value, 
+            top = parseInt(tMargin.value), bottom = parseInt(bMargin.value),
+            left = parseInt(lMargin.value), right = parseInt(rMargin.value);
+        if(bkColor && (bkColor.length != 7 || bkColor.charAt(0) != '#' || !parseInt(bkColor.substring(1), 16))){
+            alert('背景色输入不正确')
+            return false
+        }
+        if(top < 0 || top > 20 || bottom < 0 || bottom > 20 || left < 0 || left > 20 || right < 0 || right > 20){
+            alert('边距需要一个0-20的整数')
+            return false;
+        }
+        editor.execCommand("edittd", {
+            bkColor: bkColor,
+            padding: top + 'px ' + right + 'px ' + bottom + 'px ' + left + 'px'
+        });
+    };
+
+    var start = editor.selection.getStart(),
+        cell = start && domUtils.findParentByTagName(start, ["td", "th"], true);
+    if(cell){
+        var color = domUtils.getComputedStyle(cell,'background-color');
+        if(/^#/.test(color)){
+            tone.value = color
+        }
+        tMargin.value = parseInt(domUtils.getComputedStyle(cell,'padding-top')) || 0;
+        bMargin.value = parseInt(domUtils.getComputedStyle(cell,'padding-bottom')) || 0;
+        lMargin.value = parseInt(domUtils.getComputedStyle(cell,'padding-left')) || 0;
+        rMargin.value = parseInt(domUtils.getComputedStyle(cell,'padding-right')) || 0;
+    }
+
+</script>
+</body>
+</html>

@@ -1,0 +1,120 @@
+<template>
+  <div class="org-staffcase">
+    <a-row :gutter="20">
+      <a-col :span="24">
+        <a-table 
+          :rowKey="generateRowKey"
+          :columns="columns" 
+          :dataSource="tableData" 
+          :pagination="false"
+          >
+        </a-table>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**不同地区同类机构编制情况对比
+*/
+import { Row, Col, Table } from "ant-design-vue";
+export default {
+  props: {
+    data: Array
+  },
+  components: {
+    ARow: Row,
+    ACol: Col,
+    ATable: Table
+  },
+  data() {
+    return {
+      columns: [
+        { title: '', dataIndex: 'type',  }
+      ],
+      xzData: [
+        {key: 'level', type: '机构级别'},
+        {key: 'internalorgnum', type: '内设机构数'},
+        {key: 'publiccompile', type: '行政编制数'},
+        {key: 'publicperson', type: '行政实有人员数'},
+        {key: 'logisticscompile', type: '后勤编制数'},
+        {key: 'logisticsperson', type: '后勤人员实有数'},
+        {key: 'departmentleaderplan', type: '部门领导职数'},
+        {key: 'departmentleadernum', type: '部门领导实配数'},
+        {key: 'internalleaderplan', type: '内设机构领导职数'},
+        {key: 'internalleadernum', type: '内设机构领导实有数量'},
+        {key: 'employeeplan', type: '编外用工控制数'},
+        {key: 'employeenum', type: '编外用工实有数'},
+        {key: 'predictretire', type: '未来2年退休人员预测'},
+        {key: 'compileproblem', type: '现有机构编制问题'},
+      ],
+      syData: [
+        {key: 'level', type: '机构级别'},
+        {key: 'internalorgnum', type: '内设机构数'},
+        {key: 'employeeplan', type: '编外用工控制数'},
+        {key: 'employeenum', type: '编外用工实有数'},
+        {key: 'predictretire', type: '未来2年退休人员预测'},
+        {key: 'compileproblem', type: '现有机构编制问题'},
+        {key: 'businesstype', type: '事业所属分类'},
+        {key: 'moneyform', type: '经费形式'},
+        {key: 'iscangong', type: '是否参公'}, 
+        {key: 'businesscompilenplan', type: '事业编制数'}, 
+        {key: 'businesscompilennum', type: '事业人员实有数'},
+        {key: 'businessleaderplan', type: '单位领导职数'},
+        {key: 'businessleadernum', type: '单位领导实配数'},
+      ],
+      tableData: []
+    };
+  },
+  watch: {},
+  created() {
+    if(this.data[0].orgType == 1) {//行政
+      this.tableData = [].concat(this.xzData)
+    }else{//事业
+      this.tableData = [].concat(this.syData)
+    }
+    //  处理表头/数据
+    (this.data || []).forEach((item,i) => {
+      let obj = {};
+      obj.title = item.orgname;
+      obj.dataIndex = `org${i}`;
+      this.columns.push(obj);
+      if(item.hasOwnProperty('level')) {
+        item.level = this.dictText('usermanage.org.politicallevel', item.level);
+      }
+      if(item.hasOwnProperty('iscangong')) {
+        item.iscangong = item.iscangong ? '是' : '否';
+      }
+      if(item.hasOwnProperty('fundform')) {s
+        item.fundform = this.dictText('usermanage.org.fundform', item.fundform);
+      }
+      this.tableData.forEach((list,j) => {
+        if(item.hasOwnProperty(list.key)) {
+          list[`org${i}`] = item[list.key]
+        }
+      })
+    })
+  },
+  mounted() {},
+  methods: {
+    generateRowKey() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    },
+    dictText(dict, value) {
+      let v = this.$store.getters.dictKey(dict, value);
+      if(v){
+        return v.group ? `${v.group}/${v.text}` :  v.text;
+      }
+      return "";
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.org-staffcase{  
+  /deep/.ant-row{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

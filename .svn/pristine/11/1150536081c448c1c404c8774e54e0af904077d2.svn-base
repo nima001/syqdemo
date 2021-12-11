@@ -1,0 +1,111 @@
+<template>
+  <a-form-item v-if="formLayout != 'horizontal'" :label="name" :required="!!required" :validateStatus="validateStatus" :class="{editor:!editor}" >
+    <a-tooltip placement="topLeft" :title="help">
+      <a-textarea
+        v-if="multiline"
+        :autoSize="{ minRows: 4, maxRows: 12 }"
+        v-model="propValue"
+        :disabled="!!disabled"
+      />
+      <a-input  v-else v-model="propValue" :disabled="!!disabled" :title="propValue" />
+    </a-tooltip>
+  </a-form-item>
+  <a-form-item v-else :required="!!required" :validateStatus="validateStatus" :class="{editor:!editor}" >
+    <div class="compact">
+      <div class="title" :title="name" :class="{textArea:multiline,required}">{{name}}</div>
+      <a-tooltip placement="topLeft" :title="help">
+        <a-textarea v-if="multiline" :autoSize="false" :style="{resize:'none'}" v-model="propValue" :disabled="!!disabled"/>
+        <a-input  v-else v-model="propValue" :disabled="!!disabled" :title="propValue" />   
+      </a-tooltip>   
+    </div>
+</a-form-item>
+</template>
+<script>
+import { Form, Input } from "ant-design-vue";
+import { mixins } from "@formdesign/views/mixin/index";
+export default {
+  title: "单行文本框/多行文本框",
+  components: {
+    AFormItem: Form.Item,
+    AInput: Input,
+    ATextarea: Input.TextArea
+  },
+  props: {
+    multiline: {
+      type: Boolean,
+      default: () => {
+        return false;
+      }
+    }
+  },
+  mixins: [mixins]
+};
+</script>
+<style lang="less" scoped>
+.ant-form-item {
+  margin-bottom: 0;
+  &.editor{
+    position: relative;
+    &::before{
+      position: absolute;
+      left: 0px;
+      top: 0px;
+      content: '';
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: not-allowed;
+      z-index: 3;
+    }
+  }
+  .compact {
+    display: flex;
+    padding: 4px 0px;
+    .title {
+      min-width: 5em;
+      max-width: 10em;
+      text-align: left;
+      box-sizing: content-box;
+      padding: 0px 11px;
+      height: 30px;
+      line-height: 30px;
+      color: rgba(0, 0, 0, 0.75);
+      font-size: 14px;
+      background-color: #fafafa;
+      border: 1px solid #d9d9d9;
+      border-radius: 4px;
+      border-right: none;
+      border-top-right-radius: 0px;
+      border-bottom-right-radius: 0px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      position: relative;
+      &.textArea{
+        height: 52px;
+        line-height: 52px;
+      }
+      &.required{
+        position: relative;
+        &::before{
+          display: inline-block;
+          color:@primary-color;
+          font-size: 14px;
+          font-family: SimSun, sans-serif;
+          line-height: 1;
+          content: '*';
+          position: absolute;
+          left:2px;
+          top: 50%;
+          transform: translateY(-50%)
+        }        
+      }
+    }
+    /deep/ .ant-input {
+      border-top-left-radius: 0px;
+      border-bottom-left-radius: 0px;
+      flex: 1
+    }
+  }    
+}
+</style>

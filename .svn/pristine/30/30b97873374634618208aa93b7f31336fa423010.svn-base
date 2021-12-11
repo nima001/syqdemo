@@ -1,0 +1,70 @@
+<template>
+  <div class="chart" :id="id"></div>
+</template>
+<script>
+import { Liquid } from "@antv/g2plot";
+export default {
+  data() {
+    return {
+      id: Math.random()
+        .toString(32)
+        .substr(2)
+    };
+  },
+  props: {
+    persent: {
+      type: Number,
+      required: true
+    }
+  },
+  mounted() {
+    this.draw();
+  },
+  methods: {
+    draw() {
+      const liquidPlot = new Liquid(this.id, {
+        percent: this.persent / 100,
+        outline: {
+          border: 2,
+          distance: 2
+        },
+        // 外圈的颜色
+        color: "#b5c5bc",
+        liquidStyle: {
+          // 水波的颜色
+          fill: "#7DC8A3FF",
+          opacity:0.4,
+        },
+        wave: {
+          length: 48
+        },
+        title:{
+          style:{
+            color:'red'
+          }
+        },
+        statistic: {
+          content: {
+            style: {
+              color: "#FFF",
+              fontSize: 24,
+              fontFamily: "Arial",
+              fontWeight: 400
+            },
+            formatter: obj => {
+              return obj.percent * 100 + "%";
+            }
+          }
+        }
+      });
+      liquidPlot.render();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.chart {
+  width: 120px;
+  height: 120px;
+}
+</style>

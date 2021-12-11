@@ -1,0 +1,171 @@
+<template>
+  <div class="line-chart">
+    <h2 v-if="title" :style="{textAlign:'center'}">{{title}}</h2>
+    <div ref="chart"></div>
+  </div>
+</template>
+<script>
+import * as G2 from "@antv/g2";
+import BaseMixin from "./BaseMixin"
+import { maxBy, minBy, cloneDeep, get } from 'lodash';
+/**
+ * rangeControl:范围控制
+ */
+export default {
+  icon: 'chart-line',
+  title: '折线图',
+  name: "LineChart",
+  mixins: [BaseMixin],
+  data() {
+    return {
+      plot: undefined,
+    };
+  },
+  computed: {
+    colors(){
+      let colors = this.$store.getters.getConfig('chart.colors');
+      if(colors){
+        try{
+          colors = JSON.parse(colors)
+          if(colors && colors.length){
+            return colors;
+          }
+        }catch(err){
+
+        }
+      }
+      return ["#D15456","#5488D1","#EDBA55","#D48265","#91C7AE","#749F83","#BDA29A","#6E7074","#585470","#706254"]
+    },
+    muitl(){
+      if(this.data){
+        let { keyCols, valueCols, rows } = this.data;
+        return valueCols.length > 1 || keyCols.length > 1;
+      }
+    }
+  },
+  mounted() {
+    this.draw(this.data);
+  },
+  watch: {
+    data: {
+      handler(v) {
+        this.draw(v);
+      },
+      deep: true
+    }
+  },
+  methods: {
+    createData(dataTable) {
+      if (!dataTable) {
+        return;
+      }
+      let { keyCols, valueCols, rows } = this.transform(dataTable);
+      return rows.map(item => {
+        let key, type;
+        if(keyCols.length > 1){
+          let keys = keyCols.map(k => item[k.column]);
+          type = keys.pop();
+          key = keys.join("-")
+        }else{
+          key = item[keyCols[0].column]
+        }
+        return {
+          key, type,
+          value: item[valueCols[0].column] || 0
+        };
+      });
+    },
+    draw(dataTable) {
+      let data = this.createData(dataTable);
+      console.log(data);
+      if (!data) {
+        return;
+      }
+      if (this.plot) {
+        this.plot.destroy();
+      }
+      const chart = new G2.Chart({
+        container: this.$refs.chart,
+        autoFit: true,
+        appendPadding: [20, 0, 20, 0]
+      });
+      chart.data(data);
+      //坐标轴
+      chart.axis("key", {
+        title: null//是否线上X轴标题
+      });
+      chart.axis("value", {
+        title: null,//是否线上Y轴标题
+      });
+      //度量
+      let max, min = undefined;
+      if(this.settings.rangeControl) {
+        max = cloneDeep(maxBy(this.data.rows, (o)=> { return o.v0 }));
+        min = cloneDeep(minBy(this.data.rows, (o)=> { return o.v0 }));
+        if(max.v0===min.v0) {
+          let num = (min.v0)/2;
+          min.v0-=num;
+          max.v0+=num;
+        }
+      }
+      // X轴,Y轴标题别名
+      chart.scale({
+        key: {
+          alias: get(this.settings, 'xAlias.title')
+        },
+        value: {
+          alias: get(this.settings, 'yAlias.title'),
+          nice: true,
+          minLimit: this.settings.rangeControl?min.v0:0,
+          maxLimit: this.settings.rangeControl?max.v0:undefined,
+        }
+      });
+      //图形
+      let geometry = chart.line().position("key*value").shape("smooth");
+      if(this.muitl){
+        //线
+        geometry.color("type", this.colors);
+        //线上的点
+        // chart.point().position("key*value").shape("circle").color("key", this.colors[0]);
+      }else{
+        //线
+        geometry.color(this.colors[0]);
+        //线上的点
+        // chart.point().position("key*value").shape("circle").color(this.colors[0]);
+      }
+      if(this.settings.label) {
+        geometry.label("value");
+      }else{
+        geometry.label(false);//FIXME 值太多默认不显示
+      }
+      //图例
+      chart.legend(false);
+      //提示
+      chart.tooltip({
+        showCrosshairs: true,//显示辅助线
+        showMarkers: false,
+        shared: true,
+      });
+      //标注
+      //交互
+      
+      chart.render();
+      this.plot = chart;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.line-chart {
+  width: 100%;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  h2 {
+    margin: 0;
+  }
+  div {
+    flex: 1;
+  }
+}
+</style>

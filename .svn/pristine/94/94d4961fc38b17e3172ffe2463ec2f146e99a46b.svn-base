@@ -1,0 +1,213 @@
+<template>
+  <div class="wrap">
+    <p class="title">重点任务</p>
+    <div class="task">
+      <div class="corner topCorner"></div>
+      <div class="corner bottomCorner"></div>
+      <ul class="list">
+        <li class="item" v-for="(item,index) in list" :key="index">
+          <span class="text">{{item.title}}</span>
+          <template v-if="item.status == 2">
+            <span class="state done">已完成</span>
+          </template>
+          <template v-else-if="item.status == 1">
+            <span class="state ing">进行中</span>
+          </template>
+          <template v-else>
+            <span class="state">已撤销</span>
+          </template>
+        </li>
+      </ul>
+      <div class="pagination" v-if="list.length > 0">
+        <span class="icon pre" @click="prePage"></span>
+        <div class="pageNum">
+          <span class="curPage">{{pagination.pagenum}}</span>
+          <span class="total">/{{totalPage}}</span>
+        </div>
+        <span class="icon next" @click="nextPage"></span>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { mixins } from "../components/minxin";
+import { keyTask } from "@/person-shaoxing/api/orgStaffReport";
+import { showError } from "@/framework/utils/index";
+export default {
+  data() {
+    return {
+      pagination: {
+        pagenum: 1,
+        pagesize: 8,
+        needtotal: true,
+        total: 1
+      },
+      list: []
+    };
+  },
+  mixins: [mixins],
+  watch: {
+    dictId(v) {
+      this.dictId(v);
+    }
+  },
+  computed: {
+    totalPage() {
+      return Math.ceil(this.pagination.total / this.pagination.pagesize);
+    }
+  },
+  mounted() {
+    this.getTask(this.dictId);
+  },
+  methods: {
+    prePage() {
+      if (this.pagination.pagenum > 1) {
+        this.pagination.pagenum--;
+        this.getTask(this.dictId);
+      }
+    },
+    nextPage() {
+      if (this.pagination.pagenum < this.totalPage) {
+        this.pagination.pagenum++;
+        this.getTask(this.dictId);
+      }
+    },
+    getTask(dictId) {
+      var statusIn = [1,2];
+      keyTask(dictId, statusIn, this.pagination)
+        .then(res => {
+          let { pagenum, rows, total } = res.result;
+          this.pagination.pagenum = pagenum;
+          this.pagination.total = total;
+          this.list = rows;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.wrap {
+  height: 473px;
+  .title {
+    height: 26px;
+    font-size: 20px;
+    font-family: Microsoft YaHei;
+    font-weight: bold;
+    line-height: 26px;
+    color: #ffffff;
+    opacity: 0.8;
+    margin: 0px;
+  }
+  .task {
+    margin: 24px 0px 0px;
+    width: 100%;
+    height: 379px;
+    padding: 0px 44px;
+    position: relative;
+    .corner {
+      width: 36px;
+      height: 36px;
+      position: absolute;
+      &.topCorner {
+        background: url("../img/tCorner.png");
+        top: 0px;
+        left: 0px;
+      }
+      &.bottomCorner {
+        background: url("../img/bCorner.png");
+        bottom: 0px;
+        right: 0px;
+      }
+    }
+    .list {
+      margin: 0px;
+      padding-top: 30px;
+      .item {
+        display: flex;
+        height: 37px;
+        align-items: center;
+        padding: 0px 10px;
+        &:hover {
+          background: url("../img/dote.png") repeat;
+          cursor: pointer;
+        }
+        span {
+          height: 21px;
+          font-size: 16px;
+          font-family: Microsoft YaHei;
+          font-weight: 400;
+          line-height: 21px;
+          &.text {
+            flex: 1;
+            color: #ffffff;
+            opacity: 0.8;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+          &.state {
+            width: 50px;
+            margin-left: 56px;
+            color: #fff;
+            opacity: 0.8;
+            &.done {
+              color: #7dc8a3;
+              opacity: 1;
+            }
+            &.ing {
+              color: #ffd3a3;
+              opacity: 1;
+            }
+          }
+        }
+      }
+    }
+    .pagination {
+      position: absolute;
+      bottom: 0px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 146px;
+      height: 43px;
+      background: #0f1623;
+      opacity: 1;
+      border-radius: 4px;
+      margin: 10px auto 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      .icon {
+        width: 14px;
+        height: 9px;
+        cursor: pointer;
+        &.pre {
+          background: url("../img/p-down.png");
+        }
+        &.next {
+          background: url("../img/p-up.png");
+        }
+      }
+      .pageNum {
+        padding: 0px 24px;
+        display: flex;
+        align-items: center;
+        height: 20px;
+        font-size: 14px;
+        font-family: Microsoft YaHei;
+        font-weight: 400;
+        line-height: 20px;
+        color: #ffffff;
+        .curPage {
+          opacity: 1;
+        }
+        .total {
+          opacity: 0.6;
+        }
+      }
+    }
+  }
+}
+</style>

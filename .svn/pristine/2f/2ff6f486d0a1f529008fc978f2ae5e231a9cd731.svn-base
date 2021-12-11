@@ -1,0 +1,215 @@
+<template>
+  <div class="content">
+    <div class="head">
+      <span>平均分</span>
+      <span class="num">
+        <span>9</span>
+        <span>8</span>
+      </span>
+    </div>
+    <div class="body">
+      <table>
+        <thead>
+          <th>机构名称</th>
+          <th>类别</th>
+          <th>评级</th>
+        </thead>
+        <tbody>
+          <tr v-for="(item, index) in data" :key="item.id">
+            <td>{{item.name}}</td>
+            <td>{{item.orgtype}}</td>
+            <td :class="['grade',{'A': item.grade=='A', 'B': item.grade=='B', 'C': item.grade=='C'}]">
+              {{item.grade}}
+              <img v-if="index==0||index==3||index==6" src="../../../assets/img/screen/icon-up.png"/>
+              <img v-else-if="index==10||index==11||index==13" src="../../../assets/img/screen/icon-down.png"/>
+              <img v-else alt=""/>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  data() {
+    return {
+      data: [
+        { id: 1, name: "机构名称机构名称机构名称机构名称", orgtype: '党群机关', grade: "A" },
+        { id: 2, name: "机构名称机构名称", orgtype: '党群机关', grade: "A" },
+        { id: 3, name: "机构名称机构名称", orgtype: '党群机关', grade: "A" },
+        { id: 4, name: "机构名称机构名称机构名称", orgtype: '经济', grade: "A" },
+        { id: 5, name: "机构名称", orgtype: '司法执法', grade: "A" },
+        { id: 6, name: "机构名称机构名称", orgtype: '经济', grade: "A" },
+        { id: 7, name: "机构名称机构名称机构名称", orgtype: '司法执法', grade: "A" },
+        { id: 8, name: "机构名称机构名称机构名称", orgtype: '司法执法', grade: "A" },
+        { id: 9, name: "机构名称机构名称", orgtype: '党群机关', grade: "B" },
+        { id: 10, name: "机构名称机构名称", orgtype: '社会发展', grade: "B" },
+        { id: 11, name: "机构名称机构名称机构名称", orgtype: '党群机关', grade: "B" },
+        { id: 12, name: "机构名称机构名称", orgtype: '社会发展', grade: "B" },
+        { id: 13, name: "机构名称机构名称机构名称", orgtype: '司法执法', grade: "C" },
+        { id: 14, name: "机构名称机构名称", orgtype: '司法执法', grade: "C" },
+      ],
+    };
+  },
+};
+</script>
+<style lang="less" scoped>
+.content {
+  color: #fff;
+  .head {
+    height: 57px;
+    padding: 0 10%;
+    margin: 10px 20px;
+    font-size: 1.2em;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: radial-gradient(circle, fade(#0DEEFF, 15%) 0%, fade(#0DEEFF, 0%) 100%);
+    position: relative;
+    .num {
+      font-size: 1.5em;
+      font-weight: 500;
+      & span {
+        margin-left: 22px;
+        position: relative;
+        &::before {
+          width: 30px;
+          height: 40px;
+          content: "";
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          background: fade(#fff, 22%);
+        }
+      }
+    }
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      right: 0;
+      left: 0;
+      height: 15px;
+      background: url("../../../assets/img/screen/radiance-small.png");
+    }
+    &::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      left: 0;
+      height: 15px;
+      background: url("../../../assets/img/screen/radiance-small.png");
+      transform: rotate(180deg);
+    }
+  }
+  .body {
+    position: relative;
+    padding: 2px 0;
+    &::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 10px;
+      background: linear-gradient(to bottom, fade(#22334a, 40%) 0%, fade(#16273e, 10%) 70%, transparent 100%);
+    }
+    table {
+      width: 100%;
+      &::before {
+        height: 10px;
+        content: "";
+        position: absolute;
+        top: 30px;
+        left: 0;
+        right: 0;
+        background: linear-gradient(to top, fade(#22334a, 40%) 0%, fade(#16273e, 10%) 70%, transparent 100%);
+      }
+      thead {
+        display: table;
+        max-width: 100%;
+        min-width: 510px;
+        th {
+          padding: @padding-xs @padding-sm;
+          font-weight: normal;
+          font-size: 1em;
+          position: relative;
+          letter-spacing: 0.5em;
+          &:first-child {
+            width: 60%;
+          }
+          &:not(:first-child) {
+            text-align: center;
+            &::before {
+              width: 10px;
+              content: "";
+              position: absolute;
+              top: 0;
+              bottom: 0;
+              left: 0;
+              right: 0;
+              background: linear-gradient(to right, fade(#22334a, 40%) 0%, fade(#16273e, 10%) 70%, transparent 100%);
+            }
+          }
+        }
+      }
+      tbody {
+        display: block;
+        max-height: 515px;
+        overflow-y: auto;
+        tr {
+          width: 100%;
+          min-width: 510px;
+          display: table;
+          table-layout: fixed;
+          td {
+            padding: @padding-xs @padding-sm;
+            font-weight: normal;
+            font-size: 1em;
+            &:not(:first-child) {
+              position: relative;
+              &:not(:first-child)::before {
+                width: 10px;
+                content: "";
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(to right, fade(#22334a, 40%) 0%, fade(#16273e, 10%) 70%, transparent 100%);
+              }
+            }
+            &:first-child {
+              width: 60%;
+            }
+            &:nth-child(2) {
+              text-align: center;
+            }
+            &:last-child {
+              padding-left: 30px;
+              letter-spacing: 0.2em;
+            }
+            &.grade {
+              font-size: 16px;
+              font-weight: bold;
+              &.A {
+                color: #33DBCD;
+              }
+              &.B {
+                color: #E6AF67;
+              }
+              &.C {
+                color: #CE6129;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,13 @@
+import Layout from './Layout'
+import Grid from './Grid'
+
+
+Layout.Grid = Grid;
+
+const config = {};
+
+export default Layout;
+
+export {
+  Layout, Grid, config
+}

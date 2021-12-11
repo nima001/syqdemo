@@ -1,0 +1,34 @@
+import request from '@/framework/utils/request'
+
+let token;
+
+function getSMZParams(){
+  if(token){
+    return Promise.resolve(token);
+  }else{
+    return request({
+      url: `/person/sbb/getAuthorizeToken`,
+      method: 'get',
+    }).then(({result:{userId, serviceCode}}) => {
+      token = {userId, serviceCode};
+      return token;
+    })
+  }
+}
+
+
+export function openOrgInfo(code){
+  getSMZParams().then(({userId, serviceCode}) => {
+    window.open(`http://59.202.42.184:8008/api.smz.do?m=getSmzJgsyDetailInfo&jgsy_code=${code}&serviceCode=${serviceCode}&userId=${userId}`);
+  }).catch(error => {
+    console.log(error);
+  })
+}
+
+export function openUserInfo(orgcode, gongwuyuanid){
+  getSMZParams().then(({userId, serviceCode}) => {
+    window.open(`http://59.202.42.184:8008/api.smz.do?m=getGwyDetail&jgsy_code=${orgcode}&gongwy_id=${gongwuyuanid}&serviceCode=${serviceCode}&userId=${userId}`);
+  }).catch(error => {
+    console.log(error);
+  })
+}

@@ -1,0 +1,66 @@
+<template>
+  <div class="submenu-list">
+    <a-row :gutter="12">
+      <a-col v-for="item in submenu" :key="item.id" :span="6">
+        <div class="row" @click="jump(item)">
+          {{item.name}}
+          <a-icon type="right" class="icon" />
+        </div>
+      </a-col>
+    </a-row>
+  </div>
+</template>
+<script>
+import { Row, Col, Icon } from "ant-design-vue";
+import { openMenu } from "../../utils/menu";
+
+export default {
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AIcon: Icon,
+  },
+  computed:{
+    submenu(){
+      let id = this.$route.params.id;
+      if(id){
+        let menu = this.$store.getters.menuList.find(item => item.id == id);
+        if(menu){
+          return menu.children;
+        }
+      }
+    }
+  },
+  methods: {
+    jump(item) {
+      openMenu(item, this.$router)
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.submenu-list {
+  margin: @layout-space-base;
+  /deep/.row {
+    height: 54px;
+    line-height: 30px;
+    padding: 12px;
+    margin-bottom: 12px;
+    text-indent: 12px;
+    font-size: 1.1em;
+    background: @white;
+    border-radius: 3px;
+    cursor: pointer;
+
+    &:hover {
+      box-shadow: 1px 1px 10px #dad9d9;
+    }
+
+    .icon {
+      float: right;
+      line-height: 30px;
+      color: @accent-color;
+    }
+  }
+}
+</style>

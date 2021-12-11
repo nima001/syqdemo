@@ -1,0 +1,353 @@
+<template>
+  <div class="business-center">
+    <div class="header">
+      <div class="search">
+        <a-input-search v-model.trim="inputkey"
+          allowClear
+          @search="onSearch"
+          style="width: 600px" class="search-input" size="large" 
+          placeholder="请输入单位名称/人员姓名/身份证号"
+        >
+          <a-button slot="enterButton" class="search-btn">
+            <a-icon :type="loading ? 'loading' : 'search'" />搜索
+          </a-button>
+        </a-input-search>
+        <UserOrgQueryModal v-model="searchkey" @loaded="loading = false"/>
+      </div>
+    </div>
+    <div class="body message">
+      <div class="title">消息与待办<router-link to="/main/message">更多<a-icon type="right"/></router-link></div>
+      <div class="content">
+        <div v-if="!messageList" class="no-message"><a-icon type="loading"/></div>
+        <div v-else-if="messageList.length == 0" class="no-message">暂无消息</div>
+        <ul v-else-if="messageList.length <= 2">
+          <li v-for="(item, index) in messageList" :key="index" @click="openMsg(item)">
+            <div class="text">{{item.content}}</div>
+            <div class="time">{{item.sendtime}}</div>
+          </li>
+        </ul>
+        <a-carousel v-else dot-position="right" :autoplay="true" :dots="false">
+          <ul v-for="(_, index) in Math.ceil(messageList.length / 2)" :key="index">
+            <li v-for="(_,id) in 2" :key="id" @click="openMsg(messageList[index * 2 + id])">
+              <template v-if="messageList[index * 2 + id]">
+                <div class="text">{{messageList[index * 2 + id].content}}</div>
+                <div class="time">{{messageList[index * 2 + id].sendtime}}</div>
+              </template>
+            </li>
+          </ul>
+        </a-carousel>
+      </div>
+    </div>
+    <div class="body apps">
+      <div class="title">业务办理</div>
+      <div class="content">
+        <div class="item" v-for="item in apps" :key="item.id">
+          <div class="app">
+            <img class="icon" :src="item.icon"/>
+            <div class="text">{{item.text}}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="body business">
+      <div class="title">事项办理</div>
+      <div class="content">
+        <div class="item" v-for="(item, index) in business" :key="index">
+          <div>
+            <div class="name">{{item.title}}</div>
+            <ul>
+              <li v-for="(b, i) in item.items" :key="i"><span class="icon"></span>{{b.name}}</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Icon, Button, Input, Carousel } from 'ant-design-vue'
+import UserOrgQueryModal from '@person/widgets/components/UserOrgQueryModal'
+import { msglist, msgreadMark } from "@framework/api/message";
+import { showError, dateFormat } from "@/framework/utils/index";
+
+export default {
+  components: {
+    AInputSearch: Input.Search,
+    AButton: Button,
+    AIcon: Icon,
+    ACarousel: Carousel,
+    UserOrgQueryModal
+  },
+  data(){
+    return {
+      loading: false,
+      inputkey: undefined,
+      searchkey: undefined,
+      messageList: undefined,
+      apps: [
+        { id: 'smz', icon: require('../../assets/img/icon-app-smz.png'), text: '实名制'},
+        { id: 'xtbg', icon: require('../../assets/img/icon-app-xtbg.png'), text: '协同办公'},
+        { id: 'np', icon: require('../../assets/img/icon-app-np.png'), text: '内跑平台'},
+        { id: 'djgl', icon: require('../../assets/img/icon-app-djgl.png'), text: '事业单位登记管理系统'},
+        { id: 'qlqd', icon: require('../../assets/img/icon-app-qlqd.png'), text: '权力清单系统'},
+      ],
+      business: [
+        { title: '市级机关公务员录用后续经办业务', items: [
+          {name: '用编计划审核', url: ''},
+          {name: '公务员平台审核', url: ''},
+          {name: '入编办理', url: ''},
+          {name: '人员信息符合', url: ''},
+        ]},
+        { title: '市级机关公务员录用后续经办业务', items: [
+          {name: '用编计划审核', url: ''},
+          {name: '公务员平台审核', url: ''},
+          {name: '入编办理', url: ''},
+          {name: '人员信息符合', url: ''},
+        ]},
+        { title: '市级机关公务员录用后续经办业务', items: [
+          {name: '用编计划审核', url: ''},
+          {name: '公务员平台审核', url: ''},
+          {name: '入编办理', url: ''},
+          {name: '人员信息符合', url: ''},
+        ]},
+        { title: '市级机关公务员录用后续经办业务', items: [
+          {name: '用编计划审核', url: ''},
+          {name: '公务员平台审核', url: ''},
+          {name: '入编办理', url: ''},
+          {name: '人员信息符合', url: ''},
+        ]},
+        { title: '市级机关公务员录用后续经办业务', items: [
+          {name: '用编计划审核', url: ''},
+          {name: '公务员平台审核', url: ''},
+          {name: '入编办理', url: ''},
+          {name: '人员信息符合', url: ''},
+        ]},
+        { title: '市级机关公务员录用后续经办业务', items: [
+          {name: '用编计划审核', url: ''},
+          {name: '公务员平台审核', url: ''},
+          {name: '入编办理', url: ''},
+          {name: '人员信息符合', url: ''},
+        ]},
+      ]
+    }
+  },
+  created(){
+    this.loadMessage();
+  },
+  methods: {
+    onSearch(){
+      this.loading = !!this.inputkey;
+      this.searchkey = this.inputkey;
+    },
+    openMsg(item){
+      if(item){
+        window.open(item.pcurl);
+        this.read(item.messageid);
+      }
+    },
+    read(messageid) {
+      msgreadMark({ mark: 1, messageid }).then((res) => {
+        this.loadMessage();
+      }).catch((err) => {
+        //ignore
+      });
+    },
+    loadMessage() {
+      msglist({
+        ishandle: 0,
+        isread: 0,
+        needtotal: true,
+        pagenum: 1,
+        pagesize: 10,//加载前10条未读消息
+      }).then(({ result }) => {
+        this.messageList = result.rows || [];
+        this.messageList.forEach((i) => {
+          i.sendtime = dateFormat(new Date(i.sendtime), "yyyy-MM-dd");
+        });
+      }).catch((err) => {
+        showError(err);
+        // this.messageList = [
+        //   {content: '1111', time: '11'},
+        //   {content: '1111', time: '11'},
+        //   {content: '1111', time: '11'},
+        //   {content: '1111', time: '11'},
+        // ]
+      });
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.business-center{
+  background-color: @white;
+  height: 100%;
+  min-width: 1300px;
+  overflow-y: auto;
+  .header{
+    background: linear-gradient(to bottom, @login-bg-gradient 50%, @primary-color);
+    .search{
+      width: 1200px;
+      height: 200px;
+      margin: auto;
+      background-image: url('../../assets/img/bg-business-head.png');
+      .search-input{
+        margin-top: 80px;
+      }
+      .search-btn{
+        background-color: @primary-2;
+        color: @primary-color;
+        border: none;
+      }
+    }
+  }
+  .body{
+    width: 1200px;
+    margin: auto;
+    margin-bottom: 20px;
+    .title{
+      line-height: 1em;
+      font-size: 18px;
+      padding: 20px 0;
+      &::before{
+        content: '';
+        display: inline-block;
+        width: 4px;
+        height: 1em;
+        margin-right: 10px;
+        vertical-align: -0.12em;
+        background-color: @primary-color;
+      }
+      a{
+        float: right;
+        font-size: @font-size-base;
+        color: @text-color-secondary;
+      }
+    }
+  }
+  .message > .content{
+    background-color: #f3f7fa;
+    padding: 10px 10px;
+    border-radius: @border-radius-base;
+    .no-message{
+      height: 50px;
+      line-height: 50px;
+      text-align: center;
+      color: @text-color-secondary;
+    }
+    ul{
+      margin: 0;
+      height: 50px;
+      li{
+        display: flex;
+        line-height: 25px;
+        cursor: pointer;
+        &:hover{
+          background-color: @primary-1;
+        }
+        .text{
+          flex: auto;
+          padding: 0 5px;
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+        }
+        .time{
+          flex: none;
+          padding: 0 5px;
+        }
+      }
+    }
+  }
+  .apps > .content{
+    margin: -10px;
+    overflow: hidden;
+    .item{
+      width: 20%;
+      float: left;
+      padding: 10px;
+      & > div{
+        display: flex;
+        height: 100px;
+        padding: 10px 30px;
+        border-radius: @border-radius-base;
+        box-shadow: 0px 0px 10px -4px #dad9d9;
+        cursor: pointer;
+        &:hover{
+          box-shadow: 2px 2px 15px -3px #dad9d9;
+        }
+        .icon{
+          width: 45px;
+          margin: 10px;
+          align-self: center;
+        }
+        .text{
+          align-self: center;
+          font-size: 1.1em;
+        }
+      }
+    }
+  }
+  .business > .content{
+    margin: -10px;
+    overflow: hidden;
+    .item{
+      width: 33.33%;
+      float: left;
+      padding: 10px;
+      & > div{
+        height: 280px;
+        padding: 15px 20px;
+        border-radius: @border-radius-base;
+        box-shadow: 0px 0px 10px -4px #dad9d9;
+        background: url('../../assets/img/bg-business-card.png') no-repeat right bottom;
+        &:hover{
+          box-shadow: 2px 2px 15px -3px #dad9d9;
+        }
+        .name{
+          font-size: 1.1em;
+        }
+        ul{
+          margin: 1em 0;
+          li{
+            height: 36px;
+            line-height: 36px;
+            cursor: pointer;
+            &:hover{
+              color: @primary-color;
+            }
+            .icon{
+              position: relative;
+              display: inline-block;
+              width: 6px;
+              margin: 0 15px 0 10px;
+              border-top: 18px solid #f2f2f2;
+              border-bottom: 18px solid #f2f2f2;
+              vertical-align: middle;
+              &::before{
+                content: '';
+                position: absolute;
+                top: 50%;
+                width: 6px;
+                height: 6px;
+                margin-top: -3px;
+                border-radius: 3px;
+                background-color: #d2dceb;
+              }
+            }
+          }
+          li:first-child{
+            .icon{
+              border-top-color: rgba(233, 233, 233, 0);
+            }
+          }
+          li:last-child{
+            .icon{
+              border-bottom-color: rgba(233, 233, 233, 0);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+</style>

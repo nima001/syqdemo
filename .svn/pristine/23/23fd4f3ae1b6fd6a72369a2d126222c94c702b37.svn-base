@@ -1,0 +1,91 @@
+
+<template>
+  <a-select
+    show-search
+    :value="value"
+    placeholder="查找历史"
+    style="width: 200px"
+    :show-arrow="false"
+    :filter-option="false"
+    :not-found-content="null"
+    @search="handleSearch"
+    @change="handleChange"
+    :options="data"
+  > 
+  </a-select>
+</template>
+<script>
+import { Icon, Select, Input} from 'ant-design-vue';
+import { querylist } from "@/person/api/integratedquery";
+import { showError } from '@framework/utils';
+
+/**
+ * 查询选择
+ * 提供外部事件
+ * 1.select 选中查询事件 返回查询ID
+ */
+let timeout;
+let currentValue;
+function fetch(value, callback) {
+  if (timeout) {
+    clearTimeout(timeout);
+    timeout = null;
+  }
+  currentValue = value;
+  function fake() {
+    querylist({
+        value,
+        namespace: this.namespace 
+    }).then(res => {
+        if (currentValue === value) {
+          callback((res.result || []).map(item => {
+            return {
+              value: item.id,
+              label: item.title
+            }
+          }));
+        }
+      }).catch(error => {
+        showError(error);
+      });
+  }
+  timeout = setTimeout(fake, 500);
+}
+export default {
+  components: {
+    AInput: Input,
+    AIcon: Icon,
+    ASelect:Select,
+    ASelectOption: Select.Option,
+  },
+  props: {
+    namespace: {//搜索查询的命名空间
+      type: String,
+      required: true,
+    }
+  },
+  data() {
+    return {
+      data: [],
+      value: undefined,
+    };
+  },
+  created(){
+    console.log('select source', this.namespace);
+  },
+
+  methods: {
+      handleSearch(value) {
+      fetch(value, data => (this.data = data));
+    },
+    handleChange(value) {
+      console.log(value);
+      this.value = value;
+      fetch(value, data => (this.data = data));
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+
+</style>

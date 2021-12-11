@@ -1,0 +1,170 @@
+<template>
+  <div class="select-user">
+    <a-input
+      v-model="data[name]"
+      :placeholder="title"
+      :read-only="true"
+      :class="{'mouseover': over}"
+      @mouseover.prevent="mouseover()"
+      @mouseleave.prevent="mouseleave()"
+      @click="showSelectUser = true"
+    >
+      <a-icon v-if="!data[value]" slot="suffix" type="user" />
+      <a-icon v-else slot="suffix" class="clear-user" theme="filled" type="close-circle" @mouseover.prevent="mouseover()" @click="clearCreateUser" />
+    </a-input>
+    <a-modal
+      v-model="showSelectUser"
+      :title="title"
+      :footer="null"
+      :width="500"
+      :bodyStyle="{ height: '600px', padding: '0' }"
+    >
+      <org-user-select
+        mode="user"
+        :selected.sync="selected"
+        :alwaysMulti="alwaysMulti"
+        :maxSelect="maxSelect"
+        defaultRoot="04e19e21ed48425b8aa3f17a0015452f"
+        @finish="onUserSelected"
+      />
+    </a-modal>
+  </div>
+</template>
+
+<script>
+import { Input, Icon, Modal } from "ant-design-vue";
+import { cloneDeep, has, assign } from "lodash";
+import OrgUserSelect from "@person/components/OrgUserSelect";
+export default {
+  props: ["search", "name", "value", "title", "alwaysMulti", "maxSelect", "defaultValue"],
+  components: {
+    AInput: Input,
+    AIcon: Icon,
+    AModal: Modal,
+    OrgUserSelect,
+  },
+  data() {
+    return {
+      selected: [],
+      showSelectUser: false,
+      data: {},
+      over: false,
+    };
+  },
+  watch: {
+    search: {
+      immediate: true,
+      deep: true,
+      handler(val) {
+        this.data = val;
+        return val;
+      },
+    },
+    name: {
+      immediate: true,
+      handler(val) {
+        this.data[val] = undefined;
+      },
+    },
+    value: {
+      immediate: true,
+      handler(val) {
+        this.data[val] = undefined;
+      },
+    },
+    defaultValue(val) {
+      if(val) {
+        this.initValue(val);
+      }
+    },
+  },
+  mounted() {
+    this.initValue(this.defaultValue);
+  },
+  methods: {
+    mouseover() {
+      this.over = true;
+    },
+    mouseleave() {
+      this.over = false;
+    },
+    initValue(val) {
+      if (val && has(val, "name") && has(val, "value")) {
+        this.data[this.name] = val.name;
+        this.data[this.value] = val.value;
+        this.selected = [{ _id: val.value, username: val.name }];
+      }
+    },
+    clearCreateUser() {
+      this.$emit('changesearch',this.name,this.value, undefined, undefined);
+      this.selected = [];
+    },
+    isrepeat(_id,username) {
+      let result = false;
+      if (this.title.indexOf("协办") >= 0) {
+        for (let i in this.search) {
+          if(this.search.createuser===_id) {
+            this.$notification.warning({
+              message: "提示",
+              description: '同一个用户不能既是主办人又是协办人！',
+              duration: 3,
+            });
+            result = true;
+            this.clearCreateUser();
+            break;
+          }else if (i.indexOf("joinid") >= 0) {
+            if (this.search[i] === _id&&i!==this.value) {
+              this.$notification.warning({
+                message: "提示",
+                description: `${username} 已被选为协办人！`,
+                duration: 3,
+              });
+              result = true;
+              this.clearCreateUser();
+              break;
+            }
+          }
+        }
+      }
+      return result;
+    },
+    onUserSelected(type, list) {
+      this.showSelectUser = false;
+      if (type == "ok") {
+        if (this.alwaysMulti) {
+          this.data[this.value] = "";
+          this.data[this.name] = "";
+          list.forEach((item, index) => {
+            if (index !== list.length - 1) {
+              this.data[this.value] += item._id + ",";
+              this.data[this.name] += item.username + ",";
+            } else {
+              this.data[this.value] += item._id;
+              this.data[this.name] += item.username;
+              this.$emit('update:search', this.data);
+            }
+          });
+        } else {
+          let { _id, username } = list[0];
+          if (!this.isrepeat(_id,username)) {
+            this.$emit('changesearch', this.name, this.value, _id, username);
+          }
+        }
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+i.clear-user {
+  opacity: 0;
+  font-size: 12px;
+  transition: opacity .3s;
+  color: transparent;
+}
+.mouseover i.clear-user {
+  opacity: 1;
+  cursor: pointer;
+  color: rgba(0, 0, 0, .25);
+}
+</style>

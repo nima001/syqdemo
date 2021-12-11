@@ -1,0 +1,101 @@
+<template>
+  <div class="dilaog-box" ref="dilaogBox">
+    <a-modal 
+      :visible="value"
+      :footer="null"
+      :width="1200"
+      :centered="true"
+      :closable="false"
+      :destroyOnClose="destroyOnClose"
+      @cancel="onCancel"
+      :bodyStyle="{padding: 0}"
+      :getContainer="() => $refs.dilaogBox"
+    >
+      <div class="adorn-corner left"></div>
+      <div class="dialog-body">
+        <div class="adorn-border"></div>
+        <a-button class="close-btn" type="link" @click="onCancel"><a-icon type="close"/></a-button>
+        <div class="title">{{title}}</div>
+        <slot/>
+        <div class="adorn-border"></div>
+      </div>
+      <div class="adorn-corner right"></div>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Modal, Button, Icon } from "ant-design-vue";
+
+//对话框
+export default {
+  components: {
+    AModal: Modal,
+    AButton: Button,
+    AIcon: Icon,
+  },
+  props: {
+    value: Boolean,
+    title: String,
+    destroyOnClose: Boolean,
+  },
+  methods: {
+    onCancel(){
+      this.$emit('input', false);
+    },
+  }
+}
+</script>
+<style lang="less" scoped>
+.adorn-corner{
+  width: 56px;
+  height: 36px;
+  background: url("../img/dialog-adorn-corner.png");
+  position: absolute;
+  z-index: 1;
+  &.left{
+    left: -1px;
+  }
+  &.right{
+    right: -1px;
+    bottom: 0;
+    transform: rotate(180deg);
+  }
+}
+.adorn-border{
+  height: 12px;
+  background: radial-gradient(circle, #4A92FF 0%, #1598AD 100%);
+}
+.dialog-body{
+  background-color: #010814;
+  border-left: 1px solid #1598ad;
+  border-right: 1px solid #1598ad;
+  clip-path: polygon(0% 36px, 56px 0%, 100% 0%, 100% calc(~'100% - 35px'), calc(~'100% - 55px') 100%, 0 100%);
+  .title{
+    line-height: 70px;
+    height: 70px;
+    background: radial-gradient(circle, rgba(158, 197, 255, 0.582) 0%, rgba(34, 47, 109, 0) 100%);
+    color: white;
+    text-align: center;
+    font-weight: bold;
+    font-size: 1.4em;
+    letter-spacing: 4px;
+  }
+  .close-btn{
+    position: absolute;
+    right: 0;
+    font-size: 26px;
+    padding: 0 10px;
+    line-height: 40px;
+    height: 40px;
+    color: #75a7de;
+    &:hover{
+      color: lighten(#75a7de, 10%);
+    }
+  }
+}
+.dilaog-box{
+  /deep/ .ant-modal-content{
+    background: unset;
+  }
+}
+</style>

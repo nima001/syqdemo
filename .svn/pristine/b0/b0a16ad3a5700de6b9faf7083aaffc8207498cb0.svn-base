@@ -1,0 +1,112 @@
+<template>
+  <div class="donut">
+    <div ref="container">
+    </div>
+  </div>
+</template>
+<script>
+import { Donut } from '@antv/g2plot';
+import { dataqualityList } from "@/person-shaoxing/api/monitor";
+import { showError } from "@/framework/utils/index";
+export default {
+  props: {
+    areatype: {
+      type: Number,
+      defalut: undefined
+    },
+    handlestatus: {
+      type: Number
+    },
+    title: {
+      type: String
+    }
+  },
+  name: 'Donut',
+  watch: {
+    areatype: {
+      handler() {
+        this.getData();
+      },
+      immediate: true
+    }
+  },
+  data() {
+    return {
+      donutPlot: null,
+      isCreated: false
+    }
+  },
+  created() {
+  },
+  mounted() {
+  },
+  methods: {
+    getData() {
+      let areatype = JSON.stringify({
+        areatype: this.areatype
+      });
+      let params = {
+        orgquery: areatype,
+        handlestatus: this.handlestatus,
+        querytype: 1
+      };
+      dataqualityList(params)
+      .then(({result}) => {
+        if(this.isCreated) {
+          this.donutPlot.destroy();
+          this.donutInit(result);
+        }else{
+          this.donutInit(result);
+          this.isCreated = true;
+        }
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    systype(key){
+      let d = this.$store.getters.dictKey("usermanage.org.systype", key);
+      return d && d.text;
+    },
+    donutInit(data) {
+      this.donutPlot = new Donut(this.$refs.container, {
+         forceFit: true,
+        title: {
+          visible: true,
+          text: `${this.title}问题总数分类情况`,
+          alignTo: 'middle'
+        },
+        legend: {
+          visible: true,
+          text: {
+            formatter: (v) => {
+              return this.systype(v);
+            },
+          },
+          position: 'bottom-center',
+          marker: {
+            symbol: 'square'
+          },
+        },
+        radius: 0.8,
+        padding: 'auto',
+        data,
+        angleField: 'value',
+        colorField: 'fieldname',
+        color: ['#D15456', '#5488D1', '#D1BF3D', '#D48265'],
+        statistic: {
+          visible: true,
+          // content: {
+          //   value: '32%',
+          //   name: 'Texi & delivery',
+          // },
+        },
+      });
+      this.donutPlot.render();
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+
+</style>

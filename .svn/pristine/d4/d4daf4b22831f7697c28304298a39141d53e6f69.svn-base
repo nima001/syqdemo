@@ -1,0 +1,62 @@
+<template>
+  <div class="form-group">
+    <!-- <a-form :form="form"> -->
+      <template v-for="item in formConfig">
+        <component 
+          ref="inputBox"
+          :is="`input-${item.type}`"
+          :property="item"
+        >
+        </component>
+      </template>
+    <!-- </a-form> -->
+  </div>
+</template>
+
+<script>
+import { Form } from 'ant-design-vue';
+import InputOrg from '@/person-shaoxing/views/assessment/compileAssist/components/InputOrg';
+import InputText from '@/person-shaoxing/views/assessment/compileAssist/components/InputText';
+import InputNumber from '@/person-shaoxing/views/assessment/compileAssist/components/InputNumber';
+import InputDict from '@/person-shaoxing/views/assessment/compileAssist/components/InputDict';
+import InputTable from '@/person-shaoxing/views/assessment/compileAssist/components/InputTable';
+export default {
+  props: {
+    formConfig: {
+      type: Array
+    }
+  },
+  components: { 
+    AForm: Form,
+    InputOrg,
+    InputText,
+    InputNumber,
+    InputDict,
+    InputTable
+  },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {},
+  beforeCreate() {
+    this.form = this.$form.createForm(this);
+  },
+  created() {},
+  mounted() {},
+  methods: {
+    validateFields(obj){
+      return Promise.all((this.$refs.inputBox || []).map(ele => {
+        console.log(ele.validateField(obj))
+        return ele.validateField(obj);
+      }))
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.form-group{
+  height: 100%;
+}
+</style>

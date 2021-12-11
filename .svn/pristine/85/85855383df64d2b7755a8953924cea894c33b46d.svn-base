@@ -1,0 +1,128 @@
+<template>
+  <div class="form">
+    <div class="top">
+      <div class="subject">
+        <div class="title title-font">主题:</div>
+        <div class="title-option">
+          <ul>
+            <li
+              v-for="(item, index) in options"
+              @click="choose(index, item)"
+              :class="item.choose ? 'active' : ''"
+            >
+              {{ item.name }}
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="content">
+      <selectcontent
+        @datelinesubmit="datelinesubmit"
+        @regionsubmit="regionsubmit"
+        @orglinesubmit="orglinesubmit"
+        @orgsubmit="orgsubmit"
+        @qlsxsearchCode="qlsxsearchCode"
+        :active="this.active"
+      />
+    </div>
+  </div>
+</template>
+
+<script>
+import {
+  Select,
+  Checkbox,
+  Button,
+  Icon,
+  Input,
+  DatePicker,
+  Table,
+  Pagination,
+  Radio,
+} from "ant-design-vue";
+import { qlsxdistrict, qlsxhistory, qlsxline } from "@/person-shaoxing/api/assessment";
+import { showError } from "../../../../framework/utils";
+import selectcontent from "./components/selectcontent.vue";
+export default {
+  props: {
+    selectedItems: {
+      //顶部下拉框选中项
+      type: Number,
+    },
+    options: {
+      //左侧选择项
+      type: Array,
+    },
+  },
+  components: {
+    ARadio: Radio,
+    ARadioGroup: Radio.Group,
+    selectcontent,
+  },
+  data() {
+    return {
+      active: 0,
+      results: [],
+    };
+  },
+  methods: {
+    choose(index, item) {
+      //左侧菜单项选择
+      if (index === 0) {
+        this.$emit("qlsxdiStrict", this.selectedItems);
+      }
+      this.options.forEach((item, Index) => {
+        item.choose = false;
+        if (index === Index) {
+          item.choose = true;
+        }
+      });
+      this.active = index;
+      this.$emit("changeActive", this.active);
+    },
+    regionsubmit(values) {
+      this.$emit("regionsubmit", values);
+    },
+    orglinesubmit(values) {
+      this.$emit("orglinesubmit", values);
+    },
+    datelinesubmit(values) {
+      this.$emit("datelinesubmit", values);
+    },
+    orgsubmit(values) {
+      this.$emit("orgsubmit", values);
+    },
+    qlsxsearchCode(values){
+      this.$emit("qlsxsearchCode", values);
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.form {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  .top {
+    .title-option {
+      ul {
+        margin-bottom: 0;
+        li {
+          margin-top: @padding-xs;
+          cursor: pointer;
+        }
+      }
+    }
+    .selectcontent {
+      margin-top: 24px;
+    }
+  }
+  .content {
+    flex: 1;
+  }
+  .active {
+    color: @primary-color;
+  }
+}
+</style>

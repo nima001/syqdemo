@@ -1,0 +1,67 @@
+<template>
+    <a-collapse :bordered="false" style="background-color: unset">
+        <a-collapse-panel key="1" header="画布">
+            <div class="canvas-size">
+                <div class="width">
+                <span>宽度</span>
+                <a-input-number 
+                    :min="300" 
+                    allowClear 
+                    v-model="chartData.settings.canvas.width" 
+                    :formatter="value => `${value}px`"
+                    :parser="value => value.replace(/p|x/g, '')"/>
+                </div>
+                <div class="height">
+                <span>高度</span>
+                <a-input-number 
+                    allowClear :min="200" 
+                    v-model="chartData.settings.canvas.height"
+                    :formatter="value => `${value}px`"
+                    :parser="value => value.replace(/p|x/g, '')"/>
+                </div>
+            </div>
+        </a-collapse-panel>
+    </a-collapse>
+</template>
+
+<script>
+import { Collapse, InputNumber } from 'ant-design-vue';
+export default {
+  props: {
+    value: {
+      type: Object,
+    },
+  },
+  components: {
+    ACollapse: Collapse,
+    ACollapsePanel: Collapse.Panel,
+    AInputNumber: InputNumber,
+  },
+  data() {
+    return {
+      chartData: this.value
+    };
+  },
+  watch: {
+    chartData: {
+      deep: true,
+      handler(val) {
+        this.$emit("input", val);
+      },
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.canvas-size {
+    padding: 12px 16px 12px 40px;
+    .width {
+        margin-bottom: 12px;
+    }
+    .width, .height {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+}
+</style>

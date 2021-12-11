@@ -1,0 +1,264 @@
+<template>
+  <a-layout class='LogAudit'>
+    <div class="panel">
+      <div class="toolbar">
+        <div class="right">
+          <a-input
+            class="search-item"
+            placeholder="请输入身份证号码"
+            allowClear
+            v-model="keyWord"
+          />         
+          <div class="selectBtn">
+            <a-button type="primary" @click="onSearch">查询</a-button>
+            <a-button class="resetBtn" @click="onReset">重置</a-button>
+          </div>
+        </div>
+      </div>
+      <div class="tablecontent">
+        <a-table
+          rowKey="id"
+          :loading="loading"
+          :columns="columns"
+          :dataSource="pagination.rows"
+          :pagination="false"
+        >
+          <template slot="operation" slot-scope="text, record">
+            <div class="editable-row-operations">
+              <span>
+                <a @click="syncagain(record)">重新同步</a> 
+              </span>
+            </div>
+          </template>
+        </a-table>
+      </div>
+      <div class="footer">
+        <a-pagination
+          v-if="pagination.rows && pagination.rows.length"
+          showSizeChanger
+          :showTotal="total => `总共：${total}条`"
+          @showSizeChange="onShowSizeChange"
+          :total="pagination.total"
+          :pageSize="pagination.pagesize"
+          v-model="pagination.pagenum"
+          @change="onPageChange"
+        >
+        </a-pagination>
+      </div>
+    </div>
+    
+  </a-layout>
+</template>
+
+<script>
+import { Row, Col, Button, Select, Input, Table, Pagination, Modal, Icon, Layout } from "ant-design-vue";
+import {getuserdialog, usersyncagain} from "@/person/api/userdialog";
+import { showError } from "@/framework/utils/index";
+export default {
+  components: {
+    ARow: Row,
+    ACol: Col,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AInput: Input,
+    ATable: Table,
+    APagination: Pagination,
+    AModal: Modal,
+    AIcon: Icon,
+    ALayout: Layout
+  },
+  data() {
+    return {
+      rows: null,
+      transfertype: undefined,
+      userid: undefined,
+      keyWord: null,
+      loading: false,
+      pagination: {
+        rows: null,
+        pagesize: 10,
+        pagenum: 1,
+        total: 0
+      },
+      columns: [
+        {
+          title: '姓名',
+          dataIndex: 'beforedata',
+          customRender: (text) => {
+            return JSON.parse(text).username
+          },
+          key: 1
+        },
+        {
+          title: '身份证号',
+          dataIndex: 'idcard',
+        },
+        {
+          title: '所在组织',
+          dataIndex: 'beforedata',
+          customRender: (text) => {
+            return JSON.parse(text).org.name
+          },
+          key: 2
+        },
+        {
+          title: '所在处室',
+          dataIndex: 'beforedata',
+          customRender: (text) => {
+            let obj = JSON.parse(text);
+            if(obj.dept)
+              return obj.dept.name
+          },
+          key: 3
+        },
+        {
+          title: '同步时间',
+          dataIndex: 'sendtime',
+          scopedSlots: { customRender: 'sendtime' },
+          key: 4
+        },
+        {
+          title: '是否成功',
+          dataIndex: 'success',
+          customRender: (text) => {
+            return text==0 ? '否' : '是'
+          },
+          key: 5
+        },
+        {
+          title: '失败原因',
+          dataIndex: 'errormessage',
+          scopedSlots: { customRender: 'errormessage' },
+          key: 6
+        },
+        {
+          title: '同步总次数',
+          dataIndex: 'totalcount',
+          customRender: (text) => {
+            return text==null ? 0 : text
+          },
+          key: 7
+        },
+        {
+          title: '失败总次数',
+          dataIndex: 'failcount',
+          customRender: (text) => {
+            return text==null ? 0 : text
+          },
+          key: 8
+        },
+        {
+          title: '同步类型',
+          dataIndex: 'transetype',
+          customRender: (text) => {
+            return text==1 ? '增加' : text==2 ? '修改' : '删除'
+          },
+          key: 9
+        },
+        {
+          title: '操作',
+          dataIndex: 'operation',
+          scopedSlots: { customRender: 'operation' },
+          key:10
+        },
+      ],
+    };
+  },
+  created() {
+    this.refresh();
+  },
+  methods: {
+    refresh(){
+      let { pagenum, pagesize } = this.pagination;
+      this.loadData(pagenum, pagesize);
+    },
+    loadData(pagenum, pagesize) {
+      let params = {
+        idcardList: this.keyWord,
+        needtotal: true,
+        pagenum,
+        pagesize
+      };
+      this.loading = true;
+      getuserdialog(params)
+        .then(resp =>{
+          this.loading = false;
+          this.pagination = resp.result;
+        })
+        .catch(err => {
+          this.loading = false;
+          showError(err);
+        })
+    },
+    onSearch() {
+      this.loadData(1, this.pagination.pagesize);
+    },
+    onReset(){
+      this.keyWord = null;
+      this.loadData(1, this.pagination.pagesize);
+    },
+    onPageChange(page, pagesize){
+      this.loadData(page, pagesize);
+    },
+    onShowSizeChange(current, pagesize) {
+      this.loadData(current, pagesize)
+    },
+    syncagain(record){
+      usersyncagain(record.userid, record.transetype).then(res => {
+       if(res.code == 'success'){
+        this.refresh(); 
+       }
+     })
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+//@import url(); 引入公共css类
+.LogAudit{
+  height: 100%;
+  padding: @layout-space-base;
+  .panel{
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  height: 100%;
+  width: 100%;
+  background-color: white;
+  padding-top: @layout-space-base;
+  border-radius: @border-radius-base;
+    .toolbar{
+      padding: @content-padding-v @content-padding-h;
+      width: 100%;
+      height: auto;
+      .right{
+        float: right;
+        display: flex;
+        .search-item{
+          width: 180px;
+          margin: 0 8px 0 0;
+        }
+        .selectBtn{
+          .resetBtn{
+            margin-left: 8px;
+          }
+          
+        }
+      }
+    }
+    .tablecontent{
+     padding: @content-padding-v @content-padding-h;
+    }
+    .footer{
+      padding: @content-padding-v @content-padding-h;
+      .ant-pagination{
+        float: right;
+        margin-bottom: 10px;
+      }
+    }
+  }
+}
+
+</style>

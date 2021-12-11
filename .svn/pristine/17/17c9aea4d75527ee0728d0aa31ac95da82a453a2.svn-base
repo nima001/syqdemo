@@ -1,0 +1,94 @@
+<template>
+  <div class="layout">
+    <div class="left">
+      <div class="content">
+        <panel-cmpt title="消息中心">
+          <template v-slot:operate>
+            <span @click="handleMessage= !handleMessage">
+              更多
+              <a-icon type="right" />
+            </span>
+          </template>
+          <template v-slot:content>
+            <new-msg v-model="handleMessage"></new-msg>
+          </template>
+        </panel-cmpt>
+        <panel-cmpt title="工作图表">
+          <template v-slot:content>
+            <work-table></work-table>
+          </template>
+        </panel-cmpt>
+      </div>
+    </div>
+    <div class="right">
+      <div class="content">
+        <panel-cmpt title="常用业务">
+          <template v-slot:operate>
+            <span @click="handleBusiness = !handleBusiness">
+              编辑
+              <a-icon type="edit" />
+            </span>
+          </template>
+          <template v-slot:content>
+            <star-menu v-model="handleBusiness"></star-menu>
+          </template>
+        </panel-cmpt>
+        <panel-cmpt title="事项办理">
+          <template v-slot:content>
+            <ServiceDeal></ServiceDeal>
+          </template>
+        </panel-cmpt>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { getLayout } from "@/framework/api/menu";
+import PanelCmpt from "./components/PanelCmpt";
+import NewMsg from "@/hall/widgets/NewMsg";
+import ServiceDeal from "@/hall/widgets/ServiceDeal";
+import WorkTable from "@/hall/widgets/WorkTable";
+import StarMenu from "@/hall/widgets/StarMenu";
+import { Icon } from "ant-design-vue";
+export default {
+  components: {
+    AIcon: Icon,
+    PanelCmpt,
+    NewMsg,
+    ServiceDeal,
+    WorkTable,
+    StarMenu
+  },
+  data() {
+    return {
+      handleMessage: false,
+      handleBusiness: false
+    };
+  },
+  created() {
+    getLayout()
+      .then()
+      .catch();
+  }
+};
+</script>
+<style lang='less' scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  padding:0px @layout-space-base *2 @layout-space-base *2;
+  min-width: 1400px;
+  overflow-y: auto;
+  .left {
+    width: 50%;
+    padding-right: @layout-space-base ;
+    float: left;
+  }
+  .right {
+    width: 50%;
+    float: left;
+    padding-left: @layout-space-base ;
+  }
+}
+</style>

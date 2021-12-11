@@ -1,0 +1,118 @@
+<template>
+  <div class="user-form-job-tabpanel">
+    <div class="toolbar" v-if="hasPermit('/person/org/user/edit')">
+      <template v-if="edit">
+        <a-button type="primary" @click="save">保存</a-button>
+        <a-button @click="edit=false" style="margin-left: 10px;">取消</a-button>
+      </template>
+      <a-button v-else type="primary" @click="edit=true">编辑</a-button>
+    </div>
+    <div class="body">
+      <form-display :formConfig="form" :formData="user" formLayout="horizontal" :editor="edit" ref="userForm"/>
+    </div>
+  </div>
+</template>
+<script>
+import { Button } from "ant-design-vue";
+import FormDisplay from "@formdesign/views/FormDisplay";
+import { updateUser } from "@/person/api/user";
+import { showError } from "@/framework/utils/index";
+
+export default {
+  props: {
+    user: {
+      type: Object,
+      default: () => ({}),
+    },
+  },
+  components: {
+    AButton: Button,
+    FormDisplay,
+  },
+  data(){
+    return {
+      edit: false,
+      form: undefined,
+    }
+  },
+  created(){
+    this.form = this.createForm();
+  },
+  methods: {
+     save(){
+      this.$refs.userForm.submit().then(data => {
+        updateUser(this.user._id, data).then(({result}) => {
+          this.edit = false;
+          if(result){
+            this.formData = Object.assign(this.user, result)
+            this.$message.info('保存成功')
+          }
+        }).catch(error => {
+          showError(error);
+        });
+      }).catch(error => {
+        if(Array.isArray(errors)){
+          let firstError = errors[0];
+          showError({message: firstError.message || firstError})
+        }else{
+          showError(errors);
+        }
+      })
+    },
+    createForm(){
+      return [
+        { type: 'titleBar', code: 'wage', name: '工资信息' },
+        {
+          type: 'colLayout',
+          children: [
+            { span: 8, components: [
+              { name: '岗位类型', code: 'job.jobtype', type: 'selectDict', dict: 'usermanage.user.jobtype', disabled: true }
+            ]}, 
+            { span: 8, components: [
+              { name: '工资级别', code: 'treatlevel', type: 'selectDict', dict: 'usermanage.user.treatlevel', disabled: true }
+            ]},
+            { span: 8, components: [
+              { name: '薪级', code: 'salarylevel', type: 'selectDict', dict: 'usermanage.user.salarylevel', disabled: true }
+            ]}, 
+            { span: 8, components: [
+              { name: '享受岗位津贴等级', code: 'jobsubsidieslevel', type: 'selectDict', dict: 'usermanage.user.treatlevel', disabled: true }
+            ]}, 
+            { span: 8, components: [
+              { name: '连续工龄起算时间（不含硕博研）', code: 'workyeartime', type: 'datePicker', disabled: true }
+            ]}, 
+            { span: 8, components: [
+              { name: '连续工龄起算时间（含硕博研）', code: 'workyeartimenot', type: 'datePicker', disabled: true }
+            ]}, 
+            { span: 8, components: [
+              { name: '是否教护', code: 'teachornurse', type: 'selectDict', dict: 'usermanage.user.teachernurse' }
+            ]}, 
+            { span: 8, components: [
+              { name: '教育类型', code: 'teachertype', type: 'selectDict', dict: 'usermanage.user.teachertype' }
+            ]}, 
+            { span: 8, components: [
+              { name: '工资执行时间', code: 'executiontime', type: 'datePicker', disabled: true }
+            ]},
+          ]
+        },
+      ]
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.user-form-job-tabpanel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  & > .toolbar{
+    padding: 0 @content-padding-h;
+    margin-top: 10px;
+  }
+
+  & > .body{
+    flex: auto;
+    min-height: 0;
+    margin: @content-padding-v 0;
+  }
+}
+</style>

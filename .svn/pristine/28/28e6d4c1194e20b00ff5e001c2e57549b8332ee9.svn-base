@@ -1,0 +1,548 @@
+<template>
+  <div class="functional">
+    <!--相关机构-->
+    <div class="functional-content">
+      <div class="content-header">
+        <div class="header-left">
+          <a-input style="width: 200px;margin-right:15px;" :value="orgValue" placeholder="请选择机构">
+            <a-icon slot="addonAfter" type="select" class="left-icon" @click="orgModelShow" />
+          </a-input>
+          <a-input placeholder="请输入关键字" style="width:400px;margin-right:15px;" />
+          <a-button type="primary" style="margin-right:15px;">搜索</a-button>
+          <a-button>重置</a-button>
+        </div>
+      </div>
+      <div class="content-main">
+        <div class="main-image">
+          <a-empty
+            image="https://gw.alipayobjects.com/mdn/miniapp_social/afts/img/A*pevERLJC9v0AAAAAAAAAAABjAQAAAQ/original"
+            :image-style="{
+      height: '60px',
+    }"
+          >
+            <span slot="description">请选择机构或进行关键字搜索</span>
+          </a-empty>
+        </div>
+        <div class="main-mechanism">
+          <h2 class="mechanism-h2">相关机构</h2>
+          <ul class="mechanism-ul" :class="{activeUi:!flag}">
+            <li
+              v-for="(item,index) in datasss"
+              :key="index"
+              class="mechanism-li"
+              :class="{'active':currentSort==index}"
+            >
+              <span>{{item.key}} {{item.name}}</span>
+              <span style="float:right;">
+                <span class="span-tag">&nbsp;{{item.mark}}&nbsp;</span>
+                <a-icon
+                  type="file-search"
+                  style="font-size:16px;cursor:pointer;"
+                  @click="active(index)"
+                />
+              </span>
+            </li>
+          </ul>
+          <div @click="changeArrow" class="toggleSort" v-if="datasss">
+            <span>{{flag?'折叠':'展开'}}</span>
+            <a-icon :type="flag?'up':'down'" />
+          </div>
+        </div>
+      </div>
+    </div>
+    <!--机构全部内容-->
+    <div class="functional-content details">
+      <!--机构详情-->
+      <div class="main-mechanism">
+        <h2 class="mechanism-h2">机构详情——XXXX</h2>
+        <div class="mechanism-div">
+          <div class="small-div"></div>
+          <div class="small-p">机构详情</div>
+        </div>
+        <div v-for="(item,index) in treeData" :key="index" class="details-tree">
+          <h4>{{item.title}}</h4>
+          <ul v-for="(i,inx) in item.children" :key="inx" class="tree-ul">
+            <li>
+              <span>
+                <a-icon type="caret-down" class="titlecolor" />
+                {{i.title}}
+              </span>
+              <ul v-for="(s,snx) in i.children" :key="snx" class="tree-ul-s">
+                <span class="tree-ul-span">
+                  <a-icon type="caret-down" />
+                  {{s.title}}
+                </span>
+                <li v-for="(a,anx) in s.children" :key="anx" class="tree-ul-a">
+                  <span class="tree-li-span">{{a.concat}}</span>
+                </li>
+                <div class="ul-a-button">
+                  <a-button>查看详情</a-button>
+                </div>
+              </ul>
+            </li>
+          </ul>
+          <!-- 子内容 -->
+          <div v-for="(item,index) in treeData2" :key="index">
+            <ul v-for="(i,inx) in item.children" :key="inx" class="tree-ul">
+              <li>
+                <span>
+                  <a-icon type="caret-down" class="titlecolor" />
+                  {{i.title}}
+                </span>
+                <ul v-for="(s,snx) in i.children" :key="snx" class="tree-ul-s">
+                  <li>
+                    <span>
+                      <a-icon type="caret-down" />
+                      {{s.title}}
+                    </span>
+                    <ul v-for="(a,anx) in s.children" :key="anx">
+                      <span style="margin-left:25px;">
+                        <a-icon type="caret-down" />
+                        {{a.title}}
+                      </span>
+                      <li v-for="(x,anx) in a.children" :key="anx" class="tree-ul-a">
+                        <span class="tree-li-span">{{x.concat}}</span>
+                      </li>
+                      <div class="ul-a-button">
+                        <a-button>查看详情</a-button>
+                      </div>
+                    </ul>
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      <!-- 权力清单 -->
+      <div class="list-power main-mechanism">
+        <div class="mechanism-div">
+          <div class="small-div"></div>
+          <div class="small-p">权力清单</div>
+        </div>
+        <div v-for="(item,index) in treeData" :key="index" class="details-tree">
+          <h4>{{item.title}}</h4>
+          <ul v-for="(i,inx) in item.children" :key="inx" class="tree-ul">
+            <li>
+              <span>
+                <a-icon type="caret-down" class="titlecolor" />
+                {{i.title}}
+              </span>
+              <ul v-for="(s,snx) in i.children" :key="snx" class="list-ul-a">
+                <span class="list-ul-span">
+                  <a-icon type="caret-down" />
+                  {{s.title}}
+                </span>
+                <div class="list-a-button">
+                  <a-button>查看详情</a-button>
+                </div>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+      <!-- 事业单位年报 -->
+      <div class="list-power main-mechanism">
+        <div class="mechanism-div">
+          <div class="small-div"></div>
+          <div class="small-p">事业单位年报</div>
+        </div>
+        <div v-for="(item,index) in treeData" :key="index" class="details-tree">
+          <h4>{{item.title}}</h4>
+          <!-- 子内容 -->
+          <ul v-for="(i,inx) in item.children" :key="inx" class="tree-ul">
+            <li>
+              <span>
+                <a-icon type="caret-down" class="titlecolor" />
+                {{i.title}}
+              </span>
+              <ul v-for="(s,snx) in i.children" :key="snx" class="tree-ul-s">
+                <span class="tree-ul-span">
+                  <a-icon type="caret-down" />
+                  {{s.title}}
+                </span>
+                <li v-for="(a,anx) in s.children" :key="anx" class="tree-ul-a">
+                  <span class="tree-li-span">{{a.concat}}</span>
+                </li>
+                <div class="ul-a-button">
+                  <a-button>查看详情</a-button>
+                </div>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <!--组织选择-->
+    <a-modal
+      title="单位名称选择"
+      v-model="orgVisible"
+      :width="800"
+      :bodyStyle="{height:'600px',padding:'0'}"
+      :footer="null"
+    >
+      <org-user-select
+        mode="org"
+        :max-select="100"
+        :root-selectable="true"
+        :selected="selected"
+        @finish="selectOrg"
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+const treeData = [
+  {
+    title: "市卫建委",
+    children: [
+      {
+        title: "三定",
+        children: [
+          {
+            title: "主要职责",
+            children: [
+              {
+                concat:
+                  "......协助推荐深化是全新一代数据可视化解相关机构相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机协助推荐深化是全新一代数据可视化解......协助推荐深化是全新一代数据可视化解",
+              },
+            ],
+          },
+          {
+            title: "职能转变",
+            children: [
+              {
+                concat:
+                  "......相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机协助推荐深化是全新一代数据可视化解",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        title: "变更",
+        children: [
+          {
+            title: "主要职责",
+            children: [
+              {
+                concat:
+                  "......相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机协助推荐深化是全新一代数据可视化解",
+              },
+            ],
+          },
+          {
+            title: "职能转变",
+            children: [
+              {
+                concat: "......数据可视化解",
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+];
+const treeData2 = [
+  {
+    children: [
+      {
+        title: "综合处",
+        children: [
+          {
+            title: "三定",
+            children: [
+              {
+                title: "主要职责",
+                children: [
+                  {
+                    concat:
+                      "......相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机协助推荐深化是全新一代数据可视化解",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      {
+        title: "中医院",
+        children: [
+          {
+            title: "变更",
+            children: [
+              {
+                title: "主要职责",
+                children: [
+                  {
+                    concat:
+                      "......相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机协助推荐深化是全新一代数据可视化解",
+                  },
+                ],
+              },
+              {
+                title: "职能转变",
+                children: [
+                  {
+                    concat:
+                      "......相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机相关机构相关机构相关机构相关机协助推荐深化是全新一代数据可视化解",
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+];
+import { Input, Icon, Button, Empty, Modal } from "ant-design-vue";
+import OrgUserSelect from "@/framework/components/OrgUserSelect";
+export default {
+  name: "",
+  components: {
+    AInput: Input,
+    AIcon: Icon,
+    AButton: Button,
+    AModal: Modal,
+    AEmpty: Empty,
+    OrgUserSelect,
+  },
+  watch: {
+    selected: {
+      handler(newValue, oldValue) {
+        for (let i = 0; i < newValue.length; i++) {
+          if (oldValue[i] != newValue[i]) {
+          }
+        }
+      },
+      deep: true,
+    },
+  },
+  data() {
+    return {
+      showLine: true,
+      showIcon: false,
+      treeData,
+      treeData2,
+      flag: true,
+      currentSort: 0,
+      datasss: [
+        {
+          key: 1,
+          name: "相关机构相关机构相关机构",
+          mark: "相关机构",
+        },
+        {
+          key: 2,
+          name: "相关机构相关机构相关机构相关机构",
+          mark: "单位",
+        },
+        {
+          key: 3,
+          name: "相关机构相关机构相关机构相关机构",
+          mark: "单位",
+        },
+        {
+          key: 4,
+          name: "相关机构相关机构相关机构相关机构",
+          mark: "单位",
+        },
+        {
+          key: 5,
+          name: "相关机构相关机构相关机构相关机构",
+          mark: "单位",
+        },
+      ],
+      orgValue: undefined,
+      orgVisible: false,
+      selected: [],
+    };
+  },
+
+  methods: {
+    //展开、收起筛选
+    changeArrow() {
+      this.flag = !this.flag;
+    },
+    active(index) {
+      this.currentSort = index;
+    },
+    changeicon() {
+      this.litype = 1;
+    },
+    orgModelShow() {
+      this.orgVisible = true;
+    },
+    onNameChange() {},
+    //确定选择的机构
+    selectOrg(type, list) {
+      let that = this;
+      that.orgVisible = false;
+      if (type == "ok") {
+        let orgarr = [];
+        list.forEach(function (item) {
+          orgarr.push({
+            orgid: item._id,
+            orgname: item.name,
+            name: item.name,
+          });
+        });
+        that.detail.orgs = orgarr;
+        that.selected = that.detail.orgs;
+      }
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.functional {
+  padding: 10px;
+  height: 100%;
+  .functional-content {
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    overflow: hidden;
+    background: @white;
+    height: auto;
+    .content-header {
+      display: flex;
+      flex-direction: column;
+      height: 70px;
+      box-shadow: 1px 1px 3px 1px #fdf2f2;
+      .header-left {
+        float: left;
+        margin: auto 10px;
+        .left-icon {
+          color: @primary-color;
+        }
+      }
+    }
+    .content-main {
+      height: 100%;
+      .main-image {
+        position: relative;
+        top: 35%;
+        display: none;
+      }
+      .main-mechanism {
+        margin: 10px;
+        .mechanism-h2 {
+          font-weight: 700;
+          color: #666666;
+        }
+        .mechanism-ul {
+          .mechanism-li {
+            padding: 0 10px;
+            border-bottom: 1px dashed #d9d9d9;
+            height: 45px;
+            span {
+              line-height: 45px;
+            }
+            .span-tag {
+              margin-right: 10px;
+              border: 1px solid #d9d9d9;
+              border-radius: 2px;
+            }
+          }
+          .active {
+            color: @primary-color;
+            .span-tag {
+              border: 1px solid @primary-color;
+            }
+          }
+        }
+        .activeUi {
+          height: 45px;
+          overflow: hidden;
+        }
+        .toggleSort {
+          margin: auto;
+          width: 60px;
+          cursor: pointer;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          span {
+            color: @primary-color;
+          }
+          i {
+            margin-left: 5px;
+            color: @primary-color;
+          }
+        }
+      }
+    }
+  }
+  .details {
+    margin-top: 10px;
+    .main-mechanism {
+      margin: 10px;
+      border-bottom: 1px solid #ededed;
+      .mechanism-h2 {
+        padding-bottom: 10px;
+        font-weight: 700;
+        color: #666666;
+        border-bottom: 1px solid #ededed;
+      }
+      .mechanism-div {
+        display: flex;
+        align-items: center;
+        .small-div {
+          width: 5px;
+          height: 20px;
+          background: @primary-color;
+        }
+        .small-p {
+          font-size: 20px;
+          margin-left: 5px;
+        }
+      }
+    }
+    .details-tree {
+      margin-top: 10px;
+      .tree-ul {
+        margin-top: 10px;
+        margin-left: 20px;
+        .titlecolor {
+          color: @primary-color;
+        }
+        .tree-ul-s {
+          width: 90%;
+          // display: flex;
+          margin: 10px 0px 15px 25px;
+          .tree-ul-a {
+            margin-left: 10px;
+            width: 80%;
+            display: inline-flex;
+            // display: flex;
+          }
+
+          .ul-a-button {
+            float: right;
+            // margin: auto;
+          }
+        }
+      }
+    }
+    .list-power {
+      margin-top: 0px;
+      .list-ul-a {
+        width: 90%;
+        display: flex;
+        margin: 10px 0px 10px 25px;
+        .list-a-button {
+          margin: auto;
+        }
+        .list-ul-span {
+          width: 90%;
+        }
+      }
+    }
+  }
+}
+</style>

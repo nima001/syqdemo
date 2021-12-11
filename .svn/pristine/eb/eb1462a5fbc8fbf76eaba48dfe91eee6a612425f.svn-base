@@ -1,0 +1,464 @@
+<template>
+  <CatalogSelect v-model="selectList"
+    :loadData="loadData"
+    :maxSelect="maxSelect"
+    :alwaysMulti="alwaysMulti"
+    :disabledKeys="disabledKeys"
+    @cancel="onFinish('cancel')"
+    @ok="onFinish('ok')"
+  >
+  </CatalogSelect>
+</template>
+<script>
+import CatalogSelect from '@framework/components/CatalogSelect'
+import { treeroot, listnode, treequery, organization, orgquery} from '@/person/api/org'
+import { userquery, deptuserquery } from '@/person/api/user'
+
+/**
+ * 组织、用户选择组件
+ */
+export default {
+  components: {
+    CatalogSelect,
+  },
+  props: {
+    mode: { //模式： orgtree(组织树)/org(组织)/dept(内设)/user(用户)(watch)
+      type: String,
+      default: 'orgtree'
+    },
+    selected: { //已选列表(watch sync)
+      type: Array,
+      default: () => [],
+    },
+    maxSelect: { //最大选择数，当设置为1时 会改成单选模式，可以设置alwaysMulti为true禁止该行为
+      type: Number,
+      default: 1,
+    },
+    alwaysMulti: { //是否始终为多选模式
+      type: Boolean,
+      default: false,
+    },
+    disabledKeys: { //禁选的id(watch)
+      type: Array,
+      default: () => [],
+    },
+    defaultTree: { //默认组织树
+      type: Number,
+      default: undefined,
+    },
+    defaultRoot: {//默认显示的顶级节点(watch)
+      type: String,//组织ID
+    },
+    rootSelectable: { //根级节点是否可选
+      type: Boolean,
+      default: false,
+    },
+    usePermit: { //是否按照用户权限来限制组织树节点
+      type: Boolean,
+      default: true,
+    },
+    showDept: { //显示内设机构（只在user模式下有效）
+      type: Boolean,
+      default: false
+    },
+    selectUserWithOrg: { //选择用户是否可按组织选择(选中组织，暂未实现)
+      type: Boolean,
+      default: false
+    },
+    orgFilter: {//单位过滤（目前只支持等于比较）
+      type: Object,
+    }, 
+    userFilter: {//用户过滤（user模式下有效，目前只支持等于比较）
+      type: Object,
+    }, 
+    orgApi: { // 组织接口
+      type: Object,
+      default: () => ({})
+    }
+  },
+  data(){
+    return {
+      defaultRootNodeId: undefined,
+      selectList: this.getSelelectd(),
+      loadData: this.createLoader(),
+    }
+  },
+  computed: {
+    unittypes(){
+      let str = this.$store.getters.getConfig('unittype.unit');
+      return str ? JSON.parse(str) : [1, 2, 3, 4, 5]
+    },
+    depttypes(){
+      let str = this.$store.getters.getConfig('unittype.dept');
+      return str ? JSON.parse(str) : [9]
+    }
+  },
+  watch: {
+    mode(){
+      this.loadData = this.createLoader();
+    },
+    selected(value){
+      this.selectList = this.getSelelectd();
+    },
+    defaultRoot(value){
+      this.loadData = this.createLoader();
+    }
+  },
+  methods: {
+    createLoader(){
+      return {
+        root: this.getRoot,
+        children: this.getChildren,
+        search: this.doSearch 
+      }
+    },
+    getSelelectd(){
+      if(this.selected){
+        if(this.mode == 'org' || this.mode == 'dept'){
+          return this.selected.map(item => {
+            return { id: item._id, name: item.name, data: item };
+          })
+        }else if(this.mode == 'user'){
+          return this.selected.map(item => {
+            return { id: item._id, name: item.username, data: item };
+          })
+        }else{
+          return this.selected.map(item => {
+            return { id: item.id, name: item.name };
+          })
+        }
+      }
+      return [];
+    },
+    onFinish(type){
+      // if(type == 'ok' && this.selectList.length == 0){
+      //   return;
+      // }
+      let list;
+      if(this.mode == 'orgtree' ){
+        list = this.selectList.map(item => ({id: item.id, name: item.name}));
+      }else{
+        list = this.selectList.map(item => item.data);
+      }
+      if(type == 'ok'){
+        this.$emit('update:selected', list);
+      }
+      this.$emit('finish', type, list);
+    },
+    getRoot(){
+      if(this.defaultRoot){//
+        return this.orgFn(treequery)({ 
+          allsub: true, 
+          pagesize: 1, 
+          dataid: this.defaultRoot 
+        }).then(({result}) => {
+          console.log(result)
+          let list = this.convertTreeNodeList(result.rows, true);
+          if(list.length > 0){
+            if(list.length > 1){
+              console.warn('指定defaultRoot的单位对应多个节点，暂只支持单个节点展示');
+            }
+            this.defaultRootNodeId = list[0].nodeid;
+          }
+          return { id: 0, name: '组织架构', children: list };
+        })
+      }else if(!this.usePermit){//根据权限加载根节点 
+        return this.orgFn(treeroot)(this.defaultTree).then(({result}) => {
+          return {
+            id: 0, 
+            name: '组织架构',
+            children: this.convertTreeNodeList(result.children, true)
+          };
+        });
+      }else{
+          return this.listTreeNode(0).then((children) => {
+          return { id: 0, name: '组织架构', children }
+        })
+      }
+    },
+    getChildren(node, pageNo){
+      if(this.mode == 'user' && node.type != 'dir'){
+        if(node.isdept){
+          if(pageNo > 0){//内设节点翻页 查内设用户
+            return this.queryDeptUser(node.id, pageNo+1)
+          }else{//内设节点第一页 查下级内设、内设用户
+            return Promise.all([
+              this.listDept(node.id),
+              this.queryDeptUser(node.id, pageNo+1)
+            ]).then(([dept, user]) => {
+              user.list = [...dept, ...user.list];
+              return user;
+            })
+          }
+        }else if(pageNo > 0){//单位节点翻页 查用户
+          return this.queryUser(null, node.id, pageNo+1);
+        }else if(this.showDept){//单位节点第一页 查内设、子节点、用户
+          return Promise.all([
+            this.listDept(node.id),
+            this.listTreeNode(node.nodeid),
+            this.queryUser(null, node.id, pageNo+1)
+          ]).then(([dept, children, user]) => {
+            user.list = [...dept, ...children, ...user.list];
+            return user;
+          })
+        }else{//单位节点第一页 查子节点、用户
+          return Promise.all([
+            this.listTreeNode(node.nodeid),
+            this.queryUser(null, node.id, pageNo+1)
+          ]).then(([children, user]) => {
+            user.list = [...children, ...user.list];
+            return user;
+          })
+        }
+      }else if(this.mode == 'dept' && node.type != 'dir'){
+        if(node.isdept || this.defaultRoot){//内设节点 查询下级内设（选择科室时指定了根节点只加载内设）
+          return this.listDept(node.id).then((list) => ({list}));
+        }else{//单位节点 查内设、子节点
+          return Promise.all([
+            this.listDept(node.id),
+            this.listTreeNode(node.nodeid)
+          ]).then(([depts, children]) => {
+            return {
+              list: [...depts, ...children]
+            }
+          })
+        }
+      }else{
+        return this.listTreeNode(node.nodeid).then(list => ({list}));
+      }
+    },
+    doSearch(searchkey, pageNo){//索引从0开始
+      if(this.mode == 'orgtree'){
+        return this.queryTreeNode(searchkey, pageNo + 1);
+      }else if(this.mode == 'org'){
+        return this.queryOrg(searchkey, pageNo + 1);
+      }else if(this.mode == 'user'){
+        return this.queryUser(searchkey, null, pageNo + 1);
+      }else{
+        //TODO 选择内设时搜索暂不处理
+        return Promise.resolve({list: []});
+      }
+    },
+    listTreeNode(pid){
+      return this.orgFn(listnode)(pid, this.defaultTree).then(({result}) => {
+        return this.convertTreeNodeList(result, pid == 0);
+      });
+    },
+    queryTreeNode(searchkey, pagenum){
+      let pid;
+      if(this.defaultRoot){
+        if(this.defaultRootNodeId){//查询指定节点下所有
+          pid = this.defaultRootNodeId;
+        }else{
+          return Promise.resolve({ list: [] })
+        }
+      }
+      return this.orgFn(treequery)({
+        treeid: this.defaultTree,
+        pid,
+        allsub: true,
+        searchkey,
+        pagesize: 50,
+        pagenum,
+        needtotal: pagenum == 1//查询第一页时查询总数，需要计算剩余条数
+      }).then(({result}) => {
+        let nextCount, 
+          list = this.convertTreeNodeList(result.rows);
+        if(pagenum == 1 && result.total > 0){
+          nextCount = Math.max(0, result.total - list.length);
+        }
+        return { list, nextCount};
+      })
+    },
+    queryOrg(searchkey, pagenum){
+      let nodeid, suporgid;
+      if(this.defaultRoot){
+        if(this.defaultRootNodeId){//查询指定节点下所有
+          nodeid = this.defaultRootNodeId;
+        }else{
+          // suporgid = this.defaultRoot;
+          return Promise.resolve({ list: [] })
+        }
+      }else if(this.usePermit){
+        nodeid = 0;
+      }
+      return this.orgFn(orgquery)({
+        treeid: this.defaultTree,
+        nodeid,
+        suporgid,
+        searchkey,
+        unittypes: this.unittypes,
+        properties: this.orgFilter,
+        pagesize: 50,
+        pagenum,
+        needtotal: pagenum == 1//查询第一页时查询总数，需要计算剩余条数
+      }).then(({result}) => {
+        let nextCount, 
+          list = (result.rows || []).map(item => {
+            return {
+              id: item._id,
+              type: 'org',
+              name: item.name,
+              selectable: this.mode == 'org',
+              data: item
+            }
+          });
+        if(pagenum == 1 && result.total > 0){
+          nextCount = Math.max(0, result.total - list.length);
+        }
+        return { list, nextCount};
+      });
+    },
+    queryUser(searchkey, orgid, pagenum){
+      let nodeid;
+      if(this.defaultRoot){
+        if(this.defaultRootNodeId){//查询指定节点下所有(节点不存在时按单位查询)
+          nodeid = this.defaultRootNodeId;
+        }else{
+          orgid = this.defaultRoot;
+        }
+      }else if(this.usePermit){
+        nodeid = 0;
+      }
+      return userquery({
+        treeid: this.defaultTree,
+        orgid, 
+        nodeid,
+        scope: 'ORG',
+        searchkey,
+        properties: this.userFilter,
+        pagesize: 50,
+        pagenum,
+        needtotal: pagenum == 1//查询第一页时查询总数，需要计算剩余条数
+      }).then(({result}) => {
+        let nextCount, 
+          list = (result.rows || []).map(item => {
+            return {
+              id: item._id,
+              type: 'user',
+              name: item.username,
+              selectable: this.mode == 'user',
+              hasChild: false,
+              data: item
+            }
+          });
+        if(pagenum == 1 && result.total > 0){
+          nextCount = Math.max(0, result.total - list.length);
+        }
+        return { list, nextCount};
+      });
+    },
+    queryDeptUser(deptid, pagenum){
+      return deptuserquery({
+        scope: 'ORG',
+        orgid: deptid,
+        properties: this.userFilter,
+        pagesize: 50,
+        pagenum,
+        needtotal: pagenum == 1//查询第一页是查询总数，需要计算剩余条数
+      }).then(({result}) => {
+        let nextCount, 
+          list = (result.rows || []).map(item => {
+            return {
+              id: item._id,
+              type: 'user',
+              name: item.username,
+              selectable: this.mode == 'user',
+              hasChild: false,
+              data: item
+            }
+          });
+        if(pagenum == 1 && result.total > 0){
+          nextCount = Math.max(0, result.total - list.length);
+        }
+        return { list, nextCount};
+      });
+    },
+    listDept(parentid){
+      return this.orgFn(orgquery)({
+        suporgid: parentid,
+        unittypes: this.depttypes,//查询内设等指定单位
+        pagesize: 50,//FIXME 内设科室暂定最多50条
+      }).then(({result}) => {
+        return (result.rows || []).map(item => {
+          return {
+            id: item._id,
+            isdept: true,
+            type: 'org',
+            name: item.name,
+            selectable: this.mode == 'dept',
+            data: item
+          }
+        })
+      })
+    },
+    convertTreeNodeList(list, isRoot){//转换treeNode数据
+      return (list || []).map(item => {
+        let node = {
+          id: item.id,
+          type: item.data ? 'org' : 'dir', 
+          name: item.name, 
+          selectable: false,
+          hasChild: undefined,
+          nodeid: item.id,//目录节点ID，统一不同模式下查询子节点时数据获取方式
+          data: item.data
+        }
+        if(this.mode != 'orgtree'){
+          if(item.data){
+            node.id = item.data._id;
+            node.name = item.data.name;
+          }
+        }
+        
+        if(!isRoot || this.rootSelectable){
+          if(this.mode == 'orgtree'){//模式为目录时都可以选
+            node.selectable = true;
+          }else if(this.mode == 'org'){
+            //选择组织时，根据orgFilter禁用节点
+            if(item.data && this.matchFilter(item.data, this.orgFilter)){
+              node.selectable = true;
+            }
+          }
+        }
+        //选择内设或选择用户是无法根据索引判断节点下是否有数据
+        if(this.mode == 'orgtree' || this.mode == 'org' || !item.data){
+          node.hasChild = item.rindex - item.lindex > 1;
+        }
+        return node;
+      })
+    },
+    matchFilter(data, filter){//手写过滤条件匹配
+      let matched = true;
+      for(let name in filter){
+        let v = filter[name];
+        if(v){
+          let _v = data[name];
+          if(Array.isArray(_v)){
+            if(Array.isArray(v)){//都是数组，值数组中有一个在条件数组中即可
+              return _v.some(item => {
+                return v.findIndex(e => e === item) >= 0;
+              })
+            }else{//值为数组时，只要有其中一项等于条件
+              matched = _v.findIndex(e => e === v) >= 0;
+            }
+          }else if(Array.isArray(v)){//in查询
+            matched = v.findIndex(e => e === _v) >= 0;
+          }else{
+            matched = v === _v;
+          }
+          if(!matched){
+            return matched;
+          }
+        }
+      }
+      return matched;
+    },
+    orgFn(fn){
+      return this.orgApi[fn.name] || fn;
+    }
+  }
+}
+</script>
+<style>
+
+</style>

@@ -1,0 +1,349 @@
+<template>
+  <a-modal
+    :visible="visible"
+    :title="title"
+    :width="800"
+    :bodyStyle="bodyStyle"
+    destroyOnClose
+    okText="确定"
+    cancelText="取消"
+    @ok="Create"
+    @cancel="Cancel"
+  >
+    <a-layout>
+      <a-layout-content class="layoutcontent">
+        <div class="contentbox">
+          <div class="topbox">
+            <a-form :form="form">
+              <div class="box">
+                <ul class="in-box">
+                  <li class="li-content">
+                    <div>
+                      <a-form-item label="字段名称">
+                        <a-input
+                          v-decorator="['name',{initialValue: record.name||'', rules: [{ required: true, message: '请输入字段名称' }, { 
+                pattern: /^[^\s]*$/,
+                message: '禁止输入空格',
+               },] },]"
+                          placeholder="请输入字段名称"
+                        />
+                      </a-form-item>
+                    </div>
+                  </li>
+                  <li class="li-content">
+                    <div>
+                      <a-form-item label="字段编码">
+                        <a-input
+                          v-if="codetype"
+                          v-decorator="['code',{initialValue: record.code||'', rules: [{ required: true, message: '请输入字段编码' }, { 
+                pattern: /^[^\s]*$/,
+                message: '禁止输入空格',
+               },] },]"
+                          placeholder="请输入字段编码"
+                        />
+                        <a-input
+                          v-else
+                          :read-only="true"
+                          v-decorator="['code',{initialValue: record.code||'', rules: [{ required: true, message: '请输入字段编码' }, { 
+                pattern: /^[^\s]*$/,
+                message: '禁止输入空格',
+               },] },]"
+                          placeholder="请输入字段编码"
+                        />
+                      </a-form-item>
+                    </div>
+                  </li>
+                </ul>
+                <ul class="in-box">
+                  <li class="li-content">
+                    <div>
+                      <a-form-item label="字段分类">
+                        <a-input
+                          v-decorator="['sort',{initialValue: record.sort||'', rules: [{ required: true, message: '请输入字段分类' }, { 
+                pattern: /^[^\s]*$/,
+                message: '禁止输入空格',
+               },] },]"
+                          placeholder="请输入字段分类"
+                        />
+                      </a-form-item>
+                    </div>
+                  </li>
+                  <li class="li-content">
+                    <div>
+                      <a-form-item label="统计对象">
+                        <a-select
+                          @change="typeChange"
+                          placeholder="请选择统计对象"
+                          v-decorator="['target',{initialValue: record.target||undefined, rules: [{ required: true, message: '请选择统计对象' }] },]"
+                        >
+                          <a-select-option
+                            v-for="(item,index) in targetlist"
+                            :key="index"
+                            :value="item.namespace"
+                          >{{item.name}}</a-select-option>
+                        </a-select>
+                      </a-form-item>
+                    </div>
+                  </li>
+                </ul>
+                <ul class="in-box">
+                  <li class="li-content">
+                    <div>
+                      <a-form-item label="字段排序">
+                        <a-input
+                          v-decorator="['index',{initialValue: record.index||'', rules: [{ required: checkNick,pattern: /^[1-9]\d*$/, message: '请输入数字' }] },]"
+                          placeholder="请输入字段排序"
+                        />
+                      </a-form-item>
+                    </div>
+                  </li>
+                  <li class="li-content">
+                    <div>
+                      <a-form-item label="输入类型">
+                        <a-select
+                          placeholder="请选择输入类型"
+                          v-decorator="['inputtype',{initialValue: record.inputtype||undefined, rules: [{ required: checkNick, message: '请选择输入类型' }] },]"
+                        >
+                          <a-select-option value="1">整数型</a-select-option>
+                          <a-select-option value="2">浮点型</a-select-option>
+                        </a-select>
+                      </a-form-item>
+                    </div>
+                  </li>
+                </ul>
+                <ul class="in-box">
+                  <li class="li-content">
+                    <div>
+                      <a-form-item label="统计规则">
+                        <a-select
+                          placeholder="请选择统计规则"
+                          v-decorator="['type',{initialValue: record.type||undefined, rules: [{ required: checkNick, message: 'Please input your name' }] },]"
+                        >
+                          <a-select-option value="0">自定义</a-select-option>
+                          <a-select-option value="1">计算公式</a-select-option>
+                        </a-select>
+                      </a-form-item>
+                    </div>
+                  </li>
+                  <li class="li-content">
+                    <div>
+                      <a-form-item label="启用">
+                        <a-switch
+                          checked-children="是"
+                          un-checked-children="否"
+                          v-model="records.enable"
+                          @change="changerecord"
+                        />
+                      </a-form-item>
+                    </div>
+                  </li>
+                </ul>
+                <ul
+                  class="in-box"
+                  style=" padding: 0 20px;"
+                  v-if="(['1'].includes(form.getFieldValue('type')))"
+                >
+                  <a-form-item label="计算公式">
+                    <a-textarea
+                      placeholder="请输入公式"
+                      :rows="4"
+                      @click="openbox"
+                      v-decorator="['expression',{initialValue: record.expression||'', rules: [{ required: true, message: '请输入公式' }] },]"
+                    />
+                  </a-form-item>
+                </ul>
+              </div>
+            </a-form>
+          </div>
+        </div>
+      </a-layout-content>
+      <equation-editor
+        v-if="expr.show"
+        @finish="finish"
+        v-model="datasets"
+        :fnData="expr.data"
+        namespace="statisticfield"
+        :foreach="expr.foreach"
+      ></equation-editor>
+    </a-layout>
+  </a-modal>
+</template>
+<script>
+import {
+  Layout,
+  Pagination,
+  Select,
+  Table,
+  Button,
+  Input,
+  Form,
+  Switch,
+  InputNumber,
+  Modal
+} from "ant-design-vue";
+import EquationEditor from "../../../../components/EquationEditor";
+import { newfield, editupd } from "@/person/api/field";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: "StatisticsChange",
+  props: ["visible", "targetlist", "codetype", "record"],
+  data() {
+    return {
+      records: {
+        enable: true
+      },
+      checkNick: false,
+      form: this.$form.createForm(this, { name: "dynamic_rule" }),
+      expr: {
+        show: false,
+        data: ""
+      },
+      bodyStyle: {
+        overflow: "auto",
+        height: "550px",
+        padding: "8px 24px"
+      },
+      title: ""
+    };
+  },
+  components: {
+    ALayout: Layout,
+    ALayoutContent: Layout.Content,
+    APagination: Pagination,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATable: Table,
+    AButton: Button,
+    AInput: Input,
+    AInputNumber: InputNumber,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ASwitch: Switch,
+    ATextarea: Input.TextArea,
+    AModal: Modal,
+    EquationEditor
+  },
+  mounted() {
+    this.title = this.codetype ? "新增字段" : "编辑字段";
+    this.datasets = this.record.datasets ? this.record.datasets : [];
+    this.records.enable = this.record.enable;
+  },
+  methods: {
+    changerecord(val) {
+      this.records.enable = val;
+    },
+    typeChange(value) {
+      this.typevalue = value;
+    },
+    Cancel() {
+      this.$emit("closeModal");
+    },
+    Create() {
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          let obj = {};
+          obj.code = values.code;
+          obj.enable = this.records.enable;
+          obj.expression = values.expression ? values.expression : "";
+          obj.name = values.name;
+          obj.index = values.index;
+          obj.id = this.record.id ? this.record.id : null;
+          obj.sort = values.sort;
+          obj.inputtype = values.inputtype;
+          obj.target = values.target;
+          obj.type = values.type;
+          obj.datasets = this.datasets;
+          if (this.codetype) {
+            newfield(obj)
+              .then(res => {
+                this.$notification.success({
+                  message: "提示",
+                  description: "新增成功!",
+                  duration: 3
+                });
+                this.$emit("getresh");
+                this.$emit("closeModal");
+              })
+              .catch(err => {
+                this.$emit("closeModal");
+                showError(err);
+              });
+          } else if (!this.codetype) {
+            editupd(obj)
+              .then(res => {
+                this.$notification.success({
+                  message: "提示",
+                  description: "编辑成功!",
+                  duration: 3
+                });
+                this.$emit("getresh");
+                this.$emit("closeModal");
+              })
+              .catch(err => {
+                this.$emit("closeModal");
+                showError(err);
+              });
+          }
+        }
+      });
+    },
+    openbox() {
+      this.expr.data = this.record.expression ? this.record.expression : "";
+      this.expr.show = true;
+    },
+    finish(type, expr) {
+      if (type == "ok") {
+        this.form.setFieldsValue({
+          expression: expr
+        });
+        this.expr.show = false;
+      } else {
+        this.expr.show = false;
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.layoutcontent {
+  .contentbox {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    width: 100%;
+    background-color: white;
+    padding-top: @layout-space-base;
+    .topbox {
+      padding: @content-padding-v @content-padding-h;
+      width: 100%;
+      height: auto;
+      .box {
+        width: 100%;
+        .in-box {
+          overflow: hidden;
+          // margin: 5px;
+          .li-content {
+            width: 50%;
+            float: left;
+            padding: 0 20px;
+          }
+          .name {
+            line-height: 32px;
+            padding-right: 5px;
+            // vertical-align: initial;
+          }
+          .ant-input-group.ant-input-group-compact {
+            display: inline-block;
+            vertical-align: super;
+          }
+          /deep/.ant-select-selection--multiple {
+            padding-bottom: 0px;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

@@ -1,0 +1,811 @@
+<template>
+  <div class="report-chart-panel">
+    <div class="settings-panel">
+      <div class="title">数据集</div>
+      <div class="data-set">
+        <a-input :value="chartData.query && chartData.query.title" :read-only="false">
+          <a slot="addonAfter" @click="showQueryModal = true">编辑</a>
+        </a-input>
+      </div>
+      <div class="title">
+        维度
+        <a-tooltip placement="right">
+          <a-icon type="question-circle"/>
+          <span slot="title">按什么统计</span>
+        </a-tooltip>
+      </div>
+      <ul class="dimension">
+        <li v-for="item in dimension" :key="item.key"
+          @click="onDimensionClick(item)"
+        >{{item.showname}}</li>
+      </ul>
+      <div class="title">
+        指标
+        <a-tooltip placement="right">
+          <a-icon type="question-circle"/>
+          <span slot="title">统计的数据</span>
+        </a-tooltip>
+      </div>
+      <ul class="measure">
+        <li v-for="item in measure" :key="item.key"
+           @click="onMeasureClick(item)"
+        >{{item.showname}}</li>
+      </ul>
+      <div class="title">图表类型</div>
+      <div class="graph">
+        <ul>
+          <li v-for="item in chartTypes" :key="item.type">
+            <div class="item">
+              <div :class="{
+                'chart-type': true,
+                'selected': item.type == chartType
+              }" @click="chartType=item.type"><a-icon :type="item.icon"/></div>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="content-panel">
+      <div class="header">
+        <div class="header-left">
+          <div class="axis">
+            <div class="title">横轴</div>
+            <draggable
+              v-model="chartData.groupby.with" 
+              tag="ul"
+              :animation="200"
+            >
+              <transition-group>
+              <li v-for="(item, index) in chartData.groupby.with" :key="generateId(item)">
+                {{item.showname}}{{dimensionType(item)}}
+                <a-dropdown :trigger="['click']" overlayClassName="chat-console-axis-menu">
+                  <span><a-icon type="caret-down"/></span>
+                  <a-menu slot="overlay" @click="onDimensionMenuClick($event, item, index)">
+                    <template v-if="isDateDimen(item)">
+                      <a-sub-menu>
+                        <span slot="title"
+                          :class="{selected: item.type == 'date' && dateFormatType(item) == 'year'}"
+                        ><span class="icon">●</span>按年</span>
+                        <a-menu-item v-for="f in dateformats.year" :key="'date:' + f" :class="{selected: item.dateformat == f}">
+                          <span class="icon">●</span>{{f + '（' + formatNow(f) +'）'}}
+                        </a-menu-item>
+                      </a-sub-menu>
+                      <a-sub-menu>
+                        <span slot="title"
+                          :class="{selected: item.type == 'date' && dateFormatType(item) == 'month'}"
+                        ><span class="icon">●</span>按月</span>
+                        <a-menu-item v-for="f in dateformats.month" :key="'date:' + f" :class="{selected: item.dateformat == f}">
+                          <span class="icon">●</span>{{f + '（' + formatNow(f) +'）'}}
+                        </a-menu-item>
+                      </a-sub-menu>
+                      <a-sub-menu>
+                        <span slot="title"
+                          :class="{selected: item.type == 'date' && dateFormatType(item) == 'day'}"
+                        ><span class="icon">●</span>按日</span>
+                        <a-menu-item v-for="f in dateformats.day" :key="'date:' + f" :class="{selected: item.dateformat == f}">
+                          <span class="icon">●</span>{{f + '（' + formatNow(f) +'）'}}
+                        </a-menu-item>
+                      </a-sub-menu>
+                      <a-menu-item key="section-date" :class="{selected: item.type == 'section'}">
+                        <span class="icon">●</span>按区间分组
+                      </a-menu-item>
+                      <a-menu-divider/>
+                    </template>
+                    <template v-else-if="isNumberDimen(item)">
+                      <a-menu-item key="section-number"><span class="icon">●</span>设置区间分组</a-menu-item>
+                      <a-menu-divider/>
+                    </template>
+                    <template v-else-if="item.field">
+                      <a-menu-item key="section-dict" :class="{selected: item.type == 'section'}">
+                        <span class="icon">●</span>分组
+                      </a-menu-item>
+                      <a-menu-item key="filters" :class="{selected: item.type == 'value' && item.filters && item.filters.length}">
+                        <span class="icon">●</span>筛选
+                      </a-menu-item>
+                      <a-menu-divider/>
+                    </template>
+                    <template v-else-if="item.type == 'field'">
+                      <a-menu-item key="section-field" :class="{selected: !!item.section}">
+                        <span class="icon">●</span>分组
+                      </a-menu-item>
+                      <a-menu-divider/>
+                    </template>
+                    <a-menu-item key="delete"><a-icon type="delete" />删除</a-menu-item>
+                  </a-menu>
+                </a-dropdown>
+              </li>
+              </transition-group>
+            </draggable>
+          </div>
+          <div class="axis">
+            <div class="title">纵轴</div>
+            <draggable
+              v-model="chartData.groupby.fields" 
+              tag="ul"
+              :animation="200"
+            >
+              <transition-group>
+              <li v-for="(item, index) in chartData.groupby.fields" :key="generateId(item)">
+                {{item.showname}}{{measureType(item)}}
+                <a-dropdown :trigger="['click']" overlayClassName="chat-console-axis-menu">
+                  <span><a-icon type="caret-down"/></span>
+                  <a-menu slot="overlay" @click="onMeasureMenuClick($event, item, index)">
+                    <template v-if="item.type != 'count'">
+                      <a-menu-item key="sum" :class="{selected: item.type=='sum'}"><span class="icon">●</span>求和</a-menu-item>
+                      <a-menu-item key="avg" :class="{selected: item.type=='avg'}"><span class="icon">●</span>求平均</a-menu-item>
+                      <a-menu-divider/>
+                    </template>
+                    <a-menu-item key="delete"><a-icon type="delete"/>删除</a-menu-item>
+                  </a-menu>
+                </a-dropdown>
+              </li>
+              </transition-group>
+            </draggable>
+          </div>
+        </div>
+        <div class="header-right">
+					<ul style="margin:0">
+						<li style="margin-top: 6px;"><a-button type="primary" @click="save">保存</a-button></li>
+						<li style="margin-top: 18px;"><a-button type="primary"  @click="aggregate">查询</a-button></li>
+					</ul>
+        </div>
+      </div>
+      <div class="body">
+        <component v-if="chartType" :is="chartType" :dataTable="dataTable" />
+        <div class="loading" v-if="loading">
+          <a-spin size="large" tip="正在查询"/>
+        </div>
+      </div>
+    </div>
+    <!-- 设置查询数据集合 -->
+    <a-modal v-model="showQueryModal" 
+      class="dataset-query-model" :footer="null" :destroyOnClose="true"
+      width="90%" :style="{minWidth:'1100px'}" :bodyStyle="{padding:'10px 0 0 0', height: '80vh'}">
+      <Query namespace="report.chart" 
+        :query="chartData.query" 
+        copySource="customquery" 
+        :submit="false" 
+        :context="context"
+        @save="onDataSetSelected"
+      />
+    </a-modal>
+    <!-- 常量过滤 -->
+    <a-modal :visible="!!dictFilter.target" title="字典筛选设置"
+      width="450px" :bodyStyle="{padding:'10px', height: '500px'}"
+      @cancel="dictFilter.target=undefined" @ok="onDictFilter">
+      <dict-tree :dict="dictFilter.key" v-model="dictFilter.selected"/>
+    </a-modal>
+    <!-- 常量分组 -->
+    <a-modal :visible="!!dictSection.target" title="分组设置" :destroyOnClose="true"
+      width="800px" :bodyStyle="{padding:'0', height: '600px'}" :footer="null"
+      @cancel="dictSection.target=undefined"
+    >
+      <dict-section 
+        v-model="dictSection.section" 
+        :dict="dictSection.dict" 
+        @cancel="dictSection.target=undefined"
+        @input="onDictSection"
+      />
+    </a-modal>
+    <!-- 数值区间设置 -->
+    <a-modal :visible="!!numberSection.target" title="区间分组设置" :destroyOnClose="true"
+      width="700px" :bodyStyle="{padding:'0', height: '600px'}" :footer="null"
+      @cancel="numberSection.target=undefined"
+    >
+      <number-section 
+        v-model="numberSection.section"
+        :is-date="numberSection.isDate"
+        @cancel="numberSection.target=undefined"
+        @input="onNumberSection"
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Modal, Input, Button, Icon, Dropdown, Menu, Tooltip, Spin} from 'ant-design-vue'
+import Query from '@person/views/integratedquery/query';
+import DictTree from './components/DictTree'
+import DictSection from './components/DictSection'
+import NumberSection from './components/NumberSection'
+import { chartCmpts } from "./components/chart";
+import draggable from "vuedraggable";
+import cloneDeep from 'lodash/cloneDeep';
+import { getChart, saveChart, aggregateQuery } from '@person/api/chart';
+import { showError, dateFormat, randomStr } from '@framework/utils';
+
+const TYPE_DICT = 2, TYPE_INPUT = 4, TYPE_INT = 1, TYPE_FLOAT = 2, TYPE_DATE = 3, TYPE_BOOL = 4;
+
+export default {
+	components:{
+		AModal: Modal,
+		AInput: Input,
+		AButton: Button,
+    AIcon: Icon,
+    ADropdown: Dropdown,
+    AMenu: Menu,
+    AMenuItem: Menu.Item,
+    ASubMenu: Menu.SubMenu,
+    AMenuDivider: Menu.Divider,
+    ATooltip: Tooltip,
+    ASpin: Spin,
+    draggable,
+    Query, DictTree, DictSection, NumberSection,
+    ...chartCmpts,
+  },
+  props: {
+    chart: {//统计图 Number 统计图ID Object 统计图对象
+      type: [Number, Object]
+    },
+    context: {//查询上下文
+      type: Array,
+      default: () => [],//[{name: 'orgid', desc: '单位'},...]
+    }
+  },
+	data(){
+		return {
+      showQueryModal: false,
+      loading: false,
+      chartData: {//统计配置
+        query: undefined, //数据源
+        groupby: {//分组表达式
+          with: [],
+          fields: [],
+        },
+        // settings: {//ui设置
+        //   chartType: 'pie-chart'
+        // }
+      },
+      dataTable: undefined,//统计结果数据表
+      dateformats: {
+        year: ['yyyy', 'yyyy年'],
+        month: ['yyyy-MM', 'yyyy/MM', 'yyyy年MM月'],
+        day: ['yyyy-MM-dd', 'yyyy/MM/dd', 'yyyy年MM月dd日']
+      },
+      chartTypes: [
+        { type: 'pie-chart', icon: 'pie-chart' },
+        { type: 'bar-chart', icon: 'bar-chart' },
+        { type: 'line-chart', icon: 'line-chart' },
+      ],
+      numberSection: {//区间分组设置
+        target: undefined,
+        isDate: false,//是否是时间区间
+        section: undefined//{items, other, otherName }
+      },
+      dictFilter: {//字典过滤设置
+        target: undefined,
+        key: undefined,
+        selected: [],
+      },
+      dictSection: {//字典分组设置
+        target: undefined,
+        dict: undefined,
+        section: undefined,//{items, other, otherName }
+      },
+		}
+  },
+  computed: {
+    dimension(){//根据数据源字段获取维度
+      if(this.chartData.query){
+        let arr = this.chartData.query.fields.filter(item => {
+          if(item.datatype == TYPE_DICT){//字典
+            return true;
+          }else if(item.datatype == TYPE_INPUT){//输入类型（排除字符串）
+            return [TYPE_INT, TYPE_FLOAT, TYPE_DATE, TYPE_BOOL].indexOf(item.inputtype) >= 0; 
+          }
+        });
+        return [{ showname: '指标名称' }, ...arr];
+      }
+    },
+    measure(){//根据数据源字段获取指标
+      if(this.chartData.query){
+        let arr = this.chartData.query.fields.filter(item => {
+          if(item.datatype == TYPE_INPUT){//输入类型
+            return [TYPE_INT, TYPE_FLOAT].indexOf(item.inputtype) >= 0; 
+          }
+        });
+        return [{ showname: '记录数' }, ...arr];
+      }
+    },
+    chartType: {
+      set(value){
+        if(!this.chartData.settings){
+          this.$set(this.chartData, 'settings', {chartType: value});  
+        }else{
+          this.$set(this.chartData.settings, 'chartType', value);
+        }
+      },
+      get(){
+        //TODO 判断类型是否正确
+        return this.chartData.settings && this.chartData.settings.chartType;
+      }
+    }
+  },
+  created(){
+		if(this.chart){
+			if(typeof(this.chart) == 'number'){
+        getChart(this.chart).then(({result}) => {
+          this.initData(result);
+          this.aggregate();
+        }).catch(error => {
+          showError(error);
+        })
+			}else{
+        this.initData(cloneDeep(this.chart));//拷贝 防止传入的对象被修改
+			}
+		}
+  },
+	methods: {
+    initData(chartData){
+      if(!chartData.groupby){
+        chartData.groupby = { with: [], fields: [] }
+      }
+      if(chartData.query){
+        if(!chartData.query.title){
+          chartData.query.title = '未命名';
+        }
+        let fields = chartData.query.fields;
+        chartData.groupby.with.forEach(element => {//为维度补上字段信息。方便获取
+          if(element.key){
+            element.field = fields.find(item => item.key == element.key);
+          }
+        });
+      }
+      // if(!chartData.settings){
+      //   chartData.settings = {};
+      // }
+      this.chartData = chartData;
+    },
+		onDataSetSelected(query){
+      this.chartData.query = query;
+      this.showQueryModal = false;
+    },
+    onDimensionClick(d){
+      let type, dateformat, field, withs = this.chartData.groupby.with;
+      if(!d.key){//key为空（指标名称）
+         if(withs.find(item => item.type == 'field')){
+          this.$message.error('指标名称已经添加，不能重复添加');
+          return;
+        }
+        type = 'field';
+      }else{
+        type = 'value';//字典按值统计
+        field = d;
+        if(d.datatype == TYPE_INPUT){
+          if(d.inputtype == TYPE_DATE){//时间默认按日统计
+            type = 'date'; //按值分组
+            dateformat = this.dateformats['day'][0];
+          }else if(d.inputtype == TYPE_INT || d.inputtype == TYPE_FLOAT){//数字按区间
+            type = 'section';
+          }
+        }
+      }
+      withs.push({
+				type,
+        key: d.key,
+        showname: d.showname,
+        dateformat,
+        field,
+			});
+    },
+    onMeasureClick(i){
+      let type, fields = this.chartData.groupby.fields;
+      if(!i.key){//key为空（记录数）
+        type = 'count';
+      }else if(!fields.find(item => item.key == i.key && item.type == 'sum')){
+        type = 'sum';
+      }else if(!fields.find(item => item.key == i.key && item.type == 'avg')){
+        type = 'avg';
+      }else{
+        type = 'sum';
+      }
+      fields.push({ type, key: i.key, showname: i.showname })
+		},
+		onDimensionMenuClick(menu, item, index){
+      if(menu.key == 'delete'){
+        this.chartData.groupby.with.splice(index, 1);
+      }else if(menu.key.startsWith('date:')){//时间
+        item.type = 'date',
+        item.dateformat = menu.key.substr(5);
+        item.section = null;//设为按时间清空区间数据
+      }else if(menu.key == 'filters'){//字典过滤/分组
+        if(item.field && item.field.datatype == TYPE_DICT){
+          this.dictFilter = { 
+            target: item,
+            key: item.field.datasource, 
+            selected: item.filters ? [...item.filters] : [],
+          }
+        }else{
+          //TODO 其它类型数据过滤
+        }
+      }else if(menu.key == 'section-number'){//数值区间
+        this.numberSection = {
+          target: item,
+          isDate: false,
+          section: item.section,
+        };
+      }else if(menu.key == 'section-date'){//时间区间
+        this.numberSection = {
+          target: item,
+          isDate: true,
+          section: item.section,
+        };
+      }else if(menu.key == 'section-dict'){//字典分组
+        this.dictSection = {
+          target: item,
+          dict: item.field.datasource, 
+          section: item.section,
+        }
+      }else if(menu.key == 'section-field'){//指标分组
+        let items = []
+        let dict = (this.chartData.groupby.fields || []).map((field, index) => {
+          if(field.sort){
+            let item = items.find(ele => ele.name == field.sort);
+            if(item){
+              item.values.push(index);
+            }else{
+              items.push({name: field.sort, values: [index]});
+            }
+          }
+          return { key: index, text: field.showname + this.measureType(field), value: index};
+        });
+        let section = item.section || {};
+        section.items = items;
+        this.dictSection = {
+          target: item,
+          dict, section,
+        }
+      }
+		},
+		onMeasureMenuClick(menu, item, index){
+      if(menu.key == 'delete'){
+        this.chartData.groupby.fields.splice(index, 1);
+      }else if(item.type != 'count'){
+        item.type = menu.key;
+      }
+    },
+    onDictFilter(){
+      let {selected, target} = this.dictFilter;
+      target.type = 'value';
+      target.filters = selected;
+      target.section = undefined;//删除区间
+      this.dictFilter.target = undefined;
+    },
+    onDictSection(section){
+      let target = this.dictSection.target;
+      if(target.type == 'field'){//字段区间分组
+        target.section = section;
+        if(section && section.items && section.items.length){
+          section.items.forEach(item => {
+            (item.values || []).forEach(index => {
+              this.chartData.groupby.fields[index].sort = item.name;
+            })
+          })
+          section.items = undefined;
+          target.section = section;
+        }else{
+          target.section = undefined;
+          (this.chartData.groupby.fields || []).forEach(item => {
+            item.sort = undefined;
+          })
+        }
+      }else{
+        if(section){
+          target.type = 'section';
+        }else{
+          target.type = 'value';
+        }
+        target.section = section;
+        target.filters = undefined;//删除过滤
+      }
+      this.dictSection.target = undefined;
+    },
+    onNumberSection(section){
+      let target = this.numberSection.target;
+      target.type = 'section',
+      target.section = section;
+      this.numberSection.target = undefined;
+    },
+    validate(){
+      if(!this.chartData.query){
+				this.$message.error('未设置数据集');
+				return;
+      }
+      let {'with': _with, fields} = this.chartData.groupby;
+      if(!_with.length){//TODO 验证提示优化
+        this.$message.error('未设置维度');
+        return;
+      }
+      if(!fields.length){
+        this.$message.error('未设置指标');
+        return;
+      }
+      let unSetSection = _with.find(item => item.type == 'section' && !item.section);
+      if(unSetSection){
+        this.$message.error(unSetSection.showname + '未设置区间');
+        return;
+      }
+      if(!this.chartType){
+        this.$message.error('请选择图表类型');
+        return;
+      }
+      return true;
+    },
+    save(){
+      if(!this.validate()){
+        return;
+      }
+      //TODO 输入一个标题
+      saveChart(this.chartData).then(({result}) => {
+        this.chartData.id = result;
+        this.$message.success('保存成功');
+        this.$emit('save', this.chartData);
+      }).catch(error => {
+        showError(error);
+      });
+    },
+    aggregate(){
+			 if(!this.validate()){
+        return;
+      }
+      this.loading = true;
+      aggregateQuery({
+        query: this.chartData.query,
+        groupby: this.chartData.groupby
+      }).then(({result}) => {
+        this.dataTable = result
+      }).catch((error) => {
+        showError(error);
+      }).finally(() => {
+        this.loading = false;
+      })
+    },
+    generateId(item){
+      if(!item.id){
+        item.id = randomStr(6);
+      }
+      return item.id;
+    },
+    isDateDimen(dimen){
+      if(dimen.field){
+        return dimen.field.datatype == TYPE_INPUT && dimen.field.inputtype == TYPE_DATE;
+      }
+    },
+    isNumberDimen(dimen){
+      let field = dimen.field;
+      if(field){
+        return field.datatype == TYPE_INPUT && (field.inputtype == TYPE_INT || field.inputtype == TYPE_FLOAT);
+      }
+    },
+    dimensionType(dimen){
+      switch(dimen.type){
+        case 'value': return '(值)';
+        case 'date':{
+          let type = this.dateFormatType(dimen);
+          if(type == 'year'){
+            return '(年)'
+          }else if(type == 'month'){
+            return '(月)'
+          }else if(type == 'day'){
+            return '(日)'
+          }
+        };
+        case 'section': {
+          if(this.isDateDimen(dimen) || this.isNumberDimen(dimen)){
+            return '(区间)'
+          }else{
+            return '(分组)'
+          }
+        };
+      }
+    },
+    measureType(m){
+      switch(m.type){
+        case 'sum': return '(求和)';
+        case 'avg': return '(求平均)';
+      }
+    },
+    dateFormatType(dateDimen){
+      let format = dateDimen.dateformat;
+      if(!format){
+        //empty
+      }else if(format.indexOf('d') >= 0){
+        return 'day';
+      }else if(format.indexOf('M') >= 0){
+        return 'month';
+      }else if(format.indexOf('y') >= 0){
+        return 'year';
+      }
+      return 'day';
+    },
+    formatNow(format){
+      return dateFormat(new Date(), format);
+    }
+	}
+}
+</script>
+<style lang="less" scoped>
+@settings-panel-width: 300px;
+@axis-height: 42px;
+
+.report-chart-panel{
+	height: 100%;
+	position: relative;
+	background-color: @white;
+	border-radius: @border-radius-base;
+	.settings-panel{
+		position: absolute;
+		width: @settings-panel-width;
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+		border-right: 1px dashed @border-color-base;
+		padding: 10px;
+		.title{
+      margin-top: 10px;
+      font-weight: bold;
+      line-height: 1.8em;
+		}
+		.dimension{
+			flex: 1 1 35%;
+			margin: 0;
+			overflow-y: auto;
+		}
+		.measure{
+			flex: 1 1 35%;
+			margin: 0;
+			overflow-y: auto;
+    }
+    .dimension li,.measure li{
+      line-height: 2em;
+      cursor: pointer;
+      text-indent: 5px;
+      &:hover{
+        background-color: @primary-1;
+      }
+    }
+		.graph{
+      flex: 1 1 30%;
+      ul{
+        margin: 0;
+        li{
+          float: left;
+          width: 20%;
+          height: 0;
+          padding-top: 20%;
+          position: relative;
+          & > .item{
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            padding: 6px;
+          }
+        }
+      }
+			.chart-type{
+        border-radius: @border-radius-base;
+				font-size: 30px;
+        text-align: center;
+        cursor: pointer;
+        &.selected{
+          background-color: @primary-1;
+        }
+        &:hover{
+          color: @primary-color;
+        }
+			}
+		}
+	}
+	.content-panel{
+		height: 100%;
+    margin-left: @settings-panel-width;
+    display: flex;
+    flex-direction: column;
+    & > .header{
+      flex: none;
+      display: flex;
+      padding: @content-padding-v @content-padding-h;
+      .header-left{
+        flex: auto;
+        overflow: hidden;
+        .axis{
+          height: @axis-height;
+          margin-top: 10px;
+          padding-left: 50px;
+          border-radius: @border-radius-base;
+          background: @background-color-base;
+          overflow: hidden;
+          & > .title{
+            position: absolute;
+            width: 50px;
+            margin-left: -50px;
+            padding: 0 @padding-xs;
+            line-height: @axis-height;
+            border-right: 1px dashed @border-color-base;
+            text-align: center;
+          }
+          & > ul{
+            width: 100%;
+						margin: 6px 0 0 0;
+            padding: 0 @padding-xs;
+            line-height: @axis-height - 12px;
+            white-space: nowrap;
+            overflow-x: auto;
+						li{
+              display: inline-block;
+							line-height: 1.8em;
+							margin-left: 6px;
+							padding: 0 4px 0 10px;
+							background: @primary-1;
+							border-radius: 10px 0 10px 0;
+							cursor: pointer;
+							&:hover{
+								background: @primary-2;
+							}
+						}
+          }
+        }
+      }
+      .header-right{
+				flex: none;
+				margin: 10px 0 0 10px;
+      }
+    }
+    & > .body{
+      flex: auto;
+      padding: @content-padding-v @content-padding-h;
+      position: relative;
+      .loading{
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        text-align: center;
+        .ant-spin{
+          position: absolute;
+          top: 30%;
+          left: 50%;
+          width: 100px;
+          margin-left: -50px;
+          padding: 12px 8px 8px 8px;
+          text-align: center;
+          background: fade(@background-color-base, 90%);
+          border-radius: @border-radius-base;
+        }
+      }
+    }
+	}
+}
+.chat-console-axis-menu{
+  .selected{
+    color: @primary-color;
+    & .icon{
+      visibility: visible;
+    }
+  }
+  .icon{
+    visibility: hidden;
+    display: inline-block;
+    width: 14px;
+    margin-right: 8px;
+    text-align: center;
+  }
+}
+
+</style>
+<style lang="less">
+.dataset-query-model{
+  .ant-modal-close-x{
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+  }
+}
+.chat-console-axis-menu{
+  .ant-dropdown-menu{
+    min-width: 180px;
+  }
+}
+</style>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="24" height="24" viewBox="0 0 24 24">
+  <defs>
+    <clipPath id="clip-path">
+      <rect id="矩形_2194" data-name="矩形 2194" width="24" height="24" transform="translate(1341 726)" fill="#fff" stroke="#707070" stroke-width="1"/>
+    </clipPath>
+  </defs>
+  <g id="蒙版组_92" data-name="蒙版组 92" transform="translate(-1341 -726)" clip-path="url(#clip-path)">
+    <g id="组_2444" data-name="组 2444" transform="translate(1345.5 728.5)">
+      <path id="路径_1209" data-name="路径 1209" d="M608.979,104.018H605.7a1.545,1.545,0,0,1-1.544-1.544V98.56Zm0,0" transform="translate(-594.884 -97.628)" fill="#c2cee8"/>
+      <path id="路径_1210" data-name="路径 1210" d="M291.84,287.8a.765.765,0,0,0,.768.789h6.914a.79.79,0,0,0,0-1.579h-6.914A.765.765,0,0,0,291.84,287.8Zm.768-3.342h4.4a.79.79,0,0,0,0-1.579h-4.4a.765.765,0,0,0-.768.789A.781.781,0,0,0,292.608,284.459Zm6.914,6.684h-6.914a.79.79,0,0,0,0,1.579h6.914a.79.79,0,0,0,0-1.579Zm0,0" transform="translate(-288.725 -278.114)" fill="#c2cee8"/>
+      <path id="路径_1211" data-name="路径 1211" d="M152.471,53.76H144.32a2.258,2.258,0,0,0-2.24,2.276V70.484a2.258,2.258,0,0,0,2.24,2.276H154.84a2.258,2.258,0,0,0,2.24-2.276V58.973Zm3.047,16.7a.65.65,0,0,1-.651.662H144.32a.65.65,0,0,1-.651-.662V56.009a.65.65,0,0,1,.651-.662h7.448l3.724,4.234V70.458Zm0,0" transform="translate(-142.08 -53.76)" fill="#c2cee8"/>
+    </g>
+  </g>
+</svg>

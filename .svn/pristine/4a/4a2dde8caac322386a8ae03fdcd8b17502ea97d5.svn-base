@@ -1,0 +1,567 @@
+<!-- 创建应用 -->
+<template>
+  <a-modal
+    title="创建应用"
+    :visible="creatvisible"
+    :confirm-loading="creatLoading"
+    @ok="creatOk"
+    @cancel="creatCancel"
+    width="900px"
+    okText="创建应用"
+  >
+    <a-layout class="dev-layout">
+      <div class="body">
+        <p>
+          了解应用接入，
+          <a @click="goAccessInfo">请点击这里</a>
+          <!-- <router-link to="/dev/index">请点击这里</router-link> -->
+        </p>
+        <a-form
+          class="app-form"
+          :form="form"
+          :labelCol="{span: 4}"
+          :wrapperCol="{span: 19, offset: 1}"
+          labelAlign="left"
+        >
+          <a-form-item label="应用全称">
+            <a-input
+              v-decorator="[
+              'name',
+              { rules: [{ required: true, message: '请输入应用全称' }] },
+            ]"
+            ></a-input>
+            <p class="tiptext">长度在2-20个字符</p>
+          </a-form-item>
+
+          <a-form-item label="应用图标:">
+            <div class="imageitem">
+              <!-- action="https://zhuji2.edcall.cn/call/sys/file/upload" -->
+              <a-upload
+                v-decorator="[
+                    'icon',
+                    {
+                      rules: [{ required: true, message: '请上传图标' }]}
+                    ]"
+                list-type="picture-card"
+                :file-list="fileList"
+                :before-upload="beforeUpload"
+                @preview="handlePreview"
+                @change="handleChange"
+              >
+                <div v-if="fileList.length < 1">
+                  <a-icon type="plus" />
+                </div>
+                <!-- <img v-if="imageUrl" :src="imageUrl" alt="avatar" />
+              <div v-else>
+                <a-icon :type="loading ? 'loading' : 'plus'" />
+                <div class="ant-upload-text">Upload</div>
+                </div>-->
+              </a-upload>
+              <div style="padding-top:20px;">
+                <a-upload
+                  :before-upload="beforeUpload"
+                  @preview="handlePreview"
+                  @change="handleChange"
+                  :showUploadList="false"
+                  class="spanupload"
+                >
+                  <a>选择本地文件></a>
+                </a-upload>
+
+                <br style="height: 10px" />
+                <a class="recommend">挑选推荐图标></a>
+              </div>
+            </div>
+            <a-modal :visible="previewVisible" :footer="null" @cancel="handleCancel">
+              <img alt="example" style="width: 100%" :src="previewImage" />
+            </a-modal>
+            <p class="tiptext">请上传系统图标高清图片</p>
+            <p class="tiptext">200*200像素，仅支持png、jpg格式，大小不超过300KB。</p>
+          </a-form-item>
+
+          <!-- <a-form-item label="应用简称">
+            <a-input
+              v-decorator="[
+              'shortname',
+              { rules: [{ required: true, message: '请输入应用简称' }] },
+            ]"
+            ></a-input>
+          </a-form-item>-->
+          <a-form-item label="应用简介">
+            <a-textarea
+              :rows="4"
+              v-decorator="[
+              'desc',
+              { rules: [{ required: true, message: '请输入应用简介' }] },
+            ]"
+            />
+          </a-form-item>
+
+          <a-form-item label="Host地址：">
+            <a-input v-decorator="[
+              'hostAddress',
+            ]"></a-input>
+          </a-form-item>
+          <a-form-item label="PC端应用地址：">
+            <a-input v-decorator="[
+              'pcAddress',
+            ]"></a-input>
+          </a-form-item>
+          <a-form-item label="移动端应用地址：">
+            <a-input v-decorator="[
+              'mobileAddress',
+            ]"></a-input>
+          </a-form-item>
+          <a-form-item label="接入单位">
+            <a-input
+              v-decorator="[
+              'unit',
+              { rules: [{ required: true, message: '请输入接入单位' }] },
+            ]"
+            ></a-input>
+          </a-form-item>
+
+          <!-- <a-form-item class="short" label="接入码">
+            <a-input
+              v-decorator="[
+              'accessCode',
+              {
+                rules: [
+                  { required: true, message: '请输入接入码' },
+                  { validator: handleAccessCode },
+                ],
+                validateTrigger: 'blur',
+              },
+            ]"
+            ></a-input>
+          </a-form-item>
+
+          <a-form-item class="short" label="接入秘钥">
+            <a-input
+              ref="accesskeyFoucs"
+              v-decorator="[
+              'accessKey',
+              { rules: [{ required: true, message: '请输入接入秘钥' }] },
+            ]"
+            >
+              <a-icon slot="suffix" type="plus" title="生成密钥" @click="randomKey" />
+            </a-input>
+          </a-form-item>-->
+
+          <a-form-item
+            class="short"
+            label="接入单位联系人"
+            :labelCol="{span: 8}"
+            :wrapperCol="{span: 14, offset: 2}"
+          >
+            <a-input
+              v-decorator="[
+              'unitContact',
+              { rules: [{ required: true, message: '请输入接入单位联系人' }] },
+            ]"
+            ></a-input>
+          </a-form-item>
+
+          <a-form-item
+            class="short"
+            label="联系方式"
+            :labelCol="{span: 6, offset: 1}"
+            :wrapperCol="{span: 16, offset: 1}"
+          >
+            <a-input
+              v-decorator="[
+              'unitPhone',
+              { rules: [{ required: true, message: '请输入正确的联系方式' }] },
+            ]"
+              @blur="validatePhoneBlur"
+            ></a-input>
+          </a-form-item>
+
+          <a-form-item label="开发公司">
+            <a-input
+              v-decorator="[
+              'devCompany',
+              { rules: [{ required: true, message: '请输入开发公司' }] },
+            ]"
+            ></a-input>
+          </a-form-item>
+
+          <a-form-item
+            class="short"
+            label="开发公司联系人"
+            :labelCol="{span: 8}"
+            :wrapperCol="{span: 14, offset: 2}"
+          >
+            <a-input
+              v-decorator="[
+              'devCompanyContact',
+              { rules: [{ required: true, message: '请输入开发联系人' }] },
+            ]"
+            ></a-input>
+          </a-form-item>
+
+          <a-form-item
+            class="short"
+            label="联系方式"
+            :labelCol="{span: 6, offset: 1}"
+            :wrapperCol="{span: 16, offset: 1}"
+          >
+            <a-input
+              v-decorator="[
+              'devCompanyPhone',
+              { rules: [{ required: true, message: '请输入正确的联系方式' }] },
+            ]"
+              @blur="validatePhoneBlur"
+            ></a-input>
+          </a-form-item>
+
+          <a-form-item
+            class="short"
+            label="运维联系人"
+            :labelCol="{span: 8}"
+            :wrapperCol="{span: 14, offset: 2}"
+          >
+            <a-input
+              v-decorator="[
+              'operationContact',
+              { rules: [{ required: true, message: '请输入运维联系人' }] },
+            ]"
+            ></a-input>
+          </a-form-item>
+
+          <a-form-item
+            class="short"
+            label="联系方式"
+            :labelCol="{span: 6, offset: 1}"
+            :wrapperCol="{span: 16, offset: 1}"
+          >
+            <a-input
+              v-decorator="[
+              'operationPhone',
+
+              { rules: [{ required: true, message: '请输入正确的联系方式' }] },
+            ]"
+              @blur="validatePhoneBlur"
+            ></a-input>
+          </a-form-item>
+          <!-- <a-form-item>
+            <a-button type="primary" @click="submit">创建应用</a-button>
+          </a-form-item>-->
+        </a-form>
+      </div>
+    </a-layout>
+  </a-modal>
+</template>
+
+<script>
+import {
+  Layout,
+  Form,
+  Button,
+  Input,
+  notification,
+  Upload,
+  Icon,
+  Modal
+} from "ant-design-vue";
+import { appadd, generate, appcodeIsExist } from "@/dev/api/app";
+import { showError } from "@/framework/utils/index";
+import { uploadV2 } from "@/framework/api/file";
+import { has } from "lodash";
+function getBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+}
+export default {
+  data() {
+    return {
+      boo: 0,
+      form: this.$form.createForm(this),
+      previewVisible: false,
+      previewImage: "",
+      fileList: [
+        // {
+        //   uid: "-1",
+        //   name: "xxx.png",
+        //   status: "done",
+        //   url:
+        //     "https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png",
+        //   // thumbUrl:
+        //   //   "https://zos.alipayobjects.com/rmsportal/jkjgkEfvpUPVyRjUImniVslZfWPnJuuZ.png"
+        // }
+      ],
+      //创建应用加载状态
+      creatLoading: false,
+      iconid: undefined,
+      //上传之前校验状态
+      uploadvalid: false
+    };
+  },
+  props: {
+    creatvisible: Boolean
+  },
+
+  components: {
+    ALayout: Layout,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AButton: Button,
+    AInput: Input,
+    ATextarea: Input.TextArea,
+    notification,
+    AUpload: Upload,
+    AIcon: Icon,
+    AModal: Modal
+  },
+
+  methods: {
+    // code规则
+    handleAccessCode(rule, value, callback) {
+      let reg = new RegExp("[\\u4E00-\\u9FFF]+", "g");
+      if (reg.test(value) == true) {
+        callback("不能包含中文字符，请重新输入");
+      } else if (value.length > 0) {
+        this.validExist(value, callback);
+      } else {
+        callback();
+      }
+    },
+    // 随机生成密钥
+    randomKey(e) {
+      this.$refs.accesskeyFoucs.focus();
+      generate()
+        .then(res => {
+          this.form.setFieldsValue({ accessKey: res.result });
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    // 判断接入码唯一性
+    validExist(e, callback) {
+      appcodeIsExist(this.$store.state.appinfo.appInfo.id, e)
+        .then(res => {
+          callback && callback();
+        })
+        .catch(err => {
+          showError(err);
+          let a = eval("(" + err.desc + ")");
+          const value = Object.values(a);
+          callback(value[0]);
+        });
+    },
+    handleCancel() {
+      this.previewVisible = false;
+    },
+    async handlePreview(file) {
+      if (!file.url && !file.preview) {
+        file.preview = await getBase64(file.originFileObj);
+      }
+      this.previewImage = file.url || file.preview;
+      this.previewVisible = true;
+    },
+    handleChange(info) {
+      if (this.uploadvalid) {
+        this.fileList = info.fileList.slice(-1);
+
+        if (this.fileList.length) {
+          uploadV2(info.file)
+            .then(res => {
+              if (res.data.result) {
+                // this.fileuri = "file://" + res.data.result["uploadid"] + `?filename=${res.data.result.name}`;
+                this.iconid = res.data.result.uploadid;
+              }
+              this.$notification.success({
+                message: "提示",
+                description: "文件上传成功!",
+                duration: 3
+              });
+            })
+            .catch(error => {
+              showError(error);
+            });
+        } else {
+          this.iconid = undefined;
+        }
+      }
+    },
+    //   提交表单
+    submit() {
+      // console.log();
+      // return
+      this.creatLoading = true;
+      if (this.iconid !== undefined) {
+        this.form.setFieldsValue({ icon: this.iconid });
+      }
+      if (this.boo == 0) {
+        this.form.validateFields((err, values) => {
+          if (!err) {
+            appadd(values)
+              .then(res => {
+                this.creatLoading = false;
+                this.iconid = undefined;
+                this.form.resetFields();
+                this.$store.commit("appInfo_change", res.result);
+                this.creatCancel();
+                this.$router.push({
+                  path: "/dev/manage/app"
+                });
+              })
+              .catch(err => {
+                this.creatLoading = false;
+                if (err.code == "form_valid_failed") {
+                  let a = eval("(" + err.desc + ")");
+                  const value = Object.values(a);
+                  const keys = Object.keys(a);
+                  const arr = [
+                    {
+                      message: value[0],
+                      field: keys[0]
+                    }
+                  ];
+                  this.form.setFields({
+                    [keys[0]]: { value: values[keys[0]], errors: arr }
+                  });
+                } else {
+                  showError(err);
+                }
+              });
+          }else{
+            this.creatLoading = false;
+          }
+        });
+      }
+    },
+    // 联系方式正则
+    validatePhoneBlur(e) {
+      const validatePhoneReg = /^1[34578]\d{9}$/;
+      const validatePhone = /^(\d{3,4}-)?\d{6,8}$/;
+      if (
+        !validatePhone.test(e.target.value) &&
+        !validatePhoneReg.test(e.target.value)
+      ) {
+        if (this.boo < 3) {
+          this.boo += 1;
+        }
+        const arr = [
+          {
+            message: "您输入的手机格式不正确!",
+            field: e.target.id
+          }
+        ];
+        this.form.setFields({
+          [e.target.id]: { value: e.target.value, errors: arr }
+        });
+      } else {
+        if (this.boo > 0) {
+          this.boo -= 1;
+        }
+      }
+    },
+    //创建应用
+    creatOk() {
+      this.submit();
+    },
+    //取消 关闭弹窗
+    creatCancel() {
+      // this.form.resetFields();
+      this.$emit("closeCreatModal");
+    },
+    //上传之前校验
+    beforeUpload(file) {
+      this.uploadvalid = true;
+      const isJpgOrPng =
+        file.type === "image/jpeg" || file.type === "image/png";
+      if (!isJpgOrPng) {
+        this.uploadvalid = false;
+        this.$message.error("只能上传图片!");
+      }
+      const isLt300K = file.size / 1024 < 300;
+      if (!isLt300K) {
+        this.uploadvalid = false;
+        this.$message.error("图片大小不能超过300KB!");
+      }
+      // return isJpgOrPng && isLt300K;
+      return false;
+    },
+    goAccessInfo() {
+      this.creatCancel();
+      this.$router.push({
+        path: "/dev/index"
+      });
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.dev-layout {
+  height: 100%;
+  width: 100%;
+  // padding: 10px;
+  .body {
+    width: 100%;
+    height: 100%;
+    padding: 8px 5%;
+    overflow-y: auto;
+    margin: 0 auto;
+    background: #fff;
+    > p {
+      margin-bottom: 10px;
+    }
+    .tiptext {
+      margin-bottom: 0px;
+      line-height: 20px;
+    }
+    .imageitem {
+      display: flex;
+      justify-content: flex-start;
+      height: 90px;
+      margin-top: 5px;
+      // margin-bottom: 15px;
+      .recommend {
+        position: relative;
+        top: -10px;
+      }
+    }
+  }
+  .ant-form {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    width: 90%;
+    margin: 0 auto;
+    .ant-form-item {
+      width: 100%;
+    }
+    .short {
+      width: 50%;
+    }
+  }
+  .ant-form-item {
+    margin-bottom: 0;
+  }
+  .ant-btn-primary {
+    margin-top: 15px;
+  }
+  /deep/.ant-upload.ant-upload-select-picture-card {
+    width: 80px !important;
+    height: 80px !important;
+  }
+  /deep/.ant-upload-list-picture-card .ant-upload-list-item {
+    width: 80px !important;
+    height: 80px !important;
+    margin: 0;
+    padding: 3px;
+  }
+  /deep/.ant-upload-list-picture-card .ant-upload-list-item-uploading-text {
+    font-size: 12px;
+  }
+  .ant-upload-picture-card-wrapper {
+    width: 20%;
+  }
+}
+</style>

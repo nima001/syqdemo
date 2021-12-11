@@ -1,0 +1,58 @@
+<template>
+  <div class="policy-server">
+    <a-row :gutter="20" class="title">
+      <a-col :span="24">
+        新增职责：{{data.duty}}
+      </a-col>
+    </a-row>
+    <a-row :gutter="20" class="title">
+      <a-col :span="24">
+        相关政府购买服务范围：
+      </a-col>
+    </a-row>
+    <a-row class="title" :gutter="20">
+      <a-col :span="24" v-html="scope">
+      </a-col>
+    </a-row>
+  </div>
+</template>
+
+<script>
+/*
+**新增职责和是否已纳入政府购买服务范围
+*/
+import { Input, Row, Col } from "ant-design-vue"
+export default {
+  props: {
+    data: Object,
+    str: String
+  },
+  components: { ATextarea: Input.TextArea, ARow: Row, ACol: Col },
+  data() {
+    return {
+      scope: undefined
+    };
+  },
+  watch: {},
+  computed: {
+  },
+  created() {
+    this.scope = this.data.scope ? this.data.scope.replace(/\n/g,'<br/>') : '';
+  },
+  mounted() {
+    let data = {
+      duty: `新增职责：${this.data.duty}`,
+      scope: `相关政府购买服务范围：${this.scope}`
+    }
+    this.$store.commit('setProcessedData', { key: this.str, data }); 
+  },
+  methods: {},
+};
+</script>
+<style lang="less" scoped>
+.policy-server{
+  .title{
+    padding: @content-padding-v 0;
+  }
+}
+</style>

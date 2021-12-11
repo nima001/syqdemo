@@ -1,0 +1,79 @@
+<template>
+  <a-tabs :animated="false" class="org-detail-info">
+    <a-tab-pane tab="账号信息" :key="1">
+      <account-detail :org="org" :nodeid="nodeid" :treeid="treeid" />
+    </a-tab-pane>
+    <a-tab-pane tab="机构信息" :key="2">
+      <organize-detail :org="org" />
+    </a-tab-pane>
+    <a-tab-pane tab="下属组织" :key="3">
+
+    </a-tab-pane>
+    <a-tab-pane tab="机构管理员" :key="4">
+
+    </a-tab-pane>
+    <a-tab-pane tab="变更记录" :key="5">
+
+    </a-tab-pane>
+  </a-tabs>
+</template>
+<script>
+import {Tabs} from 'ant-design-vue';
+import AccountDetail from "./AccountDetail";
+import OrganizeDetail from "./OrganizeDetail";
+
+export default {
+  props: ["org", "nodeid", "treeid"],
+  components: {
+    ATabs:Tabs,
+    ATabPane:Tabs.TabPane,
+    AccountDetail,
+    OrganizeDetail,
+  },
+  data(){
+    return { 
+      orgRecord: false,
+    }
+  },
+  computed: {
+    isUnit() {
+      return [1,2,3,5].indexOf(this.org.unittype) >= 0;
+    },
+  },
+};
+</script>
+<style lang="less">
+.org-detail-info {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: auto;
+  min-height: 0;
+  & > .ant-tabs-bar {
+    padding: 0 16px;
+    margin: 0;
+    border-bottom: 1px solid @primary-1;
+    background-image: linear-gradient(to right, #fcfcfc, @primary-1);
+    .ant-tabs-tab-active {
+      color: @primary-color;
+    }
+    .ant-tabs-tab:hover {
+      color: @primary-5;
+    }
+    .ant-tabs-ink-bar {
+      background-color: @primary-color;
+    }
+    .ant-tabs-nav .ant-tabs-tab {
+      padding: 8px 16px;
+    }
+  }
+  & > .ant-tabs-content {
+    flex: auto;
+    min-height: 0;
+    height: 100%;
+    & .ant-tabs-tabpane-active {
+      height: 100%;
+    }
+  }
+}
+</style>

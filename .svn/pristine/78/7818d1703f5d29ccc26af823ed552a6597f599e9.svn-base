@@ -1,0 +1,282 @@
+<template>
+  <div class="form-panel">
+    <div class="top">
+      <div class="left">
+        <div class="title">近五年预计退休人数预测</div>
+        <a-spin :spinning="loading" class="chart">
+          <area-chart :dataTable="chartData"></area-chart>
+        </a-spin>
+      </div>
+      <div class="center">
+        <div class="center_con">
+          <div class="tip">未及时办理退休</div>
+          <div class="num">
+            <span>{{errorNum}}</span>
+            <span>人</span>
+          </div>
+        </div>
+      </div>
+      <div class="right">
+        <div class="title">未按时退休人数</div>
+        <div class="bottom_table">
+          <a-table
+            :columns="columns"
+            :dataSource="dataSource"
+            :pagination="false"
+            >
+          </a-table>
+        </div>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="title">序列退休人员分布明细表</div>
+      <div class="bottom_table">
+        <a-table
+          :loading="loading"
+          :columns="columns"
+          :dataSource="dataSource"
+          :pagination="false"
+          >
+        </a-table>
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Table, Spin } from "ant-design-vue";
+import { components } from '@person/components/chart'
+import { orgRetireReport, orgRetireErrorReport } from '@/person-shaoxing/api/orgStaffReport'
+import { aggregateQuery } from '@/person/api/chart'
+import { getNowFormatDate } from "@/person-shaoxing/utils/index";
+import { showError } from '@framework/utils'
+
+/**
+ * 退休人数监测
+ */
+export default {
+  name: 'RetireReport',
+  components: {
+    ATable: Table,
+    ASpin: Spin,
+    ...components
+  },
+  props: {
+    district: {
+      type: String,
+    }
+  },
+  data(){
+    return {
+      loading: false,
+      errorNum: 0,
+      chartData: undefined,
+      columns: [
+        { title: 'Age', dataIndex: 'age', key: 'age', },
+        { title: 'Name', dataIndex: 'name', key: 'name', },
+      ],
+      dataSource: [
+        { key: '1', name: 'John Brown', age: 32, },
+        { key: '2', name: 'John Brown', age: 32, },
+        { key: '3', name: 'John Brown', age: 32, },
+        { key: '4', name: 'John Brown', age: 32, },
+        { key: '5', name: 'John Brown', age: 32, },
+        { key: '6', name: 'John Brown', age: 32, },
+        { key: '7', name: 'John Brown', age: 32, },
+      ]
+    }
+  },
+  computed: {},
+  watch: {
+    district(district) {
+      this.loadData(district);
+    }
+  },
+  created(){
+    this.loadData(this.district);
+  },
+  mounted() {},
+  methods: {
+    loadData(district) {
+      this.loading = true;
+      let params = this.getParams(district);
+      Promise.all([
+        orgRetireReport(district)
+          .then(({result}) => result).catch(err => Promise.resolve({})),
+        orgRetireErrorReport(district)
+          .then(({result}) => result).catch(err => Promise.resolve(0)),
+        aggregateQuery(params)
+          .then(({result}) => result).catch(err => Promise.resolve({}))
+      ])
+      .then(([chartData, errorNum, tabData]) => {
+        console.log(chartData, errorNum);
+        this.chartData = chartData;
+        this.errorNum = errorNum;
+        console.log(tabData);
+      })
+      .catch(err => { showError(err); })
+      .finally(() => { 
+        this.loading = false;
+      })
+    },
+    getParams(district) {
+      let year = new Date().getFullYear();
+      let day = getNowFormatDate();
+      let arr = day.split('-');
+      let nextDay = (year + 4) + '-' + arr[1] + '-' + arr[2];
+      let params = {
+        query:{
+          fields:[
+            {
+              key:"username",
+              showname:"姓名",
+            },
+            {
+              key:"_id@user.statistic.yjtxsj",
+              showname:"预计退休时间",
+            },
+            {
+              key:"org@organization.district",
+              showname:"所在部门-所在地区",
+            },
+            {
+              key:"org@organization.systype",
+              showname:"所在部门-系统类别",
+            }
+          ],
+          filter:{
+            criteria:[
+              {
+                field:{
+                  key:"org@organization.district",
+                  showname:"所在部门-所在地区",
+                },
+                op:"eq",
+                value: district
+              },
+              {
+                field:{
+                  key:"_id@user.statistic.yjtxsj",
+                  showname:"预计退休时间",
+                },
+                op:"gt",
+                value: day
+              },
+              {
+                field:{
+                  key:"_id@user.statistic.yjtxsj",
+                  showname:"预计退休时间",
+                },
+                op:"lt",
+                value: nextDay
+              }
+            ],
+            op:"and"
+          },
+          id:2950,
+          namespace:"report.chart",
+          needtotal:false,
+          nodeid:0,
+          owner:true,
+          pagenum:1,
+          pagesize:10,
+          pub:0,
+          simple:false,
+          target:{
+            catalogid:50,
+            id:2,
+            model:"user",
+            title:"人员"
+          },
+          title:"111"
+      },
+      groupby:{
+        fields:[
+          {
+            showname:"记录数",
+            type:"count",
+            id:"yqvsow"
+          }
+        ],
+        with:[
+            {
+              key:"org@organization.systype",
+              showname:"所在部门-系统类别",
+              type:"value",
+              id:"nxtjsm"
+            },
+            {
+              dateformat:"yyyy",
+              filters:[
+                year,
+                year + 4
+              ],
+              key:"_id@user.statistic.yjtxsj",
+              showname:"预计退休时间",
+              type:"date",
+              id:"ydekyz"
+            }
+          ]
+        }
+      };
+      return params;
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.form-panel{
+  .top{
+    display: flex;
+    padding-bottom: @padding-lg;
+    justify-content: space-between;
+    > div{
+      .title{
+        font-weight: bold;
+        line-height: 30px;
+        margin-bottom: 20px;
+      }
+    }
+    .left{
+      width: 550px;
+      .ant-spin-nested-loading{
+        height: 270px;
+      }
+    }
+    .center{
+      width: 176px;
+      .center_con{
+        margin-top: 51px;
+        height: 267px;
+        background-image: url('../../../assets/img/report_retire.png');
+        background-size: cover;
+        border-radius: 5px;
+        color: #fff;
+        .tip{
+          text-align: center;
+          font-size: 20px;
+          line-height: 72px;
+        }
+        .num{
+          text-indent: 2em;
+          span{
+            &:nth-child(1){
+              font-size: 40px;
+            }
+          }
+        }
+      }
+    }
+    .right{
+      width: 580px;
+    }
+  }
+  .bottom{
+    margin-top: @padding-lg;
+    .title{
+      font-weight: bold;
+      line-height: 30px;
+      margin-bottom: 10px;
+    }
+  }
+}
+</style>

@@ -1,0 +1,21 @@
+<template>
+  <div>
+    <Title title="预警信息列表"/>
+    <div style="height:390px"></div>
+  </div>
+</template>
+
+<script>
+import Title from './Title'
+
+
+export default {
+  components: {
+    Title
+  }
+}
+</script>
+
+<style>
+
+</style>

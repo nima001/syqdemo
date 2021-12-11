@@ -1,0 +1,291 @@
+<template>
+  <div>
+    <a-Modal :footer="null" :width="1000" title="对比" :bodyStyle="{height: '535px'}" :destroyOnClose="true" :visible="this.modalVisible" @cancel="cancel">
+      <a-spin :spinning="this.loading">
+        <div class="spin-body">
+          <div class="top">
+            <a-checkbox-group
+              v-model="value"
+              name="checkboxgroup"
+              :options="plainOptions"
+              @change="checkChange"
+            />
+            <a-button type="primary" ghost @click="exportExcel">
+              <a-icon type="export" :rotate="270" />导出
+            </a-button>
+          </div>
+          <div class="content">
+            <a-table
+              :pagination="false"
+              :scroll="{ y: 380 }"
+              v-if="this.tabledata.length"
+              :columns="this.columnsdata"
+              :defaultExpandAllRows="true"
+              :data-source="this.tabledata"
+            >
+              <span slot="check" slot-scope="text,record">
+                <a-icon type="check" v-if="text"/>
+              </span>
+            </a-table>
+            <EmptyData v-else/>
+            <a-pagination
+              showSizeChanger
+              :total="this.params.total"
+              :pageSize="params.pagesize"
+              :current="this.params.pagenum"
+              :showTotal="(total) => `总共：${total}条`"
+              v-if="this.tabledata.length && this.params.total"
+              @change="onChange"
+              @showSizeChange="onShowSizeChange"
+            />
+          </div>
+        </div>
+        <task-progress
+          :taskid="taskid"
+          defaultInfo="请稍候..."
+          @finish="onProgressFinish"
+        />
+      </a-spin>
+    </a-Modal>
+  </div>
+</template>
+
+<script>
+import { Modal, Table, Icon, Pagination, Spin, Checkbox, Button } from "ant-design-vue";
+import EmptyData from "@/framework/components/EmptyData";
+import TaskProgress from "@/framework/components/TaskProgress";
+import { cloneDeep, assign } from "lodash";
+import { showError } from "@/framework/utils";
+import { download } from "@/framework/api/file";
+import { comparedateline, exportexcel } from "@/person-shaoxing/api/assessment";
+export default {
+  props: {
+    columns: {
+      //表头数据，用于给多选框数据赋值
+      type: Array,
+    },
+    contrastdata: {
+      //接口参数
+      type: Object,
+    },
+    intervalType: {
+      //区间类型
+      type: Number,
+    },
+  },
+  components: {
+    EmptyData,
+    AIcon: Icon,
+    ASpin: Spin,
+    TaskProgress,
+    AModal: Modal,
+    ATable: Table,
+    AButton: Button,
+    APagination: Pagination,
+    ACheckboxGroup: Checkbox.Group,
+  },
+  data() {
+    return {
+      value: [],
+      tabledata: [],
+      currentVal: 3,
+      loading: false,
+      columnsdata: [],
+      plainOptions: [],
+      taskid: undefined,
+      modalVisible: false,
+      params: { pagesize: 10, pagenum: 1, total: 0, needtotal: true },
+    };
+  },
+  watch: {
+    columns:{
+      handler(val) {
+        this.handelCheck(val);
+        return val;
+      },
+      deep: true,
+    },
+    contrastdata: {
+      handler(val) {
+        this.params = { pagesize: 10, pagenum: 1, total: 0, needtotal: true };
+        assign(this.params,val);
+        this.compareDateline(this.params);
+      },
+      deep: true,
+    }, 
+    intervalType(val) {
+      this.currentVal = val;
+      return val;
+    },
+  },
+  mounted() {
+    if(this.columns.length) {
+      this.handelCheck(this.columns);
+    }
+  },
+  methods: {
+    //处理多选框数据
+    handelCheck(val) {
+      this.value = [];
+      this.plainOptions = [];
+      let newval = cloneDeep(val);
+      newval.splice(0,1);
+      newval.splice(newval.length-1,1);
+      newval.forEach((item)=>{
+        this.value.push(item.key);
+        this.plainOptions.push({label: item.title, value: item.key});
+      });
+    },
+    //多选框改变选项，修改参数，触发接口
+    checkChange(checkedValues) {
+      this.params.dates = checkedValues;
+      this.compareDateline(this.params);
+    },
+    //通过判断是否已有该时间属性，给表头数据赋值
+    loadingcolumns(val) {
+      let filterdata = this.columnsdata.filter((item)=> item.dataIndex===this.loadQuarter(val));
+      if(!filterdata.length) {
+        let date = this.loadQuarter(val);
+        this.columnsdata.push({ title: date, dataIndex: date, key: val, align: 'center', scopedSlots: { customRender: 'check' } });
+      }
+    },
+    loadQuarter(date) {
+      let result = undefined;
+      if (this.currentVal === 0) {
+        //年度
+        let year = date.split("-")[0];
+        result = `${year}年度`;
+      } else if(this.currentVal === 1) {
+        //半年
+        let year = date.split("-")[0];
+        let month = date.split("-")[1];
+        if(month<7) {
+          result = `${year}年上半年`;
+        }else{
+          result = `${year}年下半年`;
+        }
+      } else if (this.currentVal === 2) {
+        //季度
+        let month = date.split("-")[1];
+        if (month < 4) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第1季度`;
+        }
+        if (3 < month && month < 7) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第2季度`;
+        }
+        if (6 < month && month < 10) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第3季度`;
+        }
+        if (month > 9) {
+          result = `${date.split("-")[0].substr(-2, 2)}年第4季度`;
+        }
+      } else {
+        //月度
+        let month = date.split("-")[1];
+        result = `${date.split("-")[0].substr(-2, 2)}年${month}月`;
+      }
+      return result;
+    },
+    cancel() {
+      this.modalVisible = false;
+      this.tabledata = [];
+      this.columnsdata = [];
+    },
+    //翻页
+    onChange(pagenum, pagesize) {
+      assign(this.params, { pagesize, pagenum });
+      this.compareDateline(this.params);
+    },
+    //pagesize改变回调
+    onShowSizeChange(current, pagesize) {
+      assign(this.params, { pagesize, pagenum: 1 });
+      this.compareDateline(this.params);
+    },
+    exportExcel() {
+      let type = { type: 6 };
+      let data = this.params;
+      data.dateStep = this.intervalType;
+      exportexcel(data,type)
+        .then((res)=>{
+          if(res.result) {
+            this.taskid = res.result;
+          }
+        }).catch((err)=>{
+          showError(err);
+        });
+    },
+    onProgressFinish(res) {
+      if(res) {
+        download(res);
+      }
+    },
+    compareDateline(data) {
+      this.modalVisible = true;
+      this.loading = true;
+      comparedateline(data)
+        .then((res) => {
+          this.loading = false;
+          this.tabledata = [];
+          this.columnsdata = [{ title: "权力基本码", dataIndex: "quanlicode", key: "quanlicode" }, { title: "权力事项名称", dataIndex: "name", key: "name", ellipsis: true }];
+          if(res.result) {
+            res.result.rows.forEach((item) => {
+              let rows = { key: `${item.quanlicode}${item.name}`, name: item.name, quanlicode: item.quanlicode };
+              item.date.forEach((dateItem,dateIndex) => {
+                rows[`${this.loadQuarter(dateItem)}`] = true;
+                //处理表头数据
+                this.loadingcolumns(dateItem);
+              });
+              this.tabledata.push(rows);
+            });
+            delete res.result.rows;
+          }
+          assign(this.params, res.result);
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    }
+  },
+};
+</script>
+<style scoped lang="less">
+  .anticon-check {
+    color: @primary-color;
+  }
+  .ant-spin-nested-loading,/deep/.ant-spin-container,.spin-body {
+    height: 100%;
+    .content {
+      height: 99%;
+    }
+  }
+  /deep/.ant-checkbox-group {
+    margin-bottom: 10px;
+    & label span:last-child {
+      user-select: none;
+    }
+  }
+  .top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .content {
+    zoom: 1;
+    .ant-pagination{
+      float: right;
+      clear:both;
+      margin-top: 10px;
+    }
+  }
+  .content:after{
+    content: '';
+    display: block;
+    clear: both;
+    visibility: hidden ;
+  }
+  /deep/.ant-table-body {
+    overflow-y: auto !important;
+  }
+</style>

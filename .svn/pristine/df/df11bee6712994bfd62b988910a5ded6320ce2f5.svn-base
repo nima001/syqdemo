@@ -1,0 +1,309 @@
+<template>
+  <a-layout class="monitorstrategyinfo">
+    <a-spin :spinning="spinning" wrapperClassName="form-submit-spin" :delay="300">
+      <div class="monitorstrategy-form">
+        <div class="body">
+          <a-form class="form" 
+            :form="form"
+          >
+            <a-form-item label="策略名称:" 
+              :label-col="{ span: 5 }"
+              :wrapper-col="{ span: 10}"
+            >
+              <a-input 
+                v-decorator="['name',{initialValue: record.name||'', rules:[{required: true, message:'请输入策略名称'}]}]"
+                type="text"
+              />
+            </a-form-item>
+            <a-form-item label="校验对象:" 
+              :label-col="{ span: 5 }"
+              :wrapper-col="{ span: 5}"
+            >
+              <a-select
+                v-decorator="['checkobj',{initialValue: record.checkobj||'', rules:[{required:true,message:'请选择校验对象'}]}]"
+                placeholder="请选择校验对象"
+              >
+                <a-select-option
+                  v-for="(item,index) in checkobjectList"
+                  :key="index"
+                  :value="item.value"
+                >
+                  {{item.text}}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="数据类别:" 
+              :label-col="{ span: 5 }"
+              :wrapper-col="{ span: 5}"
+            >
+              <a-select
+                v-decorator="['datatype',{initialValue: record.datatype ||'', rules:[{required:true,message:'请选择数据类别'}]}]"
+                placeholder="请选择数据类别"
+              >
+                <a-select-option
+                  v-for="(item,index) in datatypeList"
+                  :key="index"
+                  :value="item.value"
+                >
+                  {{item.text}}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="策略类型:" 
+              :label-col="{ span: 5 }"
+              :wrapper-col="{ span: 5}"
+            >
+              <a-select
+                v-decorator="['strategytype',{initialValue: record.strategytype||'', rules:[{required:true,message:'请选择策略类型'}]}]"
+                placeholder="请选择策略类型"
+              >
+                <a-select-option
+                  v-for="(item,index) in strategytypeList"
+                  :key="index"
+                  :value="item.value"
+                >
+                  {{item.text}}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="策略规则"
+              :label-col="{ span: 5 }"
+              :wrapper-col="{ span: 10 }"
+            >
+              <a-input v-decorator="['filter',{initialValue: record.filter}]"/>
+            </a-form-item>
+            <a-form-item label="是否自动运行"
+              :label-col="{ span: 5 }"
+              :wrapper-col="{ span: 3 }"
+            >
+              <a-checkbox @change="onTaskAutoRunChange" :checked="taskAutoRun"></a-checkbox>
+              <a-input type="hidden" v-decorator="['autorun',{initialValue: record.autorun}]" />
+            </a-form-item>
+            <a-form-item label="触发时间"
+              :label-col="{ span: 5 }"
+              :wrapper-col="{ span: 3 }"
+              v-show="taskAutoRun"
+            >
+              <a-input v-decorator="['frequency',{initialValue: record.frequency}]"/>
+            </a-form-item>
+            <a-form-item label="运行状态:" 
+              :label-col="{ span: 5 }"
+              :wrapper-col="{ span: 5}"
+            >
+              <a-select
+                v-decorator="['runstatus',{initialValue: record.runstatus}]"
+                placeholder="请选择运行状态"
+              >
+                <a-select-option
+                  v-for="(item,index) in runstatusList"
+                  :key="index"
+                  :value="item.value"
+                >
+                  {{item.text}}
+                </a-select-option>
+              </a-select>
+            </a-form-item>
+            <a-form-item label="策略描述"
+              :label-col="{ span: 5 }"
+              :wrapper-col="{ span: 10 }"
+            >
+              <a-textarea :rows="5" v-decorator="['description',{initialValue: record.description}]"></a-textarea>
+            </a-form-item>
+            <a-form-item label="推送方式"
+              :label-col="{ span: 5 }"
+              :wrapper-col="{ span: 10 }"
+            >
+              <a-checkbox-group
+                name="noticetype"
+                v-model="checkedList"
+                :options="noticetypeList"
+                @change="onChange">
+              </a-checkbox-group>
+              <a-input type="hidden" v-decorator="['noticetype',{initialValue: record.noticetype}]" />
+            </a-form-item>
+          </a-form>
+        </div>
+        <div class="footer">
+          <a-button type="primary" @click="handleSubmit">提 交</a-button>
+        </div>
+      </div>
+    </a-spin>
+  </a-layout>
+</template>
+<script>
+import { Layout, Spin, Form, Row, Col, Button, Input, Select, Checkbox} from "ant-design-vue";
+import { getMonitorStrategy, addMonitorStrategy, updateMonitorStrategy} from "@/person-shaoxing/api/monitor";
+import { showError } from "@/framework/utils/index";
+export default {
+  components: {
+    ALayout: Layout,
+    ASpin: Spin,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AButton: Button,
+    AInput: Input,
+    ARow: Row,
+    ACol: Col,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ATextarea: Input.TextArea,
+    ACheckbox: Checkbox,
+    ACheckboxGroup: Checkbox.Group
+  },
+  data() {
+    let checkobjectList = [
+      {text:"机构",value:1},
+      {text:"人员",value:2}
+    ];
+    return {
+      spinning: false,
+      record: {
+        noticetype: "sysmsg"
+      },
+      checkobjectList: checkobjectList,
+      datatypeList: [],
+      strategytypeList: [],
+      runstatusList: [],
+      businesstypeList: [],
+      noticetypeList: [],
+      checkedList: []
+    };
+  },
+  beforeCreate() {
+    this.form = this.$form.createForm(this);
+  },
+  created(){
+    this.dictList();
+    let id = this.$route.query.id;
+    if(id){
+      this.getMonitorStrategy(id)
+      this.record.id = id;
+    }
+  },
+  computed:{
+    taskAutoRun: function() {
+      if(this.record && this.record.autorun === 1){
+        return true;
+      }else{
+        return false;
+      }
+    }
+  },
+  methods:{
+    dictList(){
+      this.datatypeList = this.$store.getters.dict("person.shaoxing.monitor.datatype");
+      this.strategytypeList = this.$store.getters.dict("person.shaoxing.monitor.strategytype");
+      this.runstatusList = this.$store.getters.dict("person.shaoxing.monitor.runstatus");
+      this.businesstypeList = this.$store.getters.dict("person.shaoxing.monitor.businesstype");
+      this.noticetypeList = this.$store.getters.dict("person.messagechannel")||[];
+      for(let [index, elem] of this.noticetypeList.entries()){
+        elem.label = elem.text; 
+      }
+    },
+    init(){
+      let noticetype = (this.record && this.record.noticetype);
+      if(noticetype){
+        this.checkedList =  noticetype.split(",");
+      }
+    },
+    getMonitorStrategy(id){
+      getMonitorStrategy(id)
+        .then(resp => {
+          this.record = resp.result;
+          this.init();
+        })
+        .catch(err => {
+          showError(err);
+        })
+    },
+    handleSubmit(){
+      this.form.validateFields((err, values) => {
+        if (!err) {
+          this.spinning = true;
+          if(this.record.id){
+            values.id = this.record.id;
+            updateMonitorStrategy(values)
+              .then(resp => {
+                this.spinning = false;
+                this.$notification.success({
+                  message: "提示",
+                  description: "修改成功!",
+                  duration: 3
+                });
+              })
+              .catch(err => {
+                this.spinning = false;
+                showError(err);
+              })
+          }else{
+            addMonitorStrategy(values)
+              .then(resp => {
+                this.spinning = false;
+                this.record.id = resp.result;
+                this.$notification.success({
+                  message: "提示",
+                  description: "添加成功!",
+                  duration: 3
+                });
+              })
+              .catch(err => {
+                this.spinning = false; 
+                showError(err); 
+              })
+          }
+        }
+      });
+    },
+    onTaskAutoRunChange(e){
+      if(this.record.autorun == undefined){
+        this.$set(this.record, "autorun", 0);
+      }
+      if(e.target.checked){
+        this.record.autorun = 1;
+      }else{
+        this.record.autorun = 0;
+      }
+    },
+    onChange(checkedValues){
+      this.record.noticetype = checkedValues.toString();
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.monitorstrategyinfo{
+  height: 100%;
+  padding: @layout-space-base;
+  .form-submit-spin{
+    height: 100%;
+    /deep/.ant-spin-container{
+      height: 100%;
+    }  
+  }
+  .monitorstrategy-form{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background-color: @white;
+    border-radius: @border-radius-base;
+    padding: 10px 0;
+    > .body{
+      flex-shrink: 10;
+      -webkit-flex-shrink: 10;
+      min-height: 0;
+      overflow: auto;
+      .form{
+        padding: 0 200px;
+      }
+    }
+    .footer{
+      padding: @padding-sm @padding-lg;
+      text-align: center;
+      margin-top: 10px;
+      button:first-child{
+        margin-right: 20px;
+      }
+    }
+  }
+}
+</style>

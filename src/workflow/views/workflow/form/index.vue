@@ -1,0 +1,1204 @@
+<template>
+  <a-spin tip="加载中..." :spinning="tjspin" size="large">
+    <a-layout id="components-layout-demo-top" class="layout spin-conten">
+      <a-layout-content ref="mainContent">
+        <div class="guidebar" ref="workflowform">
+          <div class="banber">
+            <div>{{$route.query.flowname}}</div>
+          </div>
+        </div>
+        <div class="content">
+          <div class="wrap">
+            <div class="top">表单1</div>
+            <div class="bottom">
+              <ul class="table" v-if="nodeFormVos">
+                <li v-for="(item,index) in nodeFormVos" :key="index" :id="item.id">
+                  <div @click="formChange(index)" :class="{active:item.active}">{{item.name}}</div>
+                  <div>
+                    <template v-if="item.pdfcfgid">
+                      <span>
+                        <a @click.prevent="getPdfFileId(item.pdfcfgid,1)">下载pdf</a>
+                      </span>
+                      <span @click="getPdfFileId(item.pdfcfgid,2)">预览pdf</span>
+                    </template>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <!-- 查看pdf -->
+          <a-modal
+            title="预览"
+            :visible="visible"
+            @cancel="visible=false"
+            :footer="null"
+            width="70%"
+            style="text-align:center;top:30px;"
+            :bodyStyle="{'padding':'0 10px 20px 10px'}"
+          >
+            <div class="showpdf_one" :style="{height:previewHeight+'px'}">
+              <a-spin tip="预览加载中..." :spinning="showPdfFlag">
+                <pdf v-for="i in numPages" :key="i" :page="i" :src="pdfurl" style="width:100%"></pdf>
+              </a-spin>
+            </div>
+          </a-modal>
+          <a-modal
+            title="预览"
+            :visible="visible_tc"
+            @cancel="visible_tc=false"
+            :footer="null"
+            width="70%"
+            style="text-align:center;top:30px;"
+            :bodyStyle="{'padding':'0 10px 20px 10px'}"
+          >
+            <a-spin tip="预览加载中..." :spinning="showPdfFlag">
+              <div class="showpdf">
+                <span v-if="index!==0" class="left" @click="go(prevIndex)">
+                  <a-icon type="left" />
+                </span>
+                <div class="pdfWrap" :style="{height:autoHeight+'px'}">
+                  <pdf v-for="i in numPages" :key="i" :page="i" :src="pdfurl" style="width:100%"></pdf>
+                </div>
+                <span v-if="index!==pdfArr.length - 1" class="right" @click="go(nextIndex)">
+                  <a-icon type="right" />
+                </span>
+              </div>
+            </a-spin>
+            <div style="text-align:center;margin:20px 0 40px" v-if="showBtn">
+              <a-button type="primary" @click="submitForm">确定</a-button>
+            </div>
+          </a-modal>
+          <template v-if="nodeFormVos">
+            <form-template
+              ref="formtemplate"
+              :formConfigs="currentForm"
+              :workFlowParams="workFlowParams"
+              :allowCommit="allowCommit"
+              :typecode="typecode"
+              :relateControls="relateControls"
+              @finish="finish"
+            ></form-template>
+          </template>
+        </div>
+      </a-layout-content>
+      <!--退回意见框-->
+      <a-modal
+        title="退回"
+        v-model="flowBackModel"
+        @cancel="flowBackCancel"
+        :footer="null"
+        style="top:250px"
+      >
+        <a-textarea
+          :read-only="reason"
+          placeholder="请输入退回意见"
+          :rows="4"
+          v-model="flowbackText"
+          @blur="check"
+        />
+        <div style="height:22px">
+          <a-checkbox 
+            style="margin-top:5px" 
+            v-if="backType == 2 || backType == 3" 
+            :disabled="backType == 2" 
+            :checked="rejectEndCheck ? 'checked' : undefined"
+            @change="rejectEndChange"
+          >直接结束流程</a-checkbox>
+          <span v-show="flag" style="margin:0;color:red;">退回意见不能为空！</span>
+        </div>
+        
+        <div class="flowbackbtn" v-if="!reason">
+          <a-button @click="flowBackCancel">取消</a-button>
+          <a-button type="primary" @click="flowBack">确定</a-button>
+        </div>
+      </a-modal>
+      <!-- 审批记录弹框 -->
+      <a-modal
+        title="审批记录"
+        v-model="flowChartModel"
+        :getContainer="() => this.$refs.workflowform"
+        :footer="null"
+        width="70%"
+        style="top:250px;"
+      >
+        <time-line :businessinstanceid="businessinstanceid"></time-line>
+      </a-modal>
+      <a-layout-footer
+        v-if="showFooter"
+        style="text-align: center;position:fixed;bottom:0;left:0;right:0;"
+      >
+        <div class="footer">
+          <a-button type="primary" @click="submit" v-if="allowCommit == 1">提交</a-button>
+           <a-button type="primary" @click="flowTempsave" v-if="allowTempsave == 1">暂存</a-button>
+          <a-button type="primary" @click="()=>{flowBackModel=true;reason=false;if(backType == 3) rejectEndCheck = undefined;}" v-if="allowBack == 1">退回</a-button>
+          <a-button type="danger" ghost @click="claimOk" v-if="status == 2 && claimStatus ==1">签收</a-button>
+          <a-button
+            type="danger"
+            ghost
+            @click="claimCancel"
+            v-if="status == 2 && claimStatus ==2"
+          >取消签收</a-button>
+        </div>
+      </a-layout-footer>
+      <ul class="nav">
+        <li @click="prevPage" v-if="showUpDownPageBtn">上一页</li>
+        <li @click="nextPage" v-if="showUpDownPageBtn">下一页</li>
+        <li @click="getApproveRecord" v-if="showRecordBtn">审批记录</li>
+        <li v-if="reason" @click="getBackReasons">退回意见</li>
+        <li @click="backTop">返回顶部</li>
+      </ul>
+    </a-layout>
+  </a-spin>
+</template>
+
+<script>
+import TimeLine from "./components/TimeLine";
+import FormTemplate from "./FormTemplate";
+import pdf from "vue-pdf-sign";
+import {
+  claim,
+  unclaim,
+  back,
+  formcfg,
+  formdata,
+  unionFields,
+  assignment,
+  getPdfId,
+  getBackReason,
+  getQueryFormInfo,
+  complete,
+  completeAsync,
+  flowtempsave,
+  tempsaveAsync
+} from "@/workflow/api/workflow";
+import { showError } from "@/framework/utils/index";
+import { uiConfigsCookies } from "@/framework/utils/auth";
+import { loopTaskResult } from "@/framework/api/asynctask";
+import { Layout, Button, Modal, Input, Spin, Icon ,Checkbox} from "ant-design-vue";
+export default {
+  name: "workFlowForm",
+  data() {
+    return {
+      uiConfigs: uiConfigsCookies(),
+      status: null,
+      allowCommit: null,
+      allowTempsave: null,
+      allowBack: null,
+      backType: null,
+      rejectEndCheck: false,
+      claimStatus: null,
+      workFlowParams: {
+        modelInstanceId: null,
+        businessInstanceId: null,
+        taskId: null,
+        resourceId: null
+      },
+      nodeFormVos: null,
+      currentForm: null,
+      formFieldsUnion: null,
+      flowBackModel: false,
+      flowbackText: "",
+      idx: 0,
+      pdfParams: {
+        businessData: null,
+        businessinstanceid: null,
+        signcfgids: [],
+        modelinstanceid: null
+      },
+      pdfurl: "",
+      downurl: "",
+      visible: false,
+      visible_tc: false,
+      pdfFileId: null,
+      numPages: undefined,
+      flag: false,
+      reason: false,
+      requireObj: null,
+      showPdfFlag: false,
+      typecode: null,
+      pageconfig:{"alignment": "top","async": false},
+      emptyName: "",
+      showBtn: false,
+      pdfArr: [],
+      index: 0,
+      relateControls: [],
+      tjspin: false,
+      screenHeight: window.innerHeight,
+      previewHeight: 0,
+      autoHeight: 0,
+      scrollTop: 0,
+      flowChartModel: false,
+      businessinstanceid: this.$route.query.businessinstanceid,
+      showUpDownPageBtn: false,
+      showRecordBtn: false,
+    };
+  },
+  components: {
+    ALayout: Layout,
+    ALayoutHeader: Layout.Header,
+    ALayoutContent: Layout.Content,
+    ALayoutFooter: Layout.Footer,
+    AButton: Button,
+    AModal: Modal,
+    AInput: Input,
+    ACheckbox: Checkbox,
+    ATextarea: Input.TextArea,
+    ASpin: Spin,
+    AIcon: Icon,
+    FormTemplate,
+    TimeLine,
+    pdf
+  },
+  created() {
+    this.tjspin=true;
+    const query = this.$route.query;
+    if (query.businessinstanceid) {
+      this.getBackReasons();
+    }
+    if (query.formId) {
+      this.workFlowParams.formId = query.formId;
+      this.workFlowParams.businessInstanceId = query.businessInstanceId;
+      getQueryFormInfo(this.workFlowParams)
+        .then(res => {
+          this.formcfgHandle(res.result);
+          this.formdataHandle(res.result.taskData);
+          this.checkAll(res.result.nodeFormVos);
+        })
+        .catch(err => {
+          showError(err);
+          this.tjspin=false;
+        });
+    } else {
+      this.workFlowParams.modelInstanceId = query.modelinstanceid
+        ? query.modelinstanceid
+        : "";
+      this.workFlowParams.businessInstanceId = query.businessinstanceid
+        ? query.businessinstanceid
+        : "";
+      this.workFlowParams.taskId = query.taskid ? query.taskid : "";
+      this.workFlowParams.orgId = query.orgId ? query.orgId : "";
+      this.workFlowParams.userId = query.userId ? query.userId : "";
+      this.workFlowParams.businessid = query.businessid ? query.businessid : "";
+      this.workFlowParams.edittype = query.edittype ? query.edittype : "";
+      if(query.custombusinesskey){
+        this.workFlowParams.custombusinesskey = query.custombusinesskey;
+      }
+      formcfg(this.workFlowParams)
+        .then(res => {
+          if (res.code == "success") {
+            this.testData = res.result;
+            this.formcfgHandle(res.result);
+            this.formdataHandle(res.result.taskData);
+            this.checkAll(res.result.nodeFormVos);
+          }
+        })
+        .catch(err => {
+          showError(err);
+          this.tjspin=false;
+        });
+    }
+    if(this.workFlowParams.businessInstanceId){
+      this.showRecordBtn = true;
+    }
+  },
+  mounted() {
+    this.previewHeight = window.innerHeight * 0.73;
+    this.autoHeight = window.innerHeight * 0.65;
+    const that = this;
+    window.onresize = () => {
+      return (() => {
+        this.screenHeight = window.innerHeight;
+      })();
+    };
+  },
+  watch: {
+    screenHeight(val) {
+      this.screenHeight = val;
+      this.previewHeight = val * 0.73;
+      this.autoHeight = val * 0.65;
+    }
+  },
+  computed: {
+    //上一页
+    prevIndex() {
+      if (this.index == 0) {
+        return this.pdfArr.length - 1;
+      } else {
+        return this.index - 1;
+      }
+    },
+    //下一页
+    nextIndex() {
+      if (this.index == this.pdfArr.length - 1) {
+        return 0;
+      } else {
+        return this.index + 1;
+      }
+    },
+    showFooter() {
+      let flag = true;
+      if (this.visible || this.visible_tc) {
+        flag = false;
+        return flag;
+      }
+      if (
+        this.allowCommit == 0 &&
+        this.allowBack == 0 &&
+        this.allowTempsave == 0
+      ) {
+        if (this.claimStatus == 4 || this.claimStatus == 5) {
+          flag = false;
+        }
+      }
+      return flag;
+    }
+  },
+  methods: {
+    formcfgHandle(result) {
+      this.workFlowParams.resourceId = result.resourceid;
+      this.typecode = result.formatcfgs;//需要离焦触发填充事件的字段配置
+      if(result.pageconfig){
+        let pageconfig = JSON.parse(result.pageconfig);
+        this.pageconfig = {...(this.pageconfig),...pageconfig};
+      }
+      if (result.nodeFormVos.length > 0) {
+        if(result.nodeFormVos.length > 1){
+          this.showUpDownPageBtn = true;
+        }
+        this.status = result.status;
+        this.allowCommit = result.allowCommit;
+        this.allowTempsave = result.allowTempsave;
+        this.claimStatus = result.claimStatus;
+        this.allowBack = result.allowBack;
+        this.backType = result.backType;
+        this.backType = 2;
+        if(this.backType == 2){
+          this.rejectEndCheck = true;
+        }
+        this.nodeFormVos = result.nodeFormVos;
+        this.pdfArr = [];
+        this.nodeFormVos.forEach(item => {
+          if (item.pdfcfgid) {
+            this.pdfArr.push(item.pdfcfgid);
+          }
+        });
+        this.currentForm = this.nodeFormVos[0];
+        let obj = this.nodeFormVos[0];
+        obj.active = true;
+        this.$set(this.nodeFormVos, 0, obj);
+        this.tjspin=false;
+      }
+    },
+    formdataHandle(result) {
+      if (result) {
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: result
+        });
+      } else {
+        this.$store.commit({
+          type: "SET_FORM_DATA",
+          data: {}
+        });
+      }
+    },
+    checkAll(result) {
+      var arr = [];
+      this.relateControls = [];
+      if (result) {
+        this.requireObj = {};
+        result.forEach(item => {
+          let configs = JSON.parse(item.configs);
+          let temp = [];
+          configs.forEach(a => {
+            a.columns.forEach(b => {
+              if(b.list.length){
+                b.list.forEach(c=>{
+                  temp.push(c.component)
+                })
+              }else{
+                temp.push(b.component);
+              }
+              
+            });
+          });
+          arr.push({ formName: item.name, item: temp });
+        });
+        arr.forEach(a => {
+          a.item.forEach(b => {
+            if (b) {
+              if (
+                b.componenttype == "wagecheckform" ||
+                b.componenttype == "transferletter" ||
+                b.componenttype == "unitletter" ||
+                b.componenttype == "peopleletter" ||
+                b.componenttype == "attachmentgroup"
+              ) {
+                b.childs.forEach(c => {
+                  if (c.require) {
+                    this.requireObj[c.code] = {
+                      name: "《" + a.formName + "》表中的" + c.name,
+                      code: null
+                    };
+                    if (
+                      c.signcomponent &&
+                      c.signcomponent.signcode &&
+                      c.signcomponent.require
+                    ) {
+                      this.requireObj[c.signcomponent.code] = {
+                        name:
+                          "《" + a.formName + "》表中的" + c.signcomponent.name,
+                        code: null
+                      };
+                    }
+                  }
+                });
+              } else {
+                if (b.require) {
+                  this.requireObj[b.code] = {
+                    name: "《" + a.formName + "》表中的" + b.name,
+                    code: null
+                  };
+                }
+                if (
+                  b.signcomponent &&
+                  b.signcomponent.signcode &&
+                  b.signcomponent.require
+                ) {
+                  this.requireObj[b.signcomponent.code] = {
+                    name: "《" + a.formName + "》表中的" + b.signcomponent.name,
+                    code: null
+                  };
+                }
+              }
+              //获取数字框、日期框、自定义审批意见等关联控件
+              if (b.componenttype == "numberbox") {
+                if (b.defaultType == 3 && b.relateControl.code) {
+                  this.relateControls.push({
+                    code: b.code,
+                    relate:
+                      b.relateControl.code[b.relateControl.code.length - 1],
+                    type: b.relateControl.type,
+                    num: b.relateControl.num
+                  });
+                }
+              } else if (b.componenttype == "datebox") {
+                if (b.defaultType == 4 && b.relateControl.code) {
+                  this.relateControls.push({
+                    code: b.code,
+                    relate:
+                      b.relateControl.code[b.relateControl.code.length - 1],
+                    type: b.relateControl.type,
+                    num: b.relateControl.num,
+                    date: b.relateControl.date
+                  });
+                }
+              } else if (b.componenttype == "approvalopinionstwo") {
+                if (b.childs) {
+                  b.childs.forEach(k => {
+                    if (
+                      k.componenttype == "datebox" &&
+                      k.defaultType == 4 &&
+                      k.relateControl
+                    ) {
+                      this.relateControls.push({
+                        code: k.code,
+                        pcode: b.code,
+                        relate:
+                          k.relateControl.code[k.relateControl.code.length - 1],
+                        type: k.relateControl.type,
+                        num: k.relateControl.num,
+                        date: k.relateControl.date
+                      });
+                    } else if (
+                      k.componenttype == "numberbox" &&
+                      k.defaultType == 3 &&
+                      k.relateControl.code
+                    ) {
+                      this.relateControls.push({
+                        code: k.code,
+                        pcode: b.code,
+                        relate:
+                          k.relateControl.code[k.relateControl.code.length - 1],
+                        type: k.relateControl.type,
+                        num: k.relateControl.num
+                      });
+                    } else {
+                      if (k.defaultType == 3 && k.relateControlCode) {
+                        this.relateControls.push({
+                          code: k.code,
+                          pcode: b.code,
+                          relate:
+                            k.relateControlCode[k.relateControlCode.length - 1]
+                        });
+                      }
+                    }
+                  });
+                }
+                //时间框
+                if (
+                  b.datecomponent.defaultType == 4 &&
+                  b.datecomponent.relateControl.code
+                ) {
+                  this.relateControls.push({
+                    code: b.datecomponent.code,
+                    pcode: b.code,
+                    relate:
+                      b.datecomponent.relateControl.code[
+                        b.datecomponent.relateControl.code.length - 1
+                      ],
+                    type: b.datecomponent.relateControl.type,
+                    num: b.datecomponent.relateControl.num,
+                    date: b.datecomponent.relateControl.date
+                  });
+                }
+              } else if (b.componenttype == "approvalopinionsone") {
+                if (b.defaultType == 3 && b.relateControlCode) {
+                  this.relateControls.push({
+                    code: b.code,
+                    relate: b.relateControlCode[b.relateControlCode.length - 1],
+                    childs: b.childs
+                  });
+                }
+              } else {
+                //其他组件与关联控件:非特殊的
+                if (b.defaultType == 3 && b.relateControlCode) {
+                  this.relateControls.push({
+                    code: b.code,
+                    relate: b.relateControlCode[b.relateControlCode.length - 1]
+                  });
+                }
+              }
+            }
+          });
+        });
+      }
+    },
+    claimOk() {
+      // 签收
+      claim({ taskId: this.workFlowParams.taskId })
+        .then(res => {
+          this.handleResult(res, 1);
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    claimCancel() {
+      // 取消签收
+      unclaim({ taskId: this.workFlowParams.taskId })
+        .then(res => {
+          this.handleResult(res, 2);
+          location.reload();
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    flowBack() {
+      let commitBackType = undefined;
+      if(this.backType == 1){
+        commitBackType = 1;
+      } else if(this.backType == 2){
+        commitBackType = 2;
+      }else if(this.backType == 3){
+        if(this.rejectEndCheck){
+          commitBackType = 2;
+        }else{
+          commitBackType = 1;
+        }
+      }
+      if(!this.flowbackText){
+        this.flag = true;
+      };
+      // 退回
+      if (!this.flag && this.flowbackText.length) {
+        const data = {
+          backReason: this.flowbackText,
+          modelInstanceId: this.workFlowParams.modelInstanceId,
+          taskId: this.workFlowParams.taskId,
+          businessInstanceId: this.workFlowParams.businessInstanceId,
+          resourceId: this.workFlowParams.resourceId,
+          backtype: commitBackType
+        };
+        back(data)
+          .then(res => {
+            this.handleResult(res, 5);
+          })
+          .catch(err => {
+           showError(err);
+          });
+        this.flowBackModel = false;
+        this.flowbackText = "";
+      }
+    },
+    flowBackCancel() {
+      this.flowBackModel = false;
+      this.flowbackText = "";
+    },
+    async flowTempsave() {
+      // 暂存
+      const child = this.$refs.formtemplate;
+      try {
+        let data = await child.getTempSaveData();
+        let res;
+        //后台提交
+        if(this.pageconfig.async){
+          let {result} = await tempsaveAsync(data);
+          let loopresult = await loopTaskResult(result);
+          res = JSON.parse(loopresult);
+        }else{
+          res = await flowtempsave(data);
+        }
+        this.flowtempsaveBack(res);
+      } catch (error) {
+        showError(error);
+      }
+    },
+    flowtempsaveBack(res) {
+      // 暂存结果回调
+      this.handleResult(res, 4);
+    },
+    getTips (type) {
+      let msg = ''
+      switch (type) {
+        case 1:
+          msg = '签收'
+          break
+        case 2:
+          msg = '取消签收'
+          break
+        case 3:
+          msg = '提交'
+          break
+        case 4:
+          msg = '暂存'
+          break
+        case 5:
+          msg = '退回'
+          break
+      }
+      return msg
+    },
+    handleResult(res, type) {
+      /**
+       * type
+       *  1:签收   2: 取消签收    3:提交  4:暂存  5:退回
+       */
+      let msg = this.getTips(type);
+      if (res.code == "success") {
+        if (type == 1 || type == 2) {
+          let result = res.result;
+          this.allowCommit = result.allowCommit;
+          this.allowTempsave = result.allowTempsave;
+          this.claimStatus = result.claimStatus;
+          this.status = result.status;
+          this.allowBack = result.allowBack;
+          this.backType = result.backType;
+        }
+
+        this.$notification.success({
+          message: "提示",
+          description: msg + "成功!",
+          duration: 1.5
+        });
+        if (type == 4 || type == 5) {
+          this.workFlowParams.businessInstanceId = res.result;
+          this.businessInstanceId = res.result;
+          this.showCloseWindow();
+        }
+      } else {
+        this.$notification.error({
+          message: "提示",
+          description: res.message,
+          duration: 1.5
+        });
+      }
+    },
+    formChange(k) {
+      this.idx = k;
+      let _this = this;
+      this.nodeFormVos.forEach(function(item, m) {
+        if (k == m) {
+          _this.nodeFormVos[m].active = true;
+        } else {
+          _this.nodeFormVos[m].active = false;
+        }
+        _this.$set(_this.nodeFormVos, m, _this.nodeFormVos[m]);
+      });
+      this.currentForm = this.nodeFormVos[k];
+    },
+    //拿到pdf文件id:预览和下载
+    getPdfFileId(pdfid, type) {
+      if (type == 2) {
+        this.visible = true;
+        this.showPdfFlag = true;
+      } else if (type == 3) {
+        this.visible_tc = true;
+        this.showPdfFlag = true;
+      }
+      this.pdfParams.businessData = this.$store.getters.formData;
+      this.pdfParams.businessinstanceid = parseInt(
+        this.workFlowParams.businessInstanceId
+      );
+      this.pdfParams.signcfgids = [pdfid];
+      this.pdfParams.modelinstanceid = parseInt(
+        this.workFlowParams.modelInstanceId
+      );
+      getPdfId(this.pdfParams)
+        .then(res => {
+          if (res.code == "success") {
+            if (type == 2) {
+              this.showPdfFlag = false;
+              this.pdfurl =
+                this.uiConfigs["api.url"] +
+                "/file/v1/download" +
+                "?uri=" +
+                encodeURIComponent(res.result);
+              this.pdfurl = pdf.createLoadingTask(this.pdfurl);
+              this.pdfurl.promise.then(pdf => {
+                this.numPages = pdf.numPages;
+              });
+            } else if (type == 1) {
+              this.downurl =
+                this.uiConfigs["api.url"] +
+                "/file/v1/download" +
+                "?uri=" +
+                encodeURIComponent(res.result);
+              let a = document.createElement("a");
+              a.href = this.downurl;
+              a.style.display = "none";
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+            } else if (type == 3) {
+              this.showPdfFlag = false;
+              this.visible_tc = true;
+              this.pdfurl =
+                this.uiConfigs["api.url"] +
+                "/file/v1/download" +
+                "?uri=" +
+                encodeURIComponent(res.result);
+              this.pdfurl = pdf.createLoadingTask(this.pdfurl);
+              this.pdfurl.promise.then(pdf => {
+                this.numPages = pdf.numPages;
+              });
+              this.showBtn = true;
+            }
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    submit() {
+      // 提交
+      let submitFlag = true;
+      for (var prop in this.requireObj) {
+        this.$set(
+          this.requireObj[prop],
+          "code",
+          this.$store.getters.formData[prop]
+        );
+        if (
+          !this.requireObj[prop].code &&
+          this.requireObj[prop].code !== 0 &&
+          this.requireObj[prop].code !== false
+        ) {
+          submitFlag = false;
+          this.emptyName = this.requireObj[prop].name;
+          break;
+        }
+      }
+      if (submitFlag) {
+        for (var i = 0; i < this.nodeFormVos.length; i++) {
+          if (this.nodeFormVos[i].pdfcfgid) {
+            this.getPdfFileId(this.nodeFormVos[i].pdfcfgid, 3);
+            break;
+          } else {
+            this.submitForm();
+            break;
+          }
+        }
+      } else {
+        this.$notification.error({
+          message: "提示",
+          description:
+            "表单未填写完整,请检查“" + this.emptyName + "”是否填写后再提交！",
+          duration: 0
+        });
+      }
+    },
+    async submitForm() {
+      if(this.tjspin){
+        return;
+      }
+      this.visible_tc = false;
+      this.showBtn = false;
+      const child = this.$refs.formtemplate;
+      this.tjspin = true;
+      try {
+        let data = await child.validateFormData();
+        //自定义业务标识获取
+        let custombusinesskey = this.$route.query.custombusinesskey;
+        if(custombusinesskey) data.custombusinesskey = custombusinesskey;
+        //后台提交
+        if(this.pageconfig.async){
+          let {result} = await completeAsync(data);
+          let loopResult = await loopTaskResult(result);
+          let res = JSON.parse(loopResult);
+          if (res.code == "success") {
+            this.showCloseWindow();
+          }else{
+            showError(res);
+          }
+        }else{
+          await complete(data);
+          this.showCloseWindow();
+        }
+      } catch (error) {
+        showError(error);
+      }
+      this.tjspin = false;
+    },
+    showCloseWindow(){
+      let secondsToGo = 3;
+      const modal = Modal.info({
+        title: '提示', 
+        content: `提交成功，窗口将在 ${secondsToGo} 后自动关闭`,
+        okText: '关闭窗口',
+        keyboard: false,
+        onOk: () => {
+          window.close();
+        }
+      })
+      const interval = setInterval(() => {
+        secondsToGo -= 1;
+        modal.update({
+          content: `提交成功，窗口将在 ${secondsToGo} 后自动关闭`,
+        });
+      }, 1000);
+      setTimeout(() => {
+        clearInterval(interval);
+        window.close();
+      }, secondsToGo * 1000);
+    },
+    go(idx) {
+      this.index = idx;
+      this.getPdfFileId(this.pdfArr[this.index], 3);
+    },
+    //下一页
+    nextPage() {
+      if (this.idx == this.nodeFormVos.length - 1) {
+        this.formChange(this.idx);
+      } else {
+        this.idx++;
+        this.formChange(this.idx);
+      }
+    },
+    //上一页
+    prevPage() {
+      if (this.idx == 0) {
+        this.formChange(this.idx);
+      } else {
+        this.idx--;
+        this.formChange(this.idx);
+      }
+    },
+    //返回顶部
+    backTop() {
+      let timer = setInterval(() => {
+        let scrollTop = this.$parent.$el.scrollTop;
+        let speed = Math.floor(-scrollTop / 5); 
+        this.$parent.$el.scrollTop = scrollTop + speed;
+        if(scrollTop == 0) {
+          clearInterval(timer);
+        }
+      },30)
+    },
+    getApproveRecord() {
+      this.flowChartModel = true
+    },
+    check(e) {
+      if (!/\S/.test(e.target.value)) {
+        this.flag = true;
+      } else {
+        this.flag = false;
+      }
+    },
+    //获取退回原因
+    getBackReasons() {
+      getBackReason(
+        this.$route.query.businessinstanceid,
+        this.$route.query.taskid
+      )
+        .then(res => {
+          if (res.code == "success") {
+            this.reason = res.result.backed;
+            if (this.reason) {
+              this.flowBackModel = true;
+              this.flowbackText = res.result.backreason;
+            }
+          }
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    //表单提交后遮罩去掉
+    finish() {
+      this.tjspin = false;
+    },
+    //勾选按钮
+    rejectEndChange(e){
+      let checked = e.target.checked;
+      if(checked){
+        this.rejectEndCheck = "checked";
+      }else{
+        this.rejectEndCheck = undefined;
+      }
+    }
+  }
+};
+</script>
+<style lang="less" scoped>
+.ant-layout-header {
+  background: #d60002;
+  font-size: 0px;
+  span {
+    display: inline-block;
+    vertical-align: middle;
+    &.logo {
+      width: 29px;
+      height: 29px;
+      text-align: center;
+      img {
+        vertical-align: top;
+        max-width: 100%;
+      }
+    }
+    &.system {
+      font-size: 20px;
+      padding: 0px 12px;
+      position: relative;
+      color: #fff;
+      font-weight: bold;
+      &::before {
+        content: "";
+        position: absolute;
+        height: 40%;
+        width: 1px;
+        background: #fff;
+        right: 0px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+    }
+    &.business {
+      font-size: 16px;
+      padding: 0px 12px;
+      color: #fff;
+    }
+  }
+}
+.layout {
+  height: auto;
+  position: relative;
+  .nav {
+    position: fixed;
+    right: 50px;
+    bottom: 150px;
+    width: 80px;
+    text-align: center;
+    background: #f1f1f1;
+    z-index: 20;
+    border-radius: 4px;
+    li {
+      cursor: pointer;
+      height: 50px;
+      line-height: 50px;
+      border-bottom: 1px solid #ddd;
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+  }
+  .ant-layout-content {
+    overflow: auto;
+    background: #fff;
+    .guidebar {
+      padding: 0 0 15px 0px;
+      background: #f2f2f2;
+      .banber {
+        padding: 0px 50px;
+        color: #333;
+        font-size: 16px;
+        font-weight: bold;
+        height: 45px;
+        line-height: 45px;
+        background: #fff;
+        display: flex;
+        align-items: center;
+        button {
+          margin-left: 25px;
+        }
+      }
+      /deep/.ant-modal-body{//解决time-line样式问题
+        .time-line{
+          .top{
+            text-align: center;
+          }
+          .middle{
+            &::before {
+              margin-left: 110px;
+            }
+          }
+        }
+      }
+    }
+    .content {
+      width: 1200px;
+      margin: 0 auto 65px;
+      .wrap {
+        padding-top: 30px;
+        .top {
+          height: 24px;
+          line-height: 24px;
+          font-size: 14px;
+          color: @primary-color;
+          font-weight: bold;
+          border-left: 4px solid @primary-color;
+          padding-left: 8px;
+        }
+        .bottom {
+          margin-top: 20px;
+          ul {
+            margin: 0px;
+            padding: 0px 20px;
+            li {
+              border-top: 1px solid #e6e6e6;
+              list-style: none;
+              height: 40px;
+              line-height: 40px;
+              &:hover {
+                div {
+                  color: #02a7f0;
+                }
+              }
+              &:last-child {
+                border-bottom: 1px solid #e6e6e6;
+              }
+              div {
+                padding: 0px 10px;
+                height: 100%;
+                float: left;
+                &.active {
+                  color: @primary-color;
+                }
+                &:first-child {
+                  width: 60%;
+                  border-right: 1px solid #e6e6e6;
+                  cursor: pointer;
+                }
+                &:last-child {
+                  width: 40%;
+                  display: flex;
+                  span {
+                    font-size: 14px;
+                    color: @primary-color;
+                    padding: 0px 12px;
+                    cursor: pointer;
+                    a {
+                      color: @primary-color;
+                      text-decoration: none;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  .ant-layout-footer {
+    padding: 0px;
+    height: 65px;
+    background: #fff;
+    box-shadow: 0px -2px 5px rgba(0, 0, 0, 0.349019607843137);
+    z-index: 100;
+    .footer {
+      width: 1200px;
+      height: 100%;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      .ant-btn {
+        margin-right: 20px;
+      }
+    }
+  }
+  .pagemasak {
+    position: absolute;
+    height: 100%;
+    width: 100%;
+    text-align: center;
+    .ant-spin {
+      margin-top: 450px;
+    }
+  }
+}
+.flowbackbtn {
+  text-align: right;
+  button {
+    margin: 0 5px;
+  }
+}
+.showpdf {
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-items: center;
+  > span {
+    cursor: pointer;
+    border: 1px solid #ddd;
+    display: inline-block;
+    padding: 3px 8px;
+    font-size: 18px;
+    border-radius: 4px;
+    position: absolute;
+    &.left {
+      left: 10px;
+    }
+    &.right {
+      right: 10px;
+    }
+    &:hover {
+      box-shadow: 1px 1px 5px rgba(0, 0, 0, 0.05),
+        -1px -1px 5px rgba(0, 0, 0, 0.05);
+    }
+  }
+  .pdfWrap {
+    width: 90%;
+    margin: 0 auto 20px;
+    text-align: center;
+    padding: 0 15px;
+    span {
+      border-bottom: 1px solid #ddd;
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+  }
+}
+.showpdf_one {
+  overflow: auto;
+  span {
+    border-bottom: 1px solid #ddd;
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+}
+</style>
+

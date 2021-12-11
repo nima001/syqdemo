@@ -1,0 +1,70 @@
+<template>
+  <div class="screen-header">
+    <div class="left">浙江省机构编制数字化管理平台</div>
+    <div class="center">{{title}}</div>
+    <div class="center-stretch"></div>
+    <div class="right">
+      <a class="back" @click="$router.go(-1)">返回</a>
+    </div>
+  </div>
+</template>
+<script>
+export default {
+  props: {
+    title: String,
+  }
+}
+</script>
+<style lang="less" scoped>
+.screen-header{
+  display: flex;
+  height: 90px;
+  .left{
+    flex: none;
+    min-width: 400px;
+    background: url('../../../assets/img/screen/head-bg-left.png') center top no-repeat;
+    background-size: 100% 88px;
+    text-indent: 24px;
+    font-size: 32px;
+    font-weight: bold;
+    line-height: 72px;
+    color: #FFFFFF;
+    text-shadow: 0px 0px 16px rgba(28, 28, 30, 0.95);
+    letter-spacing: 4px;
+  }
+  .center{
+    flex: none;
+    width: 160px;
+    background: url('../../../assets/img/screen/head-bg-center.png') center top no-repeat;
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 70px;
+    text-indent: 40px;
+    color: rgba(255, 255, 255, 0.8);;
+    text-shadow: 0px 0px 16px rgba(28, 28, 30, 0.95);
+  }
+  .center-stretch{
+    flex: auto;
+    background: url('../../../assets/img/screen/head-bg-center-stretch.png') center top no-repeat;
+    background-size: 100% 88px;
+  }
+  .right{
+    flex: none;
+    width: 597px;
+    background: url('../../../assets/img/screen/head-bg-right.png') center top no-repeat;
+  }
+  .back{
+    float: right;
+    margin: 15px 24px;
+    padding: 4px;
+    text-indent: 24px;
+    font-size: 20px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.6);
+    background: url('../../../assets/img/screen/icon-back.png') left center no-repeat;
+    &:hover{
+      color: rgba(255, 255, 255, .8);
+    }
+  }
+}
+</style>

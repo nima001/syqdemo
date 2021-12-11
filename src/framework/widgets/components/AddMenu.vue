@@ -1,0 +1,139 @@
+<template>
+  <a-modal v-model="visible" :title="title" :body-style="{ padding: '0px' }">
+    <template slot="footer">
+      <a-button key="back" @click="handleCancel"> 取消 </a-button>
+      <a-button key="submit" type="primary" @click="handleOk"> 确定 </a-button>
+    </template>
+    <a-tree
+      class="menu-tree"
+      checkable
+      showIcon
+      :tree-data="menutree"
+      :default-expanded-keys="expandedKeys()"
+      v-model="checkedId"
+      :selectable="false"
+      :check-strictly="parentCheck"
+      :style="{ height: '380px', overflow: 'auto' }"
+      @check="oncheck"
+    >
+      <template slot="icon" slot-scope="data">
+        <img
+          class="icon"
+          v-if="data.icon"
+          :src="downloadUrl(data.icon)"
+          :onerror="`this.src='${defaultIcon}'`"
+        />
+        <img v-else :src="defaultIcon" class="icon" />
+      </template>
+    </a-tree>
+  </a-modal>
+</template>
+<script>
+import { Button, Modal, Tree } from "ant-design-vue";
+import { downloadUrl } from "@/framework/api/file";
+export default {
+  name: "AddMenu",
+  model: {
+    prop: "menuId",
+    event: "change",
+  },
+  props: {
+    menuId: Array,
+    show: Boolean,
+    title: String,
+    parentCheck: Boolean,
+  },
+  components: {
+    AButton: Button,
+    AModal: Modal,
+    ATree: Tree,
+  },
+  data() {
+    return {
+      defaultIcon: require("@/framework/assets/img/icon-menu-default.png"),
+      checkedId: [],
+    };
+  },
+  watch: {
+    menuId(value) {
+      if (value != []) {
+        this.checkedId = [...value];
+      } else {
+        this.checkedId = [];
+      }
+    },
+  },
+  computed: {
+    menutree() {
+      return this.replaceFields(this.$store.getters.menuList);
+    },
+    visible: {
+      get() {
+        return this.show;
+      },
+      set(val) {
+        this.$emit("update:show", val);
+      },
+    },
+  },
+  methods: {
+    downloadUrl,
+    replaceFields(list) {
+      let key;
+      return (list || []).map((item) => {
+        if (!this.parentCheck && item.children && item.children.length != 0) {
+          key = item.id + "";
+        } else {
+          key = item.id;
+        }
+        return {
+          children: this.replaceFields(item.children),
+          title: item.name,
+          key,
+          scopedSlots: {
+            icon: "icon",
+          },
+        };
+      });
+    },
+    //父节点展开
+    expandedKeys() {
+      let firstTree = [];
+      this.menutree.forEach((item) => {
+        if (item.children.length != 0) {
+          firstTree.push(item.key);
+        }
+      });
+      return firstTree;
+    },
+    handleOk(e) {
+      if (Array.isArray(this.checkedId)) {
+        this.$emit("change", this.checkedId);
+      } else {
+        this.$emit("change", this.checkedId.checked);
+      }
+    },
+    handleCancel() {
+      this.visible = false;
+    },
+    oncheck(checkedKeys) {
+      if (this.parentCheck) {
+        this.checkedId = checkedKeys;
+      } else {
+        this.checkedId = checkedKeys.filter((item) => {
+          return typeof item == "number";
+        });
+      }
+    },
+  },
+};
+</script>
+<style lang='less' scoped>
+.icon {
+  height: 24px;
+  width: 24px;
+}
+.menu-tree {
+  padding: @content-padding-v @content-padding-h;
+}
+</style>

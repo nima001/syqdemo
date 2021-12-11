@@ -1,0 +1,170 @@
+<!-- 服务接入变更日志 -->
+<template>
+  <a-layout class="open-layout">
+    <div class="body">
+      <div class="tools">
+        <a-input
+          v-model="namelike"
+          placeholder="请输入操作内容"
+          @pressEnter="getChangLog"
+          style="width: 200px"
+          class="tsearch"
+        />
+
+        <a-button type="primary" @click="getChangLog" class="tsearch">搜索</a-button>
+
+        <a-button type="primary" @click="resetsearch" class="tsearch">重置</a-button>
+      </div>
+      <div>
+        <a-table :columns="columns" :data-source="data" :pagination="false"></a-table>
+        <a-pagination
+          v-if="data.length > 0"
+          :total="total"
+          :showSizeChanger="true"
+          @showSizeChange="onShowSizeChange"
+          :page-size-options="pageSizeOptions"
+          :pageSize="pagesize"
+          v-model="pagenum"
+          @change="onPageChange"
+          :showTotal="(total) => `总共：${total}条`"
+        />
+      </div>
+    </div>
+  </a-layout>
+</template>
+
+<script>
+import { Layout, Button, Input, Table, Pagination } from "ant-design-vue";
+import { operationlog } from "@/dev/api/app";
+import { showError } from "../../../framework/utils";
+export default {
+  components: {
+    ALayout: Layout,
+    AButton: Button,
+    AInput: Input,
+    ATable: Table,
+    APagination: Pagination
+  },
+
+  props: {},
+
+  data() {
+    return {
+      namelike: "",
+      columns: [
+        {
+          title: "操作对象",
+          dataIndex: "operation",
+          width: "20%"
+          //   scopedSlots: { customRender: "name" }
+        },
+        {
+          title: "操作内容",
+          dataIndex: "desc",
+          width: "30%"
+        },
+        {
+          title: "操作人",
+          dataIndex: "createuser",
+          width: "10%"
+        },
+        {
+          title: "操作时间",
+          dataIndex: "createtime",
+          width: "10%"
+          //   scopedSlots: { customRender: "acstate" },
+          //   customCell: (record, rowIndex) => {
+          //     //在此处可以修改单元格中的样式
+          //     return { style: this.colors(record.state) }; //return 想要设置的样式
+          //   }
+        }
+      ],
+      data: [],
+      total: 0,
+      pageSizeOptions: ["10", "20", "30", "40", "50"],
+      pagesize: 10,
+      pagenum: 1
+    };
+  },
+
+  // computed: {},
+
+  // watch: {},
+
+  created() {
+    this.getChangLog();
+  },
+
+  methods: {
+    getChangLog() {
+      let data = {
+        appid: this.$store.getters.appInfo.id,
+        desc: this.namelike,
+        needtotal: true,
+        orders: [
+          {
+            orderby: "createtime",
+            ordertype: "DESC"
+          }
+        ],
+        pagenum: this.pagenum,
+        pagesize: this.pagesize
+      };
+      operationlog(data)
+        .then(res => {
+          let result = res.result;
+          console.log(res);
+          this.data = result.rows;
+          this.total = result.total;
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    onPageChange(page, pageSize) {
+      this.getChangLog();
+    },
+    onShowSizeChange(current, size) {
+      (this.pagesize = size), (this.pagenum = 1);
+      this.getChangLog();
+    },
+    resetsearch() {
+      this.pagesize = 10;
+      this.pagenum = 1;
+      this.namelike = "";
+      this.getChangLog();
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.open-layout {
+  padding: 10px 20px 20px 20px;
+  height: 100%;
+  .body {
+    background: #fff;
+    width: 100%;
+    height: 100%;
+    padding: 25px 30px;
+    margin: 0 auto;
+    overflow-y: auto;
+    background: #fff;
+    .tools {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      .tsearch {
+        margin: 0 5px;
+      }
+    }
+    .ant-pagination {
+      margin-top: 10px;
+      text-align: right;
+    }
+    /deep/ .ant-table-tbody > tr > td {
+      line-height: 2;
+    }
+  }
+}
+</style>

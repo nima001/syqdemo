@@ -1,0 +1,110 @@
+<template>
+  <ScreenPane :width="1440" :height="900">
+    <div class="contaner">
+      <Header title="浙编汇"/>
+      <div class="body">
+        <div class="left">
+          <OrgAnalysis :districtCode="districtCode"/>
+          <StaffingAnalysis :districtCode="districtCode" style="margin-right: 50px"/>
+        </div>
+        <div class="center">
+          <div class="body">
+            <StaffingMap :districtCode="districtCode" @select="onSelect"/>
+            <AreaInfo class="detail"/>
+          </div>
+          <div class="footer">
+            <PostionDistribution :districtCode="districtCode"/>
+          </div>
+        </div>
+        <div class="right">
+          <RetirePlan :districtCode="districtCode"/>
+          <PersonStruct :districtCode="districtCode"/>
+        </div>
+      </div>
+    </div>
+  </ScreenPane>
+</template>
+<script>
+import ScreenPane from './components/ScreenPane'
+import Header from './components/Header'
+import OrgAnalysis from './components/OrgAnalysis'
+import StaffingAnalysis from './components/StaffingAnalysis'
+import PostionDistribution from './components/PostionDistribution'
+import RetirePlan from './components/RetirePlan'
+import PersonStruct from './components/PersonStruct'
+import StaffingMap from './components/StaffingMap'
+import AreaInfo from './components/AreaInfo'
+
+export default {
+  components: {
+    ScreenPane,
+    Header,
+    OrgAnalysis,
+    StaffingAnalysis,
+    PostionDistribution,
+    RetirePlan,
+    PersonStruct,
+    StaffingMap,
+    AreaInfo
+  },
+  data(){
+    return {
+      districtCode: undefined,
+    }
+  },
+  methods: {
+    onSelect(district){
+      this.districtCode = district.adcode;
+      console.log(this.districtCode)
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.contaner{
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  & > .body{
+    flex: auto;
+    display: flex;
+    height: 100%;
+    min-height: 1px;
+    padding: 16px 24px 0 24px;
+    & > .left{
+      width: 32%;
+      flex: none;
+    }
+    & > .center{
+      flex: auto;
+      margin-left: 10px;
+      margin-right: 30px;
+      display: flex;
+      flex-direction: column;
+      .body{
+        flex: auto;
+        // height: 100%;
+        min-height: 1px;
+        position: relative;
+        padding-top: 20px;
+        .detail{
+          width: 130px;
+          height: 168px;
+          position: absolute;
+          right: -10px;
+          bottom: -25px;
+          pointer-events: none;
+        }
+      }
+      .footer{
+        flex: none;
+        height: 340px;
+      }
+    } 
+    & > .right{
+      width: 28%;
+      flex: none;
+    }
+  }
+}
+</style>

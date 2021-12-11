@@ -1,0 +1,98 @@
+<template>
+  <div class="report-detail">
+    <div class="main">
+      <div class="main-top">
+        <a-button type="primary" v-if="!this.$route.query.id" @click="saveReport">保存</a-button>
+        <a-button type="primary" v-if="!this.$route.query.id">变更</a-button>
+        <a-button type="primary">一键导出</a-button> 
+      </div>
+      <div class="main-content">
+        <Content v-if="detailData" :content="detailData" />
+      </div>
+    </div>
+  </div>
+</template>
+<script>
+import { Button } from "ant-design-vue";
+import { reportDetail, addReport } from "@/person-shaoxing/api/assessment";
+import Content from "./components/Content";
+import { showError } from "@/framework/utils/index";
+export default {
+  components: {
+    AButton: Button,
+    Content
+  },
+  computed: {
+    assessData() {
+      return this.$store.getters.assessData
+    }
+  },
+  data() {
+    return {
+      detailData: undefined,
+    }
+  },
+  created() {
+    if(this.$route.query.id) {
+      this.getData();
+    }else{
+      this.detailData = this.assessData.details;
+    }
+  },
+  methods: {
+    getData() {
+      reportDetail(this.$route.query.id)
+      .then(({result}) => {
+        this.detailData = JSON.parse(result.details);
+      })  
+      .catch(err => {
+        showError(err);
+      })
+    },
+    saveReport() {
+      let data = {};
+      data.details = JSON.stringify(this.detailData);
+      data.configid = this.assessData.configid;
+      data.orgname = this.assessData.name;
+      addReport(data)
+      .then(({result}) =>{
+        this.$notification.success({
+          message: "提示",
+          description: "保存成功!",
+          duration: 3
+        });
+      })
+      .catch(err => {
+        showError(err);
+      })
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.report-detail{
+  padding: 10px;
+  height: 100%;
+
+  .main{
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    overflow: hidden;
+    background: @white;
+    height: 100%;
+    .main-top{
+      padding: 18px @content-padding-h 8px;
+      button{
+        margin-right: 16px;
+      }
+    }
+    .main-content{
+      flex-shrink: 1;
+      overflow-y: auto;
+    }
+  }
+}
+</style>

@@ -1,0 +1,25 @@
+/**
+ * 审核中心路由
+ */
+import Layout from '../../views/Layout'
+export const auditCenter = {
+  path: '/dev/audit',
+  component: Layout,
+  redirect: '/dev/audit/index',
+  children: [
+    {
+      path: 'index',
+      component: () => import('@/dev/views/AuditCenter'),
+      name: 'audit',
+      meta: { access: 'login' }
+    },
+    // {
+    //   path: 'create',
+    //   component: () => import('@/dev/views/app/AppAdd'),
+    //   meta: {
+    //     path: [{ name: '应用中心', path: '/dev/manage/index' },{ name: '创建应用', path: '/dev/manage/create' }],
+    //     access: 'auth'
+    //   }
+    // }
+  ]
+}

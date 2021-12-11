@@ -1,0 +1,10 @@
+import request from '@/framework/utils/request'
+
+export function querypagelist(data) {
+    return request({
+        url: '/idm/v2/suborg/queryPageList',
+        method: 'post',
+        dataType: 'json',
+        data
+    });
+}

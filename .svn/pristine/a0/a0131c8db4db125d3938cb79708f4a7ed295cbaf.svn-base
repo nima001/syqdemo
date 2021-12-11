@@ -1,0 +1,383 @@
+<template>
+  <div class="main">
+    <div class="header">
+      <div class="title">{{title}}</div>
+      <a-row>
+        <a-col :span="15">
+          <div class="tabs">
+            <a 
+              v-for="(item, index) in tabs" 
+              :key="index"
+              :class="{active: active && active.text == item.text}"
+              @click="onTabChange(item)"
+            >
+              {{item.text}}
+            </a>
+          </div>
+        </a-col>
+        <a-col :span="9" class="query">
+          <a-select 
+            v-if="showSelect"
+            class="queryitem" 
+            style="width: 120px; margin-left: 16px;" 
+            v-model="selectVal"
+            @change="onTypeChange"
+          >
+            <a-select-option value="area">按地区</a-select-option>
+            <a-select-option value="time">按时间</a-select-option>
+          </a-select>
+          <a-date-picker
+            class="queryitem"
+            v-model="startValue"
+            :format="format"
+            :allowClear="false"
+            @openChange="handleStartOpenChange"
+            @panelChange="panelChangeStart"
+            :mode="mode"
+            :open="startOpen"
+            :disabled-date="disabledStartDate"
+            style="margin-left: 16px;"
+          />
+          <a-date-picker
+            class="queryitem"
+            style="margin-left: 16px;"
+            v-show="showEndTime"
+            v-model="endValue"
+            :format="format"
+            :allowClear="false"
+            :open="endOpen"
+            @openChange="handleEndOpenChange"
+            @panelChange="panelChangeEnd"
+            :disabled-date="disabledStartDate"
+            :mode="mode"
+          />
+        </a-col>
+      </a-row>
+    </div>
+    <div class="content">
+      <component 
+        :is="currentVeiw"
+        :chartData="chartData"
+        :pagetype="pagetype"
+        :title="title"
+        @pageChange='onPageChange'
+      >
+      </component>
+    </div>
+  </div>
+</template>
+
+<script>
+import { Row, Col, Select, DatePicker } from "ant-design-vue";
+import ColumnChart from "./ColumnChart";
+import LineChart from "./LineChart";
+import TablePage from "./TablePage";
+import moment from "moment";
+import { orgDataStatisticQuery, orgChangeInfo, orgChangeNum } from "@/person-shaoxing/api/monitor";
+import { showError } from "@/framework/utils/index";
+export default {
+  name: 'Main',
+  props: ['loadData'],
+  components: {
+    ARow: Row,
+    ACol: Col,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    ADatePicker: DatePicker,
+    ARangePicker: DatePicker.RangePicker,
+    ColumnChart,
+    LineChart,
+    TablePage
+  },
+  data() {
+    return {
+      tab: [{key: "shaoxing", text: "绍兴市", value: 0}],
+      selectVal: '按地区',
+      active: undefined,
+      showSelect: true,
+      title: undefined,
+      querytype: 2,                                         //默认地区查询 2 时间查询 1 
+      pagetype: 0,
+      startValue: moment(new Date().getFullYear() + '-' + (new Date().getMonth()), 'YYYY-MM'),
+      format: 'YYYY-MM',
+      mode: 'month',
+      startOpen: false,
+      showEndTime: false,
+      endValue: moment(new Date().getFullYear() + '-' + (new Date().getMonth()), 'YYYY-MM'),
+      endOpen: false,
+      tabChange: true,
+      chartData: undefined,
+      currentVeiw: 'ColumnChart'
+    }
+  },
+  watch: {
+    tab(val, oldVal) {
+      //  pagetype和tab同时变 阻止active监听
+      this.tabChange = val.length != oldVal.length ? false : true; 
+    },
+    active(val) {
+      if(this.tabChange) {//  解决 切换到pagetype为3 4时，active和pagetype同时变
+        if(val.text == '绍兴市') {
+          this.showSelect = true;
+          this.showEndTime = false;
+          this.startValue = moment(new Date().getFullYear() + '-' + (new Date().getMonth()), 'YYYY-MM');
+          this.querytype = 2;
+          this.currentVeiw = 'ColumnChart';
+        }else{
+          this.showSelect = false;
+          this.showEndTime = true;
+          if(this.pagetype == 3 || this.pagetype == 4) {
+            this.querytype = 3;
+            this.startValue = moment(new Date().getFullYear() + '-01','YYYY-MM');
+            this.currentVeiw = 'TablePage';
+          }else if(this.pagetype == 8) {
+            this.querytype = 1;
+            this.startValue = moment(new Date().getFullYear() - 4, 'YYYY');
+            this.currentVeiw = 'lineChart';
+          }else{
+            this.querytype = 1;
+            this.startValue = moment(new Date().getFullYear() + '-01','YYYY-MM');
+            this.currentVeiw = 'lineChart';
+          }
+        }
+        this.getData();
+      }
+    },
+    loadData(val) {
+      this.pagetype = val.pagetype;
+      this.title = val.title;
+      if(this.pagetype == 3 || this.pagetype == 4) {//  表格
+        this.querytype = 3;
+        this.showSelect = false;
+        this.showEndTime = true;
+        this.startValue = moment(new Date().getFullYear() + '-01','YYYY-MM');
+        this.mode = 'month';
+        this.format = 'YYYY-MM'
+        this.tab = [];
+        this.currentVeiw = 'TablePage';  
+      }else{//  默认按区域查询
+        this.querytype = 2;
+        this.showSelect = true;
+        this.showEndTime = false;
+        this.startValue = moment(new Date().getFullYear() + '-' + (new Date().getMonth()), 'YYYY-MM');
+        if(this.tab.length == 0) {
+          this.tab = [{key: "shaoxing", text: "绍兴市", value: 0}];
+        }
+        if(this.pagetype == 8) {
+          this.mode = 'year';
+          this.format = 'YYYY'
+        }else{
+          this.mode = 'month';
+          this.format = 'YYYY-MM'
+        }
+        this.currentVeiw = 'ColumnChart';
+      }
+      this.selectVal = '按地区';
+      this.active = this.tabs[0];
+      this.getData();
+    },
+  },
+  computed: {
+    areatype() {
+      let d = this.$store.getters.dict("usermanage.org.district");
+      return d;
+    },
+    tabs: {
+      get() {
+        return (this.tab).concat(this.areatype);
+      },
+      set() {
+        return (this.tab).concat(this.areatype);
+      }
+    },
+  },
+  created() {
+  },
+  methods:{
+    moment,
+    getData(page) {
+      let municipallevel = this.active.text == '绍兴市' ? true : false; 
+      const params = {
+        municipallevel,
+        district: this.active.value,
+        pagetype: this.pagetype,
+        querytype: this.querytype,
+      }
+      if(this.pagetype == 8) {
+        params.starttime = this.startValue._d.getFullYear();
+      }else{
+        params.starttime = this.getDate(this.startValue);
+      }
+      if(this.showEndTime) {
+        if(this.pagetype == 8) {
+          params.endtime = this.endValue._d.getFullYear();
+        }else{
+          params.endtime = this.getDate(this.endValue);
+        }
+      }
+      if(this.pagetype == 3 || this.pagetype == 4) {
+        let query = {};
+        if(page) {
+          query = {
+            ...page,
+            ...params
+          }
+        }else{
+          query = {
+            pagenum: 1,
+            pagesize: 10,
+            needtotal: true,
+            ...params
+          }
+        }
+        Promise.all([
+          orgChangeInfo(query),
+          orgChangeNum(params)
+        ])
+        .then(([info, num]) => {
+          let chartInfo = info.result,
+              chartNum = num.result;
+          this.chartData = { ...chartInfo, ...chartNum };
+        })
+        .catch(err => {
+          showError(err);
+        })
+      }else{
+        orgDataStatisticQuery(params)
+        .then(res => {
+          this.chartData = res.result;
+        })
+        .catch(err => {
+          showError(err);
+        })
+      }
+    },
+    //  分页
+    onPageChange(data) {
+      this.getData(data);
+    },
+    getDate(moment) {
+      let yaer = moment._d.getFullYear();
+      let month = moment._d.getMonth() + 1;
+      if (month.toString().length == 1) {
+        month = "0" + month;
+      }
+      return yaer + '-' + month;
+    },
+    onTabChange(item) {
+      this.active = item;
+      if(!this.tabChange) {
+        this.tabChange = true;
+      }
+    },
+    onTypeChange(type) {
+      if(type == 'time') {
+        this.querytype = 1;
+        this.showEndTime = true;
+        if(this.pagetype == 8) {
+          this.startValue = moment(new Date().getFullYear() - 4, 'YYYY');
+        }else{
+          this.startValue = moment(new Date().getFullYear() + '-01','YYYY-MM');
+        }
+        this.currentVeiw = 'lineChart';
+      }else{
+        this.querytype = 2;
+        this.showEndTime = false;
+        this.startValue = moment(new Date().getFullYear() + '-' + (new Date().getMonth()), 'YYYY-MM');
+        this.currentVeiw = 'ColumnChart';
+      }
+      this.getData();
+    },
+    //  开始时间
+    handleStartOpenChange(open) {
+      this.startOpen = open ? true : false ;
+    },
+    panelChangeStart(value) {
+      this.startValue = value;
+      this.startOpen = false;
+      if(this.pagetype == 3 || this.pagetype == 4) {
+        this.getData();
+        return;
+      }
+      this.getData();
+    },
+    disabledStartDate(current) {
+      return true;
+    },
+    //  结束时间
+    handleEndOpenChange(open) {
+      this.endOpen = open ? true : false ;
+    },
+    panelChangeEnd(value) {
+      this.endValue = value;
+      this.endOpen = false;
+      if(this.pagetype == 3 || this.pagetype == 4) {
+        this.getData();
+        return;
+      }
+      this.getData();
+    }
+  }
+}
+</script>
+
+<style lang="less" scoped>
+.main{
+  display: flex;
+  -webkit-box-orient: vertical;
+  -webkit-box-direction: normal;
+  -ms-flex-direction: column;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+  background: @white;
+  .header{
+    margin-top: 10px;
+    padding: 0 @content-padding-h;
+    .title{
+      font-size: 20px;
+      font-weight: bold;
+      padding: @content-padding-v 0;
+    }
+    /deep/.ant-row{
+      .tabs{
+        padding: @content-padding-v 0;
+        a{
+          display: inline-block;
+          height: 26px;
+          line-height: 26px;
+          padding: 0 12px;
+          margin-left: 6px;
+          border-radius: @border-radius-base;
+          &:first-child{
+            margin-left: 0;
+          }
+          &:hover{
+            background: @primary-1;
+          }
+        }
+        a.active{
+          background-color: @primary-color;
+          color: white;
+          &:hover{
+            background: lighten(@primary-color, 5%);
+          }
+        }
+      }
+      .query{
+        display: flex;
+        justify-content: flex-end;
+        .queryitem{
+          padding: @content-padding-v 0;
+        }
+      }
+    }
+  }
+  .content{
+    flex-shrink: 1;
+    overflow-y: auto;
+    // width: calc(100% -100px);
+    // height: calc(100%);
+  }
+}
+</style>

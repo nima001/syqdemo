@@ -1,0 +1,257 @@
+<template>
+  <div class="layout">
+    <div class="content">
+      <div class="top">
+        <div class="title">
+          <span class="name">{{$route.query.code}}</span>
+          <span class="back" @click="closestep">返回</span>
+        </div>
+        <div class="btnList">
+          <a-button
+            type="primary"
+            v-if="(parseInt(this.$route.query.verifystate) === 0) && this.hasPermit('/dev/audit/service/verify')"
+            @click="refuseApply"
+          >退回</a-button>
+          <a-button
+            type="primary"
+            v-if="(parseInt(this.$route.query.verifystate) === 0) && this.hasPermit('/dev/audit/service/verify')"
+            @click="agreedApply"
+          >通过</a-button>
+          <a-button
+            type="primary"
+            v-if="inUse && hasPermit('/dev/manage/service/modify')"
+            @click="changeInfo"
+          >变更</a-button>
+        </div>
+      </div>
+      <a-tabs v-model="activeKey" @change="callback">
+        <a-tab-pane key="1" tab="接口信息">
+          <actionApply :allow="false" ref="verifyAction" />
+        </a-tab-pane>
+        <a-tab-pane key="2" tab="参数信息">
+          <serviceForm :allow="false" />
+        </a-tab-pane>
+      </a-tabs>
+      <!-- 拒绝弹窗 -->
+      <a-modal
+        :centered="true"
+        v-model="refuseVisible"
+        :footer="null"
+        :bodyStyle="{ padding: '15px' }"
+      >
+        <a-form :form="refusedForm">
+          <a-form-item label="拒绝说明">
+            <a-textarea
+              :rows="4"
+              v-decorator="[
+              'faildesc',
+              {
+                rules: [{ required: true, message: '请输入拒绝说明' }],
+              },
+            ]"
+            />
+          </a-form-item>
+          <div class="refused">
+            <a-button type="danger" style="margin-right: 20px" @click="confirm">确认</a-button>
+            <a-button type="danger" @click="cancel">取消</a-button>
+          </div>
+        </a-form>
+      </a-modal>
+    </div>
+  </div>
+</template>
+<script>
+import {
+  Tabs,
+  Icon,
+  Button,
+  Modal,
+  Form,
+  Input,
+  notification
+} from "ant-design-vue";
+import ServiceActionApply from "./ServiceActionApply";
+import ServiceForm from "./ServiceForm";
+import { apiVerify } from "../../api/service";
+export default {
+  components: {
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    AIcon: Icon,
+    AButton: Button,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ATextarea: Input.TextArea,
+    actionApply: ServiceActionApply,
+    serviceForm: ServiceForm,
+    notification
+  },
+  data() {
+    return {
+      activeKey: "1",
+      refuseVisible: false,
+      refusedForm: this.$form.createForm(this)
+      // //是否展示审核的按钮
+      // showverify: false,
+    };
+  },
+
+  computed: {
+    //判断应用状态是否为可编辑状态
+    inUse() {
+      let state = this.$store.getters.appInfo.state;
+      return !(state === 1 || state === 2);
+    }
+  },
+  created() {
+    if (this.$store.getters.appInfo.id == undefined) {
+      notification.error({
+        message: "提示",
+        description: "请选择应用！",
+        duration: 2
+      });
+      this.$router.push("/dev/manage/index");
+    }
+  },
+  // mounted: {},
+  // activated() {
+  //   this.activeKey = "1";
+  //   this.refuseVisible = false;
+  //   this.refusedForm.resetFields();
+  // },
+
+  methods: {
+    callback(key) {
+      this.activeKey = key;
+    },
+    //关闭当前窗口，返回上一级
+    closestep() {
+      if (this.hasPermit("/dev/audit/service/verify")) {
+        this.$router.go(-1);
+      } else {
+        this.$router.push({
+          path: "/dev/manage/app",
+          query: {
+            activeKey: "2"
+          }
+        });
+      }
+    },
+    //变更
+    changeInfo() {
+      this.$router.push({
+        path: "/dev/manage/service/apply",
+        query: this.$route.query
+      });
+    },
+    // 同意申请
+    agreedApply() {
+      var data = {
+        faildesc: "",
+        appid: this.$store.getters.appInfo.id,
+        serviceId: this.$route.query.serviceId,
+        state: 1
+      };
+      let selectedRowKeys = this.$refs.verifyAction.selectedRowKeys;
+      if (selectedRowKeys.length > 0) {
+        data.apiIdList = selectedRowKeys;
+      }
+      apiVerify(data)
+        .then(res => {
+          this.$notification.success({
+            message: "提示",
+            description: "审核完成",
+            duration: 1.5
+          });
+          if (selectedRowKeys.length < this.$refs.verifyAction.data.length) {
+          }
+          setTimeout(() => {
+            this.$router.push("/dev/audit/index");
+          }, 2000);
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    // 拒绝申请弹框
+    refuseApply() {
+      this.refuseVisible = true;
+    },
+    // 拒绝确认
+    confirm() {
+      this.refusedForm.validateFields((err, values) => {
+        if (!err) {
+          var data = {
+            faildesc: values.faildesc,
+            appid: this.$store.getters.appInfo.id,
+            serviceId: this.$route.query.serviceId,
+            state: 0
+          };
+          let selectedRowKeys = this.$refs.verifyAction.selectedRowKeys;
+          if (selectedRowKeys.length > 0) {
+            data.apiIdList = selectedRowKeys;
+          }
+          apiVerify(data)
+            .then(res => {
+              this.$notification.success({
+                message: "提示",
+                description: "审核完成",
+                duration: 1.5
+              });
+              this.refuseVisible = false;
+              setTimeout(() => {
+                this.$router.push("/dev/audit/index");
+              }, 2000);
+            })
+            .catch(err => {
+              showError(err);
+            });
+        }
+      });
+    },
+    // 关闭拒绝弹框
+    cancel() {
+      this.refuseVisible = false;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.layout {
+  width: 100%;
+  height: 100%;
+  padding: @layout-space-base;
+  .content {
+    width: 100%;
+    height: 100%;
+    background: @white;
+    padding: @content-padding-v @content-padding-h;
+    display: flex;
+    flex-direction: column;
+    .top{
+      .title{
+        display: flex;
+        justify-content: space-between;
+        .name{
+          font-size: 18px;
+          font-weight: bold;
+        }
+        .back{
+          color: @primary-color;
+          cursor: pointer;
+        }
+      }
+      .btnList{
+        display: flex;
+        justify-content: flex-end;
+        Button{
+          &:last-child{
+            margin-left: @layout-space-base;
+          }
+        }
+      }
+    }
+  }
+}
+</style>

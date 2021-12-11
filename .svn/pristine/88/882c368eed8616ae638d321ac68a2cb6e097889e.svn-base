@@ -1,0 +1,74 @@
+import axios from 'axios';
+import qs from 'qs';
+import store from '../store'
+import { getCookie } from './auth';
+import Bus from '@/framework/utils/EventBus'
+
+let client;
+
+function createClient(configs){
+  let baseURL = process.env.VUE_APP_PROJECT_NAME === 'zfw' ? '' : configs['api.url'];
+  const a = axios.create({ baseURL, timeout: 5000 });
+  // request interceptor
+  a.interceptors.request.use(
+    config => {
+      let ct = config.headers['Content-Type'];
+      if (ct && ct.indexOf('application/x-www-form-urlencoded') >= 0) {
+        config.data = qs.stringify(config.data, { arrayFormat: 'repeat' });
+      }
+      let token = getCookie('X-Commnet-Token');
+      if (token) {
+        // 让每个请求携带token-- ['X-Commnet-Token']为自定义key 请根据实际情况自行修改
+        config.headers['X-Commnet-Token'] = token;
+      }
+      return config
+    },
+    error => {
+      return Promise.reject(error)
+    }
+  );
+  // response interceptor
+  a.interceptors.response.use(
+    response => {
+      let res = response.data;
+      if (res.code == 'success') {
+        return res;
+      } else {
+        return Promise.reject(res);
+      }
+    },
+    error => {
+      if (error.response) {
+        switch (error.response.status) {
+          case 401:
+            //Bus.$emit('logout', '身份认证失败,请重新登录');
+            break;
+          case 406:
+            Bus.$emit('logout', '登录已超时,请重新登录');
+            break;
+        }
+        return Promise.reject({
+          code: error.response.status,
+          message: error.message,
+        })
+      } else {
+        return Promise.reject(error);
+      }
+    }
+  );
+  return a;
+}
+
+export default function(request){
+  if(client){
+    return client(request);
+  }else{
+    return store.dispatch('loadConfig').then(configs => {
+      if(!client){
+        client = createClient(configs);
+      }
+      return client(request)
+    })
+  }
+}
+

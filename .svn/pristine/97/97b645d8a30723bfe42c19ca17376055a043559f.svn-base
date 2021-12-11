@@ -1,0 +1,120 @@
+<template>
+  <div class="form-panel">
+    <div class="form-body" ref="formBody">
+      <a-form>
+        <div v-for="(item) in form" :id="item.id" :key="item.id">
+          <FormGroup ref="formGroup"
+            :title="form.length == 1 ? '' : item.title"
+            :properties="item.properties"
+            :data="edit ? editData : initData"
+            :edit="edit"
+          />
+        </div>
+      </a-form>
+    </div>
+    <a-anchor v-if="form && form.length > 1" wrapperClass="form-anchor" :getContainer="() => $refs.formBody">
+      <a-anchor-link v-for="(item, index) in form" :href="`#${item.id}`" :title="item.title" :key="index"/>
+    </a-anchor>
+  </div>
+</template>
+<script>
+import { Button, Form, Anchor } from "ant-design-vue";
+import FormGroup from "./FormGroup";
+import cloneDeep from 'lodash/cloneDeep';
+import get from 'lodash/get';
+import set from 'lodash/set';
+
+export default {
+  props: {
+    form:{
+      type: Array,
+    },
+    edit: {
+      type: Boolean
+    },
+    data:{
+      type: Object,
+    },
+  },
+  components: {
+    AButton: Button,
+    AForm: Form,
+    AAnchor: Anchor,
+    AAnchorLink: Anchor.Link,
+    FormGroup,
+  },
+  data(){
+    return {
+      editData: undefined,
+      initData: undefined,
+    }
+  },
+  created(){
+    let obj = this.checkProperty(this.data);
+    this.initData = obj
+    this.editData = cloneDeep(obj);
+  },
+  watch:{
+    data:{
+      handler(data, oldData) {
+        let obj = this.checkProperty(data);
+        this.initData = obj
+        this.editData = cloneDeep(obj);
+      },
+      deep: true,
+    },
+    form(form){
+      let obj = this.checkProperty(this.data);
+      this.initData = obj
+      this.editData = cloneDeep(obj);
+    }
+  },
+  methods: {
+    validateFileds(){
+      if(this.edit){
+        let obj = {};
+        return Promise.all(this.$refs.formGroup.map(ele => {
+          return ele.validateFields(obj);
+        })).then(() => {
+          console.log(obj)
+          return obj;
+        });
+      }
+      return Promise.reject();
+    },
+    checkProperty(data){
+      (this.form || []).forEach(group => {
+        if(group.properties){
+          group.properties.forEach(p => {
+            if(get(data, p.code) === undefined){
+              set(data, p.code, undefined);
+            }
+          })
+        }
+      })
+      return data;
+    },
+  }
+};
+</script>
+<style lang="less" scoped>
+.form-panel{
+  position: relative;
+  height:100%;
+  .form-body {
+    height: 100%;
+    padding: 0 @content-padding-h;
+    overflow-y: auto;
+    .ant-form {
+      padding-right: 200px;
+    }
+  }
+  /deep/.form-anchor {
+    position: absolute;
+    top: 50px;
+    right: @content-padding-h;
+    width: 180px;
+    padding-left: 5px;
+  }
+}
+</style>

@@ -1,0 +1,415 @@
+<template>
+  <div class="Organization-query">
+    <div class="panel">
+      <div class="toolbar">
+        <a-form class="ant-advanced-search-form" :form="form">
+          <div class="box">
+            <ul class="in-box">
+              <li class="li-content">
+                <div>
+                  <span class="name">机构名称:</span>
+                  <a-input
+                    allowClear
+                    placeholder="请输入机构名称"
+                    v-model="searchCondition.searchkey"
+                  />
+                </div>
+              </li>
+              <li class="li-content">
+                <div>
+                  <span class="name">主管部门:</span>
+                  <a-input
+                    allowClear
+                    @change="onOrgNameChange"
+                    @click="orgVisible = true"
+                    placeholder="请选择相关单位"
+                    v-model="orgValue"
+                  />
+                </div>
+              </li>
+              <li class="li-content" style="width: 180px">
+                <div>
+                  <span class="name">单位类型:</span>
+                  <a-select
+                    v-model="properties.unittype"
+                    placeholder="请选择单位类型"
+                    @change="unittypeChange"
+                  >
+                    <a-select-option
+                      v-for="(item, index) in unittypeList"
+                      :key="index"
+                      :value="item.value"
+                      >{{ item.text }}</a-select-option
+                    >
+                  </a-select>
+                </div>
+              </li>
+              <li class="li-content" style="width: 180px">
+                <div>
+                  <span class="name">经费形式:</span>
+                  <a-select
+                    v-model="properties.fundform"
+                    placeholder="请选择经费形式"
+                    @change="fundformChange"
+                  >
+                    <a-select-option
+                      v-for="(item, index) in fundformList"
+                      :key="index"
+                      :value="item.value"
+                      >{{ item.text }}</a-select-option
+                    >
+                  </a-select>
+                </div>
+              </li>
+              <li class="li-button">
+                <div>
+                  <span class="name"></span>
+                  <div>
+                    <a-button
+                      type="primary"
+                      @click="onSearch"
+                      style="margin-right: 10px"
+                      >搜索</a-button
+                    >
+                    <a-button @click="onreset">重置</a-button>
+                  </div>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </a-form>
+      </div>
+    </div>
+    <div class="Organization-main"></div>
+    <div class="Organization-list">
+      <div class="Organization-content">
+        <h3 class="Organization-h3">查询结果:</h3>
+        <div class="list-content">
+          <a-table
+            :loading="loading"
+            :columns="columns"
+            :dataSource="pagination.rows"
+            :pagination="false"
+          ></a-table>
+        </div>
+        <div class="footer">
+          <a-pagination
+            v-if="pagination.rows && pagination.rows.length"
+            showSizeChanger
+            :showTotal="(total) => `总共：${total}条`"
+            @showSizeChange="onShowSizeChange"
+            :total="pagination.total"
+            v-model="pagination.pagenum"
+            @change="onPageChange"
+          />
+        </div>
+      </div>
+      <!-- <div class="main-image" v-else>
+        <empty-data :tips="warningtext" />
+      </div> -->
+    </div>
+    <!--组织选择-->
+    <a-modal
+      title="选择相关单位"
+      :width="500"
+      :bodyStyle="{ height: '600px', padding: '0' }"
+      v-model="orgVisible"
+      :footer="null"
+    >
+      <org-user-select
+        mode="orgtree"
+        :root-selectable="true"
+        @finish="selectOrg"
+      />
+    </a-modal>
+  </div>
+</template>
+<script>
+import moment from "moment";
+import OrgUserSelect from "@/person/components/OrgUserSelect";
+import { showError } from "@/framework/utils/index";
+import { sxorgquery } from "@/person-shaoxing/api/information";
+import EmptyData from "@/framework/components/EmptyData";
+import {
+  Form,
+  Input,
+  Button,
+  Select,
+  Modal,
+  Table,
+  Pagination,
+} from "ant-design-vue";
+export default {
+  name: "Organizationquery",
+  components: {
+    AForm: Form,
+    AFormItem: Form.Item,
+    ATable: Table,
+    AInput: Input,
+    APagination: Pagination,
+    AButton: Button,
+    ASelect: Select,
+    ASelectOption: Select.Option,
+    AModal: Modal,
+    EmptyData,
+    OrgUserSelect,
+  },
+  data() {
+    return {
+      warningtext: "请选择机构或进行关键字搜索",
+      fundformvaluevalue: null,
+      unittypevalue: null,
+      form: this.$form.createForm(this, { name: "advanced_search" }),
+      searchCondition: {
+        searchkey: null,
+        suporgid: null,
+        nodeid: 0,
+      },
+      properties: {
+        unittype: undefined,
+        fundform: undefined,
+      },
+      pagination: {
+        rows: null,
+        pagesize: 10,
+        pagenum: 1,
+        total: 0,
+      },
+      loading: false,
+      orgValue: null,
+      orgVisible: false,
+      columns: [
+        {
+          title: "主管单位",
+          dataIndex: "suporg.name",
+          key: "suporgname",
+        },
+        {
+          title: "机构名称",
+          dataIndex: "name",
+          key: "name",
+        },
+        {
+          title: "机构级别",
+          dataIndex: "politicallevel ",
+          key: "politicallevel ",
+          customRender: this.dictRender("usermanage.org.politicallevel"),
+        },
+        {
+          title: "单位类型",
+          key: "unittype",
+          dataIndex: "unittype",
+          customRender: this.dictRender("usermanage.org.unittype"),
+        },
+        {
+          title: "经费形式",
+          key: "fundform",
+          dataIndex: "fundform",
+          customRender: this.dictRender("usermanage.user.fundform"),
+        },
+        {
+          title: "事业单位分类",
+          key: "institutionssort ",
+          dataIndex: "institutionssort ",
+          customRender: this.dictRender("usermanage.org.institutionssort"),
+        },
+      ],
+    };
+  },
+  computed: {
+    unittypeList() {
+      return this.$store.getters.dict("usermanage.org.unittype");
+    },
+    fundformList() {
+      return this.$store.getters.dict("usermanage.user.fundform");
+    },
+  },
+  methods: {
+    dictRender(key) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key, text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    onOrgNameChange() {
+      if (!this.orgValue) {
+        this.searchCondition.suporgid = undefined;
+      }
+    },
+    //确定选择的机构
+    selectOrg(type, list) {
+      this.orgVisible = false;
+      if (type == "ok" && list.length) {
+        let org = list[0];
+        this.searchCondition.suporgid = org.data._id;
+        this.orgValue = org.name;
+        this.searchCondition.nodeid = org.id;
+      }
+    },
+    unittypeChange(value) {
+      this.unittypevalue = value;
+    },
+    fundformChange(value) {
+      this.fundformvalue = value;
+    },
+    //带参查询
+    onSearch() {
+      this.loading = true;
+      this.loadData(1, this.pagination.pagesize);
+    },
+    //页数切换
+    onPageChange(page, pagesize) {
+      this.loadData(page, pagesize);
+    },
+    onShowSizeChange(current, size) {
+      this.loadData(1, size);
+    },
+    loadData(pagenum, pagesize) {
+      let params = {
+        ...this.searchCondition,
+        properties: this.properties,
+        needtotal: true,
+        pagenum,
+        pagesize,
+      };
+      sxorgquery(params)
+        .then((res) => {
+          this.loading = false;
+          if (!res.result.rows.length) {
+            this.$notification.warning({
+              message: "提示",
+              description: "暂无数据!",
+              duration: 3,
+            });
+          }
+          this.pagination = res.result;
+        })
+        .catch((err) => {
+          this.loading = false;
+          showError(err);
+        });
+    },
+    onreset() {
+      this.searchCondition = { input: {} };
+      this.searchCondition.nodeid = 0;
+      this.properties.unittype = undefined;
+      this.properties.fundform = undefined;
+      this.orgValue = null;
+      this.pagination.rows = null;
+    },
+  },
+};
+</script>
+<style lang="less" scoped>
+.Organization-query {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  .panel {
+    display: flex;
+    // flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    .toolbar {
+      padding: @layout-space-base;
+      width: 100%;
+      margin: 0 auto;
+      .ant-advanced-search-form {
+        .box {
+          width: 100%;
+          .in-box {
+            margin-bottom: 0;
+            overflow: hidden;
+            // margin: 5px;
+            .li-content {
+              float: left;
+              padding: @layout-space-base;
+            }
+            .li-button {
+              float: left;
+              padding: @layout-space-base;
+            }
+            .name {
+              line-height: 32px;
+              padding-right: 5px;
+              // vertical-align: initial;
+            }
+            .ant-input-group.ant-input-group-compact {
+              display: inline-block;
+              vertical-align: super;
+            }
+            /deep/ .ant-input-group {
+              top: 0.8px;
+            }
+            /deep/.ant-select-selection--multiple {
+              padding-bottom: 0px;
+            }
+            @media screen and(max-width:1410px) {
+              .li-content {
+                width: 33%;
+              }
+            }
+            @media screen and (min-width: 1410px) and(max-width:1750px) {
+              .li-content {
+                width: 25%;
+              }
+            }
+            @media screen and (min-width: 1750px) {
+              .li-content {
+                width: 20%;
+              }
+            }
+          }
+        }
+      }
+      .pzwh {
+        width: auto;
+        border: 1px solid #d9d9d9;
+        border-radius: 4px;
+        &:hover {
+          border-color: @primary-color;
+        }
+        &:focus-within {
+          border-color: @primary-color;
+          box-shadow: 0 0 0 2px fade(@primary-color, 20%);
+        }
+        /deep/.ant-input {
+          border: none;
+          height: 30px;
+        }
+        /deep/.ant-input-group-addon {
+          border: none;
+          background: none;
+        }
+      }
+    }
+  }
+  .Organization-main {
+    background: #f3f7fa;
+    height: @layout-space-base;
+    width: 100%;
+  }
+  .Organization-list {
+    flex: 1;
+    padding: 10px 24px;
+    .Organization-h3 {
+      font-weight: 700;
+      color: #666666;
+    }
+    .main-image {
+      position: relative;
+      top: 40%;
+    }
+    .Organization-content {
+      .footer {
+        padding: @content-padding-v @content-padding-h;
+        .ant-pagination {
+          float: right;
+          margin-bottom: 10px;
+        }
+      }
+    }
+  }
+}
+</style>

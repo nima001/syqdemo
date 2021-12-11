@@ -1,0 +1,396 @@
+<template>
+  <div class="search-center">
+    <div class="query">
+      <div class="input">
+        <a-input-search
+          allowClear
+          :loading="loading"
+          enterButton
+          class="search"
+          placeholder="请输入单位名称/人员姓名/身份证号"
+          v-model.trim="searchkey"
+          @search="onSearch"
+        />
+      </div>
+      <a-modal
+        v-model="visible"
+        title="查询结果"
+        :maskClosable="false"
+        width="80%"
+        :footer="null"
+        :bodyStyle="{ height: '650px', padding: '0'}"
+      >
+        <div class="query-data">
+          <div v-if="!show || show == 1" class="query-part">
+            <div class="header">
+              <span class="label">人员信息</span>
+              <span class="total">共 {{user.total}} 人</span>
+              <template v-if="user.total">
+                <a v-if="show" class="more" @click="show=0">收起</a>
+                <a v-else class="more" @click="show=1">更多</a>
+              </template>
+            </div>
+            <div class="body">
+              <a-table
+                rowKey="_id"
+                :rowClassName="(row) => selected == row._id ? 'selected': ''"
+                :customRow="row => customRow(row, 'user')"
+                :columns="userColumns"
+                :dataSource="filterRow(user.rows)"
+                :loading="pageLoading"
+                :pagination="false"
+              />
+            </div>
+            <div v-if="show" class="footer">
+              <a-pagination
+                showSizeChanger
+                :showTotal="total => `总共：${total}人`"
+                @showSizeChange="onShowSizeChange"
+                :total="user.total"
+                :pageSize="user.pagesize"
+                v-model="user.pagenum"
+                @change="onPageChange"
+              />
+            </div>
+          </div>
+          <div v-if="!show || show == 2" class="query-part">
+            <div class="header">
+              <span class="label">机构信息</span>
+              <span class="total">共 {{org.total}} 条</span>
+              <template v-if="org.total">
+                <a v-if="show" class="more" @click="show=0">收起</a>
+                <a v-else class="more" @click="show=2">更多</a>
+              </template>
+            </div>
+            <div class="body">
+              <a-table
+                rowKey="_id"
+                :rowClassName="(row) => selected == row._id ? 'selected': ''"
+                :customRow="row => customRow(row, 'org')"
+                :columns="orgColumns"
+                :dataSource="filterRow(org.rows)"
+                :loading="pageLoading"
+                :pagination="false"
+              />
+            </div>
+            <div v-if="show" class="footer">
+              <a-pagination
+                showSizeChanger
+                :showTotal="total => `总共：${total}条`"
+                @showSizeChange="onShowSizeChange"
+                :total="org.total"
+                :pageSize="org.pagesize"
+                v-model="org.pagenum"
+                @change="onPageChange"
+              />
+            </div>
+          </div>
+        </div>
+      </a-modal>
+    </div>
+  </div>
+</template>
+<script>
+import { Input, Modal, Table, Pagination, Card, Button } from "ant-design-vue";
+import { treequery, orgquery } from "../api/org";
+import { userquery } from "../api/user";
+import { showError } from "@/framework/utils/index";
+
+
+export default {
+  components: {
+    AButton: Button,
+    ACard: Card,
+    AInputSearch: Input.Search,
+    AModal: Modal,
+    ATable: Table,
+    APagination: Pagination,
+  },
+  data() {
+    return {
+      visible: false,
+      loading: false,
+      pageLoading: false,
+      show: 0,
+      searchkey: undefined,
+      selected: undefined,
+      user: {
+        rows: undefined,
+        pagesize: 20,
+        pagenum: 1,
+        total: 0,
+      },
+      org: {
+        rows: undefined,
+        pagesize: 20,
+        pagenum: 1,
+        total: 0,
+      },
+      userColumns: [
+        { title: "用户姓名", dataIndex: "username", width: "80px" },
+        {
+          title: "性别",
+          dataIndex: "sex",
+          width: "45px",
+          customRender: this.dictRender("usermanage.user.sex"),
+        },
+        {
+          title: "本人身份",
+          dataIndex: "identitytype",
+          width: "80px",
+          customRender: this.dictRender("usermanage.user.identitytype"),
+        },
+        {
+          title: "出生年月",
+          dataIndex: "birthday",
+          width: "10%",
+          customRender: (text) => text && text.slice(0, 10),
+        },
+        {
+          title: "职务名称",
+          dataIndex: "position",
+          width: "35%",
+          customRender: (text, row) => this.positionText(row),
+        },
+        {
+          title: "职称名称",
+          dataIndex: "posttitle",
+          width: "15%",
+          customRender: this.dictRender("usermanage.user.posttitle"),
+        },
+        {
+          title: "编制单位",
+          dataIndex: "org.name",
+          width: "40%",
+          customRender: (text) => <span title={text}>{text}</span>,
+        },
+      ],
+      orgColumns: [
+        {
+          title: "机构名称",
+          dataIndex: "name",
+          width: "40%",
+          customRender: (text) => <span title={text}>{text}</span>,
+        },
+        {
+          title: "单位类型",
+          dataIndex: "unittype",
+          width: "10%",
+          customRender: this.dictRender("usermanage.org.unittype"),
+        },
+        {
+          title: "机构级别",
+          dataIndex: "politicallevel",
+          width: "10%",
+          customRender: this.dictRender("usermanage.org.politicallevel"),
+        },
+        {
+          title: "合署挂牌简称",
+          dataIndex: "unionname",
+          width: "40%",
+          customRender: (text) => <span title={text}>{text}</span>,
+        },
+      ],
+    };
+  },
+  methods: {
+    dictRender(key) {
+      return (text, row, index) => {
+        let v = this.$store.getters.dictKey(key, text);
+        text = (v && v.text) || "";
+        return <span title={text}>{text}</span>;
+      };
+    },
+    positionText(user) {
+      let text = "";
+      if (user.position && user.position != "无") {
+        text = "、" + user.position;
+      }
+      if (user.work && user.work.length) {
+        user.work.forEach((item) => {
+          if (item.workposition && item.workposition != "无") {
+            text = "、" + item.workposition;
+          }
+        });
+      }
+      if (text) {
+        text = text.substr(1);
+        return <span title={text}>{text}</span>;
+      }
+    },
+    filterRow(rows) {
+      if (!this.show && rows) {
+        return rows.slice(0, 7);
+      }
+      return rows;
+    },
+    customRow(row, page) {
+      return {
+        on: {
+          click: () => {
+            this.selected = row._id;
+          },
+          dblclick: (event) => {
+            treequery({
+              allsub: true,
+              pagesize: 1,
+              dataid: page == "user" ? row.org._id : row._id,
+            })
+              .then(({ result }) => {
+                if (result.rows.length) {
+                  let node = result.rows[0];
+                  let routeParams;
+                  if (page == "user") {
+                    routeParams = {
+                      path: "/person/org/userinfo",
+                      query: { id: node.id, userid: row._id },
+                    };
+                  } else {
+                    routeParams = {
+                      path: "/person/org/index",
+                      query: { id: node.id },
+                    };
+                  }
+                  window.open(this.$router.resolve(routeParams).href, "_blank");
+                }
+              })
+              .catch((error) => {
+                showError(error);
+              });
+          },
+        },
+      };
+    },
+    onShowSizeChange(current, pageSize) {
+      this.loadPage(1, pageSize);
+    },
+    onPageChange(page, pageSize) {
+      this.loadPage(page, pageSize);
+    },
+    onSearch() {
+      if (!this.searchkey) {
+        return;
+      }
+      this.loading = true;
+      Promise.all([this.queryOrg(1, 20), this.queryUser(1, 20)])
+        .then(([org, user]) => {
+          this.loading = false;
+          this.visible = true;
+          this.show = 0;
+          this.org = org;
+          this.user = user;
+        })
+        .catch((error) => {
+          this.loading = false;
+          showError(error);
+        });
+    },
+    loadPage(pagenum, pagesize) {
+      if (this.show == 1) {
+        this.pageLoading = true;
+        this.queryUser(pagenum, pagesize)
+          .then((page) => {
+            this.pageLoading = false;
+            this.user = page;
+          })
+          .catch((error) => {
+            this.pageLoading = false;
+            showError(error);
+          });
+      } else if (this.show == 2) {
+        this.pageLoading = true;
+        this.queryOrg(pagenum, pagesize)
+          .then((page) => {
+            this.pageLoading = false;
+            this.org = page;
+          })
+          .catch((error) => {
+            this.pageLoading = false;
+            showError(error);
+          });
+      }
+    },
+    queryUser(pagenum, pagesize) {
+      return userquery({
+        nodeid: 0,
+        searchkey: this.searchkey,
+        pagenum: pagenum,
+        pagesize: pagesize,
+        needtotal: true,
+      }).then(({ result }) => result);
+    },
+    queryOrg(pagenum, pagesize) {
+      return orgquery({
+        nodeid: 0,
+        searchkey: this.searchkey,
+        unittypes: [1, 2, 3, 4, 5],
+        pagenum: pagenum,
+        pagesize: pagesize,
+        needtotal: true,
+      }).then(({ result }) => result);
+    },
+  },
+};
+</script> 
+<style lang="less" scoped>
+.search-center {
+  padding: 24px 32px;
+  overflow: hidden;
+  border: none;
+  height: 80px;
+}
+.query-data {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  .query-part {
+    flex: 1 1 50%;
+    height: 100%;
+    min-height: 0;
+    margin-bottom: 10px;
+    display: flex;
+    flex-direction: column;
+    .header {
+      padding: @content-padding-v @content-padding-h;
+      position: relative;
+      .label {
+        font-size: 1.2em;
+        font-weight: 500;
+      }
+      .total {
+        padding-left: 10px;
+      }
+      .more {
+        position: absolute;
+        right: @content-padding-h;
+      }
+    }
+    .body {
+      flex: auto;
+      overflow: auto;
+      padding: 0 @content-padding-h;
+    }
+    .footer {
+      overflow: hidden;
+      padding: 10px @content-padding-h;
+      .ant-pagination {
+        float: right;
+      }
+    }
+  }
+
+  /deep/table {
+    table-layout: fixed;
+    td,
+    th {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    tr.selected {
+      background: @primary-2;
+    }
+  }
+}
+</style>

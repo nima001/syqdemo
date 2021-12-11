@@ -1,0 +1,292 @@
+<!-- 服务接入信息查看页面 -->
+<template>
+  <a-layout class="open-layout">
+    <div class="body">
+      <span class="servicetitle">{{$route.query.code}}</span>
+      <a-icon type="close" class="closeicon" @click="closestep" />
+      <!-- 判断查看服务接入的状态 待审核的服务才显示 审核相关按钮 -->
+      <a-button
+        type="primary"
+        v-if="(parseInt(this.$route.query.verifystate) === 0) && this.hasPermit('/dev/audit/service/verify')"
+        class="failbutton"
+        @click="refuseApply"
+      >未通过,退回</a-button>
+      <a-button
+        type="primary"
+        v-if="(parseInt(this.$route.query.verifystate) === 0) && this.hasPermit('/dev/audit/service/verify')"
+        class="changbutton"
+        @click="agreedApply"
+      >通过审核</a-button>
+      <a-button
+        type="primary"
+        v-if="inUse && hasPermit('/dev/manage/service/modify')"
+        class="changbutton"
+        @click="changeInfo"
+      >变更</a-button>
+      <div class="clearfloat"></div>
+      <div ref="tabs">
+        <a-tabs v-model="activeKey" @change="callback">
+          <a-tab-pane key="1" tab="接口信息">
+            <div class="content">
+              <actionApply :allow="false" ref="verifyAction" />
+            </div>
+          </a-tab-pane>
+          <a-tab-pane key="2" tab="参数信息">
+            <div class="content">
+              <serviceForm :allow="false" />
+            </div>
+          </a-tab-pane>
+        </a-tabs>
+      </div>
+    </div>
+    <!-- 拒绝弹窗 -->
+    <a-modal
+      :centered="true"
+      v-model="refuseVisible"
+      :footer="null"
+      :bodyStyle="{ padding: '15px' }"
+    >
+      <a-form :form="refusedForm">
+        <a-form-item label="拒绝说明">
+          <a-textarea
+            :rows="4"
+            v-decorator="[
+              'faildesc',
+              {
+                rules: [{ required: true, message: '请输入拒绝说明' }],
+              },
+            ]"
+          />
+        </a-form-item>
+        <div class="refused">
+          <a-button type="danger" style="margin-right: 20px" @click="confirm">确认</a-button>
+          <a-button type="danger" @click="cancel">取消</a-button>
+        </div>
+      </a-form>
+    </a-modal>
+  </a-layout>
+</template>
+
+<script>
+import {
+  Tabs,
+  Layout,
+  Icon,
+  Button,
+  Modal,
+  Form,
+  Input,
+  notification
+} from "ant-design-vue";
+import ServiceActionApply from "./ServiceActionApply";
+import ServiceForm from "./ServiceForm";
+import { apiVerify } from "../../api/service";
+export default {
+  components: {
+    ALayout: Layout,
+    ATabs: Tabs,
+    ATabPane: Tabs.TabPane,
+    AIcon: Icon,
+    AButton: Button,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    ATextarea: Input.TextArea,
+    actionApply: ServiceActionApply,
+    serviceForm: ServiceForm,
+    notification
+  },
+
+  //   props: {},
+
+  data() {
+    return {
+      activeKey: "1",
+      refuseVisible: false,
+      refusedForm: this.$form.createForm(this)
+      // //是否展示审核的按钮
+      // showverify: false,
+    };
+  },
+
+  computed: {
+    //判断应用状态是否为在用状态
+    inUse() {
+      return this.$store.getters.appInfo.state == 0 ? true : false;
+    }
+  },
+  created() {
+    if (this.$store.getters.appInfo.id == undefined) {
+      notification.error({
+        message: "提示",
+        description: "请选择应用！",
+        duration: 2
+      });
+      this.$router.push("/dev/manage/index");
+    }
+  },
+  // watch: {},
+
+  // mounted: {},
+  // activated() {
+  //   this.activeKey = "1";
+  //   this.refuseVisible = false;
+  //   this.refusedForm.resetFields();
+  // },
+
+  methods: {
+    callback(key) {
+      this.activeKey = key;
+    },
+    //关闭当前窗口，返回上一级
+    closestep() {
+      if (this.hasPermit("/dev/audit/service/verify")) {
+        this.$router.go(-1);
+      } else {
+        this.$router.push({
+          path: "/dev/manage/app",
+          query: {
+            activeKey: "2"
+          }
+        });
+      }
+    },
+    //变更
+    changeInfo() {
+      this.$router.push({
+        // path: "/dev/userService",
+        path: "/dev/manage/service/apply",
+        query: this.$route.query
+      });
+    },
+    // 同意申请
+    agreedApply() {
+      var data = {
+        faildesc: "",
+        appid: this.$store.getters.appInfo.id,
+        serviceId: this.$route.query.serviceId,
+        state: 1
+      };
+      let selectedRowKeys = this.$refs.verifyAction.selectedRowKeys;
+      if (selectedRowKeys.length > 0) {
+        data.apiIdList = selectedRowKeys;
+      }
+      apiVerify(data)
+        .then(res => {
+          this.$notification.success({
+            message: "提示",
+            description: "审核完成",
+            duration: 1.5
+          });
+          if (selectedRowKeys.length < this.$refs.verifyAction.data.length) {
+          }
+          setTimeout(() => {
+            this.$router.push("/dev/audit/index");
+          }, 2000);
+        })
+        .catch(err => {
+          showError(err);
+        });
+    },
+    // 拒绝申请弹框
+    refuseApply() {
+      this.refuseVisible = true;
+    },
+    // 拒绝确认
+    confirm() {
+      this.refusedForm.validateFields((err, values) => {
+        if (!err) {
+          var data = {
+            faildesc: values.faildesc,
+            appid: this.$store.getters.appInfo.id,
+            serviceId: this.$route.query.serviceId,
+            state: 0
+          };
+          let selectedRowKeys = this.$refs.verifyAction.selectedRowKeys;
+          if (selectedRowKeys.length > 0) {
+            data.apiIdList = selectedRowKeys;
+          }
+          apiVerify(data)
+            .then(res => {
+              this.$notification.success({
+                message: "提示",
+                description: "审核完成",
+                duration: 1.5
+              });
+              this.refuseVisible = false;
+              setTimeout(() => {
+                this.$router.push("/dev/audit/index");
+              }, 2000);
+            })
+            .catch(err => {
+              showError(err);
+            });
+        }
+      });
+    },
+    // 关闭拒绝弹框
+    cancel() {
+      this.refuseVisible = false;
+    }
+  }
+};
+</script>
+<style lang='less' scoped>
+.open-layout {
+  padding: 20px;
+  height: 100%;
+  .body {
+    width: 100%;
+    height: 100%;
+    padding: 8px 10px;
+    margin: 0 auto;
+    overflow-y: auto;
+    background: #fff;
+    .servicetitle {
+      font-size: 20px;
+    }
+    .closeicon {
+      float: right;
+      font-size: 15px;
+      :hover {
+        color: @primary-color;
+      }
+    }
+    .content {
+      width: 80%;
+      margin: 20px auto;
+    }
+    .changbutton {
+      color: #409eff;
+      background-color: #ecf5ff;
+      border-color: #b3d8ff;
+      float: right;
+      top: 35px;
+      right: 4%;
+      width: 90px;
+      z-index: 1;
+      margin-left: 10px;
+    }
+    .failbutton {
+      color: #409eff;
+      background-color: #ffecf5;
+      border-color: #ffb3c3;
+      float: right;
+      top: 35px;
+      right: 4%;
+      width: 120px;
+      z-index: 1;
+      margin-left: 10px;
+    }
+    .changbutton:focus,
+    .changbutton:hover,
+    .failbutton:hover {
+      background-color: #409eff;
+      color: #fff;
+    }
+    .clearfloat {
+      clear: both;
+    }
+  }
+}
+</style>

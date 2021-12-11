@@ -1,0 +1,521 @@
+<template>
+  <a-layout class="form-design">
+		<a-layout-sider class="components" theme="light" :width="250">
+			<div class="title">布局</div>
+			<ul>
+				<li v-for="(w) in layouts" :key="w.type"><div draggable="true"><CustomIcon :type="w.icon"/>{{w.name}}</div></li>
+			</ul>
+			<div class="title">组件</div>
+			<ul>
+				<li v-for="(w) in components" :key="w.type" 
+					@dragstart="dragstart($event, w)"
+					@dragend="dragend"
+				><div draggable="true"><CustomIcon :type="w.icon"/>{{w.name}}</div></li>
+			</ul>
+		</a-layout-sider>
+		<a-layout-content class="from-display">
+			<FormProvider :form="form">
+				<div style="padding: 30px 20px" class="drag-area" ref="formRoot"
+					@dragenter="dragenter"
+					@dragover.prevent="dragover"
+					@dragleave="dragleave"
+					@drop="drop"
+					@click="onClick"
+					@mouseover="onMouseOver"
+				>
+					<SchemaField :schema="schema" ref="schemaField"></SchemaField>
+				</div>
+			</FormProvider>
+			<div v-if="guides" class="guides" :style="{
+				width: `${guides.width}px`,
+				height: `${guides.height}px`,
+				top: `${guides.top}px`,
+				left: `${guides.left}px`
+			}"></div>
+			<ComponentTools v-model="selectComponent" v-if="selectComponent" class="component-toolbar" :id="componentToolbarId"
+				@hover="(item) => hoverComponent = item && item.instance"
+				@delete="onComponentDelete"
+			/>
+		</a-layout-content>
+		<a-layout-sider class="settings" theme="light" :width="250">
+			<a @click="getFormData">查看数据</a>
+			<a-form v-if="selectComponent">
+				<a-form-item
+					label="字段标识"
+					:required="true" 
+				>
+					<a-input v-model="selectComponent.instance.schema.name"/>
+				</a-form-item>
+				<a-form-item
+					label="字段名称"
+					:required="true" 
+				>
+					<a-input v-model="selectComponent.instance.schema.title"/>
+				</a-form-item>
+				<template v-if="selectComponent.children">
+					<a-form-item label="配置项">
+						<draggable class="item-list"
+							v-model="selectComponent.children" 
+							tag="ul"
+							handle='.drag-handle'
+							:animation="200"
+							ghost-class="ghost"
+						>
+							<transition-group>
+								<li v-for="(item, index) in selectComponent.children" :key="getItemKey(item)">
+									<a-icon type="menu" class="drag-handle"/>
+									<a-input-number v-model="item.span" :min="1" :max="24" placeholder="所占格数"/>
+									<a-icon class="delete" type="minus-circle" @click="deleteItem(index)"/>
+								</li>
+							</transition-group>
+						</draggable>
+						<a-button type="dashed" style="width:150px" @click="addItem">
+							<a-icon type="plus" /> 添加项
+						</a-button>
+					</a-form-item>
+				</template>
+			</a-form>
+		</a-layout-sider>
+	</a-layout>
+</template>
+<script>
+import { Layout, Icon, Form, Input, InputNumber ,Button, } from "ant-design-vue";
+import draggable from "vuedraggable";
+
+import { randomStr } from "@/framework/utils/index";
+import { components, initDataProps, mixin } from "./common.js";
+
+import CustomIcon from '@/framework/components/CustomIcon'
+import ComponentTools from './components/ComponentTools'
+
+
+import { createForm, createEffectHook } from '@formily/core'
+import { FormProvider, createSchemaField, Schema } from '@formily/vue'
+import * as formComponents from '../components/index'
+import { ObjectfromEntries } from '@/framework/utils/index';
+
+const { SchemaField } = createSchemaField({
+  components: formComponents,
+})
+
+const onCustomEvent = createEffectHook(
+  'schemaChange',
+  (payload, form) => (listener) => {
+    listener(payload, form)
+  }
+)
+
+export default {
+	name: 'form-design',
+	mixins: [mixin],
+	components: {
+		ALayout: Layout,
+		ALayoutSider:Layout.Sider,
+		ALayoutContent:Layout.Content,
+		AIcon: Icon,
+		AForm: Form,
+		AFormItem: Form.Item,
+		AInput: Input,
+		AInputNumber: InputNumber,
+		AButton: Button,
+		draggable,
+		CustomIcon, ComponentTools,
+		FormProvider, SchemaField
+	},
+	props: {
+		value: {
+			type: Object,
+			default: () => ({})
+		},
+	},
+	data(){
+		return {
+			componentToolbarId: 'component-toolbar-' + randomStr(5),
+			form: createForm({
+        effects: () => {
+          onCustomEvent((payload, ss) => {
+						console.log(payload, ss);
+            console.log(JSON.stringify(ss))
+            this.schema = payload;
+          })
+        },
+			}),
+			schema: new Schema(this.value),
+			layouts: {},//布局
+			components: {},//控件
+			drag: {
+				from: undefined,
+				to: undefined,
+			},
+			hoverComponent: undefined,
+			selectComponent: undefined,
+		}
+	},
+	computed: {
+		guides(){
+			if(this.drag.to){
+				let { component, posX, posY} = this.drag.to, root = this.$refs.formRoot;
+				let container = component ? component.$el : root;
+				let rect = container.getBoundingClientRect(), 
+					style = window.getComputedStyle(container);
+				let paddingLeft = parseFloat(style.paddingLeft), 
+					paddingRight = parseFloat(style.paddingRight),
+					paddingTop = parseFloat(style.paddingTop),
+					borderLeft = parseFloat(style.borderLeftWidth), 
+					borderRight = parseFloat(style.borderRightWidth), 
+					borderTop = parseFloat(style.borderTopWidth);
+				let p = {
+					height: 2,
+					width: rect.width - paddingLeft - paddingRight - borderLeft - borderRight,
+					left: rect.left + paddingLeft + borderLeft,
+				}
+				let d = rect.top + paddingTop + borderTop - posY;//初始化在容器顶部
+				let index = 0;
+				for(let item of container.children){
+					let {top, bottom} = item.getBoundingClientRect();
+					let s = top - posY;
+					if(Math.abs(s) <= Math.abs(d)){
+						d = s;
+					}else{
+						break;
+					}
+					s = bottom - posY;
+					if(Math.abs(s) <= Math.abs(d)){
+						index++;
+						d = s;
+					}else{
+						break;
+					}
+				}
+				p.top = d + posY - p.height/2;
+				this.drag.to.index = index;
+				return p;
+			}
+		},
+	},
+	watch: {
+		selectComponent(v, oldV){
+			if(oldV){
+				oldV.instance.$el.classList.remove('component-selected');
+			}
+			if(v){
+				v.instance.$el.classList.add('component-selected');
+				this.$nextTick(() => {
+					let el = v.instance.$el;
+					let first = el.firstChild;
+					if(first){
+						el.insertBefore(document.getElementById(this.componentToolbarId), first);
+					}else{
+						el.appendChild(document.getElementById(this.componentToolbarId));
+					}
+				})
+			}
+		},
+		hoverComponent(v, oldV){
+			if(oldV){
+				oldV.$el.classList.remove('component-hover');
+			}
+			if(v){
+				v.$el.classList.add('component-hover');
+			}
+		}
+	},
+	mounted(){
+		this.initCmptList();
+	},
+	methods: {
+		async initCmptList(){
+			let config = formComponents.default;
+			this.layouts = {...config.layout};
+			this.components = {...config.component}
+			// let addExtendCmpt = (arr, cmpt) => {
+			// 	let index = arr.findIndex(item => item.type == cmpt.type);
+			// 	if(index >= 0){
+			// 		this.$set(arr, index, cmpt)
+			// 	}else{
+			// 		arr.push(cmpt)	
+			// 	}
+			// }
+			// console.log(this.$scopedSlots)
+			// for(let key in this.$scopedSlots){
+			// 	console.log(this.$scopedSlots[key])
+			// 	let [node] = this.$scopedSlots[key]();
+			// 	let {title, icon, props} = node.componentOptions.Ctor.extendOptions;
+			// 	if(props.children){//存在children属性即为布局
+			// 		addExtendCmpt(this.layouts, { type: key, title, icon, props})
+			// 	}else{
+			// 		addExtendCmpt(this.widgets, { type: key, title, icon, props})
+			// 	}
+			// }
+		},
+		editCmpt(cmpt){
+			this.component = cmpt;
+		},
+		getItemKey(item){
+			return item._id || (item._id = randomStr(8));
+		},
+		deleteItem(index){
+			this.component.children.splice(index, 1);
+		},
+		addItem(){
+			this.component.children.push({span: 6});
+		},
+		dragstart(e, w){
+			this.drag = { from: w, to: undefined }
+		},
+		dragend(e){
+			this.drag = {};
+		},
+		dragenter(e){
+			console.log('dragenter', e.target)
+		},
+		dragover(e){
+			let path = this.getComponentPath(e);
+			if(path){
+				let component = path.find(item => !!item.addProperty);
+				this.drag.to = { component, posX: e.clientX, posY: e.clientY, }	
+			}else{
+				this.drag.to = undefined;
+			}
+		},
+		dragleave(e){
+			console.log('dragleave', e.target)
+		},
+		drop(e){
+			if(this.drag.to){
+				let from = this.drag.from;
+				let { component, index } = this.drag.to;
+				let prop = {
+					name: randomStr(5),
+					type: 'string',
+					title: "#" + from.name,
+					'x-decorator': 'FieldDecorator',
+					'x-component': from.type,
+				};
+				if(component){
+					component.addProperty(prop, index)
+				}else{
+					let s = new Schema(prop, this.schema);
+					const props = Schema.getOrderProperties(this.schema);
+					if(index >= 0  && props.length > index){
+						props.splice(index, 0, { key: s.name, schema: s });
+					}else{
+						props.push({ key: s.name, schema: s })
+					}
+					this.schema.properties = ObjectfromEntries(props, 'key', 'schema');
+					let json = this.schema.toJSON();
+					// console.log(JSON.stringify(json))
+					this.schema = new Schema(json);
+					// console.log(this.schema)
+					// let field = this.$refs.schemaField;
+					// console.log(field, field.schema == this.schema)
+				}
+				// console.log(this.form.getFormGraph())
+				// let json = s.root.toJSON();
+				// // console.log('update schema', JSON.stringify(json));
+				// this.schema = json;
+				// form.notify('schemaChange', parent);
+			}
+		},
+		onMouseOver(e){
+			let path = this.getComponentPath(e);
+			if(path){
+				this.hoverComponent = path.find(item => {
+					let key = item.schema['x-component'];
+					let c = this.components[key] || this.layouts[key];
+					return !!c;
+				});
+			}
+		},
+		onClick(e){
+			let path = this.getComponentPath(e);
+			if(path){
+				let list = [];
+				path.forEach(item => {
+					let key = item.schema['x-component'];
+					let c = this.components[key] || this.layouts[key];
+					if(c){
+						list.push({
+							...c,
+							instance: item,
+						})
+					}
+				})
+				if(list.length){
+					let com = list.shift();
+					com.parents = list;
+					this.selectComponent = com;
+				}else{
+					this.selectComponent = undefined;
+				}
+				
+			}
+		},
+		onComponentDelete(){
+			//TODO delete component
+			console.log('delete', this.selectComponent)
+		},
+		getFormData(){
+			this.form.submit((values) => {
+        console.log(values)
+      }).catch(error => {
+        console.log(error)
+      })
+		},
+		getComponentPath(e){
+			let path = e.path || (e.composedPath && e.composedPath());
+			let vue = path.find(item => !!item.__vue__);
+			if(!vue){
+				return;
+			}
+			vue = vue.__vue__;
+			let arr = [], index = -1;
+			while(vue){
+				if(vue._isFormComponent){
+					if(index >= 0 && arr[index].schema == vue.schema){
+						arr[index] = vue;
+					}else{
+						arr.push(vue);
+						index++;
+					}
+				}
+				vue = vue.$parent;
+				if(vue == this){
+					break;
+				}
+			}
+			return arr;
+		}
+	}
+}
+</script>
+<style lang="less" scoped>
+.form-design{
+	height: 100%;
+	background-color: white;
+	border-radius: @border-radius-base;
+	overflow: hidden;
+
+	.from-display{
+		.guides{
+			position: absolute;
+			background-color: @primary-color;
+			transition: all .3s cubic-bezier(.06,.7,.23,1);
+		}
+		.component-toolbar{
+			position: absolute;
+			height: 22px;
+			margin-top: -22px;
+		}
+		/deep/ .component-hover{
+			outline: 1px dashed rgba(255, 145, 0, 1);
+			background-color: rgba(255, 145, 0, .025);
+		}
+		/deep/ .component-selected{
+			outline: 2px solid rgba(255, 145, 0, 1);
+		}
+		
+		/deep/ .drag-area{
+			min-height: 30px;
+			&.empty{
+				background: rgba(238, 238, 238, 0.3);
+				&::before{
+					content: '可拖入组件';
+					position: absolute;
+					top: 50%;
+					width: 100%;
+					text-align: center;
+					transform: translateY(-50%);
+					color: #ccc;
+				}
+			}
+		}
+	}
+	.components{
+		border-right: 1px solid @border-color-split;
+		padding: @padding-sm;
+		.title{
+			color: @text-color-secondary;
+		}
+		ul{
+			overflow: hidden;
+			margin: 10px 0;
+			li{
+				width: 50%;
+				float: left;
+				padding: 2px;
+
+				& > div{
+					height: 34px;
+					line-height: 32px;
+					background-color: @background-color-base;
+					border: 1px solid @background-color-base;
+					padding: 0 8px;
+					cursor: move;
+					&:hover{
+						border: 1px dashed @primary-color;
+						color: @primary-color;
+					}
+					.anticon{
+						margin-right: 5px;
+					}
+				}
+			}
+		}
+	}
+
+	.ant-form{
+		padding: 12px;
+	}
+
+	.cmpt-wrapper{
+		//outline: 1px dashed @border-color-base;
+		margin-bottom: 4px;
+		padding: 1px;
+		&:hover{
+			outline-color: @primary-color;
+		}
+	}
+	/deep/.cmpt-panel{
+		min-height: 81px + 8px;
+		outline: 1px dashed @accent-color;
+		padding-top: 4px;
+		.cmpt-wrapper{
+			//outline: 1px dashed @border-color-base;
+			margin-bottom: 4px;
+			padding: 1px;
+			&:hover{
+				outline-color: @primary-color;
+			}
+		}
+	}
+
+
+	.settings{
+		border-left: 1px solid @border-color-split;
+		overflow: auto;
+
+		.item-list{
+			.drag-handle{
+				font-size: 1.2em;
+				color: hsv(0, 0, 60%);
+				margin-right: 10px;
+				vertical-align: middle;
+				cursor: pointer;
+			}
+			.ant-input-number{
+				vertical-align: middle;
+			}
+			.delete{
+				font-size: 1.4em;
+				color: @primary-color;
+				margin-left: 8px;
+				vertical-align: middle;
+				&:hover{
+					color: lighten(@primary-color, 20%);
+				}
+			}
+		}
+	}
+}
+</style>

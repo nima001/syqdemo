@@ -1,0 +1,419 @@
+<template>
+  <div class="report-detail">
+    <div class="main">
+      <div class="main-top">
+        <a-button type="primary" v-if="!this.$route.query.id" @click="saveReport">保存</a-button>
+        <a-button type="primary" v-if="!this.$route.query.id" @click="onAdd">变更</a-button>
+        <a-button type="primary" @click="onExport">一键导出</a-button> 
+        <a-button type="primary" v-if="this.$route.query.id && isChecked" @click="onUpdate">检查更新</a-button> 
+      </div>
+      <div class="main-content">
+        <Content v-if="detailData" :content="detailData" ref="content" />
+      </div>
+    </div>
+    <!-- 变更 -->
+    <a-modal
+      title="变更"
+      ok-text="确定"
+      cancel-text="取消"
+      v-model="addvisible"
+      :width="800"
+      :destroyOnClose="true"
+      :bodyStyle="{height: '500px'}"
+      @ok="addOk"
+      @cancel="addCancel">
+      <add-report ref="AddReport" :spin="spinning"></add-report>
+    </a-modal>
+    <!-- 检查更新 增加新评估项 -->
+    <a-modal
+      title="检查更新"
+      ok-text="确定"
+      cancel-text="取消"
+      v-model="reportAddedVisible"
+      :width="800"
+      :destroyOnClose="true"
+      :bodyStyle="{height: '500px'}"
+      @ok="reportAddedOk"
+      @cancel="reportAddedVisible = false">
+      <add-report ref="UpdateReport" :spin="spinning"></add-report>
+    </a-modal>
+    <!-- 检查更新--评估项值改变 -->
+    <a-modal
+      title="检查更新"
+      ok-text="是"
+      cancel-text="否"
+      v-model="reportChangeVisible"
+      :width="500"
+      :destroyOnClose="true"
+      @ok="updateOk"
+      @cancel="updateCancel">
+        <div>
+          <p>{{allName}}</p>
+          <p>是否生成新报告？</p>
+        </div>
+    </a-modal>
+    <!-- 检查更新--评估项未改变 -->
+    <a-modal
+      title="检查更新"
+      ok-text="确定"
+      :cancel-text=null
+      v-model="reportNotchangeVisible"
+      :width="500"
+      :destroyOnClose="true"
+      @ok="reportNotchangeVisible = false"
+      >
+        <div>
+          <p>数据模块未更新。</p>
+        </div>
+    </a-modal>
+    <!-- 导出 -->
+    <a-modal
+      title="标题"
+      ok-text="确定"
+      cancel-text="取消"
+      v-model="titlevisible"
+      :width="500"
+      :destroyOnClose="true"
+      @ok="handleOk"
+      @cancel="titleCancel">
+      <div class="add-title">
+        <a-form class="title-form" :form="form">
+          <a-form-item
+            label="页面标题"
+            >
+            <a-input
+              v-decorator="[
+                'title',
+                { rules: [{ required: true, message: '请输入页面标题!' }]},
+              ]"
+            />
+          </a-form-item>
+        </a-form>
+      </div>
+    </a-modal>
+  </div>
+</template>
+<script>
+import { Button, Modal, Form, Input } from "ant-design-vue";
+import AddReport from '@/person-shaoxing/views/assessment/compileAssist/components/AddReport';
+import Content from "./components/Content";
+import { newestReport, addReport, listHistory, checkUpdate, updateReport } from "@/person-shaoxing/api/assessment";
+import {convertHtml2Pdf} from '@framework/api/file';
+import { showError } from "@/framework/utils/index";
+import { loadData, getAllName, getInputs } from './components/contentItems';
+
+export default {
+  components: {
+    AButton: Button,
+    AModal: Modal,
+    AForm: Form,
+    AFormItem: Form.Item,
+    AInput: Input,
+    AddReport,
+    Content
+  },
+  computed: {
+    assessData() {
+      return this.$store.getters.assessData
+    },
+    reportArgs() {
+      return this.$store.getters.reportArgs
+    }
+  },
+  data() {
+    return {
+      detailData: undefined,
+      spinning: false,
+      addvisible: false,
+      titlevisible: false,
+      reportChangeVisible: false,
+      reportNotchangeVisible: false,
+      reportAddedVisible: false,
+      title: '',
+      isChecked: false,
+      resData: undefined,
+      newDetail: undefined,
+      newItems: undefined,
+      allName: undefined,
+      changedArgs: undefined
+    }
+  },
+  beforeCreate() {
+    this.form = this.$form.createForm(this);
+  },
+  created() {
+    if(this.$route.query.id) {
+      //  历史详情
+      if (Number(this.$route.query.isHistory)) {//  query页面刷新改变参数数据类型
+        this.getData(2);
+      } else {//  查看最新
+        this.getData(1);
+      }
+    }else{//  新增
+      this.detailData = this.assessData.details;
+    }
+  },
+  methods: {
+    getData(type) {
+      newestReport(this.$route.query.id, type)
+      .then(({result}) => {
+        this.isChecked = result.status ? false : true;
+        this.detailData = JSON.parse(result.details);
+        this.resData = result;
+      })  
+      .catch(err => {
+        showError(err);
+      })
+    },
+    saveReport() {
+      let data = {};
+      data.details = JSON.stringify(this.detailData);
+      data.configid = this.assessData.configid;
+      data.orgname = this.assessData.name;
+      data.args = this.reportArgs;
+      data.inputs = this.assessData.inputs;
+      addReport(data)
+      .then(({result}) =>{
+        this.showCloseWindow();
+        return;
+      })
+      .catch(err => {
+        showError(err);
+      })
+    },
+    //  变更
+    onAdd() {
+      this.addvisible = true;
+    },
+    async addOk() {
+      this.spinning = true;
+      let value = await this.$refs.AddReport.getFormValue();
+      if(value) {
+        let data = await loadData(value.target, value.itemArr);
+        let inputs = await getInputs(value.itemArr);
+        if(data) {
+          let assessData = {
+            configid: value.content.join(','),
+            name: value.target.hasOwnProperty('org') ? value.target.org.name : value.target.orgname,
+            details: data.result,
+            inputs
+          }
+          this.detailData = assessData.details;
+          this.spinning= false;
+          this.addvisible = false;
+        }else{
+          this.spinning = false;
+        }
+      }else{
+        this.spinning = false;
+      }
+    },
+    addCancel() {
+      this.addvisible = false;
+    },
+    //  关闭弹框
+    showCloseWindow(){
+      let secondsToGo = 3;
+      const modal = Modal.info({
+        title: '提示', 
+        content: `提交成功，窗口将在 ${secondsToGo} 后自动关闭`,
+        okText: '关闭窗口',
+        keyboard: false,
+        onOk: () => {
+          this.$router.push('/person/assessment/compileassist');
+          return;
+        }
+      })
+      const interval = setInterval(() => {
+        secondsToGo -= 1;
+        modal.update({
+          content: `提交成功，窗口将在 ${secondsToGo} 后自动关闭`,
+        });
+      }, 1000);
+      setTimeout(() => {
+        clearInterval(interval);
+        modal.destroy();
+        this.$router.push('/person/assessment/compileassist');
+      }, secondsToGo * 1000);
+    },
+    //  导出
+    onExport() {
+      this.titlevisible = true;
+    },
+    titleCancel() {
+      this.titlevisible = false;
+    },
+    handleOk() {
+      this.form.validateFields((err, values) => {
+        if(err){
+          return;
+        } else {
+          this.title = values.title;
+          this.titlevisible = false;
+          this.exportPDF();
+        }
+      })
+    },
+    exportPDF() {
+      //  获取评估项
+      const item = this.$refs.content.getVal();
+      convertHtml2Pdf({
+        children: item,
+        margins: [96, 120, 96, 120],
+        title: this.title,
+        pagesize: 'A4',
+        rotate: false
+      })
+      .then(res => {
+      })
+      .catch(err => {
+        showError(err)
+      })
+    },
+    //  检查更新
+    onUpdate() {
+      let params = {}
+      params.historyid = this.resData.id
+      params.reportid = this.resData.reportid
+      params.type = 1
+      params.details = ''
+      checkUpdate(params)
+      .then(({result}) => {// 判断评估项有无改变
+        this.newItems = result.items
+        let args = JSON.parse(result.args)
+        let target = {}
+        this.newItems.forEach(item => {// 获取评估项的参数 
+          let keysArr = []
+          if (args[item]) {
+            keysArr = Object.keys(args[item])
+            keysArr.forEach(key => {
+              target[key] = args[item][key]
+            })
+          }
+        })
+        if(result.itemsChange) {//  true 弹出新增弹框 并填写数据
+          this.reportAddedVisible = true;
+          let configsList = this.resData.configs.split(',').map(Number);
+          this.$nextTick(() => {//  组件加载完成 再调方法
+            this.$refs.UpdateReport.content = configsList
+            this.$refs.UpdateReport.itemParams = target
+            this.$refs.UpdateReport.getItems()
+          })
+        } else {//  根据评估项 获取数据  对比
+          this.getItemData(target, this.newItems)
+        }
+      })
+      .catch(err => {
+        showError(err)
+      })  
+    },
+    async getItemData(target, items) {
+      let data = await loadData(target, items)
+      if (data) {
+        this.changedArgs = data.args;
+        let params = {}
+        params.type = 2
+        params.historyid = this.resData.id
+        params.reportid = this.resData.reportid
+        params.details = data.result
+        checkUpdate(params)
+        .then(({result}) => {
+          if (result.reportIsChange) {//  评估项改变  弹出弹框并展示改变的项  确定时更新页面
+            this.allName = getAllName(result.changeList)
+            this.newDetail = result.newDetails;
+            this.reportChangeVisible = true;
+          } else {
+            this.reportNotchangeVisible = true;
+          }
+        })
+        .catch(err => {
+          showError(err)
+        })
+      }
+    },
+    async reportAddedOk() {
+      let value = await this.$refs.UpdateReport.getFormValue();
+      if(value) {
+        let data = await loadData(value.target, value.itemArr);
+        if(data) {
+          this.reportAddedVisible = false;
+          this.changedArgs = data.args;
+          let params = {}
+          params.type = 2
+          params.historyid = this.resData.id
+          params.reportid = this.resData.reportid
+          params.details = data.result
+          checkUpdate(params)
+          .then(({result}) => {
+            if (result.reportIsChange) {//  评估项改变  弹出弹框并展示改变的项  确定时更新页面
+              this.allName = getAllName(result.changeList)
+              this.newDetail = result.newDetails;
+              this.reportChangeVisible = true;
+            } else {
+              this.reportNotchangeVisible = true;
+            }
+          })
+          .catch(err => {
+            showError(err)
+          })
+        }
+      }
+    },
+    updateOk() {
+      let params = {}
+      params.details = this.newDetail
+      params.args = this.changedArgs
+      params.id = this.resData.id
+      params.items = this.newItems.join(",")
+      params.inputs = getInputs(this.newItems)
+      updateReport(params)
+      .then(res => {
+        this.reportChangeVisible = false
+        newestReport(this.resData.reportid, 1)
+        .then(res => {
+          this.isChecked = res.result.status ? false : true;
+          this.detailData = JSON.parse(res.result.details);
+          this.resData = res.result;
+          this.$notification.success({
+            message: "提示",
+            description: "评估项更新成功!",
+            duration: 3
+          });
+        })
+      })
+      .catch(err => {
+        showError(err)
+      })
+    },
+    updateCancel() {
+      this.reportChangeVisible = false;
+    }
+  }
+}
+</script>
+<style lang="less" scoped>
+.report-detail{
+  padding: 10px;
+  height: 100%;
+  .main{
+    display: flex;
+    -webkit-box-orient: vertical;
+    -webkit-box-direction: normal;
+    -ms-flex-direction: column;
+    flex-direction: column;
+    overflow: hidden;
+    background: @white;
+    height: 100%;
+    .main-top{
+      padding: 18px @content-padding-h @content-padding-h;
+      button{
+        margin-right: 16px;
+      }
+    }
+    .main-content{
+      flex-shrink: 1;
+      overflow-y: auto;
+    }
+  }
+}
+</style>

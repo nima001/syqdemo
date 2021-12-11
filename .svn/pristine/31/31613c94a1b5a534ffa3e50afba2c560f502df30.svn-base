@@ -1,0 +1,93 @@
+<template>
+  <a-spin :spinning="loading" :id="spinid" class="line-chart">
+    <div :id="id">
+    </div>
+  </a-spin>
+</template>
+
+<script>
+import { Spin } from "ant-design-vue";
+import { registerShape } from '@antv/g2';
+import mixinChart from "@/zfw/utils/chart";
+export default {
+  mixins: [mixinChart],
+  props: {
+    loading: {
+      type: Boolean,
+      default: false
+    },
+    // 数据 => 必选
+    data: {
+      type: Array,
+      default: () => [
+      ]
+    },
+  },
+  components: { ASpin: Spin },
+  data() {
+    return {
+    };
+  },
+  watch: {},
+  computed: {
+    spinid() {
+      return Number(Math.random().toString().substr(3, 3) + Date.now()).toString(36)
+    }
+  },
+  created() {},
+  mounted() {},
+  methods: {
+    setChartConfig(data) {
+      // 可以通过调整这个数值控制分割空白处的间距，0-1 之间的数值
+      const sliceNumber = 0.01;
+
+      // 自定义 other 的图形，增加两条线
+      registerShape('interval', 'slice-shape', {
+        draw(cfg, container) {
+          const points = cfg.points;
+          let path = [];
+          path.push(['M', points[0].x, points[0].y]);
+          path.push(['L', points[1].x, points[1].y - sliceNumber]);
+          path.push(['L', points[2].x, points[2].y - sliceNumber]);
+          path.push(['L', points[3].x, points[3].y]);
+          path.push('Z');
+          path = this.parsePath(path);
+          return container.addShape('path', {
+            attrs: {
+              fill: cfg.color,
+              path,
+            },
+          });
+        },
+      });
+
+      // const chart = new Chart({
+      //   container: 'container',
+      //   autoFit: true,
+      //   height: 500,
+      // });
+
+      this.chart.data(data);
+      this.chart.coordinate('theta', {
+        radius: 0.75,
+        innerRadius: 0.6,
+      });
+      this.chart.tooltip({
+        showTitle: false,
+        showMarkers: false,
+      });
+      this.chart
+        .interval()
+        .adjust('stack')
+        .position('num')
+        .color('name')
+        .shape('slice-shape');
+
+      this.chart.render();
+    }
+  },
+};
+</script>
+<style lang="less" scoped>
+.line_cahrt{}
+</style>

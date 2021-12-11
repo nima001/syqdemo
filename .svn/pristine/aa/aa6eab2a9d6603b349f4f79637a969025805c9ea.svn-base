@@ -1,0 +1,74 @@
+<template>
+  <div style="background: #fff">
+    <button @click="onChange">数据改变</button>
+      <!-- style="height: 300px; width: 800px; margin: 0 auto;" -->
+    <circular-chart
+      :type="'pie'"
+      :axisName="{name:'年份', value:'GDP(亿美元)'}"
+    >
+    </circular-chart>
+    <circular-chart
+      :type="'ring'"
+      :axisName="{name:'年份', value:'GDP(亿美元)'}"
+    >
+    </circular-chart>
+
+    <line-chart
+      :loading="loading"
+      :data="data"
+      :isSmooth="false"
+      :axisName="{xname:'年份', value:'GDP(亿美元)', fieldname:'国家'}"
+      :tooltipConfig="{showCrosshairs: true, shared: true}"
+      >
+    </line-chart>
+  </div>
+</template>
+<script>
+import LineChart from './LineChart';
+import CircularChart from '@/person-shaoxing/views/monitor/components/CircularChart';
+import { dataqualityList } from "@/person-shaoxing/api/monitor";
+export default {
+  name: 'demo',
+  components: {
+    LineChart,
+    CircularChart
+  },
+  data() {
+    return{
+      loading: false,
+      district: '330602',
+      data: []
+    }
+  },
+  created() {
+    this.getData();
+  },
+  mounted() {
+  },
+  methods: {
+    getData() {
+      this.loading = true;
+      let district = JSON.stringify({
+        district: this.district
+      });
+      let params = {
+        orgquery: district,
+        querytype: 3
+      };
+      dataqualityList(params)
+      .then(({result}) => {
+        this.loading = false;
+        this.data = result;
+      })
+      .catch(err => {
+        this.loading = false;
+        showError(err);
+      })
+    },
+    onChange() {
+       this.district = '330604';
+       this.getData(); 
+    }
+  }
+}
+</script>
